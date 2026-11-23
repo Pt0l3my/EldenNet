@@ -373,4 +373,71 @@ class Sweep {
   std::atomic<std::uint64_t> passes_{0};
 };
 
+// The tree's reader (lodestar.hpp's TreeFound): from the root, a record a call, breadth first by each record's first
+// three words, each record read once. Everything it needs is allocated when it is made; a step allocates nothing.
+// The walk is the stepping thread's; found() is for another thread and reads the records only once the walk is done.
+class TreeRead {
+ public:
+  static constexpr std::size_t kMaxRecords = 32'768;
+  static constexpr std::uint32_t kRecord = 64;
+  static constexpr std::size_t kFields = kRecord / 4;
+  static constexpr std::uint32_t kBlock = 125;       // a block's bytes, by our notes' lead
+  static constexpr std::size_t kJoinsAFlip = 4;
+  static constexpr std::size_t kMaxJoins = 48;
+
+  // A flip to join the records with: seen around `mark`, `flip` bytes into the stretch that stood at `address` and
+  // is kept `target` bytes into the store.
+  struct Flip {
+    std::uint32_t mark = 0;
+    std::uint32_t target = 0;
+    std::uint32_t flip = 0;
+    std::uint32_t bit = 0;
+    std::uint64_t address = 0;
+  };
+
+  // The image's place, for telling its addresses from numbers; the way to the root.
+  TreeRead(std::uint64_t base, std::uint64_t size, std::uint32_t static_rva, std::uint32_t offset);
+  ~TreeRead();
+  TreeRead(const TreeRead&) = delete;
+  TreeRead& operator=(const TreeRead&) = delete;
+
+  // Follows the way to the root, or reads one record; answers whether the walk has ended.
+  bool step(const proto::GameThread& gt, GuardedReader& reader);
+  [[nodiscard]] bool done() const noexcept { return done_.load(std::memory_order_acquire); }
+
+  // Once the walk is done, and before found() is to count anything: tells which of the records' words past their
+  // links are addresses. A word that only looks like one (a key and a mode side by side do) is asked about with
+  // `live` (whether memory that may be read stands there; nothing is read); with none, a word counts as an address
+  // only within 64 MiB of the records' own. From the thread that calls found(); once.
+  void settle(const Watch::Live& live);
+  [[nodiscard]] bool settled() const noexcept { return settled_; }
+
+  [[nodiscard]] TreeFound found(std::span<const Flip> flips) const;
+
+ private:
+  struct Record {
+    std::uint64_t address = 0;
+    std::array<std::uint32_t, kFields> fields{};
+    std::uint8_t addresses = 0;  // by word: it looked like an address
+  };
+  [[nodiscard]] bool address_like(std::uint64_t word) const noexcept;
+  bool seen(std::uint64_t address) noexcept;  // puts it among the seen; answers whether it was there
+
+  std::uint64_t base_;
+  std::uint64_t size_;
+  std::uint32_t static_rva_;
+  std::uint32_t offset_;
+  bool rooted_ = false;
+  std::vector<Record> records_;          // kMaxRecords reserved; filled in the order read
+  std::vector<std::uint64_t> queue_;     // addresses to read; kMaxRecords * 3 + 1 reserved
+  std::size_t next_ = 0;                 // the queue's place
+  std::vector<std::uint64_t> table_;     // the seen addresses: open addressing, a power of two
+  std::atomic<std::uint32_t> count_{0};  // records, as found() may read them
+  std::atomic<std::uint32_t> off_shape_{0};
+  std::atomic<std::uint32_t> unreadable_{0};
+  std::atomic<bool> capped_{false};
+  std::atomic<bool> done_{false};
+  bool settled_ = false;
+};
+
 }  // namespace en::gal::lodestar

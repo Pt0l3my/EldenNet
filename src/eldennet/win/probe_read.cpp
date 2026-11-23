@@ -217,9 +217,11 @@ class Body final : public en::gal::TaskBody {
     auto* watch = watch_.load(std::memory_order_acquire);
     auto* sweep = sweep_.load(std::memory_order_acquire);
     if (sweep != nullptr && !sweep->due(frame.qpc_now_us)) sweep = nullptr;  // it rests between its passes
+    auto* tree = tree_.load(std::memory_order_acquire);
+    if (tree != nullptr && tree->done()) tree = nullptr;  // walked once
     const std::uint64_t active = (slots != nullptr ? 1u : 0u) + (members != nullptr ? 1u : 0u) +
                                  (rising != nullptr ? 1u : 0u) + (watch != nullptr ? 1u : 0u) +
-                                 (sweep != nullptr ? 1u : 0u);
+                                 (sweep != nullptr ? 1u : 0u) + (tree != nullptr ? 1u : 0u);
     if (active != 0) {
       const std::uint64_t part = kSearchShareUs / active;
       bool cut = false;
@@ -244,6 +246,7 @@ class Body final : public en::gal::TaskBody {
       if (members != nullptr) drive([&] { return members->step(gt, reader_, 1, frame.qpc_now_us); });
       if (rising != nullptr) drive([&] { return rising->step(gt, reader_, 1, frame.qpc_now_us); });
       if (sweep != nullptr) drive([&] { return sweep->step(gt, reader_, frame.qpc_now_us); });
+      if (tree != nullptr) drive([&] { return tree->step(gt, reader_); });
       search_steps_.fetch_add(1, std::memory_order_relaxed);
       if (cut) search_cut_.fetch_add(1, std::memory_order_relaxed);
     }
@@ -260,6 +263,7 @@ class Body final : public en::gal::TaskBody {
   void set_rising(en::gal::probe::RisingSearch* search) noexcept { rising_.store(search, std::memory_order_release); }
   void set_watch(lodestar::Watch* watch) noexcept { watch_.store(watch, std::memory_order_release); }
   void set_sweep(lodestar::Sweep* sweep) noexcept { sweep_.store(sweep, std::memory_order_release); }
+  void set_tree(lodestar::TreeRead* tree) noexcept { tree_.store(tree, std::memory_order_release); }
   [[nodiscard]] const en::gal::GuardedReader& reader() const noexcept { return reader_; }
   [[nodiscard]] const AskFirstCopier& asks() const noexcept { return quiet_.asks(); }
 
@@ -272,6 +276,7 @@ class Body final : public en::gal::TaskBody {
   std::atomic<en::gal::probe::RisingSearch*> rising_{nullptr};
   std::atomic<lodestar::Watch*> watch_{nullptr};
   std::atomic<lodestar::Sweep*> sweep_{nullptr};
+  std::atomic<lodestar::TreeRead*> tree_{nullptr};
   std::atomic<std::uint64_t> steps_{0};
   std::atomic<std::uint64_t> search_steps_{0};
   std::atomic<std::uint64_t> search_cut_{0};
@@ -661,6 +666,20 @@ class Round {
       }
       if (ready) {
         flag_hops2_ = true;
+        // The tree beside the flags (our notes' lead; the seventh round saw its records): the first of those
+        // objects whose first three words are all addresses of live memory is taken for its head, and walked once.
+        for (const lodestar::WatchObject& o : first) {
+          if (tree_ != nullptr || o.readings < 3) continue;
+          std::size_t links = 0;
+          for (const lodestar::WatchWord& word : o.words) {
+            if (word.offset <= 16 && word.kind == lodestar::WordKind::Heap) ++links;
+          }
+          if (links != 3) continue;
+          // Lives for the process.
+          tree_ = new lodestar::TreeRead(s_.sys->module_base(), image_->size_of_image, o.rva, o.offset);
+          body_->set_tree(tree_);
+          log(Line("read").word("stage", "tree").num("offset", o.offset));
+        }
         std::size_t deeper = 0;
         for (const lodestar::WatchObject& o : first) {
           std::size_t hops = 0;
@@ -842,6 +861,29 @@ class Round {
       }
     }
     if (sweep_ != nullptr) found_.sweep = sweep_->found();
+    if (tree_ != nullptr) {
+      if (tree_->done() && !tree_->settled()) {
+        // Which of the records' words are addresses: asked of Windows, here on T1, once; nothing is read.
+        en::gal::NativeSys* sys = s_.sys;
+        tree_->settle([sys](std::uint64_t at) {
+          return liveness(sys->region_at(at)) == en::gal::probe::Liveness::Live;
+        });
+        const lodestar::TreeFound walked = tree_->found({});
+        log(Line("read").word("stage", "tree_done").num("records", walked.records).num("off_shape", walked.off_shape)
+                .num("unreadable", walked.unreadable).flag("capped", walked.capped).num("order", walked.order));
+      }
+      // The flips to join with its records: those seen around the marks in the first-step stretches still read.
+      std::vector<lodestar::TreeRead::Flip> flips;
+      if (found_.sweep) {
+        for (const lodestar::SweepTarget& t : found_.sweep->targets) {
+          if (t.deeper || t.retired) continue;
+          for (const lodestar::MarkFlip& m : t.mark_flips) {
+            flips.push_back(lodestar::TreeRead::Flip{m.mark, t.offset, m.flip.offset, m.flip.bit, t.address});
+          }
+        }
+      }
+      found_.tree = tree_->found(flips);
+    }
     // A report the writer refuses (too large, most likely: a long round's watch) is written again smaller, a step
     // at a time: the watched object with the most words loses them (and says so), then the next, the flags' objects
     // last (theirs are what this round is after); with no words left, the sweep's flips go, the longest list
@@ -854,7 +896,7 @@ class Round {
                 .flag("too_large", text.error().problem.find("larger") != std::string::npos),
             LogLevel::Error);
       }
-      if (!found_.watch && !found_.sweep) break;
+      if (!found_.watch && !found_.sweep && !found_.tree) break;
       lodestar::WatchObject* most = nullptr;
       if (found_.watch) {
         const auto ahead = [&](const lodestar::WatchObject& a, const lodestar::WatchObject& b) {
@@ -894,8 +936,10 @@ class Round {
         longest->flips.clear();
       } else if (found_.watch) {
         found_.watch.reset();
-      } else {
+      } else if (found_.sweep) {
         found_.sweep.reset();
+      } else {
+        found_.tree.reset();
       }
       text = lodestar::write_report(found_);
     }
@@ -1006,6 +1050,7 @@ class Round {
   lodestar::Watch* watch_ = nullptr;
   bool play_time_way_ = false;
   lodestar::Sweep* sweep_ = nullptr;
+  lodestar::TreeRead* tree_ = nullptr;
   std::uint32_t marks_seen_ = 0;
   std::vector<std::uint64_t> marks_kept_;  // each mark's time, on this process's clock
   std::size_t marks_given_ = 0;            // of those, the ones the sweep has

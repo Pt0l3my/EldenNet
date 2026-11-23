@@ -812,7 +812,7 @@ bool complete(const Found& found) {
   return !a.pattern || a.only_shape == 0;
 }
 
-// ---- The report: schema 8, kind `lodestar`. No key takes a pattern, and there is no free string. ----
+// ---- The report: schema 9, kind `lodestar`. No key takes a pattern, and there is no free string. ----
 
 namespace {
 
@@ -828,6 +828,7 @@ constexpr std::array<std::string_view, 4> kDiffers = {"narrow", "other_register"
 constexpr std::array<std::string_view, 4> kHolds = {"nothing", "unread", "unclassed", "classed"};
 constexpr std::array<std::string_view, 6> kWordKinds = {"zero", "small", "vtable", "image", "heap", "other"};
 constexpr std::array<std::string_view, 3> kJumpAs = {"fraction", "whole", "hour"};
+constexpr std::array<std::string_view, 3> kTreeMatch = {"start", "index", "address"};
 constexpr std::array<std::string_view, 9> kRefusal = {"unreadable",    "static_section", "static_alignment",
                                                       "class_section", "getter_section", "getter_not_function",
                                                       "no_path",       "path_section",   "path_text"};
@@ -887,10 +888,14 @@ constexpr auto kKeys = std::to_array<Key>({
     U("quiet_pages"), U("single_flips"),
     U("other_changes"), AO("flip_events"), B("set"), AU("mark_seconds"), AO("mark_flips"), U("mark"),
     B("retired"),
+    // The tree beside the flags (in game)
+    O("tree"), U("records"), U("off_shape"), B("capped"), U("order"), AO("fields"), U("nonzero"), U("distinct"),
+    U("lowest"), U("highest"), U("multiples"), U("addresses"), B("ordered"), AO("joins"), U("target"), U("flip"),
+    W("match", kTreeMatch), U("field"), AU("values"),
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 8, kKeys};
+constexpr report::Vocabulary kVocabulary{"lodestar", 9, kKeys};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -1400,6 +1405,50 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
         w.number("second", e.second);
         w.end_object();
       }
+      w.end_array();
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
+
+  if (found.tree) {
+    const TreeFound& t = *found.tree;
+    w.begin_object("tree");
+    w.number("rva", t.rva);
+    w.number("offset", t.offset);
+    w.boolean("done", t.done);
+    w.boolean("capped", t.capped);
+    w.number("records", t.records);
+    w.number("off_shape", t.off_shape);
+    w.number("unreadable", t.unreadable);
+    w.number("order", t.order);
+    w.begin_array("fields");
+    for (const TreeField& f : t.fields) {
+      w.begin_object();
+      w.number("offset", f.offset);
+      w.number("nonzero", f.nonzero);
+      w.number("distinct", f.distinct);
+      w.number("lowest", f.lowest);
+      w.number("highest", f.highest);
+      w.number("multiples", f.multiples);
+      w.number("addresses", f.addresses);
+      w.boolean("ordered", f.rising);
+      w.end_object();
+    }
+    w.end_array();
+    w.begin_array("joins");
+    for (const TreeJoin& j : t.joins) {
+      w.begin_object();
+      w.number("mark", j.mark);
+      w.number("target", j.target);
+      w.number("flip", j.flip);
+      w.number("bit", j.bit);
+      const auto match = static_cast<std::size_t>(j.match);
+      w.word("match", kTreeMatch[match < kTreeMatch.size() ? match : 0]);
+      w.number("field", j.field);
+      w.begin_array("values");
+      for (const std::uint32_t v : j.values) w.number(v);
       w.end_array();
       w.end_object();
     }

@@ -152,8 +152,9 @@ probe build, or turned off), when it stops. With `--read` the launcher also show
 request, 2026-11-22; `tasks.hpp`, `win/panel.cpp`): a window of its own at the top right of the game's screen,
 always on top and never taking the keyboard, that lists the round's tasks in order, each with its timer, the done
 ones greyed. A waiting task ends when its time is up; a task of the tester's ends at the Pause key (the launcher's
-system hotkey) or a click on the panel's button; the round's own first task ends when EldenNet says to load the
-save. The confirmation of a marked task stamps a Mark into the watch block, which the round reads
+system hotkey) or a click on the panel's button, which speaks for the task it belongs to (each such task has its
+own word for it); the round's own first task ends when EldenNet says to load the save; the last task (quit the
+game) has no button and ends with the watch. The confirmation of a marked task stamps a Mark into the watch block, which the round reads
 (`--read-pace-s S`, for the tests: every wait lasts S seconds and the tester's tasks confirm themselves). Each task
 is also told on the console and logged (`task n=… of=… by=key|click|time|round mark=…`). (`--probe`, which asked for R1, the round with one
 call into the game, went with it: retired 2026-11-22, O106; it is an unknown option now, and its two words in the block

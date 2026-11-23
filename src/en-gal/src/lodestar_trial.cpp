@@ -1205,8 +1205,13 @@ SweepFound Sweep::found() const {
     std::stable_sort(flips.begin(), flips.end(),
                      [](const auto& a, const auto& b) { return a.second.second < b.second.second; });
     for (const auto& f : flips) x.flips.push_back(f.second);
-    // The flips around each mark, in words that stayed quiet.
-    const std::size_t marks = std::min<std::size_t>(mark_count_.load(std::memory_order_acquire), kMaxMarks);
+    // The flips around each mark, in words that stayed quiet. A target that was given up lists none: what flipped
+    // there is noise (the eighth round's report was filled with it).
+    x.retired = t.retired.load(std::memory_order_relaxed);
+    x.address = t.address;
+    if (x.retired) x.flips.clear();
+    const std::size_t marks =
+        x.retired ? 0 : std::min<std::size_t>(mark_count_.load(std::memory_order_acquire), kMaxMarks);
     for (std::size_t m = 0; m < marks; ++m) {
       const std::uint32_t kept = std::min<std::uint32_t>(t.marked_count[m].load(std::memory_order_acquire),
                                                          static_cast<std::uint32_t>(kMarkEvents));
@@ -1218,8 +1223,263 @@ SweepFound Sweep::found() const {
         ++listed;
       }
     }
-    x.retired = t.retired.load(std::memory_order_relaxed);
     out.targets.push_back(std::move(x));
+  }
+  return out;
+}
+
+// ---- The tree's reader ----
+
+TreeRead::TreeRead(std::uint64_t base, std::uint64_t size, std::uint32_t static_rva, std::uint32_t offset)
+    : base_(base), size_(size), static_rva_(static_rva), offset_(offset) {
+  records_.reserve(kMaxRecords);
+  queue_.reserve(kMaxRecords * 3 + 1);
+  table_.assign(std::size_t{1} << 18, 0);  // 262,144 places for at most 98,305 addresses
+}
+
+TreeRead::~TreeRead() = default;
+
+bool TreeRead::address_like(std::uint64_t word) const noexcept {
+  if (word < kLowestAddress || word > kAddressEnd || word % 8 != 0) return false;
+  return !(word >= base_ && word - base_ < size_);  // the image's own addresses are no records
+}
+
+bool TreeRead::seen(std::uint64_t address) noexcept {
+  const std::size_t mask = table_.size() - 1;
+  std::size_t at = static_cast<std::size_t>((address >> 3) * 0x9E3779B97F4A7C15ull >> 40) & mask;
+  for (std::size_t tries = 0; tries < table_.size(); ++tries) {
+    if (table_[at] == address) return true;
+    if (table_[at] == 0) {
+      table_[at] = address;
+      return false;
+    }
+    at = (at + 1) & mask;
+  }
+  return true;  // full: nothing more is taken
+}
+
+bool TreeRead::step(const proto::GameThread& gt, GuardedReader& reader) {
+  if (done_.load(std::memory_order_relaxed)) return true;
+  if (!rooted_) {
+    // The way: the static's slot, the offset, the address kept there.
+    const auto slot = reader.copy<std::uint64_t>(gt, proto::Group::Session, base_ + static_rva_);
+    if (!slot && reader.spent()) return false;
+    std::uint64_t root = 0;
+    if (slot && *slot != 0) {
+      const auto kept = reader.copy<std::uint64_t>(gt, proto::Group::Session, *slot + offset_);
+      if (!kept && reader.spent()) return false;
+      root = kept ? *kept : 0;
+    }
+    rooted_ = true;
+    if (!address_like(root)) {
+      done_.store(true, std::memory_order_release);
+      return true;
+    }
+    (void)seen(root);
+    queue_.push_back(root);
+    return false;
+  }
+  if (next_ >= queue_.size()) {
+    done_.store(true, std::memory_order_release);
+    return true;
+  }
+  const std::uint64_t at = queue_[next_];
+  std::array<std::byte, kRecord> bytes{};
+  if (!reader.copy_into(gt, proto::Group::Session, at, bytes, 8).has_value()) {
+    if (reader.spent()) return false;  // the same record again at the next step
+    ++next_;
+    unreadable_.fetch_add(1, std::memory_order_relaxed);
+    return false;
+  }
+  ++next_;
+  Record r;
+  r.address = at;
+  std::array<std::uint64_t, kRecord / 8> words{};
+  std::memcpy(words.data(), bytes.data(), kRecord);
+  std::memcpy(r.fields.data(), bytes.data(), kRecord);
+  // Its links' words now; the others' once the walk is done (settle()).
+  for (std::size_t w = 0; w < 3; ++w) {
+    if (address_like(words[w])) r.addresses = static_cast<std::uint8_t>(r.addresses | (1u << w));
+  }
+  // A record of the tree's shape: its first three words each an address or nothing, and one of them an address.
+  bool shaped = (r.addresses & 7u) != 0;
+  for (std::size_t w = 0; w < 3; ++w) shaped = shaped && (words[w] == 0 || address_like(words[w]));
+  if (!shaped) {
+    off_shape_.fetch_add(1, std::memory_order_relaxed);
+    return false;
+  }
+  if (records_.size() >= kMaxRecords) {
+    capped_.store(true, std::memory_order_relaxed);
+    done_.store(true, std::memory_order_release);
+    return true;
+  }
+  records_.push_back(r);
+  count_.store(static_cast<std::uint32_t>(records_.size()), std::memory_order_release);
+  for (std::size_t w = 0; w < 3; ++w) {
+    if (address_like(words[w]) && !seen(words[w])) queue_.push_back(words[w]);
+  }
+  return false;
+}
+
+void TreeRead::settle(const Watch::Live& live) {
+  if (settled_ || !done_.load(std::memory_order_acquire)) return;
+  settled_ = true;
+  // The records' own addresses say where this process keeps such things.
+  std::uint64_t lowest = ~std::uint64_t{0}, highest = 0;
+  for (const Record& r : records_) {
+    lowest = std::min(lowest, r.address);
+    highest = std::max(highest, r.address);
+  }
+  constexpr std::uint64_t kNear = std::uint64_t{64} << 20;
+  for (Record& r : records_) {
+    for (std::size_t w = 3; w < kRecord / 8; ++w) {
+      std::uint64_t v = 0;
+      std::memcpy(&v, r.fields.data() + w * 2, 8);
+      if (!address_like(v)) continue;
+      const bool near = v + kNear >= lowest && v <= highest + kNear;
+      if (near || (live && live(v))) r.addresses = static_cast<std::uint8_t>(r.addresses | (1u << w));
+    }
+  }
+}
+
+TreeFound TreeRead::found(std::span<const Flip> flips) const {
+  TreeFound out;
+  out.rva = static_rva_;
+  out.offset = offset_;
+  out.done = done_.load(std::memory_order_acquire);
+  out.capped = capped_.load(std::memory_order_relaxed);
+  out.records = count_.load(std::memory_order_acquire);
+  out.off_shape = off_shape_.load(std::memory_order_relaxed);
+  out.unreadable = unreadable_.load(std::memory_order_relaxed);
+  if (!out.done || !settled_) return out;  // the records are the walker's until then, and uncounted until settled
+  const std::size_t n = records_.size();
+  // Field by field: what it held over the records.
+  std::vector<std::uint32_t> held;
+  held.reserve(n);
+  for (std::size_t f = 0; f < kFields; ++f) {
+    TreeField x;
+    x.offset = static_cast<std::uint32_t>(f * 4);
+    held.clear();
+    for (const Record& r : records_) {
+      if ((r.addresses >> (f / 2)) & 1u) {
+        ++x.addresses;
+        continue;
+      }
+      const std::uint32_t v = r.fields[f];
+      if (v == 0) continue;
+      ++x.nonzero;
+      if (v % kBlock == 0) ++x.multiples;
+      held.push_back(v);
+    }
+    if (!held.empty()) {
+      std::sort(held.begin(), held.end());
+      x.lowest = held.front();
+      x.highest = held.back();
+      const auto different = static_cast<std::size_t>(std::unique(held.begin(), held.end()) - held.begin());
+      x.distinct = static_cast<std::uint32_t>(std::min<std::size_t>(different, 0xFFFF));
+    }
+    out.fields.push_back(x);
+  }
+  // The order: in a tree ordered by a key, a record's left child keeps a smaller key and its right child a greater
+  // one. Both ways are tried (first word left and third right, and the reverse), record by record with each of its
+  // two children; a record that keeps nothing in the field (the head) is passed over. A field that varies and holds
+  // in nearly every pair (two may fail: the head's own links) is the key, and names the order.
+  if (n >= 3) {
+    std::vector<std::uint32_t> index(table_.size(), 0);  // by the seen table's place: the record's number + 1
+    const std::size_t mask = table_.size() - 1;
+    const auto record_at = [&](std::uint64_t address) -> std::size_t {
+      std::size_t at = static_cast<std::size_t>((address >> 3) * 0x9E3779B97F4A7C15ull >> 40) & mask;
+      for (std::size_t tries = 0; tries < table_.size(); ++tries) {
+        if (table_[at] == address) return index[at] != 0 ? index[at] - 1 : n;
+        if (table_[at] == 0) break;
+        at = (at + 1) & mask;
+      }
+      return n;
+    };
+    for (std::size_t i = 0; i < n; ++i) {
+      std::size_t at = static_cast<std::size_t>((records_[i].address >> 3) * 0x9E3779B97F4A7C15ull >> 40) & mask;
+      for (std::size_t tries = 0; tries < table_.size(); ++tries) {
+        if (table_[at] == records_[i].address) {
+          index[at] = static_cast<std::uint32_t>(i + 1);
+          break;
+        }
+        if (table_[at] == 0) break;
+        at = (at + 1) & mask;
+      }
+    }
+    // Each record's two children, by number (n: none).
+    std::vector<std::array<std::uint32_t, 2>> children(n);
+    for (std::size_t i = 0; i < n; ++i) {
+      for (std::size_t side = 0; side < 2; ++side) {
+        std::uint64_t link = 0;
+        std::memcpy(&link, records_[i].fields.data() + (side == 0 ? 0 : 4), 8);
+        const std::size_t child = record_at(link);
+        children[i][side] = static_cast<std::uint32_t>(child != i ? child : n);
+      }
+    }
+    for (std::uint32_t order = 1; order <= 2 && out.order == 0; ++order) {
+      for (std::size_t f = 6; f < kFields; ++f) {  // past the three links
+        TreeField& x = out.fields[f];
+        if (x.distinct < 3 || x.addresses != 0) continue;
+        std::uint64_t held = 0, failed = 0;
+        for (std::size_t i = 0; i < n; ++i) {
+          const std::uint32_t mine = records_[i].fields[f];
+          if (mine == 0) continue;
+          for (std::size_t side = 0; side < 2; ++side) {
+            const std::uint32_t child = children[i][side];
+            if (child >= n || records_[child].fields[f] == 0) continue;
+            const std::uint32_t theirs = records_[child].fields[f];
+            const bool smaller_side = (side == 0) == (order == 1);  // the first word is the left one in order 1
+            (smaller_side ? theirs < mine : theirs > mine) ? ++held : ++failed;
+          }
+        }
+        if (held >= 3 && failed <= 2 && failed * 10 <= held) {
+          x.rising = true;
+          out.order = order;
+        }
+      }
+    }
+  }
+  // The joins: for each flip, the records that name its block, by the block's start, its index or its address.
+  for (const Flip& flip : flips) {
+    if (out.joins.size() >= kMaxJoins) break;
+    const std::uint32_t start = flip.flip - flip.flip % kBlock;
+    const std::uint32_t index = flip.flip / kBlock;
+    const std::uint64_t address = flip.address != 0 ? flip.address + start : 0;
+    // By the block's start or its address first; by its index only where neither names it (a small index is met
+    // by chance in a field that counts something else).
+    std::size_t listed = 0;
+    for (int by_index = 0; by_index < 2 && listed == 0; ++by_index) {
+      for (const Record& r : records_) {
+        if (listed >= kJoinsAFlip || out.joins.size() >= kMaxJoins) break;
+        std::optional<std::pair<TreeMatch, std::uint32_t>> hit;
+        for (std::size_t f = 6; f < kFields && !hit; ++f) {
+          if ((r.addresses >> (f / 2)) & 1u) continue;
+          const std::uint32_t v = r.fields[f];
+          if (v == 0) continue;
+          if (by_index == 0 && v == start) hit = std::make_pair(TreeMatch::Start, static_cast<std::uint32_t>(f * 4));
+          if (by_index == 1 && v == index) hit = std::make_pair(TreeMatch::Index, static_cast<std::uint32_t>(f * 4));
+        }
+        for (std::size_t w = 3; w < kRecord / 8 && !hit && address != 0 && by_index == 0; ++w) {
+          std::uint64_t v = 0;
+          std::memcpy(&v, r.fields.data() + w * 2, 8);
+          if (v == address) hit = std::make_pair(TreeMatch::Address, static_cast<std::uint32_t>(w * 8));
+        }
+        if (!hit) continue;
+        TreeJoin j;
+        j.mark = flip.mark;
+        j.target = flip.target;
+        j.flip = flip.flip;
+        j.bit = flip.bit;
+        j.match = hit->first;
+        j.field = hit->second;
+        for (std::size_t f = 0; f < kFields; ++f) {
+          j.values.push_back(((r.addresses >> (f / 2)) & 1u) != 0 ? 0 : r.fields[f]);
+        }
+        out.joins.push_back(std::move(j));
+        ++listed;
+      }
+    }
   }
   return out;
 }

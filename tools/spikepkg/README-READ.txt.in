@@ -8,21 +8,20 @@ so on), without knowing which is which. This round starts the game with EldenNet
 the game as it runs, which of those places holds which of the eleven managers EldenNet needs. Then it tries, for a few
 minutes, the way EldenNet v1 will read the game: from a thread of its own, about ten times a second.
 
-This is the eighth such round. The seventh (22 November) found the time of day: the hour and the minute are kept in
-one number of the object behind one of the known places, and the two times you let time pass showed as the hour going
-to 12 and to 20. It also found where the game's event flags most likely lie. What it could not say is which flag
-belongs to what you did: its list of changed bits was full after half a minute.
+This is the ninth such round. The eighth (22 November) had the panel you asked for, and it worked: your two
+confirmations reached the round, and around each of them single bits were set in the memory where the event flags
+lie, at the same two places both times, ten bytes apart from the first time to the second. The round also wrote the
+clock's place into its table by itself. What it could not say is which flag each bit is: the game keeps a small tree
+beside the flags that says which group of flags each block belongs to, and the eighth round did not read it.
 
-So this round has what you asked for: a panel beside the game that lists the tasks in order, each with its timer, the
-done ones greyed. You confirm a task of yours with the Pause key, or with a click on the panel's button. Each such
-confirmation also tells the round when to look: it keeps the bits that changed around that moment.
+This round reads that tree once (a few thousand small records, 64 bytes each, one at a time at the round's careful
+pace), and looks up in it the blocks your confirmations' bits lie in. Everything else is as in the eighth round: the
+same panel, the same eight tasks, about eight minutes in the world.
 
-The round also writes the clock's place into its table, by what the object holds (minutes that go round with hours
-beside them); you do not need to let time pass this time.
+The panel's button now speaks for the task it belongs to, as you asked, and the last task (quit the game) has none.
 
-Three faults of the seventh round are mended: the list of changed bits is now kept by your confirmations; the play
-time's place, which the round left out because another number rose nearly as often, is judged by what a play time
-does; and the many false "hours" it listed are gone.
+One fault of the eighth round is mended: its report reached its size limit again, because stretches of memory the
+round had given up still listed what flipped in them.
 
 It has no wide search of the game's memory. As in the seventh round, and within what you agreed to then, it reads
 memory near the event flags' own object: up to 2 MiB from each of at most eight addresses that object keeps and up
@@ -108,7 +107,8 @@ The steps
      8. Quit the game
 
    A waiting task counts down and ends by itself. A task of yours waits until you press Pause (anywhere, while the
-   game has the keyboard) or click the panel's button. The task under way is highlighted; done tasks are grey, with
+   game has the keyboard) or click the panel's button, which says what it stands for. The last task has no button:
+   quitting the game ends it. The task under way is highlighted; done tasks are grey, with
    the time they took. If you press Pause too early, nothing is lost: the task simply counts as done at that moment.
 
    Please tell us with the files what tasks 4 and 6 were ("4: opened a chest; 6: bought an arrow" is all we need).
@@ -207,6 +207,12 @@ What it does
     looks at its clock after every one: together they take 4 thousandths of a second of each step of EldenNet's own
     thread, give or take one read; the game's own threads are never used. What they find is written as counts and
     places, never as what the memory held.
+  - From the same thread, once, the tree: from the address the event flags' own object keeps where the seventh round
+    saw records of three addresses each, it reads one record of 64 bytes, then the records that one points at, and
+    so on, each once, 32,768 at most. For each of a record's sixteen numbers it counts over all records how many
+    different values it takes and how many are multiples of a block's size. Then, for each bit that changed around
+    one of your confirmations, it looks for the record that names that bit's block, and writes that record's
+    numbers (the group's number among them; an address is written as 0). Nothing else of the records is written.
   - Every two seconds it writes lodestar-found.json into %APPDATA%\EldenNet\probe, and lodestar-table.toml when
     another manager is named. If the report ever grows past its limit, it is written without the detail of the
     watched object that has the most, then of the next, and says which were left out. They hold only numbers
