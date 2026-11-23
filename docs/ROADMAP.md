@@ -1206,6 +1206,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     0x138, maximum 0x13C); position candidates. game_state enters the table in the sixteenth round, by the game's own
     type information. Open: the game's exit code at the quit (0xC0000374 without GraceUI in the process); a control
     run with nothing injected and two short runs asked of the owner to tell the PC from the code.
+    The sixteenth round built the same day (engine 920e745, merged at eb1d1c4; package 0.1.0-lodestar.20; WHY§563,
+    §564): game_state by the class the leads give, on the pair search's hits; the layout's list judged first; the
+    falls and moves ranked. The quit's code is the game's on that PC (WHY§556, §557, §561), and came with a
+    third-party overlay tool running (WHY§562). Awaiting the owner's run.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates

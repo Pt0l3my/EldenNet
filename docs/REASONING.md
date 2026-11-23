@@ -585,6 +585,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 560 | 2026-11-23 | A rule with a time in it needs a test that waits past that time | METHOD | #graceui #tests |
 | 561 | 2026-11-23 | A normal launch from Steam, with anti-cheat and nothing of ours, ends at the quit with the same heap fault | FACT | #crash #engine #graceui #lodestar |
 | 562 | 2026-11-23 | With the owner's on-screen-display tool exited, two quits ended clean after twelve of twelve had faulted | LIKELY | #crash #engine |
+| 563 | 2026-11-23 | An object no accessor reaches is named by a search for what its field must read and the class the leads give, checked on each hit | METHOD | #lodestar #l6 #gal |
+| 564 | 2026-11-23 | A search with a fixed number of candidates tries the place the layout gives first, and a run's own elements last | METHOD | #lodestar |
 
 ## Entries
 
@@ -8506,3 +8508,22 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   to 22 November quit clean, so that tool alone does not make the fault: it is its hook, in some state or setting,
   beside the game's teardown (WHY§558). Next: one run with the tool back on; if it faults again, the cause is named
   and the fix is the tool's own per-game setting, nothing of ours.
+
+### 563. An object no accessor reaches is named by a search for what its field must read and the class the leads give, checked on each hit
+
+`2026-11-23` · METHOD · `#lodestar` `#l6` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the sixteenth round"), WHY§460, WHY§551
+
+- Two things together name it: a search that finds its field by what the field must read (the save's slot: 6, then
+  2, as the owner's save file said), and the class the leads' [statics] give for it (`game_state = { rtti =
+  "GameMan" }`, the design's own name, ARCH §6.1), checked on each hit's object against the image's type
+  information as loaded. The name is the class's innermost name, compared and kept nowhere; no number or name from
+  the executable enters the round, which is stricter than being given the static as a number. The sixteenth round
+  (package 0.1.0-lodestar.20) does it on the pair search's hits, 64 guarded reads at most.
+
+### 564. A search with a fixed number of candidates tries the place the layout gives first, and a run's own elements last
+
+`2026-11-23` · METHOD · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the sixteenth round")
+
+- In the fifteenth round, runs of rising addresses took all 64 candidates before the lists' places were reached. The
+  sixteenth judges first the run at the place the build's layout gives (characters.by_distance), lists it as
+  expected, and tries last the words inside a run of four or more rising addresses.
