@@ -272,6 +272,10 @@ bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
     else if (n == L"--clock-rate") ok = p.number(o.clock_rate);
     else if (n == L"--slot-by-state") o.slot_by_state = true;
     else if (n == L"--first-slot") ok = p.number(o.first_slot);
+    else if (n == L"--walk-from-s") ok = p.number(o.walk_from_s);
+    else if (n == L"--walk-to-s") ok = p.number(o.walk_to_s);
+    else if (n == L"--hit-at-s") ok = p.number(o.hit_at_s);
+    else if (n == L"--heal-at-s") ok = p.number(o.heal_at_s);
     else if (n == L"--retitle-at-s") ok = p.number(o.retitle_at_s);
     else if (n == L"--retitle-for-s") ok = p.number(o.retitle_for_s);
     else if (n == L"--day-book") o.day_book = true;
@@ -475,6 +479,7 @@ void print_usage() {
   static const char* const kUsage[] = {
       "usage: fakegame [options]   (README.md describes each)",
       "  --frames N  --forever  --fps N  --no-window  --boot-delay-ms N  --statics-delay-ms N  --field-mirror  --pass-time  --flag-set  --clock-rate N  --day-book  --slot-by-state  --first-slot N  --retitle-at-s N  --retitle-for-s N",
+      "  --walk-from-s N  --walk-to-s N  --hit-at-s N  --heal-at-s N",
       "  --title-frames N  --load-frames N  --stay-title  --reload-every N  --actors N  --online  --online-at F",
       "  --hitch-every N  --hitch-ms M  --stall-at F  --stall-ms M  --move-every N  --move-mode poison|free|keep",
       "  --shift-groups N  --register normal|fault|ignore",

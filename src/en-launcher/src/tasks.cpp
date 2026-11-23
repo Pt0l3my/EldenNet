@@ -43,7 +43,7 @@ TaskList::Change TaskList::tick(std::uint64_t now_ms) noexcept {
   if (t.kind == TaskKind::Round || t.kind == TaskKind::End || wait == 0) return {};
   if (t.kind == TaskKind::Do && pace_s_ == 0) return {};  // a Do task waits for the tester's key
   if (now_ms - began_ms_ < std::uint64_t{wait} * 1000) return {};
-  return next(now_ms, t.kind == TaskKind::Do && t.mark);
+  return next(now_ms, t.mark);  // a marked wait stamps its Mark when its time is up: the round's next phase begins
 }
 
 TaskList::Change TaskList::confirm(std::uint64_t now_ms) noexcept {
@@ -110,34 +110,42 @@ std::string timer_text(const TaskRow& row) {
 }
 
 std::vector<Task> read_tasks() {
-  // The thirteenth read-only round: the game is taken through two of its states twice (the title, the world, the
-  // title, the world), and each change is marked, so that the round can tell what the game keeps differently in
-  // them. The first load is the first character of the tester's list and the second the usual one (the owner
-  // agreed, 2026-11-23): the save's slot then reads two numbers, which tells it from everything that reads one. In
-  // the world the round also looks for where the game keeps the player and the characters near them, so the waits
-  // there are longer.
+  // The fourteenth read-only round. First the save's slot, by the two numbers it must read: the last character of
+  // the tester's list is loaded, then the usual one (the owner agreed, 2026-11-23, and the owner's save file gave
+  // their slots). Then, with the usual character, the parts watch's phases: standing, walking, standing, one hit,
+  // one heal. The waits of those phases are marked, so that the round knows when each ends; the hit and the heal
+  // are the tester's to confirm.
   using K = TaskKind;
   return {
       {K::Round, "Wait at the title screen",
        "EldenNet is reading the game. Do not load a save yet: this row turns grey when it is time.", 0, false, ""},
       {K::Wait, "Stay at the title screen", "EldenNet takes its first look at the title. Do not load a save yet.",
-       60, false, ""},
-      {K::Do, "Load the first character in your list",
-       "Choose Load Game, not Continue, and take the character at the top of the list. When you stand in the "
+       30, false, ""},
+      {K::Do, "Load the last character in your list",
+       "Choose Load Game, not Continue, and take the character at the bottom of the list. When you stand in the "
        "world, press Pause.",
        0, true, "I am in the world"},
-      {K::Wait, "Walk about",
-       "Anything will do; near other characters is best. Stay in the world until the time is up.", 90, false, ""},
+      {K::Wait, "Stay in the world", "Anything will do. Stay in the world until the time is up.", 45, false, ""},
       {K::Do, "Quit to the title screen",
        "Use the game's own menu to quit to the title screen, not out of the game. When the title screen shows, "
        "press Pause.",
        0, true, "The title screen shows"},
-      {K::Wait, "Stay at the title screen", "Do not load a save until the time is up.", 60, false, ""},
+      {K::Wait, "Stay at the title screen", "Do not load a save until the time is up.", 20, false, ""},
       {K::Do, "Load your usual character",
-       "Choose Load Game and take the character you test with. When you stand in the world, press Pause.", 0, true,
-       "I am in the world again"},
-      {K::Wait, "Walk about",
-       "Anything will do; near other characters is best. Stay in the world until the time is up.", 90, false, ""},
+       "Choose Load Game and take the character you test with. When you stand in the world, press Pause, and "
+       "then let go of the controls.",
+       0, true, "I am in the world again"},
+      {K::Wait, "Stand still", "Hands off the controls until the time is up: do not move, turn or open a menu.", 90,
+       true, ""},
+      {K::Wait, "Walk about", "Keep walking until the time is up, on foot: no riding, no fighting.", 30, true, ""},
+      {K::Wait, "Stand still again", "Hands off the controls until the time is up.", 20, true, ""},
+      {K::Do, "Take one hit",
+       "Let an enemy hit you once, or take a small fall. When you have lost some health, press Pause. Do not heal "
+       "yet.",
+       0, true, "I have been hit"},
+      {K::Do, "Heal", "Drink a flask, or heal another way. When your health is back up, press Pause.", 0, true,
+       "I have healed"},
+      {K::Wait, "Stand still", "A few seconds more, hands off the controls.", 10, false, ""},
       {K::End, "Quit the game", "The round is done: there is nothing more to press. Quit as you usually do.", 0, false,
        ""},
   };

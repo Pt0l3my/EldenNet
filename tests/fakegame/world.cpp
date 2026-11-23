@@ -172,6 +172,10 @@ FG::ActorParts* make_parts(std::int32_t max_hp, std::int32_t hp) {
   parts->motion->pos[3] = 1.0f;
   parts->react->recv_dmg_type = 0;
   parts->grip->throw_state = 0;
+  void* const more[11] = {fg_static_taskloom, fg_static_roster, fg_static_lobby, fg_static_marks,
+                          fg_static_gauges,   fg_static_menu,   fg_static_veil,  fg_static_sky,
+                          fg_static_eye,      fg_static_tables, fg_static_phrases};
+  for (std::size_t i = 0; i < 11; ++i) parts->more[i] = more[i];
   return parts;
 }
 
@@ -662,6 +666,12 @@ void FG::ClockTask::run(const FrameInfo* frame) {
       if (before < 26.0f && w.world_s >= 26.0f) w.clock_s += 3.0f * 3600.0f;
     }
     if (fakegame::options().flag_set && before < 30.0f && w.world_s >= 30.0f) fakegame::set_late_flag();
+    // --hit-at-s, --heal-at-s: the player loses 200 of its health, and has it back.
+    const auto crossed = [&](std::uint32_t at) {
+      return at != 0 && before < static_cast<float>(at) && w.world_s >= static_cast<float>(at);
+    };
+    if (w.player != nullptr && crossed(fakegame::options().hit_at_s)) w.player->a.parts->vitals->hp -= 200;
+    if (w.player != nullptr && crossed(fakegame::options().heal_at_s)) w.player->a.parts->vitals->hp += 200;
   }
   if (auto* sky = static_cast<SkyClockImp*>(fg_get_sky())) {
     const auto total = static_cast<std::uint64_t>(w.clock_s) + 9 * 3600;
@@ -678,7 +688,11 @@ void FG::ClockTask::run(const FrameInfo* frame) {
 void FG::MotionTask::run(const FrameInfo* frame) {
   auto& w = fakegame::state();
   if (w.phase != Phase::World || w.player == nullptr) return;
-  w.player_angle += 0.05f * frame->dt;
+  // --walk-from-s, --walk-to-s: the player moves only between those seconds of the world.
+  const fakegame::Options& o = fakegame::options();
+  const bool walks = (o.walk_from_s == 0 && o.walk_to_s == 0) ||
+                     (w.world_s >= static_cast<float>(o.walk_from_s) && w.world_s < static_cast<float>(o.walk_to_s));
+  if (walks) w.player_angle += 0.05f * frame->dt;
   float* pp = w.player->a.parts->motion->pos;
   pp[0] = 100.0f + 20.0f * std::cos(w.player_angle);
   pp[1] = 12.0f;

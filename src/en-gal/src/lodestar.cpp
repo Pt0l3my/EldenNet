@@ -812,7 +812,7 @@ bool complete(const Found& found) {
   return !a.pattern || a.only_shape == 0;
 }
 
-// ---- The report: schema 14, kind `lodestar`. No key takes a pattern, and there is no free string. ----
+// ---- The report: schema 15, kind `lodestar`. No key takes a pattern, and there is no free string. ----
 
 namespace {
 
@@ -905,11 +905,19 @@ constexpr auto kKeys = std::to_array<Key>({
     O("chars"), U("manager_bytes"), U("pointer_words"), U("targets_read"), B("targets_cut"), U("characters"),
     U("players"), AO("char_pointers"), B("player"), AO("lists"), B("three"), U("chr_at"), U("elements"),
     B("has_player"), B("has_distance"), U("distance_at"), AO("sets"), U("player_bytes"), U("members_total"),
-    AO("player_members"), U("save_bytes"), U("save_members_total"), AO("save_members"),
+    AO("player_members"), U("save_bytes"), U("save_members_total"), AO("save_members"), B("has_fraction"),
+    U("fraction_at"),
+    // The pair search (in game)
+    O("pair"), U("first"), U("objects_first"), U("objects_second"), U("words_first"), U("bytes_first"),
+    U("word_hits"), U("byte_hits"), AO("pair_hits"),
+    // The parts watch (in game)
+    O("parts"), U("player_word"), U("holder_at"), U("absent"), U("restarts"), U("phase"), AU("phase_passes"),
+    AO("part_list"), U("part"), B("fraction"), AU("changed"), U("moves_total"), AO("moves"), U("falls_total"),
+    AO("falls"), U("fell"), B("has_max"), U("max_at"),
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 14, kKeys};
+constexpr report::Vocabulary kVocabulary{"lodestar", 15, kKeys};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -1605,6 +1613,8 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
         w.boolean("has_player", c.has_player);
         w.boolean("has_distance", c.has_distance);
         w.number("distance_at", c.distance_at);
+        w.boolean("has_fraction", c.has_fraction);
+        w.number("fraction_at", c.fraction_at);
         w.end_object();
       }
       w.end_array();
@@ -1623,6 +1633,93 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.number("save_bytes", l.save_bytes);
       w.number("save_members_total", l.save_members_total);
       members("save_members", l.save_members);
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
+
+  if (found.pair) {
+    const PairFound& f = *found.pair;
+    w.begin_object("pair");
+    w.number("first", f.first);
+    w.number("second", f.second);
+    w.number("candidates", f.candidates);
+    w.number("asked", f.asked);
+    w.number("passes", f.passes);
+    w.boolean("overrun", f.overrun);
+    w.begin_array("looks");
+    for (const StateLook& l : f.looks) {
+      w.begin_object();
+      w.number("took_ms", l.took_ms);
+      w.boolean("through", l.through);
+      w.boolean("overrun", l.overrun);
+      w.end_object();
+    }
+    w.end_array();
+    w.number("objects_first", f.objects_first);
+    w.number("objects_second", f.objects_second);
+    w.number("words_first", f.words_first);
+    w.number("bytes_first", f.bytes_first);
+    w.number("word_hits", f.word_hits);
+    w.number("byte_hits", f.byte_hits);
+    w.begin_array("pair_hits");
+    for (const PairHit& h : f.hits) {
+      w.begin_object();
+      w.number("rva", h.rva);
+      w.number("offset", h.offset);
+      w.number("width", h.width);
+      w.number("sites", h.sites);
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
+
+  if (found.parts) {
+    const PartsFound& f = *found.parts;
+    w.begin_object("parts");
+    w.number("player_word", f.player_word);
+    w.number("holder_at", f.holder_at);
+    w.number("passes", f.passes);
+    w.number("absent", f.absent);
+    w.number("restarts", f.restarts);
+    w.number("phase", f.phase);
+    w.begin_array("phase_passes");
+    for (const std::uint32_t v : f.phase_passes) w.number(v);
+    w.end_array();
+    w.begin_array("part_list");
+    for (const PartFound& p : f.parts) {
+      w.begin_object();
+      w.number("index", p.index);
+      w.number("vtable", p.vtable);
+      w.number("bytes", p.bytes);
+      w.end_object();
+    }
+    w.end_array();
+    w.number("moves_total", f.moves_total);
+    w.begin_array("moves");
+    for (const PartMove& m : f.moves) {
+      w.begin_object();
+      w.number("part", m.part);
+      w.number("offset", m.offset);
+      w.boolean("fraction", m.fraction);
+      w.begin_array("changed");
+      for (const std::uint32_t v : m.changed) w.number(v);
+      w.end_array();
+      w.end_object();
+    }
+    w.end_array();
+    w.number("falls_total", f.falls_total);
+    w.begin_array("falls");
+    for (const PartFall& p : f.falls) {
+      w.begin_object();
+      w.number("part", p.part);
+      w.number("offset", p.offset);
+      w.number("fell", p.fell);
+      w.number("rose", p.rose);
+      w.boolean("has_max", p.has_max);
+      w.number("max_at", p.max_at);
       w.end_object();
     }
     w.end_array();
