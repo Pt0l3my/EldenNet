@@ -2462,6 +2462,166 @@ TEST_CASE("in game: the parts watch tells a position by its moving while the tes
   CHECK(text->find("1100") == std::string::npos);  // what a number held is never written
 }
 
+TEST_CASE("in game: the round's searches at the game's sizes keep within their buffers (a large manager, full parts)") {
+  // What the unit cases above do not reach: a manager of 256 KiB full of addresses (some of nothing, some of runs,
+  // many of characters), a holder with all 32 parts of 4 KiB each changing all over, and thousands of slots for the
+  // pair search. The numbers are invented; the point is that every limit is met and nothing is written past its
+  // buffer (the sanitiser build runs this case too).
+  FakeWorld w;
+  w.world();
+  const auto rva = [&](std::uint64_t at) { return static_cast<std::uint32_t>(at - w.base); };
+  std::uint32_t seed = 12345;
+  const auto rnd = [&] {
+    seed = seed * 1664525u + 1013904223u;
+    return seed >> 8;
+  };
+  // A pool of objects: characters, players, plain blocks, runs of elements.
+  std::vector<std::uint64_t> chars, players, plain;
+  for (int i = 0; i < 300; ++i) {
+    const std::uint64_t c = w.mem.alloc(0x200);
+    w.set_vtable(c, i % 7 == 0 ? "hero" : (i % 3 == 0 ? "npc" : "chr"));
+    (i % 7 == 0 ? players : chars).push_back(c);
+  }
+  for (int i = 0; i < 200; ++i) plain.push_back(w.mem.alloc(0x400));
+  const std::uint64_t manager = w.mem.alloc(0x40000);
+  w.mem.put<std::uint64_t>(w.at("st_characters"), manager);
+  for (std::uint32_t off = 8; off + 8 <= 0x40000; off += 8) {
+    const std::uint32_t r = rnd() % 16;
+    std::uint64_t v = 0;
+    if (r < 4) v = chars[rnd() % chars.size()];
+    else if (r == 4) v = players[rnd() % players.size()];
+    else if (r < 9) v = plain[rnd() % plain.size()] + (rnd() % 8) * 8;
+    else if (r == 9) v = 0x7000'0000'0000ull + (rnd() % 4096) * 8;  // an address of nothing
+    w.mem.put<std::uint64_t>(manager + off, v);
+  }
+  // Runs: a start and an end side by side, some followed by a third, the elements holding characters.
+  for (int i = 0; i < 100; ++i) {
+    const std::uint64_t run = plain[rnd() % plain.size()];
+    const std::uint32_t n = 1 + rnd() % 60;
+    for (std::uint32_t k = 0; k < n && k * 16 + 16 <= 0x400; ++k) {
+      w.mem.put<std::uint64_t>(run + k * 16, chars[rnd() % chars.size()]);
+      w.mem.put<float>(run + k * 16 + 8, static_cast<float>(k));
+    }
+    const std::uint32_t at = 0x1000 + static_cast<std::uint32_t>(i) * 0x200;
+    w.mem.put<std::uint64_t>(manager + at, run);
+    w.mem.put<std::uint64_t>(manager + at + 8, run + std::min<std::uint32_t>(n * 16, 0x400));
+    w.mem.put<std::uint64_t>(manager + at + 16, run + 0x400);
+  }
+  // The main player, with a full holder of parts, at the word the layout would name.
+  const std::uint64_t hero = w.mem.alloc(0x4000), holder = w.mem.alloc(0x100);
+  w.set_vtable(hero, "hero");
+  std::vector<std::uint64_t> parts;
+  for (std::uint64_t i = 0; i < 32; ++i) {
+    parts.push_back(w.mem.alloc(0x1000));
+    if (i % 2 == 0) w.set_vtable(parts.back(), "hud");
+    w.mem.put<std::uint64_t>(holder + 8 * i, parts.back());
+  }
+  for (std::uint32_t off = 8; off + 8 <= 0x4000; off += 8) {
+    w.mem.put<std::uint64_t>(hero + off, rnd() % 3 == 0 ? plain[rnd() % plain.size()] : std::uint64_t{rnd()});
+  }
+  w.mem.put<std::uint64_t>(hero + 0x190, holder);
+  w.mem.put<std::uint64_t>(manager + 0x1E508, hero);
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  // The character search, to its end.
+  lodestar::CharSearch::Options o;
+  o.base = w.base;
+  o.image_size = w.sys->image().size();
+  o.manager_slot = rva(w.at("st_characters"));
+  o.save_slot = rva(w.at("st_save_data"));
+  o.main_player_word = 0x1E508;
+  o.character_vtables = {rva(w.vtable("chr")), rva(w.vtable("hero")), rva(w.vtable("npc")), rva(w.vtable("beast"))};
+  o.player_vtables = {rva(w.vtable("hero"))};
+  o.image = &w.sys->image();
+  lodestar::CharSearch chars_search(std::move(o));
+  for (int look = 0; look < 4; ++look) {
+    chars_search.ask(static_cast<std::uint32_t>(look));
+    bool through = false;
+    for (int steps = 0; steps < 400'000 && !through; ++steps) {
+      reader.begin_tick();
+      through = chars_search.step(gt, reader, static_cast<std::uint64_t>(steps) * 1000);
+    }
+    REQUIRE(through);
+  }
+  const lodestar::CharFound cf = chars_search.found();
+  REQUIRE(cf.looks.size() == 4);
+  CHECK(cf.looks[0].manager_bytes == 0x40000);
+  CHECK(cf.looks[0].pointers.size() == lodestar::CharSearch::kListedPointers);
+  CHECK(cf.looks[0].lists.size() <= lodestar::CharSearch::kListedLists);
+  CHECK(cf.looks[0].members.size() <= lodestar::CharSearch::kListedMembers);
+  CHECK(cf.looks[0].player_bytes == 0x4000);
+  // The parts watch, through its phases, every field of every part changing.
+  lodestar::PartsWatch::Options po;
+  po.base = w.base;
+  po.image_size = w.sys->image().size();
+  po.manager_slot = rva(w.at("st_characters"));
+  po.player_word = 0x1E508;
+  po.holder_at = 0x190;
+  po.image = &w.sys->image();
+  lodestar::PartsWatch watch(po);
+  std::uint64_t now = 1'000'000;
+  for (int pass = 0; pass < 60; ++pass) {
+    now += 1'000'000;
+    if (pass % 8 == 7) watch.mark(now);  // more marks than phases
+    for (std::uint64_t part : parts) {
+      for (std::uint32_t off = 8; off + 4 <= 0x1000; off += 4) {
+        if ((off / 4 + static_cast<std::uint32_t>(pass)) % 3 != 0) w.mem.put<std::uint32_t>(part + off, rnd() % 1000);
+      }
+    }
+    if (pass == 40) w.mem.put<std::uint64_t>(holder + 8 * 5, plain[0]);  // a part replaced
+    if (pass == 45) w.mem.put<std::uint64_t>(holder + 8 * 6, 0);         // and one gone
+    bool ended = false;
+    for (int steps = 0; steps < 2000 && !ended; ++steps) {
+      reader.begin_tick();
+      ended = watch.step(gt, reader, now);
+    }
+    REQUIRE(ended);
+    (void)watch.found();
+  }
+  const lodestar::PartsFound pf = watch.found();
+  CHECK(pf.passes == 60);
+  CHECK(pf.parts.size() >= 30);
+  CHECK(pf.moves.size() <= lodestar::PartsWatch::kMaxMoves);
+  CHECK(pf.falls.size() <= lodestar::PartsWatch::kMaxFalls);
+  CHECK(pf.phase == lodestar::PartsWatch::kPhases - 1);
+  // The pair search over more slots than it keeps, every object full of the first number.
+  std::vector<std::uint32_t> slots;
+  std::vector<std::uint64_t> objects;
+  for (int i = 0; i < 64; ++i) {
+    objects.push_back(w.mem.alloc(i % 3 == 0 ? 0x2000 : 0x800));
+    for (std::uint32_t off = 0; off + 4 <= (i % 3 == 0 ? 0x2000u : 0x800u); off += 4) {
+      w.mem.put<std::uint32_t>(objects.back() + off, off % 16 == 0 ? 6u : 0x06060606u);
+    }
+  }
+  const std::uint64_t table = w.mem.alloc(8 * 9000);
+  for (std::uint32_t i = 0; i < 9000; ++i) {
+    w.mem.put<std::uint64_t>(table + 8ull * i, objects[i % objects.size()]);
+  }
+  // Slots must be read from the image: use the image's own statics for a few, and check the cap with many copies.
+  for (std::uint32_t i = 0; i < 9000; ++i) slots.push_back(rva(w.at(i % 2 == 0 ? "st_hud" : "st_menus")));
+  w.mem.put<std::uint64_t>(w.at("st_hud"), objects[0]);
+  w.mem.put<std::uint64_t>(w.at("st_menus"), objects[1]);
+  lodestar::PairSearch pair(std::move(slots), 6, 2, &w.sys->image());
+  for (int look = 0; look < 2; ++look) {
+    pair.ask();
+    if (look == 1) {
+      for (std::uint64_t object : {objects[0], objects[1]}) {
+        for (std::uint32_t off = 0; off + 4 <= 0x800; off += 4) w.mem.put<std::uint32_t>(object + off, 2u);
+      }
+    }
+    bool through = false;
+    for (int steps = 0; steps < 400'000 && !through; ++steps) {
+      reader.begin_tick();
+      through = pair.step(gt, reader, static_cast<std::uint64_t>(steps) * 1000);
+    }
+    REQUIRE(through);
+  }
+  const lodestar::PairFound found = pair.found();
+  CHECK(found.candidates == lodestar::PairSearch::kMaxCandidates);
+  CHECK(found.hits.size() == lodestar::PairSearch::kMaxHits);
+  CHECK(found.word_hits > 1000);
+}
+
 TEST_CASE("in game: a pass takes over a manager the search named first, and an invariant's static enters the table") {
   FakeWorld w;
   Round r = round_of(w);
