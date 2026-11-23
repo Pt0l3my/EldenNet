@@ -18,7 +18,6 @@ import os
 import re
 import shutil
 import signal
-import socket
 import struct
 import subprocess
 import sys
@@ -1503,6 +1502,11 @@ for _missing in (False, True):
 # en-overlay's (src/en-overlay/include/en/overlay/view.hpp): at 24, 24, 680 by 500, ground (22, 28, 38); the probe keeps
 # left of the notices at the top right.
 GRACE_NEEDS = EN_NEEDS + ("graceui",)
+# GraceUI's test build serves the browser view on a loopback port the system has free (GRACEUI_TEST_PORT, GraceUI
+# 0.2.31's D234), never the settings' 8642, so that two trees running GraceUI's cases at once never share a port; the
+# cases read the port in use from the fake game's report (GraceUI_Test_GetServer's `port=`). An older GraceUI ignores
+# the variable.
+GRACE_ENV = dict(EN_ENV, GRACEUI_TEST_PORT="free")
 EN_PANEL = 'schema = 2\ndebug = { panel = true, record_sessions = true }\n'
 VIEW_PROBE = "30,60,640,440,22,28,38"
 VIEW_AREA = (640 - 30) * (440 - 60)
@@ -1820,7 +1824,7 @@ def check_graceui_pages(r):
 
 case("launcher-eldennet-graceui-pages", LGAME + ["--dll", "{eldennetdll}", "--console"] +
      game("--d3d12", "--stay-title", "--press-keys", PAGES_KEYS, "--grace-report", PAGES_REPORTS, frames=1560),
-     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=GRACE_ENV, timeout=240,
      prepare=install_eldennet(EN_PANEL, then=install_graceui), during=browse_eldennet,
      check=check_graceui_pages,
      what="EldenNet's pages through GraceUI: register_pages at the connect; F5's menu on EldenNet's Home, then System › "
@@ -2443,7 +2447,7 @@ case("launcher-eldennet-graceui-talk", LGAME + ["--dll", "{eldennetdll}", "--con
           "--grace-report", TALK_REPORTS, "--grace-probe", TALK_PAGE_PROBE, "--grace-probe", TALK_BOX_PROBE,
           frames=2700),
      program="{launcher}", needs=GRACE_NEEDS + ("eldennet_probe",), toolchains=("clang-cl",),
-     env=dict(EN_ENV, ELDENNET_TEST_REALM="eval"), timeout=240,
+     env=dict(GRACE_ENV, ELDENNET_TEST_REALM="eval"), timeout=240,
      prepare=install_eldennet(TALK_SETTINGS, probe=True, then=install_talk), check=check_talk,
      what="The first conversation on the fake game: the test persona bound through the overrides folder in the tests' "
           "realm, the talk key opening the chat box within 50 ms, a line typed and sent with the key's own character "
@@ -2495,7 +2499,7 @@ case("launcher-eldennet-graceui-talk-leaks", LGAME + ["--dll", "{eldennetdll}", 
      game("--d3d12", "--calm", "--press-keys", LEAK_KEYS, "--type-at", "1560:abc,2100:x",
           "--grace-report", LEAK_REPORTS, frames=2400),
      program="{launcher}", needs=GRACE_NEEDS + ("eldennet_probe",), toolchains=("clang-cl",),
-     env=dict(EN_ENV, ELDENNET_TEST_REALM="eval"), timeout=240,
+     env=dict(GRACE_ENV, ELDENNET_TEST_REALM="eval"), timeout=240,
      prepare=install_eldennet(LEAK_SETTINGS, probe=True, then=install_talk), check=check_talk_leaks,
      what="No input leak across the chat box, GraceUI's menu and F11's view: the typing and F11 the box's while it "
           "holds input and none of it the game's, the player's exit keeping the draft, the box's Esc never the game's, "
@@ -2509,7 +2513,7 @@ case("launcher-eldennet-realm-release", LGAME + ["--dll", "{eldennetdll}", "--co
 case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--console"] +
      game("--d3d12", "--stay-title", "--press-keys", AI_KEYS, "--grace-report", AI_REPORTS, frames=5520),
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),
-     env=dict(EN_ENV, FAKEGAME_SHOWS="{text_ai_shows}"), timeout=300,
+     env=dict(GRACE_ENV, FAKEGAME_SHOWS="{text_ai_shows}"), timeout=300,
      prepare=install_eldennet(AI_SETTINGS, then=install_ai), during=browse_ai, check=check_graceui_ai,
      what="EldenNet's AI pages through GraceUI 0.2.31 against a fake model server on loopback: AI › Models as one "
           "card per job with its chip and live status, a provider added from its preset (No key yet), a wrong key on "
@@ -2558,13 +2562,9 @@ def install_editor(paths):
     install_graceui(paths)
     user = os.path.join(paths["gamedir"], "GraceUI", "user")
     os.makedirs(user, exist_ok=True)
-    # A port of the case's own for the browser view, so that another run of GraceUI's cases on this machine (on the
-    # default, 8642) never holds it.
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        port = s.getsockname()[1]
+    # Other devices on, and no port: the browser view's port is the system's free one (GRACE_ENV's GRACEUI_TEST_PORT).
     with open(os.path.join(user, "settings.json"), "w", encoding="utf-8") as f:
-        json.dump({"graceui_settings": 1, "values": {"dashboard.lan": True, "dashboard.port": port}}, f)
+        json.dump({"graceui_settings": 1, "values": {"dashboard.lan": True}}, f)
     server = fake_models.FakeModels("fk-invented-" + os.urandom(12).hex(), [], open_prefix="/own/",
                                     open_models=["invented-lantern-a"], scripted=[EDITOR_DRAFT])
     EDITOR_RUNS[paths["case"]] = server
@@ -2735,7 +2735,7 @@ case("launcher-eldennet-graceui-editor", LGAME + ["--also", "{gracedll}", "--dll
      game("--d3d12", "--stay-title", "--grace-lan", "--press-keys", EDITOR_KEYS, "--type-at", "1560:" + EDITOR_TYPED,
           "--grace-report", EDITOR_REPORTS, frames=EDITOR_FRAMES),
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),
-     env=dict(EN_ENV, FAKEGAME_SHOWS="{text_editor_shows}"), timeout=300,
+     env=dict(GRACE_ENV, FAKEGAME_SHOWS="{text_editor_shows}"), timeout=300,
      prepare=install_eldennet(EDITOR_SETTINGS, then=install_editor), during=browse_editor, check=check_graceui_editor,
      what="EldenNet's profile editor through GraceUI 0.2.31: Characters › Named NPCs read and the pilot's notes "
           "checked, saved as a layer of the player's own, a stale save and an out-of-range length refused, and a draft "
@@ -2744,7 +2744,7 @@ case("launcher-eldennet-graceui-editor", LGAME + ["--also", "{gracedll}", "--dll
 case("launcher-eldennet-graceui", LGAME + ["--dll", "{eldennetdll}", "--console"] +
      game("--d3d12", "--press-f11-at", "420,600", "--press-pause-at", "540", "--grace-report", "360,480,660,900",
           "--grace-probe", VIEW_PROBE, frames=960),
-     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=200,
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=GRACE_ENV, timeout=200,
      prepare=install_eldennet(EN_PANEL, then=install_graceui),
      check=check_graceui_main,
      what="GraceUI installed in the game's folder and loaded after EldenNet, by EldenNet's own look: the launcher's "
@@ -2754,7 +2754,7 @@ case("launcher-eldennet-graceui", LGAME + ["--dll", "{eldennetdll}", "--console"
 case("launcher-eldennet-graceui-events", LGAME + ["--dll", "{eldennetdll}", "--console"] +
      game("--d3d12", "--press-f11-at", "720,840", "--grace-report", "660,780,900", "--grace-probe", VIEW_PROBE,
           "--grace-probe", WORLD_PROBE, "--grace-probe", LIFE_PROBE, frames=960),
-     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=200,
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=GRACE_ENV, timeout=200,
      prepare=install_eldennet(EN_PANEL, then=install_graceui),
      check=check_graceui_events,
      what="Augur's events in F11's view: the fake game's world and the lifecycle raise Augur's events, and the view "
@@ -2762,14 +2762,14 @@ case("launcher-eldennet-graceui-events", LGAME + ["--dll", "{eldennetdll}", "--c
           "count on the game's frame")
 case("launcher-eldennet-graceui-before", LGAME + ["--also", "{gracedll}", "--dll", "{eldennetdll}", "--console"] +
      game("--d3d12", "--press-f11-at", "360", "--grace-report", "300,460", "--grace-probe", VIEW_PROBE, frames=540),
-     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=200,
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=GRACE_ENV, timeout=200,
      prepare=install_eldennet(EN_PANEL, gal_change=unknown_build_for_dll, then=install_graceui),
      check=check_graceui_before,
      what="GraceUI loaded before EldenNet (the launcher's --also), found by its name, on the banner path (a build the "
           "DLL's gal/ does not know): ConnectB, the banner as one notice under EldenNet's key, and F11's view")
 case("launcher-eldennet-graceui-unbound", LGAME + ["--also", "{gracedll}", "--dll", "{eldennetdll}", "--console"] +
      game("--d3d12", "--grace-take-pause", "--press-pause-at", "540", "--grace-report", "360", frames=720),
-     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=200,
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=GRACE_ENV, timeout=200,
      prepare=install_eldennet(EN_PANEL, then=install_graceui),
      check=check_graceui_unbound,
      what="another mod holding Pause in GraceUI (the fake game, connected at boot to the GraceUI the launcher loaded): "
@@ -2778,7 +2778,7 @@ case("launcher-eldennet-graceui-unbound", LGAME + ["--also", "{gracedll}", "--dl
 case("launcher-eldennet-graceui-anticheat", LGAME + ["--also", "{easyanticheat_eos}", "--dll", "{eldennetdll}",
                                                      "--console"] +
      game("--d3d12", "--grace-report", "300", frames=420),
-     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=dict(EN_ENV, VEHPROBE_MODE="off"),
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=dict(GRACE_ENV, VEHPROBE_MODE="off"),
      timeout=200, prepare=install_eldennet(EN_PANEL, copies=(("EasyAntiCheat_EOS.dll", "vehprobe"),),
                                            then=install_graceui),
      check=check_graceui_anticheat,
@@ -2787,7 +2787,7 @@ case("launcher-eldennet-graceui-anticheat", LGAME + ["--also", "{easyanticheat_e
 case("launcher-eldennet-graceui-spike-s0e", LGAME + ["--dll", "{eldennetdll}", "--console", "--spike", "s0e"] +
      game("--d3d12", "--press-f11-at", "480", "--press-pause-at", "540", "--grace-report", "420,600", "--grace-probe",
           VIEW_PROBE, frames=720),
-     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=200,
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=GRACE_ENV, timeout=200,
      prepare=install_eldennet(EN_PANEL, then=install_graceui),
      check=lambda r: (check_en_spike("s0e", grace=True)(r) +
                       # The spike run's banner: one notice under EldenNet's key, in the banners' tone; F11's view on it.
@@ -2973,7 +2973,7 @@ for _run in PKG_RUNS:
          pkg_options(_run) +
          game("--d3d12", *_extra, "--grace-report", "900,1080,1260", "--grace-probe", VIEW_PROBE, frames=1380),
          program="{pkglauncher}", cwd="{pkgdir}", needs=PKG_NEEDS, toolchains=("clang-cl",),
-         env=dict(EN_ENV, GRACE_SPIKE_STATE_MS="1000"), timeout=240, prepare=install_package,
+         env=dict(GRACE_ENV, GRACE_SPIKE_STATE_MS="1000"), timeout=240, prepare=install_package,
          check=check_pkg_run(_run),
          what="the owner's package, run %s (run-%s.cmd): %s" % (_run, _run, PKG_WHAT[_run]))
 
