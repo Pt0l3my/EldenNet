@@ -258,6 +258,13 @@ struct CharSearch::Impl {
     const std::span<const std::byte> bytes = std::span<const std::byte>(manager).first(manager_bytes);
     const std::size_t words = bytes.size() / 8;
     look.manager_bytes = manager_bytes;
+    // The main player: the object at the word the layout names, where that is known and holds an object of the
+    // player's class; else the first such object among the manager's words.
+    if (o.main_player_word != 0 && std::size_t{o.main_player_word} + 8 <= bytes.size()) {
+      const std::uint64_t v = word_at(bytes, o.main_player_word);
+      const Target* t = pointer_like(v) ? find(v) : nullptr;
+      if (t != nullptr && t->kind == Kind::Player) player_at = v;
+    }
     std::array<std::uint64_t, 8> players{};
     for (int round = 0; round < 2; ++round) {  // the players' words first, then the other characters'
       for (std::size_t i = 0; i < words; ++i) {
@@ -288,8 +295,10 @@ struct CharSearch::Impl {
       for (std::size_t i = 0; i + 1 < words && list_count < kMaxLists; ++i) {
         const std::uint64_t b = word_at(bytes, i * 8), e = word_at(bytes, (i + 1) * 8);
         if (!pointer_like(b) || e <= b || e - b > kListSpan || (e - b) % 8 != 0) continue;
+        // A run's start is plain memory: a character's own address followed by a larger one is an element of a
+        // run, not its bounds (the manager keeps a long run of such 16-byte elements, which used up the candidates).
         const Target* t = find(b);
-        if (t == nullptr || t->kind == Kind::None) continue;
+        if (t == nullptr || t->kind != Kind::Plain) continue;
         const std::uint64_t c = i + 2 < words ? word_at(bytes, (i + 2) * 8) : 0;
         const bool three = c >= e && c - b <= 4ull * kListSpan;
         if (three != (round == 0)) continue;
@@ -416,6 +425,7 @@ struct CharSearch::Impl {
 
 CharSearch::CharSearch(Options options) : impl_(std::make_unique<Impl>(std::move(options))) {
   save_slot_.store(impl_->o.save_slot, std::memory_order_release);
+  main_player_word_.store(impl_->o.main_player_word, std::memory_order_release);
 }
 CharSearch::~CharSearch() = default;
 
@@ -428,6 +438,9 @@ void CharSearch::ask(std::uint32_t mark) noexcept {
 }
 
 void CharSearch::set_save_slot(std::uint32_t rva) noexcept { save_slot_.store(rva, std::memory_order_release); }
+void CharSearch::set_main_player_word(std::uint32_t offset) noexcept {
+  main_player_word_.store(offset, std::memory_order_release);
+}
 
 bool CharSearch::step(const proto::GameThread& gt, GuardedReader& reader, std::uint64_t now_us) {
   Impl& m = *impl_;
@@ -437,6 +450,7 @@ bool CharSearch::step(const proto::GameThread& gt, GuardedReader& reader, std::u
   CharLook& look = m.looks[pass];
   if (!m.started) {
     m.o.save_slot = save_slot_.load(std::memory_order_acquire);
+    m.o.main_player_word = main_player_word_.load(std::memory_order_acquire);
     m.begin(look, now_us);
   }
   for (;;) {

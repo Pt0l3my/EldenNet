@@ -2130,6 +2130,50 @@ TEST_CASE("in game: the character search finds the player's word, the near list 
   CHECK(text->find("\"has_distance\": true") != std::string::npos);
 }
 
+TEST_CASE("in game: with several objects of the player's class, the main player is the one at the layout's word") {
+  FakeWorld w;
+  w.world();
+  const auto rva = [&](std::uint64_t at) { return static_cast<std::uint32_t>(at - w.base); };
+  // Another object of the player's class, at a word of the roster before the main player's.
+  const std::uint64_t other = w.mem.alloc(0x98);
+  w.set_vtable(other, "hero");
+  w.mem.put<std::uint64_t>(w.instance("characters") + 0x8, other);
+  const auto look_with = [&](std::uint32_t word) {
+    lodestar::CharSearch::Options o;
+    o.base = w.base;
+    o.image_size = w.sys->image().size();
+    o.manager_slot = rva(w.at("st_characters"));
+    o.character_vtables = {rva(w.vtable("chr")), rva(w.vtable("hero")), rva(w.vtable("npc")), rva(w.vtable("beast"))};
+    o.player_vtables = {rva(w.vtable("hero"))};
+    o.image = &w.sys->image();
+    lodestar::CharSearch search(std::move(o));
+    search.set_main_player_word(word);
+    GuardedReader reader(*w.sys);
+    const auto gt = en::proto::GameThread::issue();
+    search.ask();
+    bool through = false;
+    for (int steps = 0; steps < 2000 && !through; ++steps) {
+      reader.begin_tick();
+      through = search.step(gt, reader, static_cast<std::uint64_t>(steps) * 1000);
+    }
+    REQUIRE(through);
+    return search.found().looks.at(0);
+  };
+  // Told the main player's word, the search takes the object there: its set and its parts are the main player's.
+  const lodestar::CharLook told = look_with(0x10);
+  CHECK(told.players == 2);
+  REQUIRE(told.sets.size() == 1);
+  CHECK(told.sets[0].offset == 0x38);
+  REQUIRE(told.members.size() == 1);
+  CHECK(told.members[0].offset == 0x30);
+  // Not told, it takes the first object of the player's class, which is the other one: no set holds its address,
+  // and it points at nothing.
+  const lodestar::CharLook untold = look_with(0);
+  CHECK(untold.players == 2);
+  CHECK(untold.sets.empty());
+  CHECK(untold.members.empty());
+}
+
 TEST_CASE("in game: the character search tells a holder of parts in the player's object by what its words point at") {
   FakeWorld w;
   w.world();

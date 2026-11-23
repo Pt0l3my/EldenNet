@@ -316,7 +316,18 @@ void run(HMODULE module) {
   // thread of the game's window.
   block::game_thread(main_window_thread());
   enter(w::InitState::Connect);
+#if EN_PROBE
+  // A read round (not an observer's run) never connects to GraceUI, wherever GraceUI is installed: the round hooks
+  // nothing, and a connection would load GraceUI's hooks into the game and hand the Marks over to EldenNet, so
+  // that the launcher's panel lost the Pause key and the round its marks (the fourteenth round; WHY§536, §537).
+  if (s.settings.probe.round == en::shell::ProbeRound::Read && !w::observer_run(block::spike())) {
+    log(Line("connect").flag("skipped", true).word("why", "read_round"));
+  } else {
+    connect_overlay(s, false);
+  }
+#else
   connect_overlay(s, false);
+#endif
 
 #if EN_PROBE
   if (s.settings.probe.round == en::shell::ProbeRound::Read) {
