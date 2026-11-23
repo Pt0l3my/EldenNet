@@ -493,6 +493,14 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 468 | 2026-11-23 | EldenNet's own flags reader agrees with the game on flags the owner changed | FACT | #lodestar #gal #flags |
 | 469 | 2026-11-23 | game_state: one candidate after the twelfth round, by the owner's word for the slot | LIKELY | #lodestar #l6 #gal |
 | 470 | 2026-11-23 | A search by what an object holds in each state takes its candidates in each state and lists its near misses | METHOD | #lodestar |
+| 471 | 2026-11-23 | The pilot Kalé and known(P) built offline; the core watches the catalogue's verified aliases only | DECIDED | #engine #knowledge #conversation |
+| 472 | 2026-11-23 | The pilot's draft voice was past block 4's cap; the load now holds block 4 to it | FACT | #engine #content |
+| 473 | 2026-11-23 | Block 5b's lines are joined by a space | DECIDED | #engine #prompt |
+| 474 | 2026-11-23 | runes >= n means two things for now: great runes in the knowledge, runes held in v0.1's predicates | LIKELY | #engine #predicates |
+| 475 | 2026-11-23 | Kalé's index row keeps the design's NpcParam lead and leaves its entity lead out | DECIDED | #engine #identity |
+| 476 | 2026-11-23 | The "you, now" line and the behaviour switches, as far as v0.2 goes | DECIDED | #engine #conversation |
+| 477 | 2026-11-23 | The pilot's smaller choices: the catalogue's sources, clears left out, fixtures by pack | DECIDED | #engine #content |
+| 478 | 2026-11-23 | windows.h defines near and far as nothing: en-core's public names avoid both | FACT | #engine #build |
 
 ## Entries
 
@@ -7392,3 +7400,87 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   82 in the world), and the 214 fields that failed only the third look were not listed.
 - So such a search takes its candidates in each state, keeps both numbers a field reads in the world, and lists the
   near misses; otherwise a lead that is half wrong leaves no trace.
+
+### 471. The pilot Kalé and known(P) built offline; the core watches the catalogue's verified aliases only
+
+`2026-11-23` · DECIDED · `#engine` `#knowledge` `#conversation` · refs: S11.3.c, S11.3.d, MEM§6, MEM§12, NPC§3.4, WHY§364, WHY§424
+
+- en-core gains `knowledge.hpp`: the flag catalogue, `regions.toml`, the world stages and tracks, predicates in three
+  values, `derive`, `known(P)` and `ground()` (block 5b's lines). The truth tables (T2) now run and pass for Kalé and the
+  test persona at the eight fixture states (engine 567dcc6 to 9dc4691, merged as 5d6577e).
+- The core's watch list holds the catalogue's verified aliases only. None is verified in game before S6, so the core
+  asks for no flag and every alias stays Unknown: in game the pilot speaks from his road alone. Watching the unverified
+  leads too (MEM §6.2) would start the flag reader for nothing it may use; S6's wide watch can widen the list later.
+- A catalogue entry whose evidence is a `ci:` record verifies in the eval's realm only. The tests' overrides
+  (`tests/scenarios/talk/pilot-overrides/`) give a catalogue of invented ids verified so, which carries a fixture state
+  through the core as a flag frame. A fixture's `[tracks]` sets every alias of the named step's `when`.
+
+### 472. The pilot's draft voice was past block 4's cap; the load now holds block 4 to it
+
+`2026-11-23` · FACT · `#engine` `#content` · refs: NPC§3.4, NPC§7.3, NPC§4.8, WHY§388
+
+- NPC §3.4's voice rendered to about 273 tokens in block 4 (cap 230); shortened, it is 224. PL9 (v0.3) wants room for a
+  player's longest note, about 70 tokens more: the voice would need about 160 then, or the rule another look (put to
+  the owner with the review list).
+- The load checks block 4 against its cap as it checks block 2 (an error for shipped and test content, a warning for
+  the player's own), and runs the part of PL4, PL5 and PL12 the first conversation can check.
+- Openers are written as bare words and a tic without its full stop: the template joins openers with a comma and ends
+  each clause, so "Ah." and "Well," had rendered as "Ah., Well,." The test persona's still doubles a full stop: a wart
+  in test content.
+
+### 473. Block 5b's lines are joined by a space
+
+`2026-11-23` · DECIDED · `#engine` `#prompt` · refs: MEM§12.6, NPC§3.6
+
+- The template joined a group's lines with "; ", made for part A's phrase-like fixture lines. The world's and the ties'
+  lines are whole sentences, and NPC §3.6 renders them one after another, so the join is a space; NPC §3.6's
+  `after_radahn` block now renders word for word. No existing golden changed.
+- `ground()` stops at the first line that would take block 5b past 200 tokens (MEM §12.6); that line and the rest are
+  kept by id for block 7's topic offers, which wait for the KB (v0.3).
+
+### 474. runes >= n means two things for now: great runes in the knowledge, runes held in v0.1's predicates
+
+`2026-11-23` · LIKELY · `#engine` `#predicates` · refs: MEM§6.6, DESIGN§10.4
+
+- The knowledge's predicates read `runes >= n` as MEM §6.6 does, the great runes. v0.1's predicates (Augur's, and the
+  tests' rig's) read it as the runes held. The conversation takes its stage from the knowledge; Augur still uses v0.1's.
+- One meaning must win before a rule or a stage relies on it. Engine's lean: MEM §6.6's (great runes), with the runes
+  held under a name of its own; settled with the conversation's polish.
+
+### 475. Kalé's index row keeps the design's NpcParam lead and leaves its entity lead out
+
+`2026-11-23` · DECIDED · `#engine` `#identity` · refs: NPC§2.1, NPC§0, O43
+
+- The row keeps NPC §2.1's NpcParam lead and flag block, unverified: a dev build binds him by the row, release mode
+  refuses it until S1.
+- The entity lead is left out: its own note says the prefix does not fit the church, and a wrong entity would voice
+  another character as Kalé. S1's capture gives his entity id.
+
+### 476. The "you, now" line and the behaviour switches, as far as v0.2 goes
+
+`2026-11-23` · DECIDED · `#engine` `#conversation` · refs: NPC§7.3, DESIGN§5.5, ARCH§11.5, O35
+
+- Wounds by DESIGN §5.5's bands, the boundaries inclusive below (75 per cent is still "unhurt"); "in the thick of a
+  fight" when the Tarnished struck the persona in the last 8 s, since v0.2 tracks no other engagement; statuses wait
+  for S8. A calm, unhurt persona gets no line.
+- `behaviour.hpp` carries `features` and `range` with ARCH §11.5's defaults and bounds; `Core::set_behaviour` refuses a
+  value out of bounds and keeps the old. v0.2 reads `features.chat` (off: no hint, the key opens nothing, an open
+  conversation ends `closed` at the next step) and `features.self_awareness`; the conversation's reach stays NPC §5.2's.
+  The DLL's settings reader does not hand them to the core yet (the polish).
+
+### 477. The pilot's smaller choices: the catalogue's sources, clears left out, fixtures by pack
+
+`2026-11-23` · DECIDED · `#engine` `#content` · refs: MEM§6.1, MEM§12.2, MEM§12.10
+
+- The catalogue's `src` points to our research documents (ER05 §7 and the like), never a label of the game's.
+- The world stages leave out `clears` (W10's, lint only) until the personas whose flags it names exist (v0.5).
+- A prompt fixture may name a persona of the pack and a fixture state, so the pilot's goldens follow his shipped file;
+  the eval's scenarios take a fixture state and `flags` steps and check what the prompt holds. The pilot's scenario
+  speaks at two states, and his knowledge differs as it should.
+
+### 478. windows.h defines near and far as nothing: en-core's public names avoid both
+
+`2026-11-23` · FACT · `#engine` `#build` · refs: WHY§446
+
+- A field named `near` in an en-core header broke clang-cl's DLL build: the DLL includes windows.h first, which defines
+  `near` and `far` as nothing. It is `near_certainty` now (engine 9dc4691).

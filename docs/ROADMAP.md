@@ -1509,12 +1509,20 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: on 2026-11-22 the test persona was built: invented, `test_only`, built into the core's content and bound to
     the fake game's invented character through the tests' overrides, in the tests' realm alone (WHY§418, §423). The
     pilot persona and `known(P)` are not; the truth tables wait for `known(P)` (WHY§424).
+    Built offline on 2026-11-23 (engine 5d6577e; WHY§471 to §475): the pilot Kalé (`content/eldenring/personas/
+    kale.toml`, drafted with help, its review pending) with the world stages, tracks, regions and the catalogue's
+    aliases as unverified leads; `known(P)` passes the truth tables for both personas at the eight states. Waits for
+    the owner: the review, field by field (O43, O45, O46; three questions put). Waits for the game: S1 for his row, S6
+    for his flag block, his talk's flag and the world's flags; until then, in game, he knows only his road.
 - d Positive grounding, the "you, now" line, and settings with the range and the feature switches
   - refs: O36, DESIGN§11.4, WHY§424
   - gives: on 2026-11-22 the fixture states were built, the eight and `ashen`, as catalogue aliases, block offsets and
     track steps with no flag id and no text (WHY§424). The pilot persona and `known(P)` are not (c); the "you, now"
     line has its place in block 9's scene, which nothing fills yet (WHY§421), and the range and the feature switches
     are not read yet.
+    Built offline on 2026-11-23 (WHY§471, §473, §476): block 5b by `known(P)` (NPC §3.6's `after_radahn` block word
+    for word), the "you, now" line, and `features` and `range` with ARCH §11.5's bounds in the core, `features.chat`
+    and `features.self_awareness` read. Left: the DLL's settings reader handing them to the core (with the polish).
 - e The eval tool and its CI stage, the fixture states and the pilot's truth tables
   - refs: DESIGN§14, WHY§424, WHY§425, WHY§426, WHY§431
   - gives: built offline on 2026-11-22 (WHY§364 (10)): `eldennet-engine eval` with `--llm mock` and `recorded`, four
@@ -1524,6 +1532,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     waits for the game. Left: the CI stage on content changes, and the live and judged sets, which wait for a key and
     the judge's check; the pilot's truth tables with `known(P)` (c); mockllm's local SSE server, for en-llm's live path
     (WHY§425); counting the sanitizer's "Name:" removals (WHY§410).
+    On 2026-11-23 the pilot's truth tables run with `known(P)` (c), and the eval takes fixture states and checks what
+    the prompt holds: the pilot speaks at two states, his knowledge differing as it should (WHY§477).
 - f Target rules 1 and 2: the talk key arming chat on the game's own talk, once spike S3 has checked the talk observer
   - needs: S11.1.b
   - refs: NPC§5.2, WHY§420
