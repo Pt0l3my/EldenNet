@@ -2047,6 +2047,29 @@ before, and each look takes about half a minute. This is more reading than you a
 the round do it?" The other answers offered were a smaller reading (4 KiB an object) and no. The owner's answer:
 "Yes, read it (Recommended)". The state search runs, four looks; the whole-memory scan stays off.
 
+*Note, 2026-11-23 (the thirteenth round; WHY§488, §489).* Three answers. (1) Put to the owner by Lodestar: "The
+thirteenth round looks for where the game keeps your character and the characters near you. For that it reads memory
+it has not read before: the game's character manager (up to 256 KiB), the lists it points to (up to 1 MiB), your own
+character's object (16 KiB), and the first 256 bytes of each object those point at. At most about 6 MiB a look, four
+looks (title, world, title, world); likely much less. It only reads, at the same careful pace, and writes only places,
+offsets and counts. May the round do it?" The other answers offered were a smaller reading (half) and "No, not yet".
+The owner's answer: "Yes, read it (Recommended)". (2) Put by Lodestar: "To confirm the save-slot place, the round would
+like you to load a different character once: the first in your Load Game list at the first load, then your usual
+character at the second load. Nothing is changed on the other character except that the game saves it where it stands;
+the round ends on your usual one, so Continue points at it again. Are you willing?" The owner's answer: "Yes, I will
+load the first one". (3) The build also reads the first 4 KiB of the save data's object, which question (1) did not
+name; Engine asked: "May the round keep it?" The owner's answer: "Yes, keep it (Recommended)". The whole-memory scan
+stays off.
+
+*Note, 2026-11-23 (the same reading, put again by Lodestar).* Lodestar asked the owner too: "One thing my earlier
+question did not name: the thirteenth round as built also reads the first 4 KiB of the game's save-data object (the one
+that holds your play time) and the first 256 bytes of each object it points at, to find where the game keeps your
+character's sheet. It writes only offsets and kinds of object, nothing the objects hold. May the round include that
+reading too?" The other answer offered was to take it out. The owner's answer: "include it as long as nothing personal
+about me, no privacy issue, no safety issue is being added/uploaded. game time, character names are fine." The round
+keeps to the stricter rule all the same: its report and logs hold offsets, sizes, counts and the places of type
+tables, no name and no value of any object.
+
 ## O106
 
 **Retire R1** · *2026-11-22 · Decided by the owner, as recommended*
@@ -2133,3 +2156,25 @@ rumour: it shows only after that talk in the player's own game, and the design r
 (Recommended)" (the question dialog, 2026-11-23).
 
 **Follows from.** O43, O45, O46, O86; NPC §3.4, §7.3, §4.8 (PL9); S11.3.c; WHY§471, WHY§472, WHY§475.
+
+## O110
+
+**The chat box's refusal toast and the pages' speaking levels: the words players read** · *2026-11-23 · Decided by the owner, as recommended*
+
+**Question.** The first conversation's polish (WHY§495, §496) wrote words players read, left for the owner's review:
+(a) the toast when the chat box cannot take the keyboard: "Chat cannot take the keyboard: GraceUI's menu has the
+controls.", "...: another mod (‹id›) has the controls.", "...: another mod has the controls.", "...: danger is near.",
+"Chat cannot take the keyboard while the game loads." and "...while a game menu is open."; (b) the pages' new levels:
+L4 "Speaking" ("EldenNet reads the game, and NPCs speak."), L3 "Speaking, in part" ("NPCs speak, but part of the game
+EldenNet reads has stopped: System › Status says which."), and the AI pages' lead at either, "Conversation is ready:
+NPCs answer when you speak to them." **Options:** approve as written, or other words (for the toast, a shorter, softer
+set such as "Chat is busy: ...").
+
+**Recommendation.** Approve both as written: each says who or what has the controls, or which part has stopped, and
+where to look.
+
+**Decision.** Both as written.
+
+**Owner's words.** "Approve as written (Recommended)", twice (the question dialog, 2026-11-23).
+
+**Follows from.** NPC §5.1, §5.5; PAGES §4.5; S11.3.a; S11.4.a; WHY§442, WHY§495, WHY§496.

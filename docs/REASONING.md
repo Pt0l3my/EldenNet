@@ -510,6 +510,25 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 485 | 2026-11-23 | The panel's confirmations go on after the Mark's hand-over | METHOD | #launcher #spikes #graceui |
 | 486 | 2026-11-23 | The probe DLL's p99 on the fake game under Wine sits near S0-B's 0.5 ms | FACT | #gal #spikes #wine |
 | 487 | 2026-11-23 | The S0 package's README is README-SPIKES; the s0e-s4 kind's template moves aside | DECIDED | #spikes #tools |
+| 488 | 2026-11-23 | A field found by what it holds in the game's states is told from its look-alikes by a second save | METHOD | #lodestar #l6 |
+| 489 | 2026-11-23 | The pointers and lists are sought by class from the characters manager's own object | METHOD | #lodestar #gal |
+| 490 | 2026-11-23 | G9's pairing is built as decided, with three choices of GraceUI's own | FACT | #graceui #security |
+| 491 | 2026-11-23 | Limits shared between listeners need a share per listener; a limit shared between peers needs a cap per peer | METHOD | #graceui #security |
+| 492 | 2026-11-23 | A modal driven by the host must be open before the host's first look at it | FACT | #graceui |
+| 493 | 2026-11-23 | The second Esc removed; an Esc that reaches the core with the box closed changes nothing | DECIDED | #engine #conversation #input |
+| 494 | 2026-11-23 | A queued line goes when the stream ends with the last page up (WHY§432 closed) | DECIDED | #engine #conversation |
+| 495 | 2026-11-23 | The refusal's toast names the holder by GraceUI's id; not-now by its reason | LIKELY | #engine #conversation #graceui |
+| 496 | 2026-11-23 | L3 and L4 on the pages | LIKELY | #engine #pages |
+| 497 | 2026-11-23 | The behaviour settings reach the core (WHY§476 closed) | DECIDED | #engine #settings |
+| 498 | 2026-11-23 | One meaning of `runes >= n`: the great runes (WHY§474 closed) | DECIDED | #engine #predicates |
+| 499 | 2026-11-23 | disable.toml (S11.3.g) | DECIDED | #engine #content |
+| 500 | 2026-11-23 | A failed configure-time download leaves an empty file that the next configure keeps | FACT | #engine #build |
+| 501 | 2026-11-23 | The polish's tests on the four toolchains; Lodestar's read-clock case passes | FACT | #engine #tests |
+| 502 | 2026-11-23 | The characters manager's places, by search and class, the same with two characters | LIKELY | #lodestar #gal |
+| 503 | 2026-11-23 | In the player's object: the parts holder at 0x190 and the character's sheet at 0x580 | LIKELY | #lodestar #gal |
+| 504 | 2026-11-23 | game_state's candidate is a number of the character: 4 for the list's first, 2 for the third | FACT | #lodestar #l6 |
+| 505 | 2026-11-23 | A search of a manager's object is asked for only once the game is in the state it is to see | METHOD | #lodestar |
+| 506 | 2026-11-23 | Fields past a class's 0x4000 copy are far fields, each read by its own small copy | DECIDED | #engine #gal #lodestar |
 
 ## Entries
 
@@ -6916,6 +6935,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   6.5 s later than §6.3 intends.
 - Replies usually end long before page 1's hold does, so later pages are mostly sealed after the end. A fix would let
   the conversation send the queued line when the stream ends with the last page up (S11.3.b).
+- *Later (2026-11-23, WHY§494):* closed: a queued line goes once the stream ends with the last page up.
 
 ### 433. The DLL links en-prompt for real: the folder code split off, one runtime import reviewed
 
@@ -7037,6 +7057,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   for review (S11.4.a).
 - Part C's third point, that the prompts and lexicons must reach the DLL's core, the joining had already met: they are
   built in with the persona files (WHY§427).
+- *Later (2026-11-23, WHY§495, §496):* the toast names the holder by GraceUI's id, and the pages show L3 and L4 as
+  speaking levels; their words go to the owner.
 
 ### 443. The content's problems reach the player as one notice, never a value
 
@@ -7305,6 +7327,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   still pacing after its box has closed finishes; no press stops it.
 - This answers WHY§437's third point. The core's second-Esc rule, which nothing can reach, is removed with the
   conversation's polish (S11.4.d).
+- *Later (2026-11-23, WHY§493):* the core's rule is removed; an Esc with the box closed changes nothing.
 
 ### 462. EldenNet's own discovery and flags reader work on the game, through the build's layout
 
@@ -7399,6 +7422,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   accessor's shape reaches (5 sites, 30 references), its object of a class no lead names.
 - LIKELY, on one session and the owner's word; not in the table. The thirteenth round confirms it by loading another
   character, then the usual one.
+- *Later (2026-11-23, WHY§504):* the candidate read 4 and 2 for two characters: a number of the character, which
+  fits the slot if the list runs last slot first; a third load is to settle it.
 
 ### 470. A search by what an object holds in each state takes its candidates in each state and lists its near misses
 
@@ -7455,6 +7480,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   tests' rig's) read it as the runes held. The conversation takes its stage from the knowledge; Augur still uses v0.1's.
 - One meaning must win before a rule or a stage relies on it. Engine's lean: MEM §6.6's (great runes), with the runes
   held under a name of its own; settled with the conversation's polish.
+- *Later (2026-11-23, WHY§498):* settled: `runes` means the great runes everywhere; the runes held are `runes_held`.
 
 ### 475. Kalé's index row keeps the design's NpcParam lead and leaves its entity lead out
 
@@ -7476,6 +7502,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   value out of bounds and keeps the old. v0.2 reads `features.chat` (off: no hint, the key opens nothing, an open
   conversation ends `closed` at the next step) and `features.self_awareness`; the conversation's reach stays NPC §5.2's.
   The DLL's settings reader does not hand them to the core yet (the polish).
+- *Later (2026-11-23, WHY§497):* the DLL's settings reader hands `features` and `range` to the core.
 
 ### 477. The pilot's smaller choices: the catalogue's sources, clears left out, fixtures by pack
 
@@ -7586,3 +7613,221 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   `README-S0E-S4.txt.in`, still packed as README-SPIKES.txt in EldenNet-Spikes, and the S0 kind's template is
   `README-SPIKES.txt.in`. The S0 package needs no settings.toml: S0 sessions record by the spike, and S0-D's faults
   are the probe build's own (the trial, and the first optional group read where settings.toml names none).
+
+### 488. A field found by what it holds in the game's states is told from its look-alikes by a second save
+
+`2026-11-23` · METHOD · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§469, O105, S10.1.m
+
+- The thirteenth round's state search keeps both numbers a field reads in the world: a hit is -1, 0 to 15, -1, 0 to
+  15, and hits that are one field of one object seen through several slots are numbered alike. With two characters
+  loaded (the first of the list, then the usual one), the save's slot reads two numbers, and what reads one number is
+  something else; the round names `game_state` where one field in one slot alone read two numbers.
+- The owner agreed to load the first character once (O105's fourth note). Nothing enters `gal/` before Lodestar's
+  review of the files.
+- *Later (2026-11-23, WHY§504):* with two characters seven fields in 25 slots read two numbers, so that rule alone
+  names nothing; a field that changed for the same character between sessions is ruled out.
+
+### 489. The pointers and lists are sought by class from the characters manager's own object
+
+`2026-11-23` · METHOD · `#lodestar` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§460, O105, S10.1.m
+
+- The character search (four looks, each after the state search's, with the searches' whole share) reads the manager's
+  object and what follows it (up to 256 KiB), the first 256 bytes behind each address in it (8,192 at most), up to
+  16 KiB of each run two neighbouring addresses bound (64 at most), 16 KiB of the main player's object and 4 KiB of the
+  save data's; 12,000 reads at most a look.
+- Each address is followed once and told by its target's table of methods. A list is two neighbouring addresses that
+  bound a run of equal elements each holding a character's address; the list by distance has a fraction beside the
+  address that never falls along the run. It writes offsets, sizes, counts and tables of methods only, never a value
+  of any object. The owner agreed to the reading (about 6 MiB a look at most), and to the save data's 4 KiB (O105).
+
+### 490. G9's pairing is built as decided, with three choices of GraceUI's own
+
+`2026-11-23` · FACT · `#graceui` `#security` · refs: GraceUI:D221, GraceUI:D222, GraceUI:D225, G9, S11.2.al
+
+- The device names itself on its pairing page (a phone's keyboard is to hand; only the code is read in game).
+- The PC's network address is shown on the in-game sheet alone, never in a topic, since a topic reaches every browser,
+  a paired phone's too (PV3).
+- A refused command gets one answer from GraceUI before its space sees it (not_now, "Only on the PC the game runs on."),
+  so no space needs a device check of its own; a space marks its sensitive commands and settings (S11.4.e).
+- Accepted and recorded in D225, not built: a device's cookie is a bearer token over plain HTTP on the home network, so
+  a device that can read or redirect the phone's traffic could replay it until the player forgets the device; and the
+  listener takes the PC's first four private addresses, a VPN's or a virtual switch's among them (the sheet lists each).
+
+### 491. Limits shared between listeners need a share per listener; a limit shared between peers needs a cap per peer
+
+`2026-11-23` · METHOD · `#graceui` `#security` · refs: GraceUI:D225, WHY§264
+
+- A second review of the joins, given the code and not our conclusions, again found the wire layer sound and the gaps
+  at the edges: a shared limit (five tries a code) that one peer could spend for everyone, shared caps a device could
+  take from this PC, and a sensitive list that left out the hotkeys. All five fixed before release.
+
+### 492. A modal driven by the host must be open before the host's first look at it
+
+`2026-11-23` · FACT · `#graceui` · refs: GraceUI:D222, GraceUI:D223
+
+- The harness's scenario through the real menu caught what each side's unit tests passed: the menu's first refresh of
+  the pairing sheet ran before the sheet was shown, took it as closed and voided the code.
+
+### 493. The second Esc removed; an Esc that reaches the core with the box closed changes nothing
+
+`2026-11-23` · DECIDED · `#engine` `#conversation` `#input` · refs: WHY§461, NPC§5.7, GraceUI:G39, engine wip/s12-polish e4736b4 to e2519d2
+
+- The core's rule for a second Esc is gone (the owner's G39 (c)): `on_close` ignores an Escape while the box is not
+  open, before it touches the draft, so the reply paces out and the conversation ends after it, as NPC §5.7's first
+  half says. The overlay sends Escape only while it holds input, so nothing reaches the rule in game; the guard is for
+  any surface that would.
+- Found on the way: the box opened again with the talk key while an Esc-closed reply paced still carried the
+  "end when it is done" mark, so the conversation would have ended under the reopened box. The reopen now clears it.
+- Tests: the second-Esc subcase now checks that one after the close changes nothing and the reply paces out; the
+  commit test that used two Escs to end at once ends by walking away (> 12 m for 2 s) instead, its checks unchanged.
+
+### 494. A queued line goes when the stream ends with the last page up (WHY§432 closed)
+
+`2026-11-23` · DECIDED · `#engine` `#conversation` · refs: WHY§432, NPC§6.3, engine wip/s12-polish e4736b4 to e2519d2
+
+- Without changing the pager's interface: once no sentence follows (`sentences_done`) and the page up is the newest
+  sealed, the pump asks the pager for the next page. `Done`: the page up is marked last, and a queued line goes at once
+  if it has shown, else at its PageShown (the existing path). `Page`: it is kept and published at the hold's end as
+  before. Once the stream is closed the pager's `next()` is time-independent (no first-page wait, no short-sentence
+  hold), so sealing early gives the same page; the stubs behave alike.
+- A queued line exists only while nothing has shown (Awaiting, Held); it can outlive page 1 when page 1 was sealed
+  while streaming, so the rule covers a later page too, which a test checks.
+
+### 495. The refusal's toast names the holder by GraceUI's id; not-now by its reason
+
+`2026-11-23` · LIKELY · `#engine` `#conversation` `#graceui` · refs: WHY§442, GraceUI:D77, GraceUI:D142, engine wip/s12-polish e4736b4 to e2519d2
+
+- GraceUI's request_input answer names the holder by its mod id alone ("graceui" for its menu; GraceUI's own
+  "‹Mod› has the controls" notice uses the display name, which the ABI does not give another mod). So the toast says
+  "GraceUI's menu" for `graceui`, "another mod (‹id›)" for an id as GraceUI checks one at connect (3 to 32 of a-z, 0-9,
+  '-'), generic words for anything else (GraceUI's own fallback "a mod" among them) and for EldenNet's own id. Not-now
+  names danger, loading and a game menu; not ready and anything else keep the generic words. Words for the owner.
+- A display name would need an ABI append from GraceUI (a holder's display name in the answer); asked for nowhere yet.
+
+### 496. L3 and L4 on the pages
+
+`2026-11-23` · LIKELY · `#engine` `#pages` · refs: WHY§422, WHY§442, S11.4.a, engine wip/s12-polish e4736b4 to e2519d2
+
+- en-overlay's Level gains SpeakingInPart (L3) and Speaking (L4), the values growing as en-core's do; the DLL's map is
+  one to one, which clang-cl's warnings now take. Lamp: "Speaking, in part" (ember) and "Speaking" (moss); Dormant over
+  either; "Offline and solo" on System › Status from L2 up; the AI pages' lead at L3 and L4 "Conversation is ready:
+  NPCs answer when you speak to them." Words for the owner. No fixture state is at L3 or L4, so the topics.json
+  fixtures and grace-dev goldens are unchanged.
+- Left: L2's words still say "NPCs speak from a later version" and "EldenNet only observes in this version", which a
+  v0.2 build makes untrue; changing them moves the fixtures and the goldens (a grace-dev build at a9aac78).
+
+### 497. The behaviour settings reach the core (WHY§476 closed)
+
+`2026-11-23` · DECIDED · `#engine` `#settings` · refs: WHY§476, ARCH§11.5, ARCH§11.6, engine wip/s12-polish e4736b4 to e2519d2
+
+- en_shell reads `features` (the nine switches, booleans) and `range` (numbers, TOML integers too, within en-core's
+  own bounds, NaN and inf refused) strictly: a problem refuses the whole file as any other does. T6 hands the result to
+  `Core::set_behaviour` as it makes the core; a pages' change of a `features.*` or `range.*` key is checked against the
+  core's bounds before it is applied or written, then applied on the behaviour the core holds after overlay_tick. No
+  page offers these keys yet, so that path waits for the Behaviour pages; SettingsEdit gained a number for it.
+- Settings are not hot-reloaded from the file yet (T10 watches nothing): "when settings change" is the pages' path.
+
+### 498. One meaning of `runes >= n`: the great runes (WHY§474 closed)
+
+`2026-11-23` · DECIDED · `#engine` `#predicates` · refs: WHY§474, MEM§6.6, engine wip/s12-polish e4736b4 to e2519d2
+
+- v0.1's predicates: `runes_held` is the runes held; `runes` is refused with a fixed text naming `runes_held`, as
+  `flag()` is, since they read no catalogue alias. A persona's `when` on `runes >= n` is so Unknown in the directory
+  (an unread flag's treatment) and evaluated by the knowledge.
+- Moved to `runes_held`: en-core's tests/test_augur_wiring.cpp (Augur's `requires`), tests/identity/test_identity.cpp
+  (Wren's `rich`), tests/conversation/test_gating.cpp (Wren's `sulk` and `night`, and the rig's facts); core.cpp's
+  facts. Kept as the great runes: tests/content/test_content.cpp (never evaluated), tests/knowledge/test_knowledge.cpp
+  (the knowledge's own). No shipped content or Augur rule file used `runes`.
+
+### 499. disable.toml (S11.3.g)
+
+`2026-11-23` · DECIDED · `#engine` `#content` · refs: ARCH§11.6, DESIGN§11.4, PAGES§4.6, engine wip/s12-polish e4736b4 to e2519d2
+
+- Read in load_content after the index, from the pack's `disable.toml` (the overrides folder's root, which the DLL
+  reads with its other files). Schema: ARCH §11.6's six lists of ids, strict. `personas` turns rows off (as
+  `enabled = false`), so no record is read and the index, directory and knowledge leave them out; the file is in the
+  hash. Warnings, never errors, name the list and place, never the id: an unknown persona; every card (none shipped in
+  v0.2); one each for a non-empty `characters`, `kb`, `triggers`, `rules`. Core::content_warnings() carries them first.
+- A persona another names (a tie's `stage()`) cannot be turned off without the knowledge refusing the pack, as with the
+  index's own `enabled = false`; none in v0.2's content.
+- The engine's pages have no Content packs page yet (PAGES §4.6): the ids are not shown; the log's `content_load`
+  counts them (`disabled=`).
+
+### 500. A failed configure-time download leaves an empty file that the next configure keeps
+
+`2026-11-23` · FACT · `#engine` `#build` · refs: BUILD.md, engine wip/s12-polish e4736b4 to e2519d2
+
+- A transient HTTP error on Dear ImGui's `imgui_widgets.cpp` failed the MinGW configure; CMake's `file(DOWNLOAD)` left
+  a 0-byte file, and `en_fetch` skips any file that exists, so the next configure passed and the link failed with
+  undefined ImGui symbols. Deleting the empty file and configuring again fixed it. The top-level CMakeLists.txt is not
+  this job's; a fix would remove the file on a failed download or check the hash of an existing one.
+- *Later (2026-11-23):* fixed by Engine: `en_fetch` checks a kept file's hash and downloads it again if it differs, and
+  checks a new download's hash itself, removing the file on any failure (EXPECTED_HASH stops the configure first).
+
+### 501. The polish's tests on the four toolchains; Lodestar's read-clock case passes
+
+`2026-11-23` · FACT · `#engine` `#tests` · refs: WHY§364, engine wip/s12-polish e4736b4 to e2519d2
+
+- GCC (Release) and Clang: 0 warnings, ctest 37 of 37, the eval label 8 of 8. MinGW-w64: 0 warnings, every unit test
+  program under Wine, the fake game's 60 cases. clang-cl with GraceUI 0.2.24's test build (feat/foundations 8eacc6c):
+  0 warnings, every unit test program under Wine, eldennet_dll_checks, and the harness's 121 cases, the ten GraceUI
+  cases among them; `launcher-eldennet-read-clock` passed (133 s), after failing twice on the pilot's branch before
+  Lodestar's latest merge. (CTest runs the Windows unit test programs without Wine, so they show as failed there.)
+
+### 502. The characters manager's places, by search and class, the same with two characters
+
+`2026-11-23` · LIKELY · `#lodestar` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§489, S10.1.m
+
+- The thirteenth round (package 0.1.0-lodestar.17; 7.0 minutes): `main_player` is the word 0x1E508 into the manager's
+  object, the one word that held the address of an object of the player's class, in both worlds, with two characters.
+- The near list at 0x1F1E8: three addresses side by side (start, end, a third at or past the end); 16-byte elements,
+  a character's address at 0 and a fraction at 8; 10 and 13 elements, never the main player. Two lists of addresses
+  alone at 0x1F1C8 (31, the main player among them) and 0x1F218 (6 and 5).
+- The player set at 0x10EF8: an address of plain memory whose first word is the main player's address (its stride and
+  length not known).
+- The manager is not there at the title (its static empty until a save is loaded, and again after a quit), and its
+  object is over 127 KiB: every one of these lies past the layout's 0x4000 (WHY§506).
+
+### 503. In the player's object: the parts holder at 0x190 and the character's sheet at 0x580
+
+`2026-11-23` · LIKELY · `#lodestar` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§489
+
+- `character.parts` at 0x190: the address of plain memory that begins with 30 addresses, the first 16 of classed
+  objects. 43 words of the player's object held the address of an object of the same kind at the same offset in both
+  characters, all in its first 2,712 bytes.
+- 0x580 is the address of an object of the class whose table is at 43954088; the save data's object points at that
+  class 8 and 16 bytes in, so `save_data.player_data` is 0x8 or 0x10, and the player's object keeps the sheet too.
+
+### 504. game_state's candidate is a number of the character: 4 for the list's first, 2 for the third
+
+`2026-11-23` · FACT · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§469, WHY§488, S10.1.m
+
+- With two characters the candidate (static 64543992, 0x470) read 4 with the list's first character and 2 with the
+  usual one (2 twice in the twelfth round): a number of the character, steady across sessions, but not its place from
+  the top of the list. Counted from the bottom of five, the first is 4 and the third is 2: it fits the save's slot if
+  the game lists its slots last first. A third load (the last of the list should read 0) is to make it firm.
+- Seven fields in 25 slots read two numbers, so "one field in one slot that reads two numbers" names nothing by itself;
+  a field that changed for the same character between sessions is ruled out by that (one read 1 twice before and 4
+  now).
+
+### 505. A search of a manager's object is asked for only once the game is in the state it is to see
+
+`2026-11-23` · METHOD · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md
+
+- Made when the manager was first named (as the first load began), the character search's first look ran through the
+  loading and saw the manager being filled, and its looks at the title were pointless (no manager there). The next
+  round looks in the world only, after a confirmation.
+
+### 506. Fields past a class's 0x4000 copy are far fields, each read by its own small copy
+
+`2026-11-23` · DECIDED · `#engine` `#gal` `#lodestar` · refs: ARCH§6.3, WHY§502, WHY§489, S10.1.m
+
+- Engine's ruling on Lodestar's question (the characters manager's four places lie at 0x10EF8 to 0x1F1F8, in an object
+  of over 127 KiB, all past ARCH §6.3's `copy_size ≤ 0x4000`): option (a), a field read by its own small copy, not a
+  class entry at an offset (b), which would need two windows or more of 58 KiB ten times a second.
+- In the layout, a field may say `far = true`: its `off` may lie past `copy_size`, up to 0x100000 (1 MiB) into the object;
+  it is read at the object's address plus `off` by a copy of its own size, at most 32 bytes (the whole numbers, `f32`,
+  `bool8`, `bit`, `bits`, `ptr`, `handle`, `vec3f` and `dlvector`; never `utf16[n]`, `mat4f` or `array`). A class whose
+  fields are all far may have `copy_size = 0`. Each far read counts against the tick's reads as any other copy.
+- Lodestar makes both sides, the layout's schema and lint (en-gal's layout.cpp) and ErBackend's groups reading far
+  fields, with tests on the fake world; Engine reviews, merges and adds ARCH §6.3's dated note.
