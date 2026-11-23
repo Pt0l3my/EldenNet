@@ -534,6 +534,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 509 | 2026-11-23 | S0-E's run A1 crashed on the owner's PC at GraceUI's first Present, before a frame was drawn | FACT | #spike #graceui #engine |
 | 510 | 2026-11-23 | A start that stops at a banner once the window has shown installs the crash filter | DECIDED | #engine #boot |
 | 511 | 2026-11-23 | S0-E's next package: A5 with GraceUI and its observer alone, state lines every 200 ms, other overlays closed | DECIDED | #spike #graceui #engine |
+| 512 | 2026-11-23 | G28's upload route: the ticket in a header, spent on its first match; the size before a byte, the hash on a worker | FACT | #graceui #security |
+| 513 | 2026-11-23 | A browser hashes only in a secure context, so uploads stay on this PC | FACT | #graceui |
+| 514 | 2026-11-23 | A count cap needs a byte cap when items vary that much, and every path to a command carries the same rule | METHOD | #graceui #security |
 
 ## Entries
 
@@ -7900,3 +7903,31 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - The README asks for every other overlay to be closed, its background process too, since a closed window left one
   loaded in the owner's second runs. The next package also carries Grace's test build that records how far GraceUI's
   first frames got, when it is ready (engine 4f9e9d2).
+
+### 512. G28's upload route: the ticket in a header, spent on its first match; the size before a byte, the hash on a worker
+
+`2026-11-23` · FACT · `#graceui` `#security` · refs: GraceUI:D226, G28, S11.2.am
+
+- The ticket travels in Grace-Upload-Ticket, never the URL, since a URL reaches logs and history; it is spent as soon as
+  it matches, so a wrong size, a dropped connection or a changed file each end it.
+- The size is checked before a byte is read, the hash after, on GraceUI's worker thread: 32 MiB hashed on the loop
+  would stall every other page. GraceUI keeps nothing afterwards (its buffer zeroes itself).
+
+### 513. A browser hashes only in a secure context, so uploads stay on this PC
+
+`2026-11-23` · FACT · `#graceui` · refs: GraceUI:D226, GraceUI:D227, GraceUI:D114
+
+- A browser computes SHA-256 only in a secure context: 127.0.0.1 is one, a private address over plain HTTP is not. So
+  G9's rule (no secure-context features, D114) and G28's (this PC alone) meet: a paired phone could not hash a file even
+  if the route took it, and the page names the view so it says so rather than offering a button that cannot work.
+
+### 514. A count cap needs a byte cap when items vary that much, and every path to a command carries the same rule
+
+`2026-11-23` · METHOD · `#graceui` `#security` · refs: GraceUI:D229, GraceUI:D225, WHY§264, WHY§491
+
+- A third review of the joins, given the code and not our conclusions, found the door sound (no bytes to a space without
+  a live, matching ticket; a race of two POSTs on one ticket gave 202 and 403) and the gaps behind it: a queue capped by
+  count, which is no cap once each item may be 32 MiB; a read buffer that kept the tail of each file; the menu, a second
+  path to a command the first guarded; an event held past the answer its view already had. All fixed before release.
+- Accepted and recorded in D229, not built: the upload ticket is a bearer token on loopback, so a local program holding
+  both the session's cookie and the ticket could use it; it travels only on that session's WebSocket and dies with it.

@@ -640,7 +640,8 @@ EldenNet may hook as well as GraceUI.
   - needs: c
   - refs: G28, O67, GraceUI:DESIGN§7.2
   - gives: G28 decided 2026-11-15, as recommended: one narrow route on the loopback listener for a space's sensitive file
-    commands, with a one-use ticket, refused from paired devices, nothing kept (GraceUI §7.2 item 18).
+    commands, with a one-use ticket, refused from paired devices, nothing kept (GraceUI §7.2 item 18). Built on
+    2026-11-23 (the route: GraceUI 0.2.26, S11.2.am).
 - e Validators and safeguards by kind, and where code plugins run: proposal 0001 §13, with O70 decided as the owner designed it [done]
   - needs: c
   - refs: O70, O71, O72, docs/proposals/0001-plugins.md, WHY§88
@@ -1516,6 +1517,14 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     independent review found no way past the pairing page and five gaps, fixed before release (D225). The command's
     view (§7.3, D224) closes S11.2.q's open item. EldenNet marks its sensitive commands (S11.4.e; GraceUI's
     docs/eldennet-changes.md §60).
+- am Uploads: a space's file commands, the drop zone, POST /upload with a one-use ticket, a mod's file through ABI 1.6 (GraceUI 0.2.26, protocol 1.9, ABI 1.6) [done]
+  - refs: G28, GraceUI:D226, GraceUI:D227, GraceUI:D228, GraceUI:D229, GraceUI:D114, GraceUI:D103, WHY§512, WHY§513, WHY§514
+  - gives: built on 2026-11-23 (GraceUI feat/foundations b1f98bd to 2754912) at the owner's go-ahead. A server suite of
+    five upload cases (the ticket, its size and hash, one at a time, one file queued a space at a time, this PC alone)
+    on Linux and under Wine; a browser test through the page's own drop zone; the pages harness scenario's upload
+    through the real ABI under Wine (246 checks in the full harness, each build whole); an independent review found no
+    way past the ticket and five gaps, fixed before release (D229). EldenNet declares plugins.install as a file command
+    and reads its file through ABI 1.6 (S17.1.e; GraceUI's docs/eldennet-changes.md §61).
 
 ### S11.3 EldenNet v0.2
 
@@ -1924,6 +1933,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - e Content plugins: the plugins layer and its checks, the launcher's install step, and the Content packs page's plugin list, with the dashboard's drop zone through GraceUI's upload route (G28)
   - needs: S7.10.c
   - refs: O66, O67, G28, docs/proposals/0001-plugins.md
+  - gives: GraceUI's route is built (0.2.26, S11.2.am, 2026-11-23): EldenNet declares `file_commands = ["plugins.install"]`,
+    lists it in `sensitive_commands`, puts an upload block on the Plugins page and reads the file through ABI 1.6 (a
+    buffer of GRACEUI_UPLOAD_MAX, 32 MiB, or one grown on GRACEUI_FULL), its validator first (GraceUI's
+    docs/eldennet-changes.md §61).
 - f GraceUI 1.1 opens the framework to other modders: the modders' guide, the three example mods, the harness, the C mock, its own release page and a frozen ABI 1
   - refs: G18, GraceUI:DESIGN§10
   - gives: G18 (a), decided 2026-11-16: after EldenNet v1.0; ABI 1 is a preview until then.
