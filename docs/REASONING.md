@@ -8092,6 +8092,10 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   adds the rest (its first task 197 ms after `ready` against 64). For Lodestar: a later retitle (or a mark tied to the
   phase, not the clock) would give the case room; nothing of this job's touches the round, the launcher or en-gal.
 
+- Later (2026-11-23): on the merged engine (8424f15, and Lodestar's fourteenth round at 0e94488) both read-state and
+  read-chars passed in the full clang-cl suite under Wine: 148 cases of 148, the editor's and the GraceUI cases among
+  them; the nine unit programs, which this tree's ctest cannot start without Wine, passed run by hand (WHY§210).
+
 ### 528. A test package's runs check the game's GraceUI against the package's own before the start
 
 `2026-11-23` · DECIDED · `#engine` `#spike` `#launcher` · refs: O113, WHY§529, S10.1.g, engine 8424f15
