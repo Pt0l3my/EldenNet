@@ -454,7 +454,9 @@ typedef struct GraceUiHotkeyDesc {
 #define GRACEUI_EVENT_HOTKEY 1u    /* a hotkey of the mod's was pressed */
 #define GRACEUI_EVENT_WATCHED 2u   /* a view now watches a topic of the mod's space: `frame` holds its sub frame (D169) */
 #define GRACEUI_EVENT_UNWATCHED 3u /* no view watches the topic now: `frame` holds its unsub frame; stop building it */
-#define GRACEUI_EVENT_COMMAND 4u   /* a view's command: `frame` holds its cmd frame, `reply` the handle answer takes */
+#define GRACEUI_EVENT_COMMAND 4u   /* a view's command: `frame` holds its cmd frame, `reply` the handle answer takes;
+                                      * since protocol 1.8 the frame's "view" names who sent it, from the channel it
+                                      * came on: "game", "browser" (this PC) or "device" (one paired at home, D224) */
 /* A holder's events (ABI 1.1, D176), for the mod that holds input and asked with GRACEUI_INPUT_EVENTS, only while it
  * holds it, in the order they happened; an event smaller than ABI 1.1's never gets them. */
 #define GRACEUI_EVENT_KEY 5u         /* a key's press, auto-repeat or release: key, modifiers, pressed, repeat */

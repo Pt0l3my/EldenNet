@@ -2506,7 +2506,7 @@ case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--conso
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),
      env=dict(EN_ENV, FAKEGAME_SHOWS="{text_ai_shows}"), timeout=300,
      prepare=install_eldennet(AI_SETTINGS, then=install_ai), during=browse_ai, check=check_graceui_ai,
-     what="EldenNet's AI pages through GraceUI 0.2.20 against a fake model server on loopback: AI › Models as one "
+     what="EldenNet's AI pages through GraceUI 0.2.25 against a fake model server on loopback: AI › Models as one "
           "card per job with its chip and live status, a provider added from its preset (No key yet), a wrong key on "
           "its row refused (Refused; the cards Failing) and the right one set (Ready), a server of the case's own "
           "on this PC from the form (Not needed, no key), the self-test and the model lists, a job given that server "
