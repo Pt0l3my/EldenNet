@@ -411,9 +411,15 @@ build laid it out (each file checked against its `graceui.toml`), with `grace-sp
 GraceUI's stand-in for another overlay since 2026-11-23, WHY§518). The zip's one folder, `EldenNet-Spikes`, holds the launcher, the release DLL, gal/, those, one `.cmd` file
 for each run (`build.py`'s `RUNS`: A5, A1 to A4 and B, each the launcher with fixed options from the package's own
 folder, then a pause) and `README-SPIKES.txt` (from `README-S0E-S4.txt.in`; the S0 kind's is `README-SPIKES.txt.in`).
+Every run names the package's own `GraceUI\graceui.toml` (`--expect-graceui`): the launcher compares it with the game's
+`GraceUI\graceui.toml` (version, ABI and every listed file's size and SHA-256) before anything starts, and E13 asks
+whether to start anyway when they differ (the owner's request of 2026-11-23, after a run that loaded an older GraceUI
+from the game's folder; WHY§528); the harness's `launcher-package-spikes-other-graceui` gives the game another version
+and checks that E13, unanswered, stops the run with exit code 23 before the game starts.
 Since 2026-11-23 the launcher shows the tester's panel with each run's steps (`observer_tasks.hpp`), and the package
 cases pace it (`--spike-pace-s 2`) and check it. Before it leaves: `sha256sum -c SHA256SUMS`, the launcher's `--help`
-and `eldennet-engine.exe version` under Wine, the harness's `launcher-package-spikes-a5`, `-a1` to `-a4` and `-b` with
+and `eldennet-engine.exe version` under Wine, the harness's `launcher-package-spikes-a5`, `-a1` to `-a4`, `-b` and
+`-other-graceui` with
 `--set pkg=<the unzipped folder>` (and `engine`, `leads`, `gallayout`), each run's options exactly as its `.cmd` file
 holds them, started from the package's folder; GraceUI's own harness cases on the same GraceUI build; GraceUI's
 `tools/grace-spike/report.py` on each case's spikes folder; and the sweep.

@@ -182,7 +182,7 @@ TEST_CASE("chat: the talk key opens the box: its panel shown, then input asked f
   CHECK((box->desc.flags & GRACEUI_PANEL_TAKES_INPUT) != 0);
   CHECK(s.g.last_request.kind == GRACEUI_HOLDER_PANEL);
   CHECK(s.g.last_request.flags == GRACEUI_INPUT_EVENTS);
-  CHECK(s.g.last_request.wants == (GRACEUI_WANT_KEYBOARD | GRACEUI_WANT_MOUSE | GRACEUI_WANT_PAD));
+  CHECK(s.g.last_request.wants == (GRACEUI_WANT_KEYBOARD | GRACEUI_WANT_PAD));  // not the mouse (O113)
   CHECK(s.g.refused_lists == 0);
   // The open's times, for the latency the log reports.
   const auto opened = s.o->surfaces()->take_opened();

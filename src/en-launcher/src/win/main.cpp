@@ -528,6 +528,25 @@ int do_start(Ctx& c) {
       tell_error(ErrorCode::E12, error_text(ErrorCode::E12, graceui_problem(gr)));
     }
   }
+  // A test package's run (--expect-graceui, the package's own graceui.toml): the game's GraceUI folder must hold the
+  // GraceUI the package carries, or the run tests another one (the owner's request, 2026-11-23). E13 asks whether to
+  // start anyway; closing it stops here. Its words name versions and a relative file name, never a path.
+  if (c.o.expect_graceui) {
+    const auto want = read_graceui_manifest(path_from_utf8(*c.o.expect_graceui));
+    if (!want) {
+      say("usage error=\"--expect-graceui names no readable graceui.toml\"");
+      return kExitUsage;
+    }
+    const auto have = read_graceui_manifest(exe->parent_path() / L"GraceUI" / L"graceui.toml");
+    const std::string differs =
+        have ? graceui_differs(*want, *have) : std::string("the game's folder has no GraceUI, or it cannot be read");
+    say("expect_graceui match=%d want=%u.%u.%u have=%s", differs.empty() ? 1 : 0, want->version[0], want->version[1],
+        want->version[2],
+        have ? (std::to_string(have->version[0]) + "." + std::to_string(have->version[1]) + "." +
+                std::to_string(have->version[2])).c_str()
+             : "none");
+    if (!differs.empty() && !ask(ErrorCode::E13, error_text(ErrorCode::E13, differs))) return exit_code(ErrorCode::E13);
+  }
   for (const auto& a : c.o.also) {
     std::error_code ec;
     if (!fs::is_regular_file(path_from_utf8(a), ec)) {

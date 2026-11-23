@@ -92,6 +92,8 @@ proto::Expected<Options, std::string> parse_options(const std::vector<std::strin
       if ((ok = need())) o.dll = v;
     } else if (arg == "--also") {
       if ((ok = need())) o.also.push_back(v);
+    } else if (arg == "--expect-graceui") {
+      if ((ok = need())) o.expect_graceui = v;
     } else if (arg == "--gal") {
       if ((ok = need())) o.gal = v;
     } else if (arg == "--steam") {
@@ -254,6 +256,7 @@ std::string usage_text() {
          "  --inject-at suspended|window|title   when to load the DLL (default suspended)\n"
          "  --title-wait S       with --inject-at title: seconds after the window (default 15)\n"
          "  --also PATH          load this DLL too, before EldenNet's, unchecked\n"
+         "  --expect-graceui PATH   a test package's graceui.toml: if the game's GraceUI is not that one, ask (E13)\n"
          "  --appid-method file|env   --remove-after window|exit|never   (else launcher.toml's)\n"
          "  --console            the development console: status lines, and the Mark on the Pause key\n"
          "  --read               the read-only round, with the probe build of eldennet.dll: the console; EldenNet\n"

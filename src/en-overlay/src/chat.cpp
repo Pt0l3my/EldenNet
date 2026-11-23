@@ -546,11 +546,13 @@ std::vector<proto::UiEvent> Surfaces::show(const proto::UiModel& model, std::uin
       if (!box_.shown) {
         out.push_back(close_event(proto::CloseReason::NotNow, std::string(), "not_ready"));
       } else {
-        // The box's own panel, shown, takes the keyboard, the mouse and the pad, with the holder's events (D176).
+        // The box's own panel, shown, takes the keyboard and the pad, with the holder's events (D176). Not the mouse
+        // (O113, the owner's direction of 2026-11-23): no pointer shows, and the mouse stays the game's, so the camera
+        // still turns while the player types.
         GraceUiInputRequest req{};
         req.size = sizeof req;
         req.kind = GRACEUI_HOLDER_PANEL;
-        req.wants = GRACEUI_WANT_KEYBOARD | GRACEUI_WANT_MOUSE | GRACEUI_WANT_PAD;
+        req.wants = GRACEUI_WANT_KEYBOARD | GRACEUI_WANT_PAD;
         req.panel = box_.id;
         req.flags = GRACEUI_INPUT_EVENTS;
         GraceUiInputAnswer a{};

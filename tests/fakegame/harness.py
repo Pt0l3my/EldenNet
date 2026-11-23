@@ -2831,7 +2831,7 @@ SPIKE_BANNER = "Spike_run:_EldenNet_makes_no_call_into_the_game"
 
 def pkg_options(run):
     spike, at, also = PKG_RUNS[run]
-    out = ["--console", "--spike", spike, "--inject-at", at]
+    out = ["--console", "--expect-graceui", "GraceUI\\graceui.toml", "--spike", spike, "--inject-at", at]
     for dll in also:
         out += ["--also", dll]
     return out
@@ -2931,6 +2931,7 @@ def check_pkg_run(run):
         failures += any_line(r, "LAUNCHER", "started", ok=1, mode=at, also=len(also),
                              eldennet=0 if word == "s0e_alone" else 1)
         failures += any_line(r, "LAUNCHER", "backup", folders=2, made=2)
+        failures += any_line(r, "LAUNCHER", "expect_graceui", match=1)
         failures += any_line(r, "LAUNCHER", "preflight", graceui="ok") if word != "s0e_alone" else []
         failures += check_grace_report(word, "grace-standin.dll" in also)(r)
         if word == "s0e_alone":
@@ -2975,6 +2976,36 @@ for _run in PKG_RUNS:
          env=dict(EN_ENV, GRACE_SPIKE_STATE_MS="1000"), timeout=240, prepare=install_package,
          check=check_pkg_run(_run),
          what="the owner's package, run %s (run-%s.cmd): %s" % (_run, _run, PKG_WHAT[_run]))
+
+
+
+
+def install_package_other_grace(paths):
+    """The package installed as for its runs, then the game's GraceUI folder made another version's: its graceui.toml
+    names 0.2.1, as an older GraceUI left in the game's folder would (the owner's spikes.4 run B, WHY§528)."""
+    install_package(paths)
+    toml = os.path.join(paths["gamedir"], "GraceUI", "graceui.toml")
+    with open(toml, encoding="utf-8", newline="") as f:
+        text = f.read()
+    with open(toml, "w", encoding="utf-8", newline="") as f:
+        f.write(re.sub(r'(?m)^graceui = "[0-9.]+"', 'graceui = "0.2.1"', text, count=1))
+
+
+def check_pkg_other_grace(r):
+    """E13 before anything starts: the two versions named, the question answered no (--no-dialogs), no game started."""
+    failures = check_lines(("LAUNCHER", "expect_graceui", {"match": 0, "have": "0.2.1"}),
+                           ("LAUNCHER", "error", {"code": "E13", "exit": 23, "asked": 1, "answer": "no"}))(r)
+    need(not any(l.startswith("LAUNCHER started") for l in r.lines), "the game was started", failures)
+    need(not any(l.startswith("FAKEGAME ") for l in r.lines), "the fake game ran", failures)
+    return failures
+
+
+case("launcher-package-spikes-other-graceui",
+     ["--no-dialogs", "--appdata", "{appdata}", "--no-steam-check", "--game", "{game}", "--spike-pace-s", "2"] +
+     pkg_options("A5") + game("--d3d12", frames=60),
+     program="{pkglauncher}", cwd="{pkgdir}", needs=PKG_NEEDS, toolchains=("clang-cl",), exit=23, timeout=60,
+     prepare=install_package_other_grace, check=check_pkg_other_grace,
+     what="the owner's package with another GraceUI in the game's folder: E13 asks, and no answer stops the run")
 
 
 # --- The owner's S0 package (tools/spikepkg's s0 kind), each run as its .cmd file runs it -------------------------------

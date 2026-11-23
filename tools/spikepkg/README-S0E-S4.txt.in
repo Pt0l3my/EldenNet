@@ -52,7 +52,10 @@ Before you start
   - Copy the GraceUI folder from this package into the game's own Game folder, beside eldenring.exe (in Steam:
     right-click ELDEN RING, then Manage, then Browse local files, and open Game). Runs A3, A4 and B need it there: in
     them EldenNet loads GraceUI itself, from the game's folder, where a GraceUI release will be installed. The game
-    never loads it by itself, and you can delete it again once you have finished.
+    never loads it by itself, and you can delete it again once you have finished. Replace any GraceUI folder an
+    earlier package left there: each package is built with its own GraceUI. If the one in the game's folder is not
+    this package's, every run says so before the game starts; close that message, copy the folder again, and start
+    the run again.
   - Turn on EldenNet's F11 view, which is off unless its settings say otherwise; runs A1 to A4 use it. In PowerShell
     (Windows Terminal's default), run these two lines:
 

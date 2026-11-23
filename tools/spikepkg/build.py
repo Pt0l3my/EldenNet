@@ -197,25 +197,30 @@ def gal_files():
 # options, which name nothing but the package's own files. --console gives the launcher's lines to the run's console
 # window (the launcher is a Windows program, which writes to no console without it).
 RUNS = [
+    # Every run names the package's own graceui.toml (--expect-graceui): if the game's GraceUI folder is not the one the
+    # package carries, the launcher asks before the start (E13; the owner's request of 2026-11-23, WHY§528).
     # Since 2026-11-23 (WHY§518) no run loads GraceUI's stand-in for another overlay: on the owner's PC it fell beside
     # the real overlays there, which are what S0-E asks about; A0 (GraceUI, the observer and the stand-in) went with it.
     ("A1", "S0-E with EldenNet: GraceUI loaded by the launcher before EldenNet, injected early",
-     ["--console", "--spike", "s0e", "--inject-at", "suspended", "--also", "GraceUI\\graceui.dll",
-      "--also", "grace-spike.dll"]),
+     ["--console", "--expect-graceui", "GraceUI\\graceui.toml", "--spike", "s0e", "--inject-at", "suspended",
+      "--also", "GraceUI\\graceui.dll", "--also", "grace-spike.dll"]),
     ("A2", "S0-E with EldenNet: GraceUI loaded by the launcher before EldenNet, injected late",
-     ["--console", "--spike", "s0e", "--inject-at", "window", "--also", "GraceUI\\graceui.dll",
-      "--also", "grace-spike.dll"]),
+     ["--console", "--expect-graceui", "GraceUI\\graceui.toml", "--spike", "s0e", "--inject-at", "window",
+      "--also", "GraceUI\\graceui.dll", "--also", "grace-spike.dll"]),
     ("A3", "S0-E with EldenNet: GraceUI loaded by EldenNet itself after the window, injected early",
-     ["--console", "--spike", "s0e", "--inject-at", "suspended", "--also", "grace-spike.dll"]),
+     ["--console", "--expect-graceui", "GraceUI\\graceui.toml", "--spike", "s0e", "--inject-at", "suspended",
+      "--also", "grace-spike.dll"]),
     ("A4", "S0-E with EldenNet: GraceUI loaded by EldenNet itself after the window, injected late",
-     ["--console", "--spike", "s0e", "--inject-at", "window", "--also", "grace-spike.dll"]),
+     ["--console", "--expect-graceui", "GraceUI\\graceui.toml", "--spike", "s0e", "--inject-at", "window",
+      "--also", "grace-spike.dll"]),
     ("B", "S4, input: with EldenNet, injected early; EldenNet loads GraceUI",
-     ["--console", "--spike", "s4", "--inject-at", "suspended", "--also", "grace-spike.dll"]),
+     ["--console", "--expect-graceui", "GraceUI\\graceui.toml", "--spike", "s4", "--inject-at", "suspended",
+      "--also", "grace-spike.dll"]),
     # A5 (2026-11-23, WHY§511): GraceUI and its observer alone, with no EldenNet, injected early: it tells a fault of
     # GraceUI's own from one that comes only with EldenNet beside it.
     ("A5", "S0-E with GraceUI and its observer alone: no EldenNet, injected early",
-     ["--console", "--spike", "s0e_alone", "--inject-at", "suspended", "--also", "GraceUI\\graceui.dll",
-      "--also", "grace-spike.dll"]),
+     ["--console", "--expect-graceui", "GraceUI\\graceui.toml", "--spike", "s0e_alone", "--inject-at", "suspended",
+      "--also", "GraceUI\\graceui.dll", "--also", "grace-spike.dll"]),
 ]
 
 

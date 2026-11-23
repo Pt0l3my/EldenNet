@@ -254,3 +254,36 @@ TEST_CASE("E12: GraceUI's pre-flight, in E08's manner") {
   CHECK(text.find("missing or damaged: graceui.dll does not match graceui.toml. The game starts") != std::string::npos);
   CHECK(error_action(ErrorCode::E12).empty());
 }
+
+TEST_CASE("E13: a test package's GraceUI against the game's, by graceui.toml") {
+  Folder pkg, game;
+  const std::string files = Folder::entry("graceui.dll", kDll) + Folder::entry("fonts/face.ttf", kFont);
+  pkg.manifest("0.2.27", "[1, 6]", files);
+  const auto want = read_graceui_manifest(pkg.grace / "graceui.toml");
+  REQUIRE(want);
+  CHECK(!read_graceui_manifest(game.grace / "graceui.toml"));  // no GraceUI in the game's folder
+  const auto have_of = [&](const std::string& version, const std::string& abi, const std::string& listed) {
+    game.manifest(version, abi, listed);
+    const auto have = read_graceui_manifest(game.grace / "graceui.toml");
+    REQUIRE(have);
+    return graceui_differs(*want, *have);
+  };
+  CHECK(have_of("0.2.27", "[1, 6]", files).empty());
+  CHECK(have_of("0.2.27", "[1, 6]", Folder::entry("fonts/face.ttf", kFont) + Folder::entry("graceui.dll", kDll))
+            .empty());  // the files' order is not compared
+  CHECK(have_of("0.2.24", "[1, 6]", files) == "the game's GraceUI is version 0.2.24, and this package carries 0.2.27");
+  CHECK(have_of("0.2.27", "[1, 5]", files) == "the game's GraceUI speaks ABI 1.5, and this package's 1.6");
+  const std::string changed = Folder::entry("graceui.dll", kDll + "x") + Folder::entry("fonts/face.ttf", kFont);
+  CHECK(have_of("0.2.27", "[1, 6]", changed) == "both are version 0.2.27, but their graceui.dll differ");
+  CHECK(have_of("0.2.27", "[1, 6]", Folder::entry("graceui.dll", kDll)) ==
+        "both are version 0.2.27, but the game's lacks fonts/face.ttf");
+  CHECK(have_of("0.2.27", "[1, 6]", files + Folder::entry("grace-standin.dll", kDll)) ==
+        "both are version 0.2.27, but the game's has grace-standin.dll besides");
+  // E13 names what differs and what to do, offers "Start anyway", and stops with its own exit code otherwise.
+  const std::string text =
+      error_text(ErrorCode::E13, "the game's GraceUI is version 0.2.24, and this package carries 0.2.27");
+  CHECK(text.find("not the one this test package carries: the game's GraceUI is version 0.2.24") != std::string::npos);
+  CHECK(text.find("copy the GraceUI folder from this package into the game's folder") != std::string::npos);
+  CHECK(error_action(ErrorCode::E13) == "Start anyway");
+  CHECK(exit_code(ErrorCode::E13) == 23);
+}
