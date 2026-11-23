@@ -55,7 +55,7 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 1. **Step L6's three subjects are placed** (the record's "The tenth round in game"): the time of day
    (`world_clock`, by the invariant recipe), the play time (`save_data`, likewise) and the event flags (the store's
    and the record's fields in `gal/layouts/2.7.2.0-ww.toml`, engine e864140; en-gal's reader corrected for the
-   block's index, 6d56207). All of it is leads: ten read-only rounds, no fault in some 90,000 readings. What comes
+   block's index, 6d56207). All of it is leads: ten read-only rounds, no fault in some 80,000 readings. What comes
    next is not another probe round of the same kind:
    - EldenNet's own reader (`ErBackend`) reading the flags through the build's layout in the game, with its
      self-test (a flag set in every playthrough): the first use of the layout's fields, a start of EldenNet's own
