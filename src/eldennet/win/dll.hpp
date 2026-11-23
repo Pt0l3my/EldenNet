@@ -183,6 +183,8 @@ struct Shell {
   std::atomic<AiFilesRead*> ai_files{nullptr};  // T1 publishes it on the main path; T6 alone uses it after
   std::atomic<ContentRead*> content{nullptr};   // T1 publishes it on the main path; T6 takes it once
   std::string content_notice;                    // T6's: the content's first problem in words, for one notice
+  // T6's: the pages' changes of a behaviour key (features.*, range.*; WHY§476), for the core after overlay_tick.
+  std::vector<en::shell::SettingsEdit> behaviour_edits;
 };
 // The one Shell, made on T1 (never destroyed), or null before.
 [[nodiscard]] Shell* shell() noexcept;
