@@ -992,6 +992,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     G41 and the observer's fault recorder, 0xC0000374 included): the sums, help and version under Wine, 18 GraceUI and
     spike cases, the six run cases and the other-GraceUI case, and the sweep passed. A1 is kept as it was, so that the
     recorder names the caller if it falls again.
+    The owner's spikes.5 runs the same day (WHY§549): S0-E passed in all five runs (A5, A1 to A4), in both load
+    orders, beside the Steam overlay and another overlay, and A1 no longer fell; S4 passed all it could measure. Every
+    run ended at the quit with the same fault in the game's own teardown, as did a read round without GraceUI
+    (WHY§550): with Grace and Lodestar, and a control run with nothing injected asked of the owner.
 - h O89 to O91 folded into the designs: the derivation round (ARCH §6.2, §6.10), the spikes without GraceUI and the launcher's Mark (DESIGN §14, §16.1), the third-party rows (DESIGN §16.1) [done]
   - refs: O89, O90, O91, ARCH§6.2, ARCH§4.14, DESIGN§16.1
   - gives: folded on 2026-11-17 with the first in-game build's choices (WHY§159 to §204): ARCH
@@ -1193,6 +1197,19 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the owner's Pause presses, and the game ended with a crash code at the quit. To be run again once the read round no
     longer connects to GraceUI (WHY§537) and the parts watch takes the main player from characters.main_player
     (WHY§538).
+    The fourteenth round's rerun built the same day (engine 57f7136, merged at 46f13b9; package 0.1.0-lodestar.19): a
+    read round never connects to GraceUI, and the main player by the layout's word. Awaiting the owner's run.
+    game_state: leads from the owner's executable the same day (O111; WHY§543): its static 0x3D709A8, the save's slot
+    at 0xAC0; the fifteenth round's pair search is to show them in game.
+    The fifteenth round reviewed the same day (WHY§551 to §554): the save's slot confirmed in game where the
+    executable's study put it (game_state's static, field 0xAC0); health found by the parts watch (part 0 of the holder,
+    0x138, maximum 0x13C); position candidates. game_state enters the table in the sixteenth round, by the game's own
+    type information. Open: the game's exit code at the quit (0xC0000374 without GraceUI in the process); a control
+    run with nothing injected and two short runs asked of the owner to tell the PC from the code.
+    The sixteenth round built the same day (engine 920e745, merged at eb1d1c4; package 0.1.0-lodestar.20; WHY§563,
+    §564): game_state by the class the leads give, on the pair search's hits; the layout's list judged first; the
+    falls and moves ranked. The quit's code is the game's on that PC (WHY§556, §557, §561); it came at every quit
+    for an afternoon and evening, then stopped, cause unknown (WHY§562). Awaiting the owner's run.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1597,6 +1614,26 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     0.2.22), GRACE_ENV for the GraceUI cases, the editor's settings with no port, and only the two Named NPCs goldens
     changed, to the chosen row's detail. GCC 39 of 39 with the pages' lint and preview, eval 8 of 8; clang-cl's nine
     unit programs and 18 GraceUI and spike cases under Wine, every server on a free port.
+
+- at GraceUI's test build guards its own heap, for spikes.6 (GraceUI 0.2.32) [done]
+  - refs: GraceUI:D235, GraceUI:D231, WHY§536, WHY§539, WHY§546, WHY§547, WHY§548
+  - gives: built on 2026-11-23 (GraceUI feat/foundations 093fd51, 7fe1248 and 511ec93) at Engine's request: guard bytes
+    and a sealed header on every block of graceui.dll's own, a quarantine of freed blocks, checks at each free and
+    every 5 s, a breach raised as 0xE0475548 and named in the spike report by its block and its maker (module and
+    offset). The full harness (266 checks, its regression run with GRACEUI_TEST_HEAP_GUARD=off) and a sweep of every
+    scenario with the guard on found no breach under Wine. spikes.6 ships graceui.pdb beside the test build's
+    graceui.dll (GraceUI's docs/eldennet-changes.md §65), after spikes.5's results.
+
+- au The owner's spikes.5 findings in GraceUI: the pointer kept where the mouse took it, still or moving; the observer's typing test on the keyboard and the pad only (GraceUI 0.2.33) [done]
+  - refs: GraceUI:D236, GraceUI:D232, O113, WHY§549, WHY§559, WHY§560
+  - gives: built on 2026-11-23 (GraceUI feat/foundations 910ad0a, run 2e219de). The menu-recentred scenario holds still
+    for 1.5 s and keeps the pointer; the spike scenario's typing test checks the letters reach the panel and the mouse
+    the game. For spikes.6, with 0.2.31's free test port and 0.2.32's heap guard.
+- av G42: the menu's focus ring after a key or the pad, gone with the mouse (GraceUI 0.2.33) [done]
+  - refs: G42, GraceUI:D237
+  - gives: decided by the owner on 2026-11-23 as recommended ("After keys or pad") and built the same day (GraceUI
+    feat/foundations 63d63c3); the harness's menu-focus-ring scenario reads the ring's pixels beside the focus (none at
+    open, there after a key, gone after a mouse move, the focus kept). EldenNet's goldens do not change.
 
 ### S11.3 EldenNet v0.2
 

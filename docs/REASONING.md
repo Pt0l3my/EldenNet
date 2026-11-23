@@ -565,6 +565,28 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 540 | 2026-11-23 | ABI 1.6 grows GraceUiEvent: EldenNet's poll is asked at the larger size, and nothing else changes | FACT | #engine #graceui |
 | 541 | 2026-11-23 | A free port for every GraceUI case, from one environment of its own | METHOD | #engine #tests #graceui |
 | 542 | 2026-11-23 | grace-dev 0.2.31's dump: only the two Named NPCs goldens change | FACT | #engine #pages #graceui |
+| 543 | 2026-11-23 | From the owner's executable: the game's state has a class, its static is 0x3D709A8, and the save's slot is 0xAC0 into it | LIKELY | #lodestar #gal |
+| 544 | 2026-11-23 | The main player's word 0x1E508 is read through the characters manager's static by 412 instructions | LIKELY | #lodestar #gal |
+| 545 | 2026-11-23 | The owner's executable is read offline for leads, and its findings enter the rounds as leads | METHOD | #lodestar |
+| 546 | 2026-11-23 | A guard below operator new names a block's maker by the return address each operator new passes, and takes no lock at a breach | METHOD | #graceui #crash |
+| 547 | 2026-11-23 | A heap breach is raised as its own code and ended by a vectored handler of GraceUI's, added last | METHOD | #graceui #crash |
+| 548 | 2026-11-23 | A test aid that perturbs timing must be switchable where other tests measure it | METHOD | #graceui #tests |
+| 549 | 2026-11-23 | spikes.5: S0-E passed in all five runs, A1 among them, beside the Steam overlay and another overlay; S4 passed all it could measure | FACT | #spike #graceui #engine |
+| 550 | 2026-11-23 | Every quit's crash code comes from the same place in the game's own teardown, and a read round without GraceUI has one too | FACT | #crash #graceui #lodestar |
+| 551 | 2026-11-23 | The save's slot is confirmed in game where the executable's study put it | FACT | #lodestar #l6 #gal |
+| 552 | 2026-11-23 | Health is the 32-bit field 0x138 of part 0 of the player's holder of parts, its maximum at 0x13C | LIKELY | #lodestar #l6 |
+| 553 | 2026-11-23 | A read round that skips the connection keeps GraceUI out of the process, and the launcher's panel keeps Pause | FACT | #lodestar #graceui |
+| 554 | 2026-11-23 | The quit's crash code without GraceUI in the process: ten of ten sessions since the first spike run, the ten before clean | FACT | #lodestar #crash |
+| 555 | 2026-11-23 | Wine's heap warnings miss a write past a block's end; the registry's GlobalFlag validates the heap on every call | METHOD | #lodestar #tests |
+| 556 | 2026-11-23 | The quit's crash code comes with the game alone: a run with nothing injected ended with 0xC0000374 too | FACT | #crash #engine #graceui #lodestar |
+| 557 | 2026-11-23 | Windows' own record: the game's heap fault at the quit predates EldenNet's first run in the game | FACT | #crash #engine |
+| 558 | 2026-11-23 | The quit's heap fault is the game's own teardown of its file system: the archive file device's owned object | LIKELY | #lodestar #crash |
+| 559 | 2026-11-23 | A game that keeps its cursor at its centre pulls back any pointer that falls back to the window's position after a quiet spell | FACT | #graceui #input |
+| 560 | 2026-11-23 | A rule with a time in it needs a test that waits past that time | METHOD | #graceui #tests |
+| 561 | 2026-11-23 | A normal launch from Steam, with anti-cheat and nothing of ours, ends at the quit with the same heap fault | FACT | #crash #engine #graceui #lodestar |
+| 562 | 2026-11-23 | With the owner's on-screen-display tool exited, two quits ended clean after twelve of twelve had faulted | LIKELY | #crash #engine |
+| 563 | 2026-11-23 | An object no accessor reaches is named by a search for what its field must read and the class the leads give, checked on each hit | METHOD | #lodestar #l6 #gal |
+| 564 | 2026-11-23 | A search with a fixed number of candidates tries the place the layout gives first, and a run's own elements last | METHOD | #lodestar |
 
 ## Entries
 
@@ -7348,6 +7370,9 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - The clock's runs of bits: a field type of a word with a shift and a width, in en-gal's layout, by Lodestar. The play
   time's place becomes a field of `save_data` by Lodestar.
 
+- Later (2026-11-23, WHY§551): the save's slot confirmed in game, 2,752 bytes into the object behind 64,424,360;
+  game_state enters the table in the sixteenth round, by the game's own type information.
+
 ### 461. No second Esc after the chat box closes: Esc and the pad act on the box only while it is open
 
 `2026-11-23` · DECIDED · `#engine` `#conversation` `#graceui` `#input` · refs: GraceUI:G39, NPC§5.7, NPC§5.6, S11.4.d, WHY§437
@@ -7830,6 +7855,9 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - Later (2026-11-23, WHY§538): the player's class is not the main player's alone: eight objects of it stood in the
   manager's words in one look; the main player is the object at characters.main_player.
 
+- Later (2026-11-23, WHY§544): the code reads the main player's word 0x1E508 through the manager's static (412
+  instructions); the player set lies 0x18 into the first of five parts 0x58 apart from 0x10EE0.
+
 ### 503. In the player's object: the parts holder at 0x190 and the character's sheet at 0x580
 
 `2026-11-23` · LIKELY · `#lodestar` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§489
@@ -7887,6 +7915,9 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   the character, not the slot. No hit of the state search read 0 and then 2: as a 32-bit number that reads -1 at the
   title, the slot is in none of the 1,399 objects the search could follow.
 - Rejected with it: that the game lists its slots last first (WHY§504).
+
+- Later (2026-11-23, WHY§543): the owner's executable gives the game's state a class and a static, 0x3D709A8, and
+  the save's slot 0xAC0 into its object, as leads for the fifteenth round.
 
 ### 508. Ground truth first, then the search
 
@@ -8241,6 +8272,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   faulting frames by module and offset, a page-heap run, and a heap guard on GraceUI's own allocations in its test
   build (asked of Grace for spikes.6 the same day).
 
+- Later (2026-11-23, WHY§556): the damage is not GraceUI's: the game alone, with nothing injected, ends the same way.
+
 ### 540. ABI 1.6 grows GraceUiEvent: EldenNet's poll is asked at the larger size, and nothing else changes
 
 `2026-11-23` · FACT · `#engine` `#graceui` · refs: GraceUI's D226, de8b596 (graceui.h), graceui.h's rules (D73), src/en-overlay/tests/fake_grace.cpp (poll), engine wip/s12-pin, merged at 4bfccf9
@@ -8270,3 +8303,231 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   the world state's Draft is greyed with "Drafts wait until EldenNet may use the network.", as its fixture says.
   `characters.named.starting` and the other twelve goldens are byte for byte the same, and the fixtures needed no
   rewrite.
+
+### 543. From the owner's executable: the game's state has a class, its static is 0x3D709A8, and the save's slot is 0xAC0 into it
+
+`2026-11-23` · LIKELY · `#lodestar` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md ("The offline study of the owner's executable"), O111, WHY§507, S10.1.m
+
+- Read offline: the class's table of methods is at 0x2A84210; the one caller of the function that installs it
+  stores the object at 0x3D709A8, in a function that also makes the event flags' store (0x3D6F4D8) and the session
+  (0x3D81560), both in our table; 349 instructions refer to the static. The save's slot is the 32-bit number 0xAC0
+  into the object: five instructions compare it with -1, one writes it, three test it against the count of slots
+  (10). It is not there at the title and is none of the accessor's statics, which is why no round found it. A lead
+  until the fifteenth round's pair search shows a 32-bit hit 2,752 bytes into the object behind that static.
+
+- Later (2026-11-23, WHY§551): confirmed in game by the fifteenth round's pair search.
+
+### 544. The main player's word 0x1E508 is read through the characters manager's static by 412 instructions
+
+`2026-11-23` · LIKELY · `#lodestar` `#gal` · refs: the same, WHY§502, WHY§538
+
+- 365 take the address and 47 compare it. The code also takes the addresses of five parts of the manager 0x58 bytes
+  apart from 0x10EE0; the thirteenth round's player set (0x10EF8) is the address 0x18 into the first.
+
+### 545. The owner's executable is read offline for leads, and its findings enter the rounds as leads
+
+`2026-11-23` · METHOD · `#lodestar` · refs: the same, O111, WHY§460
+
+- The code's references to a static, the functions' bounds from the image's own table, the tables of methods by
+  the image's type information, and the offsets read through the register a static was loaded into. Checked against
+  the game: the save data's static has 736 references by this count and by the sixth round's. Nothing of the
+  executable is written down, its own names of classes and functions included; each finding is a lead until a round
+  confirms it in game (O48), in WHY§460's order, and the executable chooses what each round checks.
+
+### 546. A guard below operator new names a block's maker by the return address each operator new passes, and takes no lock at a breach
+
+`2026-11-23` · METHOD · `#graceui` `#crash` · refs: GraceUI:D235, WHY§539
+
+- An inlined operator new or a tail call into the guard shifts any fixed number of frames to skip, so each operator
+  new passes its own return address and the guard finds it in the stack it reads, keeping it alone when it is not
+  there. A breach takes no lock (GetModuleHandleExW takes the loader's), so graceui.dll's range is read once at the
+  first request (GraceUI 0.2.32's test build).
+
+### 547. A heap breach is raised as its own code and ended by a vectored handler of GraceUI's, added last
+
+`2026-11-23` · METHOD · `#graceui` `#crash` · refs: GraceUI:D235, GraceUI:D231
+
+- Raised as an ordinary exception it can be swallowed by a catch (...) on some toolchains, and RaiseFailFastException
+  skips the vectored handlers that would record it. So the breach raises 0xE0475548, the observer's recorder (added
+  first) writes it down, and GraceUI's own handler (added last) ends the run with a fail-fast nothing can resume.
+
+### 548. A test aid that perturbs timing must be switchable where other tests measure it
+
+`2026-11-23` · METHOD · `#graceui` `#tests` · refs: GraceUI:D235
+
+- With the heap guard on, GraceUI's first full run failed 11 and 16 checks, all of them counting warm-up frames. The
+  lock was moved off every check and fill, the regression run makes its blocks as a release build does
+  (GRACEUI_TEST_HEAP_GUARD=off), and the guard has its own scenario and its own sweep of every scenario, which found
+  no breach under Wine. EldenNet's GraceUI cases that count warm-up frames set the same switch when they move to a
+  test build that carries the guard.
+
+### 549. spikes.5: S0-E passed in all five runs, A1 among them, beside the Steam overlay and another overlay; S4 passed all it could measure
+
+`2026-11-23` · FACT · `#spike` `#graceui` `#engine` · refs: WHY§529, WHY§536, S10.1.g, GraceUI:D175
+
+- GraceUI 0.2.30's report on the owner's runs: A5 and A1 to A4 passed (connected, hooked once with 9 hooks, 11,165 to
+  26,484 frames drawn, no allocation on the present thread after warm-up), EldenNet connected in both load orders;
+  the Steam overlay was loaded in A2 to B and gave no trouble. A1 no longer fell at the first Present. B (S4): typing
+  held 60 s with nothing passed to the game; pad, the Steam keyboard, Proton and movement not measured (the owner has
+  no pad; movement waits for EldenNet's ready start). By hand: the menu's pointer snaps back to the centre a second
+  after the mouse stops, a few elements show a highlight border unasked, and the typing test's panel still shows a
+  pointer (with Grace). The UI scale changed and persisted.
+
+### 550. Every quit's crash code comes from the same place in the game's own teardown, and a read round without GraceUI has one too
+
+`2026-11-23` · FACT · `#crash` `#graceui` `#lodestar` · refs: WHY§539, WHY§536, WHY§529
+
+- All six spikes.5 runs ended at the quit with the same faulting stack, recorded by GraceUI's observer: the game's
+  code at game+0x254e298 (called from game+0x25234fe and on) freeing a heap block that the heap finds damaged
+  (0xC0000374 through ntdll+0x2754c, or 0xC0000005 at ntdll+0x2730d). The fifteenth read round (0.1.0-lodestar.19),
+  which never loaded GraceUI, also ended with 0xC0000374 at its quit, while the read rounds up to lodestar.17 ended
+  clean. So GraceUI alone does not explain it. Next: a control run with nothing injected (the launcher's
+  --vanilla-offline), Lodestar placing what game+0x254e298 frees from the owner's executable, and spikes.6's heap
+  guard.
+
+- Later (2026-11-23, WHY§556): a run with nothing injected ended the same way: the game's own.
+
+### 551. The save's slot is confirmed in game where the executable's study put it
+
+`2026-11-23` · FACT · `#lodestar` `#l6` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md ("The fifteenth round in game"), WHY§543, WHY§460
+
+- The pair search (6 in the first world, 2 in the second; 3,647 and 3,023 objects read) hit the 32-bit field 2,752
+  bytes into the object behind the slot 64,424,360, the place the offline study gave; 345 places in the code refer to
+  the slot. Four more fields hold the same number behind other slots, so with 17 hits the round's one-hit rule did not
+  name game_state: it enters the table in the sixteenth round, by the game's own type information (WHY§545's ruling).
+  The state search's own candidate read 3 then 2: not the slot.
+
+### 552. Health is the 32-bit field 0x138 of part 0 of the player's holder of parts, its maximum at 0x13C
+
+`2026-11-23` · LIKELY · `#lodestar` `#l6` · refs: the same
+
+- The parts watch (110 passes over 30 parts): 0x138 of part 0 fell once at the one hit and rose once at the one
+  heal, with a never-lower neighbour at 0x13C. Leads for vitals.hp and vitals.max_hp until our own reader reads them.
+  Position: 117 fields changed in every walking pass and no standing one, most of them floats in part 13 (three in a
+  row at 0x70) and part 4 (from 0x130): candidates only.
+
+### 553. A read round that skips the connection keeps GraceUI out of the process, and the launcher's panel keeps Pause
+
+`2026-11-23` · FACT · `#lodestar` `#graceui` · refs: the same, WHY§536, WHY§537
+
+- Round 15: connect skipped, the launcher's "read graceui=installed used=0", eight marks stamped by the launcher's
+  tasks, each at its task.
+
+### 554. The quit's crash code without GraceUI in the process: ten of ten sessions since the first spike run, the ten before clean
+
+`2026-11-23` · FACT · `#lodestar` `#crash` · refs: the same, WHY§550
+
+- Round 15 ended with 0xC0000374 at the quit with GraceUI installed and not loaded. The launcher's log on the owner's
+  PC: up to lodestar.17, 27 of 29 sessions clean, the last ten in a row; since the first spike run of 2026-11-23, ten
+  of ten ended with a crash code, with or without EldenNet, with or without GraceUI. The sanitisers and a
+  heap-validated run of the fake game found nothing in the round's code. What the spike runs leave on the PC
+  (settings.toml with debug.panel, the GraceUI folder, the spikes folders) acts on nothing in a read round, which never
+  connects to GraceUI. Open: a run with nothing injected is the control.
+
+### 555. Wine's heap warnings miss a write past a block's end; the registry's GlobalFlag validates the heap on every call
+
+`2026-11-23` · METHOD · `#lodestar` `#tests` · refs: the same
+
+- GlobalFlag 0xF0, in a throwaway copy of the prefix, validates the heap on every call and catches it. A deliberate
+  overrun proves the check before a clean result is believed.
+
+### 556. The quit's crash code comes with the game alone: a run with nothing injected ended with 0xC0000374 too
+
+`2026-11-23` · FACT · `#crash` `#engine` `#graceui` `#lodestar` · refs: WHY§550, WHY§554, WHY§539
+
+- The owner's control runs (the launcher's --vanilla-offline: nothing injected, no EldenNet, no GraceUI): one of 35 s
+  ended clean, one of 138 s with a save loaded ended with 0xC0000374 at the quit, as every session has since the first
+  spike run. So the damaged block the game's own teardown frees (game+0x254e298) is not ours: neither EldenNet nor
+  GraceUI is needed for it. What changed on the PC or around the game that day is the owner's to look at if they wish;
+  EldenNet and GraceUI stop chasing it. The launcher's start-up notice of the last session's error shows it each time.
+
+- Later (2026-11-23, Lodestar's reading of the owner's later runs): after the vanilla runs, package lodestar.17 in full
+  (EldenNet and GraceUI 0.2.30 connected, two saves loaded, 435 s) ended clean, and lodestar.19 quit at the title
+  ended clean. So not every session with a save loaded ends with the code: the clean full sessions are the two that
+  loaded the first character of the list before the usual one. Thin, and possibly chance; a normal launch from Steam
+  with nothing of ours is the next control (asked of the owner).
+
+### 557. Windows' own record: the game's heap fault at the quit predates EldenNet's first run in the game
+
+`2026-11-23` · FACT · `#crash` `#engine` · refs: WHY§556, WHY§550, WHY§209, O115
+
+- The owner's Application log (event 1000 for eldenring.exe; times, modules, codes and offsets only): the same heap
+  fault as today's quits (ntdll 0xC0000374 at 0x112fc5, or 0xC0000005 at 0x2730d) on 6, 11, 12 and 15 November, before
+  EldenNet's first run inside the game (R1, 17 November), and from 6 to 17 November a pair of faults in a module not
+  ours (0xC0000005, then 0xC0000409 four seconds later). Since the first spike run of 23 November the heap fault comes
+  at every quit instead of now and then. So it is the game's, or something else on the owner's PC; it comes after the
+  game's window has gone, when every test's results are already written, so the in-game tests stand.
+
+### 558. The quit's heap fault is the game's own teardown of its file system: the archive file device's owned object
+
+`2026-11-23` · LIKELY · `#lodestar` `#crash` · refs: WHY§550, WHY§556, WHY§557, O111, docs/ops/probes/2026-11-22-l5.md ("The fifteenth round in game")
+
+- From the owner's executable, read offline: game+0x254e298 is the game's C runtime's free on the process's default
+  heap; above it the game's allocator gives a block back for the release of a small holder of two owned objects, the
+  second of which (at +0x8) faults; the holder is the member at +0x48 of the file device that serves the game's packed
+  data archives (class table 0x3205AE0), torn down with the file system at the quit. No round of ours reads that
+  object. Whether the block was freed twice or damaged beside cannot be told from the code. With WHY§557's history
+  (the same fault before EldenNet ever ran in the game), a damaged or modified install, or a tool that hooks the
+  game's file loading, is the likelier cause; verifying the game's files is the first step.
+
+### 559. A game that keeps its cursor at its centre pulls back any pointer that falls back to the window's position after a quiet spell
+
+`2026-11-23` · FACT · `#graceui` `#input` · refs: GraceUI:D236, GraceUI:D232, WHY§549
+
+- The game sends WM_MOUSEMOVE at its centre whenever it sets the cursor, the mouse still or not, so D232's
+  one-second fallback to the window's position snapped the owner's pointer back after a second of stillness. Since
+  GraceUI 0.2.33 the pointer stays on the mouse's own motion for the whole of a holder's turn; only an absolute
+  device's raw input (MOUSE_MOVE_ABSOLUTE) hands it back.
+
+### 560. A rule with a time in it needs a test that waits past that time
+
+`2026-11-23` · METHOD · `#graceui` `#tests` · refs: GraceUI:D236
+
+- The recentred scenario held still for 12 frames (about 120 ms) against a one-second window, so it could not see
+  the snap the owner saw at once; it now waits 1.5 s, and failed on the old build before the fix.
+
+### 561. A normal launch from Steam, with anti-cheat and nothing of ours, ends at the quit with the same heap fault
+
+`2026-11-23` · FACT · `#crash` `#engine` `#graceui` `#lodestar` · refs: WHY§556, WHY§557, WHY§558, O115
+
+- The owner started the game from Steam as players do (online, Easy Anti-Cheat, the GraceUI folder moved out, nothing
+  injected), loaded a character and quit to the desktop: Windows logged 0xC0000005 in ntdll at 0x2730d, the same fault
+  in the game's file-system teardown. With the verified, unmodded install (the owner's check) and the history before
+  EldenNet's first run, the fault is the game's on that PC, however it is started, and comes at some quits and not
+  others. Nothing of EldenNet's, GraceUI's or the launcher's offline start causes it; in-game tests resume, and the
+  launcher keeps such errors quietly (O115).
+
+### 562. With the owner's on-screen-display tool exited, two quits ended clean after twelve of twelve had faulted
+
+`2026-11-23` · LIKELY · `#crash` `#engine` · refs: WHY§561, WHY§558, WHY§557, O115
+
+- Every one of the owner's sessions of 23 November that loaded a save and quit, through the launcher or from Steam,
+  ended with the heap fault (twelve of twelve). With a third-party frame-rate overlay tool, whose hook every crash
+  record since 17 November lists, fully exited, two launches from Steam with a save loaded quit with no fault, the
+  other overlays left on. The crash records list the same modules on 17, 22 and 23 November, and the sessions of 19
+  to 22 November quit clean, so that tool alone does not make the fault: it is its hook, in some state or setting,
+  beside the game's teardown (WHY§558). Next: one run with the tool back on; if it faults again, the cause is named
+  and the fix is the tool's own per-game setting, nothing of ours.
+- Later (2026-11-23): with the tool started again, the owner's next quit from Steam was clean too, so the tool's
+  presence does not decide it. The streak (twelve of twelve) ended between 22:27 and the three clean runs; what ended
+  it (the tool's restart, or something else that stopped then) is not known. If it comes back, an exit and restart of
+  the tool alone, with no reboot, would tell its state from the rest.
+
+### 563. An object no accessor reaches is named by a search for what its field must read and the class the leads give, checked on each hit
+
+`2026-11-23` · METHOD · `#lodestar` `#l6` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the sixteenth round"), WHY§460, WHY§551
+
+- Two things together name it: a search that finds its field by what the field must read (the save's slot: 6, then
+  2, as the owner's save file said), and the class the leads' [statics] give for it (`game_state = { rtti =
+  "GameMan" }`, the design's own name, ARCH §6.1), checked on each hit's object against the image's type
+  information as loaded. The name is the class's innermost name, compared and kept nowhere; no number or name from
+  the executable enters the round, which is stricter than being given the static as a number. The sixteenth round
+  (package 0.1.0-lodestar.20) does it on the pair search's hits, 64 guarded reads at most.
+
+### 564. A search with a fixed number of candidates tries the place the layout gives first, and a run's own elements last
+
+`2026-11-23` · METHOD · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the sixteenth round")
+
+- In the fifteenth round, runs of rising addresses took all 64 candidates before the lists' places were reached. The
+  sixteenth judges first the run at the place the build's layout gives (characters.by_distance), lists it as
+  expected, and tries last the words inside a run of four or more rising addresses.
