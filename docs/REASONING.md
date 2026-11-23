@@ -553,6 +553,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 528 | 2026-11-23 | A test package's runs check the game's GraceUI against the package's own before the start | DECIDED | #engine #spike #launcher |
 | 529 | 2026-11-23 | spikes.4: A5 and B ran to their end; A1 still falls at GraceUI's first Present with EldenNet connected and no stand-in | FACT | #spike #graceui #engine |
 | 530 | 2026-11-23 | A start stopped by its reader's files says "not supported yet" of a build Home calls supported | FACT | #engine #pages #words |
+| 531 | 2026-11-23 | The moving numbers are sought by invariant on the player's parts, counted by what the tester is doing | METHOD | #lodestar #gal |
+| 532 | 2026-11-23 | A waiting task of the tester's panel may carry a mark: the end of its time is stamped as one | METHOD | #lodestar #launcher |
 
 ## Entries
 
@@ -8129,3 +8131,19 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - To fix in words the owner approves: a stop at discovery names what failed (EldenNet's files for this build, or its
   reading of it, not complete yet) without "not supported", and the build row says supported only once the start has
   read the game.
+
+### 531. The moving numbers are sought by invariant on the player's parts, counted by what the tester is doing
+
+`2026-11-23` · METHOD · `#lodestar` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the fourteenth round"), WHY§460, WHY§503, engine 6d10b11
+
+- Every 32-bit field of the objects the player's parts holder points at is compared a second apart, and its changes
+  are counted by the tester's phase: a position changes in the walk alone; health falls at a hit and rises at a heal,
+  with a steady number at least as large beside it. Only places and behaviour are reported, never values. The owner
+  agreed to the reading and to the hit and the heal (Lodestar's fourteenth round, package 0.1.0-lodestar.18).
+
+### 532. A waiting task of the tester's panel may carry a mark: the end of its time is stamped as one
+
+`2026-11-23` · METHOD · `#lodestar` `#launcher` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§444, engine 6d10b11
+
+- So a round's phases that need no key (standing, walking) are bounded without the tester pressing anything. A list
+  with no marked wait behaves as before; none of the S0, spike or observer lists marks one.

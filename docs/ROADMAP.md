@@ -1177,6 +1177,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     layout's and the backend's sides by Lodestar. game_state: the twelfth round's candidate is ruled out (the owner's
     save file gives the slots; it read 4 for slot 0's character; WHY§507). Next: the fourteenth round looks for the
     field that reads the loaded character's slot in two worlds, then the parts and the moving numbers by invariant.
+    The fourteenth round built the same day (engine 6d10b11, merged at 9c33d80; package 0.1.0-lodestar.18): the save's
+    slot by the two numbers it must read (the pair search), the character search's look in the world, and the parts
+    watch (position by walking, health by a hit and a heal), with the owner's agreement (WHY§531, §532). Awaiting the
+    owner's run, after three README changes of Engine's. Next for Lodestar: the far fields (WHY§506), both sides.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
