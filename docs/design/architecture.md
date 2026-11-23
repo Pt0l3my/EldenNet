@@ -1253,6 +1253,10 @@ npc_param_ids  = []
 - **Field types:** `u8`, `u16`, `u32`, `u64`, `i32`, `f32`, `bool8`, `bit`, `ptr`, `handle`, `vec3f`, `mat4f`, `utf16[n]`,
   `dlvector`, `dlmap`, `array{elem, len, stride}`. A group checks a field by its kind (a whole number of any width, a
   pointer, a bit, a float, ...), not one exact type, so the layout says what the game holds and the reader widens it.
+  *Since 2026-11-23 (Lodestar; step L6's seventh round).* One more type, `bits{word, shift, width}`: a run of bits
+  in a little-endian word of 1, 2, 4 or 8 bytes at `off`, `width` (1 to 32) bits from bit `shift`, read as a whole
+  number; a range's bounds lie within what the run can hold. 2.7.2.0 keeps the time of day so: the hour and the minute
+  are two runs of one 64-bit word. A param row's field may not be of it.
 - **Validation at boot** (`load_layout`, which needs the gate's `BuildProfile`: a layout for another build is refused):
   - every `off + size` within its class's `copy_size`, or its `stride` for an element class, and `copy_size ≤ 0x4000`;
   - every `to` and `elem` names a class of the file;
