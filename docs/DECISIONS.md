@@ -2061,6 +2061,15 @@ load the first one". (3) The build also reads the first 4 KiB of the save data's
 name; Engine asked: "May the round keep it?" The owner's answer: "Yes, keep it (Recommended)". The whole-memory scan
 stays off.
 
+*Note, 2026-11-23 (the same reading, put again by Lodestar).* Lodestar asked the owner too: "One thing my earlier
+question did not name: the thirteenth round as built also reads the first 4 KiB of the game's save-data object (the one
+that holds your play time) and the first 256 bytes of each object it points at, to find where the game keeps your
+character's sheet. It writes only offsets and kinds of object, nothing the objects hold. May the round include that
+reading too?" The other answer offered was to take it out. The owner's answer: "include it as long as nothing personal
+about me, no privacy issue, no safety issue is being added/uploaded. game time, character names are fine." The round
+keeps to the stricter rule all the same: its report and logs hold offsets, sizes, counts and the places of type
+tables, no name and no value of any object.
+
 ## O106
 
 **Retire R1** · *2026-11-22 · Decided by the owner, as recommended*
