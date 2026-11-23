@@ -481,6 +481,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 456 | 2026-11-23 | Step L6's three subjects are placed after ten read-only rounds, with no fault in some 80,000 readings | FACT | #lodestar #l6 |
 | 457 | 2026-11-23 | EldenNet's own flag reader runs first inside a read-only round, beside the round's tree reader, before the start uses it | DECIDED | #engine #lodestar #flags |
 | 458 | 2026-11-23 | One group of the reader can be read alone before the others' fields are placed: a partial discovery and a tick for that group | METHOD | #lodestar #flags |
+| 459 | 2026-11-23 | What a ready start still needs from the layout: one static and 36 fields, by L6's ways | FACT | #lodestar #gal |
+| 460 | 2026-11-23 | The order of the start's layout, and how far a start may rest on the notes' leads for constants | DECIDED | #engine #lodestar #gal |
 
 ## Entries
 
@@ -7204,3 +7206,51 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   then each flag a marked flip was joined to. Each read is compared with what the sweep saw. This is the first time the
   table's checks (placement, witness) run on the game's own image through discover.
 - Both additions are additive; nothing that exists changes its behaviour.
+
+### 459. What a ready start still needs from the layout: one static and 36 fields, by L6's ways
+
+`2026-11-23` · FACT · `#lodestar` `#gal` · refs: roles.cpp, gal/layouts/2.7.2.0-ww.toml, WHY§456, S10.1.m
+
+- Lodestar's count against en-gal's own lists (16 items, 97 fields in 35 classes) and the build's layout (15 items; 2
+  classes, 9 fields). A ready start, not partial, still needs:
+  - `game_state`, the one required static still unplaced, with its field `save_slot`;
+  - Session's 6 fields;
+  - World's 19 fields that are not optional;
+  - Player's 10 such fields beyond the play time;
+  - for the snapshot's mode, `menus.screen_state` (with `loading.load_counter`, optional).
+  That is 36 fields and one static.
+- The ways, by L6: an invariant with the owner's panel tasks (hp, position, runes, death count, the HUD and menus, the
+  camera, the place); a search for pointers and lists with the classes the image already names (the main player, the
+  near list, the parts, vitals and motion, player_data); and leads from our notes, checked by their plain properties,
+  for constants (the session's roles and lobby state, a character's ids, the archetype and the like).
+- `game_state` is the hardest: its one field the start reads never changes in a session, so the static must be told
+  by the code's references or by a second field. Optional groups (place, flags, ui, combat, camera, text, params) only
+  turn themselves off.
+- The clock's hour and minute are runs of bits in one 64-bit word, which the layout's field types cannot yet say.
+
+### 460. The order of the start's layout, and how far a start may rest on the notes' leads for constants
+
+`2026-11-23` · DECIDED · `#engine` `#lodestar` `#gal` · refs: WHY§459, WHY§457, DESIGN§3, DESIGN§4, ARCH§6.7, ARCH§6.8, S10.1.b, S10.1.m
+
+- Engine's ruling on Lodestar's list. The work comes in this order:
+  1. `game_state` first, in a round of its own, since nothing is ready without it.
+  2. The pointers and lists by search and class: `characters.main_player`, the player set and its slot, the near list,
+     the parts, vitals and motion, and `player_data`.
+  3. The moving numbers by invariant, with tasks on the owner's panel: hp and max hp, position, the death count, runes,
+     `menus.screen_state`, `ui.hud_state` and `ui.banner_id` (the conversation's gate reads the last two), and dead and
+     on screen. A task that costs the owner something (dying drops runes; spending runes; levelling up) is optional and
+     says what it costs.
+  4. The constants as leads from our notes, checked by their plain properties.
+- How far a start may rest on such leads:
+  - The session gate's fields (`multiplay_role`, `is_my_world`, `lobby_state`) may rest on leads checked for their
+    offline values. The launcher's offline start without Easy Anti-Cheat is the first guard, and any other value
+    makes EldenNet dormant: the gate fails closed.
+  - A character's ids may rest on leads checked as constant per character and different between characters. A wrong
+    `npc_param_id` cannot bind a persona to the wrong NPC unseen: binding needs an exact row, and the row is checked
+    against the param table where the Params group reads.
+  - A lead that fails its check trips its group, as the degradation ladder has it.
+- A start may run with the structural groups whole and the optional ones off: an optional group only turns itself off
+  (ARCH §6.7, §6.8). That is enough for v0.1's in-game checks (S0-A, S0-B). v0.2's first conversation in game needs the
+  conversation's groups too (session, world, player, flags, ui, place and params), so those follow before it.
+- The clock's runs of bits: a field type of a word with a shift and a width, in en-gal's layout, by Lodestar. The play
+  time's place becomes a field of `save_data` by Lodestar.

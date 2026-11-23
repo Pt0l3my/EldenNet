@@ -875,10 +875,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     folder and graceui.toml (WHY§230 to §233). Since 2026-11-22 (O106) R1 is retired, so part 10's R1 package and probe
     mode go (S10.1.f); the S0 package waits on Lodestar's table instead of R1's review (S10.1.b, S10.1.k).
 - b Spikes S0-A to S0-D: the untouched image, the reader without dearxan (the task before O101), the launcher and offline play, guarded reads [waiting]
-  - needs: a, f
+  - needs: a, f, m
   - gives: since 2026-11-22 (O101, Lodestar's L4) S0-A checks the ids of the build's table in place of the finder's hits
     and five patterns, and S0-B the reader on EldenNet's own thread for 2 h in place of the game's task (DESIGN §16.1);
     both wait on L5's first table (S10.1.k).
+    Since 2026-11-23 they wait on a ready start's layout (S10.1.m; WHY§460).
 - c Spikes S1 perception and S2 text without GraceUI, and S6's core flags and S7 combat with the launcher's development Mark [waiting]
   - needs: b
   - refs: O90
@@ -1092,7 +1093,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     (S10.1.b).
     The eleventh round built the same day (engine 998d078; WHY§458): EldenNet's own reader on the flags, alone, through
     the build's layout, compared with the round's tree reader and the known flag (package 0.1.0-lodestar.14, for the
-    owner's run). A start still needs `game_state` and `field_area` placed, which are required statics.
+    owner's run). A ready start still needs one static (`game_state`) and 36 fields (WHY§459): S10.1.m.
 - l A tester's panel for the owner's rounds: each task in order, with a timer and a mark when done (the owner's request) [done]
   - needs: k
   - refs: WHY§398, WHY§396, WHY§444, WHY§445
@@ -1103,6 +1104,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     (WHY§444, §445). GraceUI's overlay is not cleared for the real game yet (S10.1.g, S11.1.a).
     Proved on the owner's PC in the eighth round (WHY§450); the owner's one change, a button that speaks for its task and
     none for the last, is in the ninth.
+- m The layout for a ready start: `game_state`, then the session's, world's and player's fields and the snapshot's mode, by L6's ways [next]
+  - needs: k
+  - refs: WHY§459, WHY§460, ARCH§6.7, ARCH§6.8
+  - gives: counted by Lodestar on 2026-11-23: one static and 36 fields. The order and the rule for leads are Engine's
+    ruling (WHY§460): `game_state` first; then pointers and lists by search; then moving numbers by invariant with panel
+    tasks (any task with a cost optional); then constants as leads checked by their properties, the session gate's
+    failing closed. A start runs with the optional groups off; v0.2's conversation needs its groups too. By Lodestar.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
