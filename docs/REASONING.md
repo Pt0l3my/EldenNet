@@ -7752,6 +7752,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   a 0-byte file, and `en_fetch` skips any file that exists, so the next configure passed and the link failed with
   undefined ImGui symbols. Deleting the empty file and configuring again fixed it. The top-level CMakeLists.txt is not
   this job's; a fix would remove the file on a failed download or check the hash of an existing one.
+- *Later (2026-11-23):* fixed by Engine: `en_fetch` checks a kept file's hash and downloads it again if it differs, and
+  checks a new download's hash itself, removing the file on any failure (EXPECTED_HASH stops the configure first).
 
 ### 501. The polish's tests on the four toolchains; Lodestar's read-clock case passes
 
