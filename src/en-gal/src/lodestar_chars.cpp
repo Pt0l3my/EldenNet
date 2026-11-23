@@ -27,6 +27,7 @@ struct ListCandidate {
   std::uint64_t begin = 0;
   std::uint32_t bytes = 0;
   bool three = false;
+  bool expected = false;     // where the build's layout puts a list
 };
 
 struct Holder {
@@ -289,20 +290,37 @@ struct CharSearch::Impl {
         }
       }
     }
-    // Two neighbouring addresses, the second past the first by no more than a run may be long: those followed by a
-    // third first (begin, end, capacity), then the others.
-    for (int round = 0; round < 2; ++round) {
+    // Two neighbouring addresses, the second past the first by no more than a run may be long.
+    const auto bounds = [&](std::size_t i) {
+      if (i + 1 >= words) return false;
+      const std::uint64_t b = word_at(bytes, i * 8), e = word_at(bytes, (i + 1) * 8);
+      return pointer_like(b) && e > b && e - b <= kListSpan && (e - b) % 8 == 0;
+    };
+    const auto candidate = [&](std::size_t i, bool expected) {
+      const std::uint64_t b = word_at(bytes, i * 8), e = word_at(bytes, (i + 1) * 8);
+      const std::uint64_t c = i + 2 < words ? word_at(bytes, (i + 2) * 8) : 0;
+      const bool three = c >= e && c - b <= 4ull * kListSpan;
+      return ListCandidate{static_cast<std::uint32_t>(i * 8), b, static_cast<std::uint32_t>(e - b), three, expected};
+    };
+    // First the place the build's layout gives for a list, where it holds bounds now: it is judged whatever else
+    // the manager's words offer (the fifteenth round's candidates were used up before its place was reached).
+    const std::size_t given = o.list_word != 0 && o.list_word % 8 == 0 ? o.list_word / 8 : words;
+    if (given < words && bounds(given)) lists[list_count++] = candidate(given, true);
+    // Then the others: those followed by a third address first (begin, end, capacity), then the rest, and last
+    // the words inside a run of rising addresses. Bounds are two or three words; where four words and more rise in
+    // a row, the pairs past the first are most likely the run's own elements (the fifteenth round's candidates
+    // were used up by such runs), so they are tried only while candidates are left.
+    for (int round = 0; round < 3; ++round) {
       for (std::size_t i = 0; i + 1 < words && list_count < kMaxLists; ++i) {
-        const std::uint64_t b = word_at(bytes, i * 8), e = word_at(bytes, (i + 1) * 8);
-        if (!pointer_like(b) || e <= b || e - b > kListSpan || (e - b) % 8 != 0) continue;
+        if (i == given || !bounds(i)) continue;
         // A run's start is plain memory: a character's own address followed by a larger one is an element of a
         // run, not its bounds (the manager keeps a long run of such 16-byte elements, which used up the candidates).
-        const Target* t = find(b);
+        const Target* t = find(word_at(bytes, i * 8));
         if (t == nullptr || t->kind != Kind::Plain) continue;
-        const std::uint64_t c = i + 2 < words ? word_at(bytes, (i + 2) * 8) : 0;
-        const bool three = c >= e && c - b <= 4ull * kListSpan;
-        if (three != (round == 0)) continue;
-        lists[list_count++] = ListCandidate{static_cast<std::uint32_t>(i * 8), b, static_cast<std::uint32_t>(e - b), three};
+        const bool inside = (i >= 1 && bounds(i - 1) && bounds(i + 1)) || (i >= 2 && bounds(i - 2) && bounds(i - 1));
+        const ListCandidate c = candidate(i, false);
+        if ((inside ? 2 : c.three ? 0 : 1) != round) continue;
+        lists[list_count++] = c;
       }
     }
     if (player_at == 0) return;
@@ -349,6 +367,7 @@ struct CharSearch::Impl {
     out.offset = c.offset;
     out.bytes = c.bytes;
     out.three = c.three;
+    out.expected = c.expected;
     out.stride = best_stride;
     out.chr_at = best_at;
     out.elements = best_elements;
@@ -426,6 +445,7 @@ struct CharSearch::Impl {
 CharSearch::CharSearch(Options options) : impl_(std::make_unique<Impl>(std::move(options))) {
   save_slot_.store(impl_->o.save_slot, std::memory_order_release);
   main_player_word_.store(impl_->o.main_player_word, std::memory_order_release);
+  list_word_.store(impl_->o.list_word, std::memory_order_release);
 }
 CharSearch::~CharSearch() = default;
 
@@ -442,6 +462,10 @@ void CharSearch::set_main_player_word(std::uint32_t offset) noexcept {
   main_player_word_.store(offset, std::memory_order_release);
 }
 
+void CharSearch::set_list_word(std::uint32_t offset) noexcept {
+  list_word_.store(offset, std::memory_order_release);
+}
+
 bool CharSearch::step(const proto::GameThread& gt, GuardedReader& reader, std::uint64_t now_us) {
   Impl& m = *impl_;
   using Phase = Impl::Phase;
@@ -451,6 +475,7 @@ bool CharSearch::step(const proto::GameThread& gt, GuardedReader& reader, std::u
   if (!m.started) {
     m.o.save_slot = save_slot_.load(std::memory_order_acquire);
     m.o.main_player_word = main_player_word_.load(std::memory_order_acquire);
+    m.o.list_word = list_word_.load(std::memory_order_acquire);
     m.begin(look, now_us);
   }
   for (;;) {

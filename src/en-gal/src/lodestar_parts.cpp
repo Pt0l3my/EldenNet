@@ -202,6 +202,7 @@ struct PartsWatch::Impl {
   struct MoveRow {
     std::uint32_t part = 0, offset = 0;
     bool fraction = false;
+    std::uint8_t span = 0;
     std::array<std::uint8_t, kPhases> changed{};
   };
   struct FallRow {
@@ -224,6 +225,8 @@ struct PartsWatch::Impl {
 
   Options o;
   std::vector<std::uint8_t> changed, fell, rose;  // by part, field and phase
+  std::vector<float> low, high;                   // by part and field: what it ranged over in the walk, as a fraction
+  std::vector<std::uint8_t> ranged;               // 0 not yet, 1 `low` and `high` hold, 2 it read as no plain fraction
   std::vector<std::byte> prev;                    // by part: what it held at the pass before
   std::vector<std::byte> cur;
   std::array<std::byte, kHolderWords * 8> holder{};
@@ -250,6 +253,9 @@ struct PartsWatch::Impl {
         changed(kHolderWords * kFields * kPhases),
         fell(kHolderWords * kFields * kPhases),
         rose(kHolderWords * kFields * kPhases),
+        low(kHolderWords * kFields),
+        high(kHolderWords * kFields),
+        ranged(kHolderWords * kFields),
         prev(kHolderWords * kPartSpan),
         cur(kPartSpan) {
     part_span.fill(kPartSpan);
@@ -270,6 +276,7 @@ struct PartsWatch::Impl {
     std::fill_n(changed.begin() + static_cast<std::ptrdiff_t>(from), n, std::uint8_t{0});
     std::fill_n(fell.begin() + static_cast<std::ptrdiff_t>(from), n, std::uint8_t{0});
     std::fill_n(rose.begin() + static_cast<std::ptrdiff_t>(from), n, std::uint8_t{0});
+    std::fill_n(ranged.begin() + static_cast<std::ptrdiff_t>(p * kFields), kFields, std::uint8_t{0});
   }
 
   // One 8-byte read: 1 read, 2 the reader's time was up, 0 not readable.
@@ -283,6 +290,32 @@ struct PartsWatch::Impl {
     return reader.spent() ? 2 : 0;
   }
 
+  // What a field ranged over while the tester walked, read as a fraction: a place ranges over metres, a direction
+  // within 2, an angle or a speed within a few.
+  void range(std::size_t i, std::uint32_t a, std::uint32_t b) {
+    if (ranged[i] == 2) return;
+    for (const std::uint32_t raw : {a, b}) {
+      float v = 0.0f;
+      std::memcpy(&v, &raw, 4);
+      if (!std::isfinite(v) || std::fabs(v) > 1.0e7f) {
+        ranged[i] = 2;
+        return;
+      }
+      if (ranged[i] == 0) {
+        low[i] = high[i] = v;
+        ranged[i] = 1;
+      } else {
+        low[i] = std::min(low[i], v);
+        high[i] = std::max(high[i], v);
+      }
+    }
+  }
+  [[nodiscard]] std::uint8_t span_of(std::size_t i) const {
+    if (ranged[i] != 1) return 0;
+    const float span = high[i] - low[i];
+    return span <= 2.0f ? 1 : span <= 8.0f ? 2 : span <= 10'000.0f ? 3 : 4;
+  }
+
   void compare(std::size_t p, std::uint32_t size) {
     const std::span<const std::byte> now = std::span<const std::byte>(cur).first(size);
     const std::span<const std::byte> before = std::span<const std::byte>(prev).subspan(p * kPartSpan, size);
@@ -292,6 +325,7 @@ struct PartsWatch::Impl {
       if (a == b) continue;
       const std::size_t i = at(p, f, phase_now);
       bump(changed[i]);
+      if (phase_now == o.walk) range(p * kFields + f, a, b);
       if (static_cast<std::int32_t>(b) < static_cast<std::int32_t>(a)) {
         bump(fell[i]);
       } else {
@@ -316,39 +350,44 @@ struct PartsWatch::Impl {
     s.falls_total = 0;
     const std::uint32_t walked = phase_passes[o.walk];
     const std::uint32_t stood = phase_passes[o.still_a] + phase_passes[o.still_b];
-    for (std::size_t p = 0; p < kHolderWords; ++p) {
-      if (part_bytes[p] == 0) continue;
-      s.parts[s.part_count++] = PartFound{static_cast<std::uint32_t>(p), part_vtable[p], part_bytes[p]};
-      if (!has_prev[p]) continue;
-      const std::span<const std::byte> held = std::span<const std::byte>(prev).subspan(p * kPartSpan, part_bytes[p]);
-      for (std::size_t f = 0; f * 4 + 4 <= part_bytes[p]; ++f) {
-        const std::uint8_t* c = changed.data() + at(p, f, 0);
-        // It moved in at least half of the walk's passes (three at least), and never while the tester stood.
-        if (walked >= 3 && stood >= 3 && c[o.walk] >= 3 && std::uint32_t{c[o.walk]} * 2 >= walked &&
-            c[o.still_a] == 0 && c[o.still_b] == 0) {
-          ++s.moves_total;
-          if (s.move_count < kMaxMoves) {
-            MoveRow& row = s.moves[s.move_count++];
+    // Three times over the fields, the likeliest rows first, so that the lists' places go to them: of the moves,
+    // those that ranged like a place, then the other fractions, then the rest; of the falls, the one that fell once
+    // and rose once under a bound, then those that rose again, then the rest. (The fifteenth round's 32 places
+    // for falls all went to the first part.)
+    for (int rank = 0; rank < 3; ++rank) {
+      for (std::size_t p = 0; p < kHolderWords; ++p) {
+        if (part_bytes[p] == 0) continue;
+        if (rank == 0) s.parts[s.part_count++] = PartFound{static_cast<std::uint32_t>(p), part_vtable[p], part_bytes[p]};
+        if (!has_prev[p]) continue;
+        const std::span<const std::byte> held =
+            std::span<const std::byte>(prev).subspan(p * kPartSpan, part_bytes[p]);
+        for (std::size_t f = 0; f * 4 + 4 <= part_bytes[p]; ++f) {
+          const std::uint8_t* c = changed.data() + at(p, f, 0);
+          // It moved in at least half of the walk's passes (three at least), and never while the tester stood.
+          if (walked >= 3 && stood >= 3 && c[o.walk] >= 3 && std::uint32_t{c[o.walk]} * 2 >= walked &&
+              c[o.still_a] == 0 && c[o.still_b] == 0) {
+            MoveRow row;
             row.part = static_cast<std::uint32_t>(p);
             row.offset = static_cast<std::uint32_t>(f * 4);
             float value = 0.0f;
             std::memcpy(&value, held.data() + f * 4, 4);
-            row.fraction = std::isfinite(value) && (value == 0.0f || (std::fabs(value) > 1.0e-3f && std::fabs(value) < 1.0e7f));
+            row.fraction =
+                std::isfinite(value) && (value == 0.0f || (std::fabs(value) > 1.0e-3f && std::fabs(value) < 1.0e7f));
+            row.span = span_of(p * kFields + f);
             std::copy_n(c, kPhases, row.changed.begin());
+            if ((row.span == 3 && row.fraction ? 0 : row.fraction ? 1 : 2) == rank) {
+              ++s.moves_total;
+              if (s.move_count < kMaxMoves) s.moves[s.move_count++] = row;
+            }
           }
-        }
-        // It fell when the tester was hit, changed little else then, and never moved before.
-        const std::uint8_t fallen = fell[at(p, f, o.hit)];
-        if (fallen >= 1 && c[o.hit] <= 6 && c[o.still_a] == 0 && c[o.walk] == 0 && c[o.still_b] == 0) {
-          ++s.falls_total;
-          if (s.fall_count < kMaxFalls) {
-            FallRow& row = s.falls[s.fall_count++];
+          // It fell when the tester was hit, changed little else then, and never moved before.
+          const std::uint8_t fallen = fell[at(p, f, o.hit)];
+          if (fallen >= 1 && c[o.hit] <= 6 && c[o.still_a] == 0 && c[o.walk] == 0 && c[o.still_b] == 0) {
+            FallRow row;
             row.part = static_cast<std::uint32_t>(p);
             row.offset = static_cast<std::uint32_t>(f * 4);
             row.fell = fallen;
             row.rose = rose[at(p, f, o.heal)];
-            row.has_max = false;
-            row.max_at = 0;
             const auto value = static_cast<std::int32_t>(field_at(held, f * 4));
             // Its maximum: the nearest number within 16 bytes that never changed at all and is at least as large.
             for (std::size_t d = 1; d <= 4 && !row.has_max && value > 0; ++d) {
@@ -363,6 +402,10 @@ struct PartsWatch::Impl {
                   row.max_at = static_cast<std::uint32_t>(g * 4);
                 }
               }
+            }
+            if ((row.fell == 1 && row.rose == 1 && row.has_max ? 0 : row.rose >= 1 ? 1 : 2) == rank) {
+              ++s.falls_total;
+              if (s.fall_count < kMaxFalls) s.falls[s.fall_count++] = row;
             }
           }
         }
@@ -505,6 +548,7 @@ PartsFound PartsWatch::found() const {
     move.part = row.part;
     move.offset = row.offset;
     move.fraction = row.fraction;
+    move.span = row.span;
     move.changed.assign(row.changed.begin(), row.changed.end());
     out.moves.push_back(std::move(move));
   }

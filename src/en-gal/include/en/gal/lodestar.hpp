@@ -617,6 +617,7 @@ struct CharList {
   std::uint32_t distance_at = 0;
   bool has_fraction = false;     // a fraction in every element, never negative, not the same in all (in order or not)
   std::uint32_t fraction_at = 0;
+  bool expected = false;         // it lies where the build's layout puts a list (`characters.by_distance`)
 };
 struct CharSet {
   std::uint32_t offset = 0;  // in the manager's object: an address of memory that holds the main player's address
@@ -670,6 +671,7 @@ struct PairHit {
   std::uint32_t offset = 0;  // the field, from the object's start
   std::uint32_t width = 4;   // 4: a 32-bit number read both; 1: one byte did (and the 32-bit number it lies in did not)
   std::uint32_t sites = 0;   // instructions of the code that refer to the slot (the round's count)
+  bool lead = false;         // its object's class is the one the game state's lead names (the game's own type information)
 };
 struct PairFound {
   std::uint32_t first = 0;   // the number sought in the first world
@@ -685,6 +687,7 @@ struct PairFound {
   std::uint64_t bytes_first = 0;    // bytes that did
   std::uint32_t word_hits = 0;      // 32-bit fields that then read the second number
   std::uint32_t byte_hits = 0;      // bytes that did, outside those fields
+  std::uint32_t leads = 0;          // tables of methods the image holds under the game state's lead's name
   std::vector<PairHit> hits;        // the 32-bit ones first; at most 64
 };
 
@@ -701,6 +704,8 @@ struct PartMove {            // a field that changed while the tester walked and
   std::uint32_t part = 0;
   std::uint32_t offset = 0;
   bool fraction = false;     // it reads as a plain fraction
+  std::uint32_t span = 0;    // how far it ranged while the tester walked, as a fraction: 0 not known, 1 within 2 (a
+                             // direction), 2 within 8 (an angle, a speed), 3 within 10,000 (a place), 4 further
   std::vector<std::uint32_t> changed;  // by phase: passes in which it differed from the pass before
 };
 struct PartFall {            // a number that fell when the tester was hit
@@ -836,6 +841,12 @@ class Namer {
     std::string label;
   };
   [[nodiscard]] std::vector<LeadTable> lead_tables() const;
+  // A lead of the leads' [statics] names the class of an object the accessor does not reach (the game's state): its
+  // class's innermost name is compared, here as everywhere, and kept nowhere. Whether `vtable` is the primary table
+  // of methods of a class of that name (1), of that name with Imp (2), or neither (0); and how many tables answer the
+  // lead at all (0: the image holds no class of its name, or the leads hold no such lead).
+  [[nodiscard]] int static_lead_class(std::string_view label, std::uint32_t vtable) const;
+  [[nodiscard]] std::uint32_t static_lead_tables(std::string_view label) const;
   // Every class's primary table of methods the image's type information gives, as offsets, ascending: what an
   // object's first word is compared with to tell where an object starts.
   [[nodiscard]] std::vector<std::uint32_t> primary_tables() const;
