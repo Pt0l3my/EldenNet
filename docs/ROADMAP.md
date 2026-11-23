@@ -1602,6 +1602,15 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     changed, to the chosen row's detail. GCC 39 of 39 with the pages' lint and preview, eval 8 of 8; clang-cl's nine
     unit programs and 18 GraceUI and spike cases under Wine, every server on a free port.
 
+- at GraceUI's test build guards its own heap, for spikes.6 (GraceUI 0.2.32) [done]
+  - refs: GraceUI:D235, GraceUI:D231, WHY§536, WHY§539, WHY§546, WHY§547, WHY§548
+  - gives: built on 2026-11-23 (GraceUI feat/foundations 093fd51, 7fe1248 and 511ec93) at Engine's request: guard bytes
+    and a sealed header on every block of graceui.dll's own, a quarantine of freed blocks, checks at each free and
+    every 5 s, a breach raised as 0xE0475548 and named in the spike report by its block and its maker (module and
+    offset). The full harness (266 checks, its regression run with GRACEUI_TEST_HEAP_GUARD=off) and a sweep of every
+    scenario with the guard on found no breach under Wine. spikes.6 ships graceui.pdb beside the test build's
+    graceui.dll (GraceUI's docs/eldennet-changes.md §65), after spikes.5's results.
+
 ### S11.3 EldenNet v0.2
 
 - S11.3.a The LLM client in the DLL (built in S8.1.a and g; config file only), the chat box, input capture and gating, the talk observer

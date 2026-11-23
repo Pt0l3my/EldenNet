@@ -568,6 +568,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 543 | 2026-11-23 | From the owner's executable: the game's state has a class, its static is 0x3D709A8, and the save's slot is 0xAC0 into it | LIKELY | #lodestar #gal |
 | 544 | 2026-11-23 | The main player's word 0x1E508 is read through the characters manager's static by 412 instructions | LIKELY | #lodestar #gal |
 | 545 | 2026-11-23 | The owner's executable is read offline for leads, and its findings enter the rounds as leads | METHOD | #lodestar |
+| 546 | 2026-11-23 | A guard below operator new names a block's maker by the return address each operator new passes, and takes no lock at a breach | METHOD | #graceui #crash |
+| 547 | 2026-11-23 | A heap breach is raised as its own code and ended by a vectored handler of GraceUI's, added last | METHOD | #graceui #crash |
+| 548 | 2026-11-23 | A test aid that perturbs timing must be switchable where other tests measure it | METHOD | #graceui #tests |
 
 ## Entries
 
@@ -8307,3 +8310,30 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   the game: the save data's static has 736 references by this count and by the sixth round's. Nothing of the
   executable is written down, its own names of classes and functions included; each finding is a lead until a round
   confirms it in game (O48), in WHY§460's order, and the executable chooses what each round checks.
+
+### 546. A guard below operator new names a block's maker by the return address each operator new passes, and takes no lock at a breach
+
+`2026-11-23` · METHOD · `#graceui` `#crash` · refs: GraceUI:D235, WHY§539
+
+- An inlined operator new or a tail call into the guard shifts any fixed number of frames to skip, so each operator
+  new passes its own return address and the guard finds it in the stack it reads, keeping it alone when it is not
+  there. A breach takes no lock (GetModuleHandleExW takes the loader's), so graceui.dll's range is read once at the
+  first request (GraceUI 0.2.32's test build).
+
+### 547. A heap breach is raised as its own code and ended by a vectored handler of GraceUI's, added last
+
+`2026-11-23` · METHOD · `#graceui` `#crash` · refs: GraceUI:D235, GraceUI:D231
+
+- Raised as an ordinary exception it can be swallowed by a catch (...) on some toolchains, and RaiseFailFastException
+  skips the vectored handlers that would record it. So the breach raises 0xE0475548, the observer's recorder (added
+  first) writes it down, and GraceUI's own handler (added last) ends the run with a fail-fast nothing can resume.
+
+### 548. A test aid that perturbs timing must be switchable where other tests measure it
+
+`2026-11-23` · METHOD · `#graceui` `#tests` · refs: GraceUI:D235
+
+- With the heap guard on, GraceUI's first full run failed 11 and 16 checks, all of them counting warm-up frames. The
+  lock was moved off every check and fill, the regression run makes its blocks as a release build does
+  (GRACEUI_TEST_HEAP_GUARD=off), and the guard has its own scenario and its own sweep of every scenario, which found
+  no breach under Wine. EldenNet's GraceUI cases that count warm-up frames set the same switch when they move to a
+  test build that carries the guard.
