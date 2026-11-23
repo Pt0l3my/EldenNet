@@ -300,7 +300,8 @@ std::optional<fs::path> find_flag_state(const fs::path& folder, const std::strin
                     std::all_of(name.begin(), name.end(), [](char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'; });
   if (!slug) return std::nullopt;
   std::error_code ec;
-  fs::path from = fs::absolute(folder, ec);
+  fs::path from = fs::absolute(folder.empty() ? fs::path(".") : folder, ec).lexically_normal();
+  if (ec) return std::nullopt;
   for (int up = 0; up < 8 && !from.empty(); ++up) {
     for (const fs::path& sub : {fs::path("flagstates"), fs::path("fixtures") / "flagstates", fs::path("tests") / "fixtures" / "flagstates"}) {
       const fs::path f = from / sub / (name + ".toml");
