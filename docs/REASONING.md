@@ -565,6 +565,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 540 | 2026-11-23 | ABI 1.6 grows GraceUiEvent: EldenNet's poll is asked at the larger size, and nothing else changes | FACT | #engine #graceui |
 | 541 | 2026-11-23 | A free port for every GraceUI case, from one environment of its own | METHOD | #engine #tests #graceui |
 | 542 | 2026-11-23 | grace-dev 0.2.31's dump: only the two Named NPCs goldens change | FACT | #engine #pages #graceui |
+| 543 | 2026-11-23 | From the owner's executable: the game's state has a class, its static is 0x3D709A8, and the save's slot is 0xAC0 into it | LIKELY | #lodestar #gal |
+| 544 | 2026-11-23 | The main player's word 0x1E508 is read through the characters manager's static by 412 instructions | LIKELY | #lodestar #gal |
+| 545 | 2026-11-23 | The owner's executable is read offline for leads, and its findings enter the rounds as leads | METHOD | #lodestar |
 
 ## Entries
 
@@ -7830,6 +7833,9 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - Later (2026-11-23, WHY§538): the player's class is not the main player's alone: eight objects of it stood in the
   manager's words in one look; the main player is the object at characters.main_player.
 
+- Later (2026-11-23, WHY§544): the code reads the main player's word 0x1E508 through the manager's static (412
+  instructions); the player set lies 0x18 into the first of five parts 0x58 apart from 0x10EE0.
+
 ### 503. In the player's object: the parts holder at 0x190 and the character's sheet at 0x580
 
 `2026-11-23` · LIKELY · `#lodestar` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§489
@@ -7887,6 +7893,9 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   the character, not the slot. No hit of the state search read 0 and then 2: as a 32-bit number that reads -1 at the
   title, the slot is in none of the 1,399 objects the search could follow.
 - Rejected with it: that the game lists its slots last first (WHY§504).
+
+- Later (2026-11-23, WHY§543): the owner's executable gives the game's state a class and a static, 0x3D709A8, and
+  the save's slot 0xAC0 into its object, as leads for the fifteenth round.
 
 ### 508. Ground truth first, then the search
 
@@ -8270,3 +8279,31 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   the world state's Draft is greyed with "Drafts wait until EldenNet may use the network.", as its fixture says.
   `characters.named.starting` and the other twelve goldens are byte for byte the same, and the fixtures needed no
   rewrite.
+
+### 543. From the owner's executable: the game's state has a class, its static is 0x3D709A8, and the save's slot is 0xAC0 into it
+
+`2026-11-23` · LIKELY · `#lodestar` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md ("The offline study of the owner's executable"), O111, WHY§507, S10.1.m
+
+- Read offline: the class's table of methods is at 0x2A84210; the one caller of the function that installs it
+  stores the object at 0x3D709A8, in a function that also makes the event flags' store (0x3D6F4D8) and the session
+  (0x3D81560), both in our table; 349 instructions refer to the static. The save's slot is the 32-bit number 0xAC0
+  into the object: five instructions compare it with -1, one writes it, three test it against the count of slots
+  (10). It is not there at the title and is none of the accessor's statics, which is why no round found it. A lead
+  until the fifteenth round's pair search shows a 32-bit hit 2,752 bytes into the object behind that static.
+
+### 544. The main player's word 0x1E508 is read through the characters manager's static by 412 instructions
+
+`2026-11-23` · LIKELY · `#lodestar` `#gal` · refs: the same, WHY§502, WHY§538
+
+- 365 take the address and 47 compare it. The code also takes the addresses of five parts of the manager 0x58 bytes
+  apart from 0x10EE0; the thirteenth round's player set (0x10EF8) is the address 0x18 into the first.
+
+### 545. The owner's executable is read offline for leads, and its findings enter the rounds as leads
+
+`2026-11-23` · METHOD · `#lodestar` · refs: the same, O111, WHY§460
+
+- The code's references to a static, the functions' bounds from the image's own table, the tables of methods by
+  the image's type information, and the offsets read through the register a static was loaded into. Checked against
+  the game: the save data's static has 736 references by this count and by the sixth round's. Nothing of the
+  executable is written down, its own names of classes and functions included; each finding is a lead until a round
+  confirms it in game (O48), in WHY§460's order, and the executable chooses what each round checks.

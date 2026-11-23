@@ -1195,6 +1195,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     (WHY§538).
     The fourteenth round's rerun built the same day (engine 57f7136, merged at 46f13b9; package 0.1.0-lodestar.19): a
     read round never connects to GraceUI, and the main player by the layout's word. Awaiting the owner's run.
+    game_state: leads from the owner's executable the same day (O111; WHY§543): its static 0x3D709A8, the save's slot
+    at 0xAC0; the fifteenth round's pair search is to show them in game.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
