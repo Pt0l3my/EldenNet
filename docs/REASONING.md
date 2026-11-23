@@ -580,6 +580,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 555 | 2026-11-23 | Wine's heap warnings miss a write past a block's end; the registry's GlobalFlag validates the heap on every call | METHOD | #lodestar #tests |
 | 556 | 2026-11-23 | The quit's crash code comes with the game alone: a run with nothing injected ended with 0xC0000374 too | FACT | #crash #engine #graceui #lodestar |
 | 557 | 2026-11-23 | Windows' own record: the game's heap fault at the quit predates EldenNet's first run in the game | FACT | #crash #engine |
+| 558 | 2026-11-23 | The quit's heap fault is the game's own teardown of its file system: the archive file device's owned object | LIKELY | #lodestar #crash |
 
 ## Entries
 
@@ -8444,3 +8445,15 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   ours (0xC0000005, then 0xC0000409 four seconds later). Since the first spike run of 23 November the heap fault comes
   at every quit instead of now and then. So it is the game's, or something else on the owner's PC; it comes after the
   game's window has gone, when every test's results are already written, so the in-game tests stand.
+
+### 558. The quit's heap fault is the game's own teardown of its file system: the archive file device's owned object
+
+`2026-11-23` · LIKELY · `#lodestar` `#crash` · refs: WHY§550, WHY§556, WHY§557, O111, docs/ops/probes/2026-11-22-l5.md ("The fifteenth round in game")
+
+- From the owner's executable, read offline: game+0x254e298 is the game's C runtime's free on the process's default
+  heap; above it the game's allocator gives a block back for the release of a small holder of two owned objects, the
+  second of which (at +0x8) faults; the holder is the member at +0x48 of the file device that serves the game's packed
+  data archives (class table 0x3205AE0), torn down with the file system at the quit. No round of ours reads that
+  object. Whether the block was freed twice or damaged beside cannot be told from the code. With WHY§557's history
+  (the same fault before EldenNet ever ran in the game), a damaged or modified install, or a tool that hooks the
+  game's file loading, is the likelier cause; verifying the game's files is the first step.
