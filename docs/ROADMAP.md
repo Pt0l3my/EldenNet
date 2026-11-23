@@ -982,6 +982,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     A5 reached the title and opened GraceUI's menu (WHY§517); the stand-in was the cause of the crashes, so no run loads
     it any more (WHY§518). Open with Grace: the menu's pointer pulled back by the game's cursor (0.2.29), and the
     owner's two decisions on Alt+Tab and Tab. The next package follows them.
+    The owner's spikes.4 runs the same day (WHY§529): A5 and B ran to their end (B on the older GraceUI 0.2.24 left in
+    the game's folder), A1 fell twice at GraceUI's first Present with EldenNet connected and no stand-in, so its cause
+    is open with Grace (WHY§518's Later line). Every run of the next package checks the game's GraceUI against its own
+    first (E13, WHY§528), and its chat box takes no mouse (O113).
 - h O89 to O91 folded into the designs: the derivation round (ARCH §6.2, §6.10), the spikes without GraceUI and the launcher's Mark (DESIGN §14, §16.1), the third-party rows (DESIGN §16.1) [done]
   - refs: O89, O90, O91, ARCH§6.2, ARCH§4.14, DESIGN§16.1
   - gives: folded on 2026-11-17 with the first in-game build's choices (WHY§159 to §204): ARCH
@@ -1732,7 +1736,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     far against the stand-in only; rounded corners, and the Tarnished's lines in italic, which wait for more faces per
     mod in GraceUI (D139 gives EldenNet eight) and an italic face; the pointer in the box (a second Escape,
     d, dropped on 2026-11-23). The
-    call-out box waits for v0.6 (WHY§364 (5); S15.1.a).
+    call-out box waits for v0.6 (WHY§364 (5); S15.1.a). Since O113 (2026-11-23, the owner's direction) the box asks
+    for the keyboard and the pad, never the mouse: no pointer, and the camera still turns while the player types
+    (engine 8424f15).
 - d A second Escape while a reply paces (NPC §5.7): a way for it to reach EldenNet once the box has closed, asked of GraceUI [done]
   - needs: c
   - refs: NPC§5.7, WHY§437, WHY§461, G39
@@ -1752,6 +1758,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     and GraceUI's lint refuses an undeclared one: `providers.add`, `providers.remove` and `providers.key`, and the
     settings `debug.panel` and `debug.record_sessions`; the editor's save is left unmarked (WHY§523). The fake game's
     case pairs a device on 127.0.0.2 and checks it refused (WHY§525).
+- f A start stopped at discovery names what failed, and Home's build row says supported only once the game is read [next]
+  - refs: WHY§530, WHY§529, PAGES§4.5
+  - gives: on the owner's PC the banner said "game build 2.7.2.0 not supported yet (reason: gal_files)" while Home
+    said "2.7.2.0, supported" (2026-11-23). New words for the owner's approval with the fix.
 ### S11.5 v0.2's exit checks
 
 - needs: S11.1, S11.3, S11.4

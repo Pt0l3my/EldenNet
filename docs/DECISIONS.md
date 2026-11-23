@@ -2218,3 +2218,45 @@ your work.")
 
 **Follows from.** DP21 (DataPiler's "using game data for research and development is fine, we are just careful what we
 ship online"); O47, O48, O74, O75; WHY§507.
+
+## O112
+
+**The profile editor: the words players read, its save from a paired device, and its release** · *2026-11-23 · Open*
+
+**Question.** The profile editor (S7.2.b, WHY§520 to §523) is built in EldenNet's pages, with its draft helper. Three
+points the design leaves to the owner: (a) the words players read on Characters › Named NPCs, the editor's fields and
+states, its checks' messages and the draft's answers (the list sent with this question: for example "Your notes",
+"Saved, with warnings", "Updated since you wrote this", "Draft with AI", "Too long: at most {n} words."); (b) whether a
+device paired at home may save the player's notes, as it may today, or only the PC the game runs on, like the provider
+commands (WHY§523); (c) the page ships in v0.2, ahead of PAGES' v0.3. **Options:** (a) approve as written, or other
+words; (b) leave the save open to a paired device, or mark it sensitive; (c) ship in v0.2, or hold it to v0.3.
+
+**Recommendation.** (a) Approve as written: each says what happened and where to look, in the player's words. (b) Leave
+the save open: the notes are the player's own text, a phone's keyboard is the easiest to type them on, and a draft
+sends them only to the provider the player chose; a mark later is one line. (c) Ship in v0.2: it is built and tested,
+and the pilot is the first character to try it on.
+
+**Follows from.** O43, O45, O46, G9; PAGES §4.6; NPC §4.7, §4.8; S7.2.b; S11.4.e; WHY§377, WHY§520 to WHY§523.
+
+## O113
+
+**The chat box takes the keyboard, never the mouse** · *2026-11-23 · Decided by the owner (their direction, from spikes.4's run B)*
+
+**Question.** In run B the owner tried grace-spike's typing test, a plain test window that stands in for the chat box
+(NPC §5.1): the window took the keyboard and the mouse, showed GraceUI's pointer in the centre, and held the camera
+still. EldenNet's chat box asked GraceUI for the keyboard, the mouse and the pad alike (D176's request). Should the
+chat box take the mouse?
+
+**Decision.** No. The chat box asks for the keyboard and the pad only: no pointer shows, and the mouse stays the
+game's, so the camera still turns while the player types; the keys stay held from the game as before. The box sits at
+the bottom centre, in the lower third, as NPC §5 has it (the test window's place and look are the observer's, not the
+box's). Built the same day (engine 8424f15).
+
+**Owner's words.** "The typing window currently looks nothing like the rest of the UI, rather ugly, also it inherits
+the same rubberband issue with mouse cursor, also the mouse cursor spawn in centre along with the Chat box, the chat box
+should spawn at the bottom centre, and mouse coursor is not needed at all for this, no need to spawn mouse cursor for
+chat box. The controls were disabled whilst I was typing from both the keyboard and mouse, so when for eaxmple I typed
+with W A S D, the character wasn't moving at all. Though I think the camera movement should be allowed via the mouse
+during chat box open." (2026-11-23)
+
+**Follows from.** NPC §5.1, §5.6; GraceUI's D176, D178; S11.4.c; WHY§529.

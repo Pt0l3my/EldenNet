@@ -550,6 +550,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 525 | 2026-11-23 | A paired device in the fake game: the listener at home on 127.0.0.2 | METHOD | #engine #tests #graceui |
 | 526 | 2026-11-23 | The browser view's port, a case's own: another run of GraceUI's cases holds 8642 | FACT | #engine #tests |
 | 527 | 2026-11-23 | Lodestar's read-state case is timing-tight; read-chars fails on the base too | FACT | #tests #lodestar |
+| 528 | 2026-11-23 | A test package's runs check the game's GraceUI against the package's own before the start | DECIDED | #engine #spike #launcher |
+| 529 | 2026-11-23 | spikes.4: A5 and B ran to their end; A1 still falls at GraceUI's first Present with EldenNet connected and no stand-in | FACT | #spike #graceui #engine |
+| 530 | 2026-11-23 | A start stopped by its reader's files says "not supported yet" of a build Home calls supported | FACT | #engine #pages #words |
 
 ## Entries
 
@@ -7989,6 +7992,9 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   them. So the s0e-s4 package's runs (A5, A1 to A4, B) load no stand-in and the package no longer ships it; A0 (GraceUI,
   the observer and the stand-in) goes (engine 5dd8ce1). The harness keeps the stand-in for its own cases.
 
+- Later (2026-11-23, WHY§529): A1 still fell, the same way, with no stand-in loaded, so the stand-in cannot explain
+  A1's falls; A0's alone remain on it. A1's cause is open, with Grace.
+
 ### 519. A game that turns its camera by the mouse keeps the cursor at its centre; an overlay's pointer follows the mouse's own motion
 
 `2026-11-23` · FACT · `#graceui` `#input` · refs: GraceUI:D232, GraceUI:D130, WHY§517, S11.2.ap
@@ -8083,3 +8089,43 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   runs about 50 ms later here (its first, `found`, took 489 to 571 ms against 436), and the launcher's poll of the block
   adds the rest (its first task 197 ms after `ready` against 64). For Lodestar: a later retitle (or a mark tied to the
   phase, not the clock) would give the case room; nothing of this job's touches the round, the launcher or en-gal.
+
+### 528. A test package's runs check the game's GraceUI against the package's own before the start
+
+`2026-11-23` · DECIDED · `#engine` `#spike` `#launcher` · refs: O113, WHY§529, S10.1.g, engine 8424f15
+
+- The owner's spikes.4 run B loaded an older GraceUI (0.2.24) from the game's folder than the package carried
+  (0.2.27): the package's folder had not been copied in. The owner asked that test packages warn of it.
+- The launcher's `--expect-graceui` names the package's own `GraceUI\graceui.toml`; before anything starts it is
+  compared with the game's (version, ABI, every listed file's size and SHA-256), and E13 names what differs and asks
+  whether to start anyway; closing it stops with exit code 23. Every run of the s0e-s4 package passes it; the S0 and
+  Lodestar packages carry no GraceUI and do not. The harness checks the match in each package case and E13 in
+  `launcher-package-spikes-other-graceui`.
+
+### 529. spikes.4: A5 and B ran to their end; A1 still falls at GraceUI's first Present with EldenNet connected and no stand-in
+
+`2026-11-23` · FACT · `#spike` `#graceui` `#engine` · refs: WHY§509, WHY§511, WHY§517, WHY§518, S10.1.g
+
+- The owner's runs on 2026-11-23, another overlay loaded in each and Steam's off: A5 (GraceUI 0.2.27 alone, early)
+  drew 44,867 frames and every task was done; B (0.2.24 loaded by EldenNet from the game's folder, after the window)
+  ran all six tasks, and the walk into the menu behaved as it should (the character stopped when F5 opened it). Both
+  ended at quit with 0xC0000374 (heap corruption), with Grace.
+- A1 twice (0.2.27 loaded by the launcher before EldenNet, early): 0xC0000005 on a game thread, module unknown, offset
+  0, 6 and 9 s in. The observer's lines: EldenNet connected and registered its space 280 ms after GraceUI started, the
+  swap chain bound, then one Present, no frame, frame_step 2 (bound, no queue) until the fall. EldenNet itself stopped
+  at its banner at 243 ms (discovery refused: the package's gal/ is not the owner's game's reader data), having
+  connected. A5 differs only by EldenNet's absence; B by GraceUI's version and load point. With Grace.
+- In B the pages' Home row read "2.7.2.0, supported" beside the banner "not supported yet (reason: gal_files)"
+  (WHY§530). The typing test's pointer still rubber-banded (0.2.24 and 0.2.27 are older than D232), so the menu's size
+  went untried; the owner has no pad.
+
+### 530. A start stopped by its reader's files says "not supported yet" of a build Home calls supported
+
+`2026-11-23` · FACT · `#engine` `#pages` `#words` · refs: WHY§529, PAGES§4.5, S11.4.a
+
+- `banner_text` gives every stop at discovery the unknown build's words, "game build X not supported yet (reason:
+  gal_files)", while Home's Game build row reads the build table alone ("X, supported"). On the owner's PC both showed
+  at once: the build is in the table, and the package's gal/ held no reader data for it.
+- To fix in words the owner approves: a stop at discovery names what failed (EldenNet's files for this build, or its
+  reading of it, not complete yet) without "not supported", and the build row says supported only once the start has
+  read the game.
