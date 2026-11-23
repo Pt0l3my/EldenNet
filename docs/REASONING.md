@@ -8121,6 +8121,13 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   (WHY§530). The typing test's pointer still rubber-banded (0.2.24 and 0.2.27 are older than D232), so the menu's size
   went untried; the owner has no pad.
 
+- Later (2026-11-23, Grace's reading of the code): GraceUI calls no code of a mod's (the ABI has no callbacks), and
+  between its steps 2 and 3 it does only its own atomics, log and events; A5 found the queue on its second Present, and
+  in A1 no second Present came, so the first original Present below GraceUI never returned or the render thread stopped
+  elsewhere. The 2.5 s gap is likely a crash handler's dump. 0.2.30's observer carries D231's fault recorder (with
+  0xC0000374 added), so spikes.5 keeps A1 to name the caller. GraceUI does nothing at process exit (an empty DllMain,
+  no exit-time destructors). The chat box's keyboard-only request leaves the mouse wholly to the game (O113).
+
 ### 530. A start stopped by its reader's files says "not supported yet" of a build Home calls supported
 
 `2026-11-23` · FACT · `#engine` `#pages` `#words` · refs: WHY§529, PAGES§4.5, S11.4.a
