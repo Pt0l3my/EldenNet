@@ -8508,6 +8508,10 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   to 22 November quit clean, so that tool alone does not make the fault: it is its hook, in some state or setting,
   beside the game's teardown (WHY§558). Next: one run with the tool back on; if it faults again, the cause is named
   and the fix is the tool's own per-game setting, nothing of ours.
+- Later (2026-11-23): with the tool started again, the owner's next quit from Steam was clean too, so the tool's
+  presence does not decide it. The streak (twelve of twelve) ended between 22:27 and the three clean runs; what ended
+  it (the tool's restart, or something else that stopped then) is not known. If it comes back, an exit and restart of
+  the tool alone, with no reboot, would tell its state from the rest.
 
 ### 563. An object no accessor reaches is named by a search for what its field must read and the class the leads give, checked on each hit
 
