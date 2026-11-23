@@ -67,10 +67,14 @@ Before you start
     copy of your own as well, copy the folder %APPDATA%\EldenRing somewhere first.
   - The game will run offline, without Easy Anti-Cheat. Use a save you are happy to play offline, and never take a save
     played with mods into online play.
-  - Each run's file opens a console window, where the launcher's messages appear, behind the game. Setting the game to
-    windowed mode first makes them easy to read; otherwise press Alt+Tab to look, and Alt+Tab back.
-  - You will press F5 (GraceUI's menu), F11 (EldenNet's view), F9 (the typing test, in run B) and, if the Steam overlay
-    shows in this game, Shift+Tab.
+  - Set the game to windowed or borderless windowed mode first (in its graphics settings): a small panel of the
+    launcher's own, beside the game, lists each run's steps, and a full-screen game covers it. It sits at the top
+    right of the screen the game is on; drag it by its top line if it is in the way. It is a window of the launcher's,
+    not anything drawn in the game, and each run's files say that it was shown.
+  - Each run's file also opens a console window, where the launcher's messages appear, behind the game: press Alt+Tab
+    to look, and Alt+Tab back.
+  - You will press F5 (GraceUI's menu), F11 (EldenNet's view), F9 (the typing test, in run B), Pause (to say a step is
+    done) and, if the Steam overlay shows in this game, Shift+Tab. Keyboard and mouse are enough.
   - Windows or your security software may warn about an unsigned program. Allow it only if the SHA-256 values match
     (below); otherwise stop and tell us.
 
@@ -81,9 +85,12 @@ The steps
 Run them in this order: A1, A2, A3, A4, A0 and B. For each run, double-click its file in this folder (or open a command
 prompt here and type its name, run-A1.cmd for the first; in PowerShell, put .\ in front: .\run-A1.cmd). The console
 window opens and the game starts. The first time, the launcher asks where eldenring.exe is if it cannot find it through
-Steam, and shows its notices. Do the run's steps in the game, then quit from the game's own menu. Once the game has
-ended, the console says "Run A1 has ended" (or B, and so on): press a key to close it, and go on to the next run, or
-stop there.
+Steam, and shows its notices. Do the run's steps in the game, as the panel lists them below: after each step of yours,
+press Pause (anywhere, while the game has the keyboard), and the panel moves on to the next; the moment is kept with
+the run's report. The panel's button does the same, but a click takes the pointer out of the game, so use Pause where
+you can. A waiting step counts down by itself, and the last, quitting from the game's own menu, has no button. Once the
+game has ended, the console says "Run A1 has ended" (or B, and so on): press a key to close it, and go on to the next
+run, or stop there.
 
 Runs A1 to A4: S0-E with EldenNet (about 4 minutes each)
 
@@ -93,7 +100,7 @@ Runs A1 to A4: S0-E with EldenNet (about 4 minutes each)
   A3    run-A3.cmd   by EldenNet itself, after the window    early, as the game starts
   A4    run-A4.cmd   by EldenNet itself, after the window    late, once the game's window shows
 
-In the game:
+In the game (the panel lists these steps; press Pause after each one of yours, as the panel says):
 
   1. At the title screen, check that GraceUI's notice "GraceUI spike: recording" and EldenNet's banner ("Spike run:
      EldenNet makes no call into the game") both show.
@@ -113,7 +120,8 @@ comes only with EldenNet beside it.
 
 Run B: S4, input (about 10 minutes; run-B.cmd)
 
-With EldenNet, injected early; EldenNet loads GraceUI.
+With EldenNet, injected early; EldenNet loads GraceUI. The panel lists these steps too: press Pause after each one of
+yours, once the typing test has closed for step 2 (it holds the keyboard while it is open).
 
   1. Load a save and stand somewhere safe, away from enemies.
   2. Press F9: the typing test opens in the middle of the screen and takes the keyboard, the mouse and the pad.

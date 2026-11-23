@@ -1,0 +1,280 @@
+EldenNet, the spikes S0-A to S0-D (package @LABEL@)
+@UNDERLINE@
+
+This package runs the four checks that come before EldenNet's first release in the game (v0.1): the spikes S0-A to
+S0-D. They no longer depend on a call into the game: since the read-only rounds, EldenNet's start takes the places it
+needs from its own table for your game's build (Lodestar's table, in gal\layouts) and checks each one there, and it
+reads the game from a thread of its own. These runs check that start, on your PC, with keyboard and mouse:
+
+  S0-A  The untouched game. EldenNet starts in the game as it runs, with nothing of the game changed and nothing of
+        ours hooked into it, and checks each place of its table: that it lies where its kind must, and that the
+        places in the game's code that use it still do. It checks them again once its start is over, to see that
+        nothing changed them. Twenty starts loaded early, as the game starts, and twenty loaded late, at the title
+        screen; the launcher starts and closes the game by itself each time.
+  S0-B  The reader. EldenNet reads the game from a thread of its own, about ten times a second, for two hours of
+        your play, and counts every reading it had to drop or could not make.
+  S0-C  Offline play. The launcher starts the game offline without Easy Anti-Cheat, in both of its two ways, and
+        counts the game's connections to anything but this PC.
+  S0-D  Guarded reads. EldenNet makes some of its own reads fail on purpose and must catch every one, alone and
+        beside a stand-in for another program that watches for such faults; then five starts in which the launcher
+        asks EldenNet to crash the game on purpose, each of which must be recorded.
+
+What to expect today. The table for your build (2.7.2.0) is not complete yet: one place (the object that keeps the
+save slot in use) and 36 of the fields EldenNet reads are still to be found by the next rounds. So every start ends
+where it must, at EldenNet's banner "discovery failed", once it has checked what the table holds. That is not a
+failure of any spike, and the launcher says so in plain words each time:
+
+  S0-A  runs whole: a start that stops at the banner counts as it should, and the table's places are checked.
+  S0-B  cannot run yet: the launcher says "The start's layout is not complete yet: S0-B waits for it." within a
+        minute or two. Quit the game then; nothing is counted against it. Run it all the same: it shows that the
+        start stops where it should.
+  S0-C  runs as far as it can: the offline start and the connections are measured; the check of EldenNet's online
+        gate waits for the layout.
+  S0-D  runs as far as it can: the forced faults in EldenNet's own reads, and the crashes on purpose, are measured;
+        the part that needs the reader (its breakers) waits for the layout.
+
+EldenNet only reads. It calls nothing in the game, adds nothing to it and changes nothing in it, in every run. The
+panel beside the game is a window of the launcher's own, outside the game. Nothing in this package is for playing
+with yet.
+
+Built from EldenNet's engine branch at commit @COMMIT@ with clang-cl (Release). Never shared: a test build for you
+alone, labelled @LABEL@.
+
+
+How long it takes
+-----------------
+
+About two hours in all today, most of it unattended:
+
+  S0-A  about 30 minutes for each of its two runs (twenty starts each), unattended: you can leave the PC.
+  S0-B  a few minutes today (it stops at the title); two hours of play once the table is complete.
+  S0-C  about 10 minutes for each of its two runs.
+  S0-D  about 15 minutes for each of its two sessions, and about 10 minutes, unattended, for the five crashes.
+
+Each run stands alone: you can stop after any of them and send what you have.
+
+
+What is in it
+-------------
+
+  run-S0A-early.cmd, run-S0A-late.cmd, run-S0B.cmd, run-S0C-file.cmd, run-S0C-env.cmd, run-S0D.cmd, run-S0D-veh.cmd,
+  run-S0D-crash.cmd
+                          One file for each run: it starts eldennet-launcher.exe from this folder with that run's
+                          options, then eldennet-engine.exe's spike-report on the files the runs have left so far. It
+                          names nothing outside this folder but EldenNet's own folder, %APPDATA%\EldenNet (open one in
+                          Notepad to read it).
+  eldennet-launcher.exe   EldenNet's launcher: backs up your saves, starts the game offline without Easy Anti-Cheat,
+                          loads EldenNet, shows the panel of the run's tasks, and watches the game until it ends.
+  eldennet.dll            EldenNet in the game: the probe build, which accepts the table's places while they are
+                          still being checked, and makes S0-D's faults. It reads; it calls nothing in the game.
+  eldennet-engine.exe     EldenNet's command-line tool: spike-report, which applies each spike's pass rules, and
+                          lint, which checks a report.
+  vehprobe.dll            A small program of ours that stands in for a crash reporter: it watches for faults in the
+                          game's process and lets each one pass on. Only run S0D-veh loads it.
+  gal\                    What EldenNet works from: the build's fingerprint (builds.toml), its own numbers and labels
+                          for the places it needs (ids.toml), how a place is recognised (recipes.toml, with its note in
+                          derivations\), what to look for (leads.toml) and the table for your build (layouts\).
+                          Numbers and names of the design's own, nothing taken from the game.
+  README-SPIKES.txt       This file.
+  SHA256SUMS              The SHA-256 of every other file in this package.
+  LICENSE.txt             EldenNet's licence (MIT).
+  THIRD_PARTY.md          What EldenNet is built with, and its credits.
+  THIRD-PARTY-NOTICES.txt The licences of the libraries inside the programs.
+
+
+Before you start
+----------------
+
+  - Close the game, and start Steam.
+  - Unzip this package into a folder of its own, anywhere but the game's folder.
+  - Nothing is to be set up: no settings file to write, nothing to copy into the game's folder. If you have a
+    %APPDATA%\EldenNet\config\settings.toml of your own, leave it as it is. If the GraceUI folder from the earlier
+    spikes is still in the game's Game folder, EldenNet loads it: leave it there or delete it, either works (Pause
+    still confirms the panel's tasks).
+  - The launcher backs up your saves before each start (in %APPDATA%\EldenNet\save-backups). If you want a copy of
+    your own as well, copy the folder %APPDATA%\EldenRing somewhere first.
+  - The game will run offline, without Easy Anti-Cheat. Use a save you are happy to play offline, and never take a save
+    played with mods into online play.
+  - Set the game to windowed or borderless windowed mode first (in its graphics settings): the panel is a window of
+    its own and a full-screen game covers it. It sits at the top right of the screen the game is on; drag it by its
+    top line if it is in the way.
+  - The launcher's messages appear in a console window behind the game, in lines starting with "EldenNet S0-A:" (or
+    S0-B, and so on). Press Alt+Tab to look, and Alt+Tab back.
+  - Windows or your security software may warn about an unsigned program. Allow it only if the SHA-256 values match
+    (below); otherwise stop and tell us.
+
+
+The steps
+---------
+
+Run them in this order. For each run, double-click its file in this folder (or open a command prompt here and type
+its name; in PowerShell, put .\ in front: .\run-S0A-early.cmd). The console window opens and the game starts. The first
+time, the launcher asks where eldenring.exe is if it cannot find it through Steam, and shows its notices. Follow the
+panel beside the game: a waiting task counts down and ends by itself; a task of yours waits until you press Pause
+(anywhere, while the game has the keyboard) or click the panel's button; the last task, quitting the game, has no
+button. Once the game has ended, the console shows spike-report's lines and "Run ... has ended": press a key to close
+it, and go on to the next run, or stop there.
+
+1. run-S0A-early.cmd: S0-A, loaded early (about 30 minutes, unattended)
+
+   The launcher starts the game twenty times, loads EldenNet as it starts, waits until EldenNet's start is over (today:
+   its banner at the title screen), and closes the game again by itself. Do not press anything; you can leave the PC.
+   The panel shows which run is under way. If a run hangs, the launcher closes it after three minutes.
+
+2. run-S0A-late.cmd: S0-A, loaded late (about 30 minutes, unattended)
+
+   The same, with EldenNet loaded at the title screen, about fifteen seconds after the game's window shows.
+
+3. run-S0B.cmd: S0-B, the reader (a few minutes today; two hours once the table is complete)
+
+     1. Wait at the title screen       until the row turns grey (about a minute)
+     2. Load your save                 press Pause when you stand in the world
+     3. Play for two hours             as you usually do: the open world, a dungeon, fights, a death or two, fast
+                                       travel and the menus; the panel counts the time down
+     4. Quit the game
+
+   Today the first task ends with the console's line "The start's layout is not complete yet: S0-B waits for it.", and
+   the panel then shows one task, Quit the game. Do that: the run is done. Once the table is complete, the run goes on
+   to the save and the two hours; you may stop early by quitting the game, and the report says how long EldenNet read.
+
+4. run-S0C-file.cmd and 5. run-S0C-env.cmd: S0-C, offline play (about 10 minutes each)
+
+   The first starts the game with the launcher's usual way of starting it offline (the steam_appid.txt file beside the
+   game while it starts), the second with the same id given to the game in its environment instead.
+
+     1. Wait at the title screen
+     2. Look at the title screen's menu  note whether it offers online play or shows a message about the network, then
+                                         press Pause
+     3. Load your save                   press Pause when you stand in the world
+     4. Play for five minutes            open the game's menu once and look at its network settings without changing
+                                         them: note whether online play is offered
+     5. Quit the game
+
+6. run-S0D.cmd and 7. run-S0D-veh.cmd: S0-D, guarded reads (about 15 minutes each)
+
+   The second does the same as the first, with vehprobe.dll loaded beside EldenNet.
+
+     1. Wait at the title screen       EldenNet makes 40 of its own reads fail on purpose here, and catches them
+     2. Load your save                 press Pause when you stand in the world
+     3. Open the Steam overlay once    press Shift+Tab, wait a moment, press Shift+Tab again, then press Pause; if the
+                                       Steam overlay does not show in this game, just press Pause
+     4. Play for ten minutes           as you usually do; the game should not notice anything
+     5. Quit the game
+
+8. run-S0D-crash.cmd: S0-D's crashes on purpose (about 10 minutes, unattended)
+
+   Five starts. Once EldenNet's start is over in each, the launcher asks it to crash the game, and checks that the crash
+   was recorded. The game closing with an error, or Windows saying it stopped working, is expected here: close any such
+   message. Do not press anything else.
+
+If you have them, the rows beside other software are runs of their own, with the same files: S0-A and S0-D beside
+Seamless Co-op (with a partner, for S0-C too) or Reforged, and beside a crash reporter of your own. Tell us which you
+ran. They are optional: a row not run is noted and run later.
+
+
+What to send back
+-----------------
+
+  %APPDATA%\EldenNet\spikes\                   the whole folder: required
+  %APPDATA%\EldenNet\logs\eldennet.log         helpful
+  %APPDATA%\EldenNet\logs\launcher.log         helpful
+  %APPDATA%\EldenNet\crashes\                  the newest file there, only if the game crashed outside run S0D-crash
+
+(Type %APPDATA%\EldenNet into Explorer's address bar to open the folder.) The spikes folder is small. It holds the
+launcher's log of each run, a folder for each start with EldenNet's report of it (eldennet-spike.json), and the
+spikes' reports that the run files wrote (report-s0a.json, report-s0b.json, report-s0c.json, report-s0d.json). Each
+of them holds only numbers and fixed words. You can check one yourself:
+
+  eldennet-engine.exe lint --report "%APPDATA%\EldenNet\spikes\report-s0a.json"
+
+It must say "lint: the report is clean".
+
+Keep %APPDATA%\EldenNet\recordings\ on your PC: it holds the sessions' recordings (numbers only), which can be large.
+We may ask for a few numbers from them later; spike-report has read them already.
+
+With them, your answers to:
+
+  - S0-C, each run: did the title screen's menu offer online play, or show a message about the network? Did the game's
+    network settings offer online play?
+  - S0-D: did the Steam overlay show? Did the game stutter, freeze or behave oddly at any time?
+  - Anything else you noticed: a stutter, a freeze, a message, a run that did not end by itself.
+
+
+What it does
+------------
+
+  - Backs up your saves (it only copies them), checks that Steam is running and that the game is not, and checks that
+    your game is the build the tables are for (2.7.2.0, worldwide). If the launcher says the build is not supported,
+    stop: the game has been updated since, and the tables must be found again first.
+  - Starts the game offline without Easy Anti-Cheat: by writing the game's Steam app id into steam_appid.txt beside
+    the game while it starts, and removing it again (eldennet-launcher.exe --cleanup removes it if a crash left it),
+    or, in run S0C-env, by giving the game that id in its environment. For each start it makes a folder of its own in
+    %APPDATA%\EldenNet\spikes, named by the spike and a number, and names it to EldenNet.
+  - Loads eldennet.dll into the game (and, in run S0D-veh, vehprobe.dll first). In the game, EldenNet reads the game's
+    code and data as they are loaded, read-only and through guarded copies. It takes each place its table holds and
+    checks it there, searching for nothing the table holds; once its start is over it checks them all again. Today
+    its start then stops, since a place it needs is not in the table yet, and shows its banner.
+  - Once the table is complete: it reads the game from a thread of its own, about ten times a second, and counts what
+    it read, the readings it dropped because the game changed something while it read, and the reads that failed.
+  - In S0-D: it tries forty copies of memory that cannot be read (twenty with each of its two ways of copying: a small
+    piece of its own memory that it has made unreadable, and the address no memory ever has), and counts how many
+    failures it caught; nothing of the game is read for that.
+    Once the table is complete, it also makes one group of its own reads of the game fail, until that group is
+    switched off. In S0D-crash, it crashes the game on purpose when the launcher asks, once its start is over.
+  - In S0-B, S0-C and S0-D it records the session: numbers only, in %APPDATA%\EldenNet\recordings, whatever your
+    settings say.
+  - Writes its report of each start into the start's folder (eldennet-spike.json), and again every ten seconds while
+    the game runs: how its start ended and why, the table's places checked and how many passed, the faults made and
+    caught, and the reader's counts. Numbers and fixed words only: no names of the game's, no text, no paths, nothing
+    of your character or your PC.
+  - The panel: a small window of the launcher's own (not of the game), always on top, that never takes the keyboard.
+    The launcher asks Windows for the Pause key while a run lasts (a system hotkey: Pause goes to the launcher and not
+    to the game meanwhile) and gives it back at the end. When you confirm "Load your save" or the look at the title
+    menu, the launcher writes the moment into the small block of memory it shares with EldenNet, and the recording
+    keeps it.
+  - Watches the game until it ends, and keeps a short record if it ends badly: the error's code, which module it was
+    in and the time, never a memory dump.
+  - After the game has ended, the run's file runs eldennet-engine.exe spike-report: it reads the spikes folder and the
+    recordings, applies the spike's pass rules, prints each rule and the verdict (pass, fail, or incomplete when
+    something could not be measured yet), and writes report-<spike>.json into the spikes folder.
+
+
+What it never does
+------------------
+
+  - It never calls anything in the game, never adds anything to the game's own lists, never hooks anything, and never
+    changes the game's code or data. It reads them.
+  - It never goes online, and the game cannot reach FromSoftware's servers without Easy Anti-Cheat.
+  - It never changes your saves or the game's files (steam_appid.txt aside, which it removes).
+  - It never runs anything else, uses the network, keeps keys or sends anything anywhere. You send the files yourself.
+
+
+If the game crashes or freezes
+------------------------------
+
+  - In run S0D-crash the crashes are meant. Anywhere else, note when it happened.
+  - Your saves were backed up before the game started: each backup is a folder in %APPDATA%\EldenNet\save-backups,
+    named by date and time, with a manifest of the files' sizes and hashes. The game's own save is not touched by
+    EldenNet; only if the game itself reports a damaged save, copy ER0000.sl2 (and ER0000.sl2.bak) from the newest
+    backup back into %APPDATA%\EldenRing\<the same number>\, with the game closed.
+  - If the game freezes, close it with Alt+F4, or end eldenring.exe in Task Manager.
+  - Send the files above, the newest crash record included. The next start of the launcher explains it once.
+  - To play normally again, start the game from Steam as usual. Nothing of EldenNet stays loaded.
+
+
+Check the files
+---------------
+
+In PowerShell, in this folder:
+
+  Get-FileHash -Algorithm SHA256 eldennet-launcher.exe, eldennet.dll, eldennet-engine.exe, vehprobe.dll
+
+Each value must equal its line in SHA256SUMS (letter case aside).
+
+
+Safe use, and what we condemn
+-----------------------------
+
+The devkit's own words, as "eldennet-engine.exe probe-exe --help" prints them:
+
+@DISCLOSURE@
