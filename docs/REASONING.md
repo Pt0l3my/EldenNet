@@ -583,6 +583,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 558 | 2026-11-23 | The quit's heap fault is the game's own teardown of its file system: the archive file device's owned object | LIKELY | #lodestar #crash |
 | 559 | 2026-11-23 | A game that keeps its cursor at its centre pulls back any pointer that falls back to the window's position after a quiet spell | FACT | #graceui #input |
 | 560 | 2026-11-23 | A rule with a time in it needs a test that waits past that time | METHOD | #graceui #tests |
+| 561 | 2026-11-23 | A normal launch from Steam, with anti-cheat and nothing of ours, ends at the quit with the same heap fault | FACT | #crash #engine #graceui #lodestar |
 
 ## Entries
 
@@ -8481,3 +8482,14 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 
 - The recentred scenario held still for 12 frames (about 120 ms) against a one-second window, so it could not see
   the snap the owner saw at once; it now waits 1.5 s, and failed on the old build before the fix.
+
+### 561. A normal launch from Steam, with anti-cheat and nothing of ours, ends at the quit with the same heap fault
+
+`2026-11-23` · FACT · `#crash` `#engine` `#graceui` `#lodestar` · refs: WHY§556, WHY§557, WHY§558, O115
+
+- The owner started the game from Steam as players do (online, Easy Anti-Cheat, the GraceUI folder moved out, nothing
+  injected), loaded a character and quit to the desktop: Windows logged 0xC0000005 in ntdll at 0x2730d, the same fault
+  in the game's file-system teardown. With the verified, unmodded install (the owner's check) and the history before
+  EldenNet's first run, the fault is the game's on that PC, however it is started, and comes at some quits and not
+  others. Nothing of EldenNet's, GraceUI's or the launcher's offline start causes it; in-game tests resume, and the
+  launcher keeps such errors quietly (O115).
