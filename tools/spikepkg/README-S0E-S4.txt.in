@@ -107,11 +107,13 @@ Runs A1 to A4: S0-E with EldenNet (about 4 minutes each)
 
 In the game (the panel lists these steps; press Pause after each one of yours, as the panel says):
 
-  1. At the title screen, check that GraceUI's notice "GraceUI spike: recording" and EldenNet's banner ("Spike run:
-     EldenNet makes no call into the game") both show.
+  1. At the title screen, check that GraceUI's notice "GraceUI spike: recording" and a banner of EldenNet's both show.
+     On your game EldenNet's banner says it is inactive: that is expected in this test, which calls nothing in the
+     game.
   2. Load a save.
-  3. Press F5: GraceUI's menu opens, with GraceUI's own pointer (a gold-edged arrow). Look round it for a few seconds,
-     then press F5 again to close it.
+  3. Press F5: GraceUI's menu opens, with GraceUI's own pointer (a gold-edged arrow). Move the mouse and stop: the
+     pointer should stay where you left it. No gold ring shows round an item until you press a key (an arrow key, say);
+     moving the mouse puts the ring away again. Then press F5 to close the menu.
   4. Press F11: EldenNet's view opens. Press F11 again to close it.
   5. If the Steam overlay shows in this game (Shift+Tab), open it and close it again, and note whether GraceUI's notice
      is still drawn afterwards.
@@ -130,11 +132,13 @@ With EldenNet, injected early; EldenNet loads GraceUI. The panel lists these ste
 yours, once the typing test has closed for step 2 (it holds the keyboard while it is open).
 
   1. Load a save and stand somewhere safe, away from enemies.
-  2. Press F9: the typing test opens in the middle of the screen and takes the keyboard, the mouse and the pad.
-  3. For 60 seconds, type anything (W, A, S and D among it, and some held down) and move the mouse about. What you
-     type shows in the test's own field, on screen only: the report counts it and never keeps it. The test closes by
-     itself after 60 seconds; holding Esc for a second stops it early.
-  4. Note whether the Tarnished moved or the camera turned at any time while the test was open.
+  2. Press F9: the typing test opens in the middle of the screen and takes the keyboard and the pad. It leaves the
+     mouse to the game, as EldenNet's chat box will: no pointer shows, and the camera may turn.
+  3. For 60 seconds, type anything (W, A, S and D among it, and some held down), and move the mouse a little too. What
+     you type shows in the test's own field, on screen only: the report counts it and never keeps it. The test closes
+     by itself after 60 seconds; holding Esc for a second stops it early.
+  4. Note whether the Tarnished moved at any time while the test was open (the camera turning with the mouse is
+     expected).
   5. Hold W so the Tarnished walks, press F5 while still holding it, let W go, then press F5 again: the Tarnished must
      stand still once the menu is open, and must not start walking again when it closes.
   6. If you have a pad: open GraceUI's menu with F5, then press B twice (the first goes back to the list on the left,
@@ -163,7 +167,7 @@ Tell us if you ran one twice or in another order.
 
 With them, your answers to:
 
-  - Did the Tarnished stay still and the camera stay put during the typing test (run B)? (yes or no)
+  - Did the Tarnished stay still during the typing test (run B)? (yes or no; the camera may turn)
   - If the Steam overlay showed: was GraceUI still drawing after it closed? (yes or no)
 
 

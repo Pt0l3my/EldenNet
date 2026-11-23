@@ -23,8 +23,9 @@ Task load_save(const char* where) {
 }
 Task menu() {
   return {TaskKind::Do, "Open GraceUI's menu",
-          "Press F5: GraceUI's menu opens, with GraceUI's own pointer (a gold-edged arrow). Look round it for a few "
-          "seconds, press F5 again to close it, then press Pause.",
+          "Press F5: GraceUI's menu opens, with GraceUI's own pointer (a gold-edged arrow). Move the mouse and stop: "
+          "the pointer should stay where you left it. A key shows a gold ring round an item; the mouse puts it away. "
+          "Press F5 again to close it, then press Pause.",
           0, true, "Menu opened and closed"};
 }
 Task overlay() {
@@ -58,11 +59,11 @@ std::vector<Task> observer_tasks(w::Spike spike) {
     case w::Spike::S4:  // run B
       return {load_save("Stand somewhere safe, away from enemies, then press Pause."),
               {K::Do, "The typing test",
-               "Press F9: the typing test opens in the middle of the screen and takes the keyboard and the mouse. For "
-               "60 seconds, type anything (W, A, S and D among it, some held down) and move the mouse about; what you "
-               "type shows in the test's own field only. It closes by itself after 60 seconds (holding Esc for a "
-               "second stops it early). Note whether the Tarnished moved or the camera turned while it was open, "
-               "then press Pause.",
+               "Press F9: the typing test opens in the middle of the screen and takes the keyboard and the pad; the "
+               "mouse stays the game's, so the camera may turn. For 60 seconds, type anything (W, A, S and D among "
+               "it, some held down); what you type shows in the test's own field only. It closes by itself after 60 "
+               "seconds (holding Esc for a second stops it early). Note whether the Tarnished moved while it was "
+               "open, then press Pause.",
                0, true, "The test has closed"},
               {K::Do, "Walk into the menu",
                "Hold W so the Tarnished walks, press F5 while still holding it, let W go, then press F5 again: the "

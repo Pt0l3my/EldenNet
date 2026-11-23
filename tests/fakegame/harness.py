@@ -1506,7 +1506,10 @@ GRACE_NEEDS = EN_NEEDS + ("graceui",)
 # 0.2.31's D234), never the settings' 8642, so that two trees running GraceUI's cases at once never share a port; the
 # cases read the port in use from the fake game's report (GraceUI_Test_GetServer's `port=`). An older GraceUI ignores
 # the variable.
-GRACE_ENV = dict(EN_ENV, GRACEUI_TEST_PORT="free")
+GRACE_ENV = dict(EN_ENV, GRACEUI_TEST_PORT="free", GRACEUI_TEST_HEAP_GUARD="off")
+# The spikes package's runs keep the test build's heap guard on, as the owner's do (GraceUI D235); EldenNet's own
+# GraceUI cases turn it off, since its slower warm-up perturbs what they time (WHY§548).
+PKG_GRACE_ENV = {k: v for k, v in GRACE_ENV.items() if k != "GRACEUI_TEST_HEAP_GUARD"}
 EN_PANEL = 'schema = 2\ndebug = { panel = true, record_sessions = true }\n'
 VIEW_PROBE = "30,60,640,440,22,28,38"
 VIEW_AREA = (640 - 30) * (440 - 60)
@@ -2979,7 +2982,7 @@ for _run in PKG_RUNS:
          pkg_options(_run) +
          game("--d3d12", *_extra, "--grace-report", "900,1080,1260", "--grace-probe", VIEW_PROBE, frames=1380),
          program="{pkglauncher}", cwd="{pkgdir}", needs=PKG_NEEDS, toolchains=("clang-cl",),
-         env=dict(GRACE_ENV, GRACE_SPIKE_STATE_MS="1000"), timeout=240, prepare=install_package,
+         env=dict(PKG_GRACE_ENV, GRACE_SPIKE_STATE_MS="1000"), timeout=240, prepare=install_package,
          check=check_pkg_run(_run),
          what="the owner's package, run %s (run-%s.cmd): %s" % (_run, _run, PKG_WHAT[_run]))
 
