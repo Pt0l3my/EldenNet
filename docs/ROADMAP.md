@@ -1575,6 +1575,18 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: built on 2026-11-23 (GraceUI feat/foundations 45998e9, run a04a234), with the observer's fault recorder
     taking 0xC0000374 too (d2f352d). The harness's menu-away scenario: Tab moves no focus; away and back through the
     real menu on the same page and row; danger while away closes it. 256 checks, both builds.
+- ar A test build's free port and grace-dev's master detail (GraceUI 0.2.31) [done]
+  - refs: GraceUI:D234, WHY§524, WHY§526, WHY§535
+  - gives: built on 2026-11-23 (GraceUI feat/foundations 6a50f1d, 0d034ea and 386d1ba) at the owner's go-ahead:
+    GRACEUI_TEST_PORT (free or a port) serves a test build's browser view off 8642 with the settings unchanged, and
+    `--dump` gives a page's topics until none is new. 258 checks in GraceUI's full harness. EldenNet's side is
+    S11.2.as.
+- as EldenNet's GraceUI cases on a free port, and Named NPCs' goldens with a master's detail (GraceUI's docs/eldennet-changes.md §64) [next]
+  - needs: ar
+  - refs: GraceUI:D234, WHY§535, WHY§524
+  - gives: the cases set GRACEUI_TEST_PORT=free and read the port from GraceUI_Test_GetServer; the editor's case stops
+    writing a port into GraceUI's settings.json; the goldens regenerated with 0.2.31's grace-dev; graceui-sys's pin
+    moved when the vendored files change.
 
 ### S11.3 EldenNet v0.2
 

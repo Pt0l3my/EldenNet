@@ -557,6 +557,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 532 | 2026-11-23 | A waiting task of the tester's panel may carry a mark: the end of its time is stamped as one | METHOD | #lodestar #launcher |
 | 533 | 2026-11-23 | A holder that returns after an Alt+Tab waits for GraceUI's next frames before it asks for input again | FACT | #graceui #input |
 | 534 | 2026-11-23 | Far fields are built as the ruling says: a copy of their own, into the object's buffer past the class's copy | METHOD | #lodestar #gal |
+| 535 | 2026-11-23 | A test's port belongs in the test's environment, never the player's settings | METHOD | #graceui #tests |
 
 ## Entries
 
@@ -8178,3 +8179,14 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   the class's copy at a multiple of eight; the object view finds it there, so the groups read a far field as any
   other. The characters manager's main player, near list and player set are in the build's layout as far leads
   (copy_size 0, no rtti). dlmap stays near (the flags' store keeps its map 0x38 in), and the 32-byte cap stands.
+
+### 535. A test's port belongs in the test's environment, never the player's settings
+
+`2026-11-23` · METHOD · `#graceui` `#tests` · refs: GraceUI:D234, WHY§526, S11.2.ar
+
+- Writing a port into GraceUI's settings.json made two trees collide and could leave a test's port in a real file.
+  Port 0 handed to the server was rejected too, since it would change the players' port rules for tests alone. The
+  test build reads GRACEUI_TEST_PORT (free, or a port from 1024 to 65535), asks the system for a free port and binds
+  it, asking again up to five times if another program wins the gap; a release build reads nothing of it (GraceUI
+  0.2.31). EldenNet's cases are to set it and read the port from GraceUI_Test_GetServer, and the editor's case to stop
+  writing one (GraceUI's docs/eldennet-changes.md §64).
