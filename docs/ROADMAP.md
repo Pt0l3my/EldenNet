@@ -1512,7 +1512,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Built offline on 2026-11-23 (engine 5d6577e; WHY§471 to §475): the pilot Kalé (`content/eldenring/personas/
     kale.toml`, drafted with help, its review pending) with the world stages, tracks, regions and the catalogue's
     aliases as unverified leads; `known(P)` passes the truth tables for both personas at the eight states. Waits for
-    the owner: the review, field by field (O43, O45, O46; three questions put). Waits for the game: S1 for his row, S6
+    the owner: the review, field by field (O43, O45, O46; its three questions answered as O109). Waits for the game: S1 for his row, S6
     for his flag block, his talk's flag and the world's flags; until then, in game, he knows only his road.
 - d Positive grounding, the "you, now" line, and settings with the range and the feature switches
   - refs: O36, DESIGN§11.4, WHY§424

@@ -2110,3 +2110,26 @@ its pages as NPC §10.2's banner row says.
 **Owner's words.** "Box stays open (Recommended)" (the question dialog, 2026-11-22).
 
 **Follows from.** DESIGN §12; NPC §5.4, §10.2; S11.3.a; WHY§419, WHY§436.
+
+## O109
+
+**The pilot Kalé: three questions from his review list** · *2026-11-23 · Decided by the owner, as recommended*
+
+**Question.** The pilot persona's file (`content/eldenring/personas/kale.toml`, NPC §3.4) went to the owner with a list
+of every field for review by hand (O43, O45, O46), and three questions (WHY§472, §475). (a) Two lines of his private
+self carry a low spoiler mark: his cover story for why his people's caravans scattered, and other road merchants being
+"kin of a sort". Keep them, or say less? (b) His voice fits block 4's cap (224 of 230 tokens) but leaves no room for a
+player's note, which PL9 wants from v0.3 (about 70 tokens). Shorten it to about 160 now, or keep it and look at the rule
+again at v0.3? (c) His second stage, shown only after the talk about the howl in the woods to the east, says he passed
+on what is said of the wolf-headed swordsman there. Name him, as rumour, or name nobody?
+
+**Recommendation.** (a) Keep both: neither says why the caravans scattered. (b) Keep the voice; at v0.3 the player's
+note gets room of its own (its own block or a larger cap) rather than every voice cut to about 160. (c) Keep it, as
+rumour: it shows only after that talk in the player's own game, and the design rewrites the line once S6 finds its flag.
+
+**Decision.** As recommended, all three. His file stays `review = "pending"` until the owner's review of every field.
+
+**Owner's words.** "Keep both (Recommended)", "Keep, revisit at v0.3 (Recommended)" and "Keep it, as rumour
+(Recommended)" (the question dialog, 2026-11-23).
+
+**Follows from.** O43, O45, O46, O86; NPC §3.4, §7.3, §4.8 (PL9); S11.3.c; WHY§471, WHY§472, WHY§475.
