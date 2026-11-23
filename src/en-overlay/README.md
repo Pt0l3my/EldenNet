@@ -160,7 +160,8 @@ game's own text entry is not read in v0.1.
 - **Projections only** (PAGES §3): each body is built from `SpaceFacts`, EldenNet's own enums (the DLL maps en-core's
   and en-gal's, a switch each), numbers and words, never game text, flags, stages, prompts, model text, paths or names.
   Absence is silent: a fact EldenNet lacks is left out. `status` is the top bar's lamp (`word`, `tone`, `reason`,
-  `page`; no lamp while EldenNet is starting) and Home's Status card (`items`); `errors` Home's Problems (`checks`: the
+  `page`; no lamp while EldenNet is starting; at L3 "Speaking, in part" in ember and at L4 "Speaking" in moss, each with
+  its reason, words for the owner's review, WHY§422, §442; Dormant over L2 to L4) and Home's Status card (`items`); `errors` Home's Problems (`checks`: the
   failed start in the banner's own words with its fix, a read group stopped, a refused settings file);
   `system.status` System › Status's Health (`items`), EldenNet's parts as lamps (`checks`: the start, reading the game,
   the core, a refused providers file with why in words and its line, the anti-cheat watch, the log, the recording
@@ -170,7 +171,8 @@ game's own text entry is not read in v0.1.
   held, from T1's first, scrubbed again of a SteamID64's shape, PV5). The AI pages' (`SpaceFacts::ai`, en-overlay's
   own `AiFacts`, which the DLL maps from en-llm): `ai.status` the cause every AI page leads with (PAGES §4.4:
   inactive, a refused providers file, no provider, no key or a refused one, no healthy model for Conversation, the
-  gate, or v0.1's observing; at L1 the banner's own words, O95); `providers` the providers' table (the base URL here
+  gate, or v0.1's observing; at L3 and L4 "Conversation is ready: NPCs answer when you speak to them."; at L1 the
+  banner's own words, O95); `providers` the providers' table (the base URL here
   alone, PV2; the key column is the row's secret, D194 and D197, its cells "set", "refused" (its last call refused
   for its key, or for want of one), "none" (no key's place and none asked for, or http:// on another computer) or "",
   never a key; a Remove on each row, D192) and the model list's checks, in words; `health` each provider's state (a

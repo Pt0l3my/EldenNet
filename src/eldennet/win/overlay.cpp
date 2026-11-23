@@ -203,8 +203,8 @@ en::overlay::Level level_of(en::core::Level l) noexcept {
     case en::core::Level::Starting: return en::overlay::Level::Starting;
     case en::core::Level::L1: return en::overlay::Level::Inactive;
     case en::core::Level::L2: return en::overlay::Level::Observing;
-    case en::core::Level::L3: return en::overlay::Level::Observing;  // the pages' levels until part C shows speech
-    case en::core::Level::L4: return en::overlay::Level::Observing;
+    case en::core::Level::L3: return en::overlay::Level::SpeakingInPart;
+    case en::core::Level::L4: return en::overlay::Level::Speaking;
   }
   return en::overlay::Level::Starting;
 }
