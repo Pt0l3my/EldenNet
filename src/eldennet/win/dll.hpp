@@ -38,6 +38,7 @@
 #include "en/shell/logline.hpp"
 #include "en/shell/rings.hpp"
 #include "en/shell/settings.hpp"
+#include "en/shell/spikerun.hpp"
 
 namespace eldennet {
 
@@ -158,6 +159,7 @@ class Io;
 struct OverlayLink;  // overlay.cpp: en-overlay's connection and what T6 last showed through it
 struct AiFilesRead;  // ai.cpp: providers.toml, models.toml and secrets.toml as T1 read them, and the transport
 struct ContentRead;  // conversation.cpp: the overrides folder and the realm, as T1 read them
+struct SpikeState;   // spike.cpp: an S0 run's report, made by T1 at Safety in such a run
 struct Shell {
   en::shell::Settings settings;
   Paths paths;
@@ -183,6 +185,7 @@ struct Shell {
   std::atomic<AiFilesRead*> ai_files{nullptr};  // T1 publishes it on the main path; T6 alone uses it after
   std::atomic<ContentRead*> content{nullptr};   // T1 publishes it on the main path; T6 takes it once
   std::string content_notice;                    // T6's: the content's first problem in words, for one notice
+  std::atomic<SpikeState*> spike{nullptr};       // an S0 run's (spike.cpp); null in every other start
 };
 // The one Shell, made on T1 (never destroyed), or null before.
 [[nodiscard]] Shell* shell() noexcept;
@@ -247,6 +250,27 @@ bool content_tick(Shell& s, en::core::Core& core) noexcept;
 // T6, after each step of the core: its requests submitted, its cancels made, its commits and its ending logged as
 // words and numbers.
 void conversation_out(Shell& s, en::core::Outputs& out) noexcept;
+
+// ---- The S0 runs (spike.cpp; DESIGN §16.1's S0-A to S0-D, roadmap S10.1.b) ----
+// The report of an S0 run, eldennet-spike.json in the run's folder (en_shell's spikerun.hpp), and what T1 measures for
+// it. Each does nothing outside an S0 run whose folder the launcher named.
+// T1 at Safety: the run's folder (ELDENNET_SPIKE_DIR, only the launcher's folder for this spike in our spikes folder).
+void spike_begin(Shell& s) noexcept;
+// T1 after Discover: its counts and the build's table as it checked it; `d` null when gal/'s files were refused.
+void spike_discovered(Shell& s, const en::gal::Discovery* d, std::uint32_t passes) noexcept;
+// T1, S0-D in a probe build, before the reader or where the start stops short of it: guarded copies forced to fault,
+// by each copy primitive (the SEH copy at a page of our own with no access, ReadProcessMemory at the null page).
+void spike_trial(Shell& s) noexcept;
+// T1, S0-D in a probe build, before the reader: the group the reader's faults are injected into (settings.toml's,
+// else the first optional group this start reads).
+void spike_inject(Shell& s, const en::gal::Discovery& d) noexcept;
+// T1 at the reader's first reading.
+void spike_reading(Shell& s) noexcept;
+// T1 at its terminal state, before it publishes it: the table checked again, then the report written.
+void spike_stopped(Shell& s, en::proto::watch::InitState state, std::optional<en::core::BannerReason> banner,
+                   en::shell::SpikeWaits waits) noexcept;
+// T6, every 10 s once T1 has stopped: the reader's counts, and the report again.
+void spike_tick(Shell& s, std::uint64_t tripped) noexcept;
 
 // ---- T1 (boot.cpp) and the read-only round (probe_read.cpp) ----
 unsigned long init_main(void* module) noexcept;
