@@ -490,6 +490,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 465 | 2026-11-23 | The menu's frame-cost check in GraceUI's harness is noisy on a four-core container | FACT | #graceui #harness |
 | 466 | 2026-11-23 | The layout has a field type for a run of bits in a word; the clock's two fields and the play time enter it as leads | DECIDED | #lodestar #gal |
 | 467 | 2026-11-23 | Where a stalled GraceUI init stops: a step set before each part, readable from outside | METHOD | #graceui #spike |
+| 468 | 2026-11-23 | EldenNet's own flags reader agrees with the game on flags the owner changed | FACT | #lodestar #gal #flags |
+| 469 | 2026-11-23 | game_state: one candidate after the twelfth round, by the owner's word for the slot | LIKELY | #lodestar #l6 #gal |
+| 470 | 2026-11-23 | A search by what an object holds in each state takes its candidates in each state and lists its near misses | METHOD | #lodestar |
 
 ## Entries
 
@@ -7201,6 +7204,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - *Later (2026-11-23, WHY§462):* the round ran. EldenNet's own reader read the flags through the build's layout
   on the game, 44 frames with no fault, and the flag set in every playthrough as set; the marked flags' comparison
   moves to the twelfth round.
+- *Later (2026-11-23, WHY§468):* the comparison is done: the backend read the four flags the owner changed
+  and the always-set one as set, five of five.
 
 ### 458. One group of the reader can be read alone before the others' fields are placed: a partial discovery and a tick for that group
 
@@ -7296,6 +7301,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - The flags the owner's marks changed were not compared with the backend: the tree's walk was 47 records short of
   11,930 when the owner quit (WHY§464). The clock and the play time held by their invariants; the round's reader ran at
   9.92 readings a second, 4,490 readings, no fault.
+- *Later (2026-11-23, WHY§468):* the twelfth round compared them: five of five agree.
 
 ### 463. game_state is sought by what it holds at the title and in the world, over four looks
 
@@ -7348,3 +7354,41 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - The init now sets a step before each part (fonts, the game's window, Direct3D, the hook targets, the input targets,
   the install, hooked), read through GraceUI_Test_InitStep, written by the spike observer as init_step and named by
   report.py when the host never hooked. A later stall says where it stopped.
+
+### 468. EldenNet's own flags reader agrees with the game on flags the owner changed
+
+`2026-11-23` · FACT · `#lodestar` `#gal` `#flags` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§457, WHY§462, S10.1.k
+
+- The twelfth read-only round (package 0.1.0-lodestar.16; 8.6 minutes): four bits were set in the holder's stretch at
+  the owner's fourth mark, and the tree's walk, through by then, gave them their numbers. `ErBackend::flags_alone`, on
+  the build's layout, read each of the four as set, and the always-set flag (100) too: five of five agree. 46 calls,
+  45 frames, no reader fault, no trip. WHY§457's comparison is done.
+- Discovery through the layout took 29 ms: 12 items from the table, none refused, with the bits fields and the play
+  time's field parsed in the game for the first time. The round's reader ran at 9.94 readings a second, 5,010
+  readings, no fault.
+- To mend (Lodestar's): the report's `backend.known_set` read false although the flag's own entry read set, because the
+  last call after the quit overwrote it.
+
+### 469. game_state: one candidate after the twelfth round, by the owner's word for the slot
+
+`2026-11-23` · LIKELY · `#lodestar` `#l6` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§463, S10.1.m
+
+- The state search ran as built: 1,397 candidates, the four looks in 5.9 s, 4.5 s, 0.24 s and 0.18 s, none overrun,
+  the title clean. Of 52,501 fields that read -1 at the title, 251 read a small number in the world, 37 read -1 again
+  and 22 the same number again, in 15 slots; so the round named none.
+- Asked which place in the list of saves the rounds' character holds, the owner answered that it is third (the title's
+  Continue loads it). The third place is slot 2 counting from 0. Of the 22 hits, twelve read 0, nine read 1 and one
+  read 2: the static 64543992 (0x3D8DCF8), the 32-bit field 1,136 bytes (0x470) into its object, a static the
+  accessor's shape reaches (5 sites, 30 references), its object of a class no lead names.
+- LIKELY, on one session and the owner's word; not in the table. The thirteenth round confirms it by loading another
+  character, then the usual one.
+
+### 470. A search by what an object holds in each state takes its candidates in each state and lists its near misses
+
+`2026-11-23` · METHOD · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§463, WHY§469
+
+- The twelfth round's state search took its candidates at the title only: 1,397 slots of the data point at memory in
+  use there, some 4,000 in the world. An object that moved between looks was dropped (716 alive after the first look,
+  82 in the world), and the 214 fields that failed only the third look were not listed.
+- So such a search takes its candidates in each state, keeps both numbers a field reads in the world, and lists the
+  near misses; otherwise a lead that is half wrong leaves no trace.

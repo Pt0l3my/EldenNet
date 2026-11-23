@@ -1102,6 +1102,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The eleventh round reviewed the same day (WHY§462): discovery through the layout and the backend's flags group work
     on the game (flag 100 read as set, 44 frames, no fault); the marked flags' comparison moves to the twelfth round
     (WHY§464).
+    The twelfth round reviewed the same day (WHY§468): the backend's flags group agrees with the game on four flags
+    the owner changed and the always-set one (WHY§457's comparison done).
 - l A tester's panel for the owner's rounds: each task in order, with a timer and a mark when done (the owner's request) [done]
   - needs: k
   - refs: WHY§398, WHY§396, WHY§444, WHY§445
@@ -1125,6 +1127,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     `world_clock.hour`, `world_clock.minute` and `save_data.play_time` in the layout as leads; the round tells each
     look's time and whether the tester overran it (then it names no slot by itself), its waits a minute each.
     Package 0.1.0-lodestar.16, for the owner's run (15 never went out).
+    The twelfth round reviewed the same day (WHY§469, §470): `game_state` has one candidate (static 64543992, 1,136
+    bytes in; LIKELY, by the owner's word for the slot), not in the table. Next: the thirteenth round confirms it with a
+    second character and begins the pointers and lists, after the owner's word on their reading.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
