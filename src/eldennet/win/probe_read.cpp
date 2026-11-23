@@ -705,6 +705,7 @@ class Round {
     o.manager_slot = held->rva;
     o.character_vtables = tables("character");
     o.player_vtables = tables("player_character");
+    o.main_player_word = main_player_word_;
     o.image = &s_.sys->image();
     if (o.character_vtables.empty() || o.player_vtables.empty()) return;
     const std::size_t classes = o.character_vtables.size(), players = o.player_vtables.size();
@@ -741,9 +742,18 @@ class Round {
     if (look == nullptr) return;
     parts_tried_ = true;
     lodestar::PartsWatch::Options o;
+    // The main player's word: the layout's, where the look saw an object of the player's class there; else the one
+    // word that held such an object, where there was one object only. (A world may hold several objects of the
+    // player's class: the fourteenth round's look met eight.)
     bool player = false;
     for (const lodestar::CharPointer& c : look->pointers) {
-      if (c.player && !player) {
+      if (c.player && main_player_word_ != 0 && c.offset == main_player_word_) {
+        o.player_word = c.offset;
+        player = true;
+      }
+    }
+    for (const lodestar::CharPointer& c : look->pointers) {
+      if (c.player && !player && look->players == 1) {
         o.player_word = c.offset;
         player = true;
       }
@@ -755,7 +765,7 @@ class Round {
         o.holder_at = m.offset;
       }
     }
-    if (!player || look->players != 1 || most < 6) {
+    if (!player || most < 6) {
       log(Line("read").word("stage", "parts").flag("made", false).num("players", look->players).num("classed", most),
           LogLevel::Warn);
       return;
@@ -819,6 +829,12 @@ class Round {
     for (const en::gal::ItemResult& item : r.items) b.items += item.status == en::gal::ItemStatus::Resolved ? 1 : 0;
     b.table_items = r.table_items;
     b.table_refused = r.table_refused;
+    // The main player's word in the characters manager, where the build's layout has it: the character search and
+    // the parts watch take the main player from there.
+    if (const en::gal::FieldLayout* main = discovery_->bound().field(en::gal::roles::Fld::MainPlayer)) {
+      main_player_word_ = main->off;
+      if (chars_ != nullptr) chars_->set_main_player_word(main->off);
+    }
     if (const en::gal::FieldLayout* holder = discovery_->bound().field(en::gal::roles::Fld::HolderBase)) {
       holder_offset_ = holder->off;
     }
@@ -1615,6 +1631,7 @@ class Round {
   bool state_said_ = false;
   lodestar::CharSearch* chars_ = nullptr;
   std::uint32_t chars_manager_ = 0;                 // the characters manager's static
+  std::uint32_t main_player_word_ = 0;              // in the manager's object, by the build's layout; 0: not there
   lodestar::PairSearch* pair_ = nullptr;
   bool pair_said_ = false;
   std::map<std::uint32_t, std::uint32_t> pair_sites_;  // by slot: the code's references to it

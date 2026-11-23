@@ -508,6 +508,14 @@ int do_start(Ctx& c) {
     if (gr.result != GraceCheck::Ok && !c.o.read && c.o.spike == proto::watch::Spike::None) {
       tell_error(ErrorCode::E12, error_text(ErrorCode::E12, graceui_problem(gr)));
     }
+    // A read round does not use GraceUI, installed or not: say so on the console (no dialogue to click away), so
+    // that nobody waits for its notices or its keys.
+    if (c.o.read && gr.result != GraceCheck::NoFolder) {
+      say("read graceui=installed used=0");
+      console_line("GraceUI is installed, but the read-only round does not load it: the round's panel and the Pause "
+                   "key are the launcher's.",
+                   "EldenNet read: ");
+    }
   }
   for (const auto& a : c.o.also) {
     std::error_code ec;

@@ -8,13 +8,21 @@ so on), without knowing which is which. This round starts the game with EldenNet
 the game as it runs, which of those places holds which of the eleven managers EldenNet needs. Then it tries, for a few
 minutes, the way EldenNet v1 will read the game: from a thread of its own, about ten times a second.
 
-This is the fourteenth such round. The thirteenth found where the game keeps your character and the characters near
-you (your character's place in the character manager, the list of those nearby, and the object that holds your
-character's parts). It did not settle where the game keeps which save is loaded: the place we had in mind read 4 for
-the first character of your list, and your save file, which you sent us, shows that this is not that character's
-slot. That one fact from your save file, which slot each character is in, is all we took from it: the last
-character of your list is in slot 6, your usual one in slot 2. It makes this round's search simple: it looks for the
-number that reads 6 when the last character of your list is loaded and 2 when your usual one is.
+This is the fifteenth such round, and it repeats the fourteenth, which could not be used. That was our mistake, not
+yours. GraceUI, which is installed in the game's folder since the test runs of EldenNet's interface, was loaded
+together with EldenNet in that round and took the Pause key. So the panel never got your Pause presses (you had to
+click), and the round took those presses for its moments: it looked at the wrong times. The game also ended with an
+error code when you quit, as every run with GraceUI loaded has so far; every round without it ended clean.
+
+This round does not load GraceUI, wherever it is installed, and the launcher says so on the console. Pause works on
+the panel again, and a click on its button works as well. If the game shows an error when you quit, tell us.
+
+What the round is after is unchanged. The thirteenth round found where the game keeps your character and the
+characters near you. It did not settle where the game keeps which save is loaded: the place we had in mind read 4
+for the first character of your list, and your save file, which you sent us, shows that this is not that
+character's slot. That one fact from your save file, which slot each character is in, is all we took from it: the
+last character of your list is in slot 6, your usual one in slot 2. So the round looks for the number that reads 6
+when the last character of your list is loaded and 2 when your usual one is.
 
 So this round asks three things of you, all of which you have agreed to.
 
