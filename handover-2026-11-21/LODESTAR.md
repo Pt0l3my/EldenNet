@@ -68,6 +68,12 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    - `chars`: one look, mark 3, the thirteenth round's places (main player's word 0x1E508, the near list 0x1F1E8
      with `has_fraction`, the player set 0x10EF8, the holder 0x190);
    - `parts`: the parts' tables of methods; `moves` (the position); `falls` with `has_max` (hp and max_hp).
+   **Leads from the owner's executable (the record's "The offline study of the owner's executable")**: the game's
+   state's static is 0x3D709A8 (its class's table of methods 0x2A84210; made with the event flags' store, so not
+   there at the title), the save's slot the 32-bit number 0xAC0 into its object (compared with -1 and with the
+   count of slots in the code); the main player's word 0x1E508 is read by 412 instructions. All leads until the
+   fifteenth round shows them. The executable is in the scratch folder `exe/` (never run; to be deleted when the
+   work with it is done); the study's scripts are in the scratch folder `review/` (`exe_*.py`, `pe.py`).
    **Research inputs (O111, 2026-11-23)**: the owner's words, "nothing is off limit for our research, the only
    limit is what we ship with the mod publicly, and what we upload to repo." HANDOVER §3 now reads with O111: nothing
    of the game in files, reports or messages, but a file of the owner's own game given to a session to study is
