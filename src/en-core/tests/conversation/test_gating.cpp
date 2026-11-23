@@ -57,6 +57,9 @@ TEST_CASE("safe_context: each clause alone, in order") {
   w = safe();
   w.menu = true;
   CHECK(safe_context(w) == Unsafe::Menu);
+  w.menu = false;
+  w.banner = true;  // O108: a banner fails the opening too
+  CHECK(safe_context(w) == Unsafe::Menu);
   w.active = false;
   CHECK(safe_context(w) == Unsafe::NotActive);  // the first that fails
   CHECK(std::string(to_string(Unsafe::Hostiles)) == "hostiles");

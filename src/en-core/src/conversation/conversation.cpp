@@ -226,7 +226,8 @@ struct Conversation::Impl {
     w.boss = s.boss.active;
     w.caps_combat = group_ok(s, proto::Group::Combat);
     w.camera = group_ok(s, proto::Group::Camera);
-    w.menu = s.ui.hud != proto::HudState::Default || s.ui.banner.has_value();
+    w.menu = s.ui.hud != proto::HudState::Default;
+    w.banner = s.ui.banner.has_value();
     w.native = s.ui.hud == proto::HudState::PopupMenu || s.ui.talk_cam || s.ui.popup_talk_id.has_value();
     w.hidden = s.ui.hud == proto::HudState::HideAll || s.ui.hud == proto::HudState::Unknown || s.ui.banner.has_value();
     w.caps_conversation = true;
@@ -1034,7 +1035,10 @@ struct Conversation::Impl {
     // safe_context closes the box; only a threat (the Tarnished down or riding, a boss, combat, hostiles near) counts
     // towards the 10 s that end the conversation: a menu or a hidden overlay holds the pages instead (§5.8, 30 s),
     // and a model that is not ready leaves the conversation open, to its idle timer (impl).
-    const std::optional<Unsafe> unsafe = safe_context(around);
+    // A game banner never closes an open box (O108): it holds the pages (w.hidden) and stops only the opening.
+    Surroundings open_around = around;
+    open_around.banner = false;
+    const std::optional<Unsafe> unsafe = safe_context(open_around);
     const bool threat = hp_dropped || w.player_died ||
                         (unsafe && *unsafe != Unsafe::Menu && *unsafe != Unsafe::NotActive);
     if ((unsafe || threat) && conv->box_open) {

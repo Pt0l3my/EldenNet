@@ -105,7 +105,8 @@ struct Surroundings {
   float hostile_m = std::numeric_limits<float>::infinity();          // the nearest live hostile
   float engaged_hostile_m = std::numeric_limits<float>::infinity();  // the nearest that struck or was struck by the Tarnished
   bool caps_combat = true;   // the combat group reads; without it no hostile within 25 m at all
-  bool menu = false;         // the HUD not at Default, or a banner
+  bool menu = false;         // the HUD not at Default
+  bool banner = false;       // a game banner: it stops the box opening, never closes an open one (O108)
   bool native = false;       // the pop-up's talk id, the talk camera, or the HUD at PopupMenu (the observer, before S3)
   bool hidden = false;       // the HUD hidden, or a banner: the overlay's pages are held
   bool caps_conversation = false;  // session, world, player, flags, ui, place and params all read
