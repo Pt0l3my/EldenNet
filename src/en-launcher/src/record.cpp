@@ -127,6 +127,7 @@ nlohmann::json to_json(const SessionRecord& r) {
                    {"marks", r.marks},
                    {"connections_max", r.connections_max},
                    {"panel", r.panel},
+                   {"after_window", r.after_window},
                    {"explained", r.explained}};
   if (r.crash) {
     j["crash"] = nlohmann::json{
@@ -140,6 +141,8 @@ nlohmann::json to_json(const SessionRecord& r) {
 
 std::optional<std::string> explanation(const nlohmann::json& record) {
   if (!record.is_object() || record.value("explained", true)) return std::nullopt;
+  // An error as the game was closing, its window already gone: kept quietly, never shown (O115).
+  if (record.value("after_window", false)) return std::nullopt;
   const std::string kind = record.value("kind", std::string{});
   const auto code = record.value("exit_code", std::uint32_t{0});
   if (kind == "crash") {
