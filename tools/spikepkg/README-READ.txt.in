@@ -8,33 +8,39 @@ so on), without knowing which is which. This round starts the game with EldenNet
 the game as it runs, which of those places holds which of the eleven managers EldenNet needs. Then it tries, for a few
 minutes, the way EldenNet v1 will read the game: from a thread of its own, about ten times a second.
 
-This is the twelfth such round. The rounds so far placed the time of day, the play time and the event flags in
-EldenNet's table. Before EldenNet can start for real it needs one more place first: the object in which the game
-keeps which save is loaded. Nothing in the game's code names it, so the round finds it by what it holds: by our own
-notes, one number in it reads "none" at the title screen and the save's slot once a save is loaded.
+This is the thirteenth such round. The rounds so far placed the time of day, the play time and the event flags in
+EldenNet's table, and the twelfth showed that EldenNet's real reader reads the flags you changed as the game holds
+them (five of five). The twelfth also looked for the object in which the game keeps which save is loaded, by a
+number that reads "none" at the title screen and the save's slot in the world. It found fifteen places with such a
+number; by what you told us (your character is the third in the list) one of them fits, and one more look makes it
+sure.
 
-So this round asks something new of you: to take the game from the title into the world, back to the title screen,
-and into the world again, and to confirm each change on the panel. At each of the four moments the round reads the
-first 8 KiB of every object the game's data points at (about five thousand objects, some 40 MiB a look, each read
-once a look, at the round's careful pace), and keeps only which numbers read "none" at the title and the same small
-number in the world both times. That is new reading, of the same careful kind as before; it writes places and that
-small number (the save's slot, 0 to 15), nothing else. A look takes about half a minute, and the game must stay as
-it is until the look is through: that is what the panel's waiting tasks are timed for. The round writes how long
-each look took and whether the game was moved on before it was through, so a hurried run is known for what it is.
-If the game stutters, quit it and tell us.
+So this round asks two things of you. The first you have agreed to: at the first load, take the first character of
+your Load Game list, and at the second your usual one. The save's slot then reads two different numbers, and
+nothing else in the game should. Nothing is changed on the other character except that the game saves it where it
+stands; the round ends on your usual one, so Continue on the title screen is that one's again.
 
-The rest runs as in the eleventh round, in the background: the flags' reader, the clock, the play time. The eleventh
-round showed that EldenNet's real reader finds the flags through the table and reads the flag that is always set as
-set, 44 times with no fault. What it could not compare were the bits you changed: the tree's read was 47 records
-short of finished when you quit. So that read now goes first and takes about a minute, and near the end the panel
-asks once more for one thing the game remembers.
+The second is new reading, which you have also agreed to: where the game keeps your character and the characters
+near you. At each of four moments (the title, the world, the title again, the world again) the round reads the
+game's character manager (up to 256 KiB), the lists it points to (up to 1 MiB), your own character's object (16 KiB),
+the first 4 KiB of the save data's object, and the first 256 bytes of each object those point at: about 6 MiB a look
+at most, likely much less. It writes offsets, sizes, counts and which kind of object lies where, by the game's own
+type tables: nothing of what the objects hold. In the world this takes up to a minute, so the two walks are a
+minute and a half each.
 
-Apart from the state search above, it has no wide search of the game's memory: as in the seventh round, and within
-what you agreed to then, it reads memory near the event flags' own object: up to 2 MiB from each of at most eight
-addresses that object keeps and up to 256 KiB from each of at most 32 one step further (about 24 MiB in all at most),
-a piece at a time at the same careful pace, a pass every thirty seconds at most and one more after each
-confirmation. A stretch in which too much changes all the time is given up after a few passes (four of the eight
-were such in the seventh round).
+As in the twelfth round, at the same four moments it also reads the first 8 KiB of every object the game's data
+points at (about 1,400 objects in the twelfth round, some 11 MiB a look; each look took under six seconds), and
+keeps which numbers read "none" at the title and a small number (0 to 15) in the world. The game must stay as it is
+until a look is through: that is what the panel's waiting tasks are timed for. The round writes how long each look
+took and whether the game was moved on before it was through, so a hurried run is known for what it is. If the game
+stutters, quit it and tell us.
+
+The rest runs as before, in the background: the flags' reader, the clock, the play time. Apart from the two searches
+above, it has no wide search of the game's memory: as in the seventh round, and within what you agreed to then, it
+reads memory near the event flags' own object: up to 2 MiB from each of at most eight addresses that object keeps
+and up to 256 KiB from each of at most 32 one step further (about 24 MiB in all at most), a piece at a time at the
+same careful pace, a pass every thirty seconds at most and one more after each confirmation. A stretch in which too
+much changes all the time is given up after a few passes.
 
 It only reads. It calls nothing in the game, adds nothing to it and changes nothing in it. The panel is a window of
 the launcher's own, outside the game. Nothing in this package is for playing with yet.
@@ -97,23 +103,24 @@ The steps
 2. The game starts. At the title screen, wait. The console says, in lines starting with "EldenNet read:", that it is
    reading the game. This takes about a minute. Do not load a save until it tells you to.
 
-3. When the round is ready, the panel's first task turns grey. Do not load your save yet: the second task is to stay
+3. When the round is ready, the panel's first task turns grey. Do not load a save yet: the second task is to stay
    at the title screen for a minute more. From then on follow the panel. Its tasks, in order:
 
-     1. Wait at the title screen             (the round does this one itself)
-     2. Stay at the title screen, 1 minute   the round takes its first look; do not load your save yet
-     3. Load your save                       press Pause when you stand in the world
-     4. Walk about, 1 minute                 anything will do
-     5. Quit to the title screen             with the game's own menu, to the title screen, not out of the game;
-                                             press Pause when the title screen shows
-     6. Stay at the title screen, 1 minute   do not load your save until the time is up
-     7. Load your save again                 the same save; press Pause when you stand in the world
-     8. Walk about, 1 minute
-     9. Do one thing the game remembers      take an item from a body or a chest, open a door or a chest, discover a
-                                             grace, or buy something a merchant has only a few of; then press Pause
-                                             at once
-    10. Walk about, 1 minute                 leave items, doors and graces alone
-    11. Quit the game
+     1. Wait at the title screen                  (the round does this one itself)
+     2. Stay at the title screen, 1 minute        the round takes its first look; do not load a save yet
+     3. Load the first character in your list     Load Game, not Continue: the character at the top of the list;
+                                                  press Pause when you stand in the world
+     4. Walk about, 1 minute 30                   anything will do; near other characters is best
+     5. Quit to the title screen                  with the game's own menu, to the title screen, not out of the
+                                                  game; press Pause when the title screen shows
+     6. Stay at the title screen, 1 minute        do not load a save until the time is up
+     7. Load your usual character                 Load Game: the character you test with; press Pause when you
+                                                  stand in the world
+     8. Walk about, 1 minute 30                   anything will do; near other characters is best
+     9. Quit the game
+
+   If you would rather not load the other character after all, load your usual one both times: the round still
+   runs, and says that the save's slot read one number only.
 
    The waiting tasks are timed to let each look finish: please let each run out before you move the game on.
    A waiting task counts down and ends by itself. A task of yours waits until you press Pause (anywhere, while the
@@ -232,13 +239,25 @@ What it does
     them (the same reading as the round's first pass).
   - From the same thread, the state search: at the title, and again at each of your three confirmations, it reads
     the first 8,192 bytes of the object behind every place of the game's data that points at memory in use (about
-    five thousand; each object once a look). It keeps, for each object, which 32-bit numbers read -1 at the first
-    look; of those, which read 0 to 15 in the world; of those, which read -1 again at the title; and of those,
-    which read the same small number in the world again. What is left is written: the place, the offset, the small
-    number, and how many instructions of the game's code refer to the place. While a look is under way the round's
-    other searches wait, so that it is through in about half a minute. For each look the round writes how long it
-    took and whether your next confirmation came before it was through; if one did, the search names no place by
-    itself and says so.
+    1,400 at the title; each object once a look). It keeps, for each object, which 32-bit numbers read -1 at the
+    first look; of those, which read 0 to 15 in the world; of those, which read -1 again at the title; and of
+    those, which read 0 to 15 in the world again. What is left is written: the place, the offset, the two small
+    numbers, and how many instructions of the game's code refer to the place. Where one number alone read two
+    different values (two characters were loaded), the round names its place as the game's state. While a look is
+    under way the round's other searches wait. For each look the round writes how long it took and whether your
+    next confirmation came before it was through; if one did, the search names no place by itself and says so.
+  - From the same thread, after each of those looks, the character search: it reads the character manager's object
+    and what follows it in memory (up to 262,144 bytes), and the first 256 bytes behind each address it finds
+    there (8,192 different ones at most). By the first eight bytes behind an address it tells whether an object of
+    a character's kind lies there (the game's own type tables, already read, say which kinds are characters and
+    which is the player's). It writes: where in the manager a character's address stands and whether it is the
+    player's; where two addresses stand side by side that bound a run of equal elements each holding a character's
+    address, with the element's size, how many there are, and whether a fraction beside the address never falls
+    along the run (a list kept by distance); and where an address stands of memory that holds your character's
+    address. Then it reads your character's object (16,384 bytes at most) and the first 4,096 bytes of the save
+    data's, and writes for each address in them the offset, the kind of object behind it as the place of its type
+    table (a number) or none, and how many addresses that object begins with. It never writes what any of these
+    objects hold: no numbers of your character, no name, no position. A look stops at 12,000 reads.
   - Every two seconds it writes lodestar-found.json into %APPDATA%\EldenNet\probe, and lodestar-table.toml when
     another manager is named. If the report ever grows past its limit, it is written without the detail of the
     watched object that has the most, then of the next, and says which were left out. They hold only numbers

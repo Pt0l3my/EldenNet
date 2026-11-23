@@ -385,7 +385,8 @@ void enter(Phase phase, std::uint64_t frame) {
   w.phase_frames = 0;
   // --slot-by-state: the save's slot is known only in the world.
   if (options().slot_by_state && fg_static_run_warden != nullptr) {
-    static_cast<FG::RunWardenImp*>(fg_static_run_warden)->f.save_slot = phase == Phase::World ? 2 : -1;
+    const std::int32_t slot = w.retitled ? 2 : static_cast<std::int32_t>(options().first_slot);
+    static_cast<FG::RunWardenImp*>(fg_static_run_warden)->f.save_slot = phase == Phase::World ? slot : -1;
   }
   set_flag(kFlagWorld, phase == Phase::World);
   switch (phase) {

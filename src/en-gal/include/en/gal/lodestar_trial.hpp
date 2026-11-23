@@ -452,8 +452,9 @@ class StateSearch {
   static constexpr std::uint32_t kSpan = 0x2000;       // bytes of each object: 8 KiB, shortened where it ends sooner
   static constexpr std::size_t kMaxCandidates = 8192;
   static constexpr std::size_t kKept = 16;             // fields kept a candidate after the second pass
-  static constexpr std::size_t kMaxHits = 32;
-  static constexpr std::uint32_t kPasses = 4;          // the title, the world, the title, the world
+  static constexpr std::size_t kMaxHits = 64;
+  static constexpr std::uint32_t kPasses = 4;          // the title, the world, the title, the world (another save's,
+                                                       // where the tester loads one: the field's two numbers differ)
   static constexpr std::uint32_t kSmall = 15;          // "a small number": 0 to 15
 
   // `image`: where given, a slot is read from the image as loaded (its data is always there) and only the object
@@ -494,6 +495,67 @@ class StateSearch {
   std::array<std::atomic<bool>, kPasses> overrun_{};
   std::uint64_t pass_start_us_ = 0;  // the stepping thread's
   bool pass_started_ = false;
+};
+
+// The character search (lodestar.hpp's CharFound): looks asked for as the state search's are, each a walk from the
+// characters manager's slot. One careful read a call at most; nothing is allocated on the stepping thread (its
+// tables and lists are made when the search is). A look reads: the manager's object and what follows it, up to
+// kManagerSpan; the first kHead bytes behind each address found there (at most kMaxTargets different ones); up to
+// kPiece bytes of each run two neighbouring addresses bound (at most kMaxLists) and the first bytes behind the
+// addresses in it; kPlayerSpan of the main player's object and kSaveSpan of the save data's, with the first bytes
+// behind their addresses; and never more than kMaxReads reads.
+class CharSearch {
+ public:
+  static constexpr std::uint32_t kPiece = 0x4000;
+  static constexpr std::uint32_t kManagerSpan = 0x40000;  // 256 KiB
+  static constexpr std::uint32_t kHead = 0x100;
+  static constexpr std::uint32_t kPlayerSpan = 0x4000;
+  static constexpr std::uint32_t kSaveSpan = 0x1000;
+  static constexpr std::uint32_t kListSpan = 0x10000;     // the most two addresses may lie apart to bound a run
+  static constexpr std::size_t kMaxTargets = 8192;
+  static constexpr std::size_t kMaxLists = 64;
+  static constexpr std::size_t kMaxHolders = 24;
+  static constexpr std::uint32_t kMaxReads = 12'000;
+  static constexpr std::uint32_t kPasses = 4;
+  static constexpr std::size_t kListedPointers = 48, kListedLists = 16, kListedSets = 16, kListedMembers = 160,
+                               kListedSaveMembers = 48;
+
+  struct Options {
+    std::uint64_t base = 0;
+    std::uint64_t image_size = 0;
+    std::uint32_t manager_slot = 0;                 // the characters manager's static
+    std::uint32_t save_slot = 0;                    // the save data's static; 0 for none
+    std::vector<std::uint32_t> character_vtables;   // of the character's class and every class deriving from it
+    std::vector<std::uint32_t> player_vtables;      // of the player's class and every class deriving from it
+    const ByteSource* image = nullptr;              // the image as loaded: the slots are read from it
+  };
+  explicit CharSearch(Options options);
+  ~CharSearch();
+  CharSearch(const CharSearch&) = delete;
+  CharSearch& operator=(const CharSearch&) = delete;
+
+  // Asks for the next look; `mark`: how many of the tester's marks had come (the look's place in the round). From
+  // one thread; a look still under way when the next is asked for is marked overrun.
+  void ask(std::uint32_t mark = 0) noexcept;
+  // The save data's static, once the caller knows it: looks begun after this read its object too.
+  void set_save_slot(std::uint32_t rva) noexcept;
+  [[nodiscard]] std::uint32_t asked() const noexcept { return asked_.load(std::memory_order_acquire); }
+  [[nodiscard]] std::uint32_t passes() const noexcept { return done_.load(std::memory_order_acquire); }
+  [[nodiscard]] bool due() const noexcept { return done_.load(std::memory_order_relaxed) < asked(); }
+
+  // Works on the look under way until it has made one read or the look ends; answers whether it ended.
+  bool step(const proto::GameThread& gt, GuardedReader& reader, std::uint64_t now_us = 0);
+
+  [[nodiscard]] CharFound found() const;
+
+ private:
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
+  std::atomic<std::uint32_t> asked_{0};
+  std::atomic<std::uint32_t> done_{0};
+  std::array<std::atomic<bool>, kPasses> overrun_{};
+  std::array<std::atomic<std::uint32_t>, kPasses> mark_{};
+  std::atomic<std::uint32_t> save_slot_{0};
 };
 
 }  // namespace en::gal::lodestar

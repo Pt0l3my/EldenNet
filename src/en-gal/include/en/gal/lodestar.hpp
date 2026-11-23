@@ -561,11 +561,14 @@ struct TreeFound {
 // states of the game the tester moves it between. Our notes' lead for the game state's object: its save slot reads
 // -1 at the title and the slot's number once a save is loaded. Over the data's slots that point at live memory, the
 // first bytes of each object are read in four passes (the title, the world, the title again, the world again); a
-// 32-bit field that reads -1, a small number, -1 and the same small number is a hit.
+// 32-bit field that reads -1, a small number, -1 and a small number again is a hit: the same number where the same
+// save was loaded twice, two numbers where two saves were (the thirteenth round: the stronger evidence).
 struct StateHit {
   std::uint32_t rva = 0;     // the slot
   std::uint32_t offset = 0;  // the field, from the object's start
-  std::uint32_t value = 0;   // what it held in the world, both times (0 to 15)
+  std::uint32_t value = 0;   // what it held in the world at the second look (0 to 15)
+  std::uint32_t again = 0;   // and at the fourth: the same where the same save was loaded, another save's number else
+  std::uint32_t same_as = 0; // hits with one number here are one field of one object, seen through several slots
   std::uint32_t sites = 0;   // instructions of the code that refer to the slot (the round's count)
 };
 // One pass of the state search, as it went: a pass must be through before the tester moves the game on, or its later
@@ -584,10 +587,76 @@ struct StateFound {
   std::uint32_t fields_after_title = 0;  // 32-bit fields that read -1 at the first pass, over all candidates
   std::uint32_t fields_after_world = 0;  // of those, the ones that read a small number at the second
   std::uint32_t fields_after_again = 0;  // of those, the ones that read -1 again at the third
-  std::vector<StateHit> hits;       // of those, the ones that read the same small number at the fourth; at most 32
+  std::vector<StateHit> hits;       // of those, the ones that read a small number again at the fourth; at most 64
   std::uint32_t slots_hit = 0;      // different slots among all hits
+  std::uint32_t slots_differ = 0;   // different slots among the hits whose two numbers differ (two saves were loaded)
+  std::uint32_t fields_differ = 0;  // different fields (object and offset) among those
   std::vector<StateLook> looks;     // one a pass asked for
   bool overrun = false;             // any pass was overrun: the hits are weaker for it, and no slot is named
+};
+
+// The character search (the thirteenth read-only round; WHY§460's second step: the pointers and lists by search and
+// class). From the characters manager's object: the words that hold the address of an object of a character class
+// (the main player's among them), the pairs of addresses that bound a run of elements holding characters (the list
+// by distance), the addresses of memory that holds the main player's address (the player set), and what the main
+// player's own object and the save data's point at. Offsets, sizes, counts and tables of methods only.
+struct CharPointer {
+  std::uint32_t offset = 0;  // in the manager's object
+  bool player = false;       // the object is of the player's class; else of the character's
+};
+struct CharList {
+  std::uint32_t offset = 0;      // of the first of the two addresses, in the manager's object
+  std::uint32_t bytes = 0;       // between the two
+  bool three = false;            // a third address follows, at or past the second (begin, end, capacity)
+  std::uint32_t stride = 0;      // an element's size
+  std::uint32_t chr_at = 0;      // where in an element the character's address lies
+  std::uint32_t elements = 0;    // read (at most 16 KiB of the run)
+  std::uint32_t characters = 0;  // of them, elements whose address is a character's
+  bool has_player = false;       // the main player is one of them
+  bool has_distance = false;     // a fraction in every element, never negative and never falling along the run
+  std::uint32_t distance_at = 0;
+};
+struct CharSet {
+  std::uint32_t offset = 0;  // in the manager's object: an address of memory that holds the main player's address
+  std::uint32_t chr_at = 0;  // where behind it (within 256 bytes)
+  std::uint32_t vtable = 0;  // that memory's table of methods; 0 for none
+};
+struct CharMember {
+  std::uint32_t offset = 0;    // in the object: a word that holds the address of readable memory
+  std::uint32_t vtable = 0;    // what lies there: an object's table of methods; 0 for none
+  std::uint32_t pointers = 0;  // addresses among its first 32 words
+  std::uint32_t classed = 0;   // of its first 16 words, addresses of objects with a table of methods (counted only
+                               // where at least 8 of the 16 are addresses: a holder of parts)
+};
+struct CharLook {
+  std::uint32_t mark = 0;           // how many of the tester's marks had come when it was asked for
+  bool through = false;
+  bool overrun = false;             // the next look was asked for before this one was through
+  bool cut = false;                 // it reached its limit of reads
+  std::uint32_t took_ms = 0;
+  std::uint32_t reads = 0;
+  std::uint32_t manager_bytes = 0;  // read of the manager's object and what follows it; 0: the slot was empty
+  std::uint32_t pointer_words = 0;  // words of it that hold the address of readable memory
+  std::uint32_t targets_read = 0;   // different addresses followed
+  bool targets_cut = false;         // more than the search keeps
+  std::uint32_t characters = 0;     // words of the manager that hold a character's address
+  std::uint32_t players = 0;        // different objects of the player's class among them
+  std::vector<CharPointer> pointers;  // the players' first; at most 48
+  std::vector<CharList> lists;        // at most 16
+  std::vector<CharSet> sets;          // at most 16
+  std::uint32_t player_bytes = 0;     // read of the main player's object; 0: none
+  std::uint32_t members_total = 0;
+  std::vector<CharMember> members;    // of the main player's object; at most 160
+  std::uint32_t save_bytes = 0;       // read of the save data's object; 0: none
+  std::uint32_t save_members_total = 0;
+  std::vector<CharMember> save_members;  // at most 48
+};
+struct CharFound {
+  std::uint32_t rva = 0;    // the manager's slot
+  std::uint32_t asked = 0;
+  std::uint32_t passes = 0;
+  bool overrun = false;
+  std::vector<CharLook> looks;  // one a look that is through
 };
 
 // EldenNet's own reader on the flags (the eleventh read-only round; WHY§457): discovery through the build's layout
@@ -648,6 +717,7 @@ struct Found {
   std::optional<TreeFound> tree;
   std::optional<BackendFound> backend;
   std::optional<StateFound> state;
+  std::optional<CharFound> chars;
   std::vector<InvariantFound> invariants;
 };
 
