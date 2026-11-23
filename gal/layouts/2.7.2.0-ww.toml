@@ -26,6 +26,12 @@
 #   hour and the minute as runs of bits of the 64-bit word 8 bytes in (type bits: the word's size, the run's lowest
 #   bit and its length); in save_data's object the play time in milliseconds, the 32-bit number 160 bytes in. Leads,
 #   as all of this file.
+# - the characters manager's places (the thirteenth read-only round, 2026-11-23, by search and class, the same with
+#   two characters): the main player's address 0x1E508 into the manager's object; the near list at 0x1F1E8, three
+#   addresses side by side (the start and the end are read), its elements 16 bytes, a character's address first and
+#   a fraction 8 bytes in; the player set at 0x10EF8, an address of memory whose first word is the main player's
+#   address. The manager's object is over 127 KiB, so each is a far field (read by a copy of its own; WHY§506). The
+#   set's length and the element's size of the set are not known. Leads, as all of this file.
 # The other classes, fields, enums, params and self-test ids are later rounds' to find, and are left out. A release
 # build refuses this file (every entry a lead).
 schema = 2
@@ -187,6 +193,21 @@ status = "lead"
 
 # The event flags' store and the records of its tree (the ninth and tenth read-only rounds, packages
 # 0.1.0-lodestar.12 and .13; docs/ops/probes/2026-11-22-l5.md). The store is the object behind item event_flags.
+[class.characters]
+copy_size = 0
+status = "lead"
+[class.characters.fields]
+main_player = { off = 0x1E508, ty = "ptr", far = true, group = "world" }
+by_distance = { off = 0x1F1E8, ty = "dlvector", far = true, group = "world" }
+player_set = { off = 0x10EF8, ty = "ptr", far = true, group = "session" }
+
+[class.near_entry]
+stride = 0x10
+status = "lead"
+[class.near_entry.fields]
+chr = { off = 0x0, ty = "ptr", group = "world" }
+distance = { off = 0x8, ty = "f32", group = "world" }
+
 [class.world_clock]
 copy_size = 0x20
 status = "lead"

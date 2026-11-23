@@ -71,7 +71,18 @@ struct FieldLayout {
   std::string elem;                                            // an array's element class
   std::uint32_t len = 0;                                       // an array's length, utf16[n]'s n
   std::uint32_t stride = 0;                                    // an array's stride
+  // A far field (WHY§506): one that lies past its class's copy size, in a large object, and is read at the object's
+  // address plus `off` by a copy of its own. `far_at` is where the reader keeps those bytes: past the class's copy,
+  // in the object's buffer.
+  bool is_far = false;  // (`far` itself is a word of the Windows headers)
+  std::uint32_t far_at = 0;
+
+  // Where the field's bytes lie in the reader's buffer of its object.
+  [[nodiscard]] std::uint32_t at() const noexcept { return is_far ? far_at : off; }
 };
+
+inline constexpr std::uint32_t kMaxFarOffset = 0x100000;  // a far field's offset lies below this: 1 MiB into its object
+inline constexpr std::uint32_t kMaxFarBytes = 32;         // and its copy is no longer than this
 
 struct ClassLayout {
   std::string name;
@@ -81,8 +92,11 @@ struct ClassLayout {
   std::optional<std::uint32_t> stride;     // the step between objects in an array or table
   LayoutStatus status = LayoutStatus::Lead;
   std::vector<FieldLayout> fields;
+  std::uint32_t far_bytes = 0;             // what its far fields take in the reader's buffer, past the copy
 
   [[nodiscard]] const FieldLayout* field(std::string_view name) const noexcept;
+  // The reader's buffer for one object: the copy, then each far field's own bytes.
+  [[nodiscard]] std::uint32_t buffer_size() const noexcept { return copy_size.value_or(stride.value_or(0)) + far_bytes; }
 };
 
 struct EnumTable {

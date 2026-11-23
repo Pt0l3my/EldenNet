@@ -551,6 +551,23 @@ void FakeWorld::build_image(const WorldOptions& options) {
     }
   }
   clock_bits_ = options.clock_bits;
+  if (options.far_roster) {
+    // The roster's fields lie far into a large object: each is read by a copy of its own (the layout's far fields).
+    const std::string near_start = "copy_size = 0x60\nstatus = \"confirmed\"\n[class.characters.fields]\n"
+                                   "main_player = { off = 0x10, ty = \"ptr\", group = \"world\" }\n"
+                                   "by_distance = { off = 0x20, ty = \"dlvector\", group = \"world\" }\n"
+                                   "player_set = { off = 0x38, ty = \"ptr\", group = \"session\" }\n"
+                                   "player_set_len = { off = 0x40, ty = \"u32\", group = \"session\" }\n";
+    const std::size_t at = layout.find(near_start);
+    if (at != std::string::npos) {
+      layout.replace(at, near_start.size(),
+                     "copy_size = 0x8\nstatus = \"confirmed\"\n[class.characters.fields]\n"
+                     "main_player = { off = 0x10010, ty = \"ptr\", far = true, group = \"world\" }\n"
+                     "by_distance = { off = 0x10020, ty = \"dlvector\", far = true, group = \"world\" }\n"
+                     "player_set = { off = 0x10038, ty = \"ptr\", far = true, group = \"session\" }\n"
+                     "player_set_len = { off = 0x10040, ty = \"u32\", far = true, group = \"session\" }\n");
+    }
+  }
 }
 
 std::uint64_t FakeWorld::make_character(const std::string& cls, std::uint32_t index, std::int32_t max_hp,
@@ -597,13 +614,15 @@ void FakeWorld::build_heap(const WorldOptions& options) {
   mem.put<std::uint32_t>(hub + 0x10, 4);
   mem.put<std::uint64_t>(hub + 0x18, groups);
   // The characters' roster, its near list and player set.
-  const std::uint64_t roster = obj("characters", 0x60, "roster");
+  // The roster: 0x60 bytes with its fields at the start, or (far_roster) 0x12000 bytes with them 0x10000 bytes in.
+  rf_ = options.far_roster ? 0x10000 : 0;
+  const std::uint64_t roster = obj("characters", options.far_roster ? 0x12000 : 0x60, "roster");
   near = mem.alloc(48 * 0x10);
-  mem.put<std::uint64_t>(roster + 0x20, near);
-  mem.put<std::uint64_t>(roster + 0x28, near);
+  mem.put<std::uint64_t>(roster + rf_ + 0x20, near);
+  mem.put<std::uint64_t>(roster + rf_ + 0x28, near);
   const std::uint64_t players = mem.alloc(4 * 8);
-  mem.put<std::uint64_t>(roster + 0x38, players);
-  mem.put<std::uint32_t>(roster + 0x40, 4);
+  mem.put<std::uint64_t>(roster + rf_ + 0x38, players);
+  mem.put<std::uint32_t>(roster + rf_ + 0x40, 4);
   // The session, the HUD, the menus, the loading veil, the clock, the camera.
   obj("session", 0x20, "lobby");
   const std::uint64_t hud = obj("hud", 0x50, "hud");
@@ -743,15 +762,15 @@ void FakeWorld::rebuild_near() {
     mem.put<std::uint64_t>(near + 0x10 * i, npcs[i]);
     mem.put<float>(near + 0x10 * i + 0x8, 3.0f + 4.0f * static_cast<float>(i));
   }
-  mem.put<std::uint64_t>(roster + 0x20, near);
-  mem.put<std::uint64_t>(roster + 0x28, near + 0x10 * npcs.size());
+  mem.put<std::uint64_t>(roster + rf_ + 0x20, near);
+  mem.put<std::uint64_t>(roster + rf_ + 0x28, near + 0x10 * npcs.size());
 }
 
 void FakeWorld::title() {
   const std::uint64_t roster = instance("characters");
-  mem.put<std::uint64_t>(roster + 0x10, 0);
-  mem.put<std::uint64_t>(roster + 0x28, near);
-  mem.put<std::uint64_t>(mem.get<std::uint64_t>(roster + 0x38), 0);
+  mem.put<std::uint64_t>(roster + rf_ + 0x10, 0);
+  mem.put<std::uint64_t>(roster + rf_ + 0x28, near);
+  mem.put<std::uint64_t>(mem.get<std::uint64_t>(roster + rf_ + 0x38), 0);
   mem.put<std::int32_t>(instance("menus") + 0x8, 2);
   mem.put<std::int32_t>(instance("hud") + 0x8, 0);
 }
@@ -765,8 +784,8 @@ void FakeWorld::loading() {
 
 void FakeWorld::world() {
   const std::uint64_t roster = instance("characters");
-  mem.put<std::uint64_t>(roster + 0x10, player);
-  mem.put<std::uint64_t>(mem.get<std::uint64_t>(roster + 0x38), player);
+  mem.put<std::uint64_t>(roster + rf_ + 0x10, player);
+  mem.put<std::uint64_t>(mem.get<std::uint64_t>(roster + rf_ + 0x38), player);
   rebuild_near();
   mem.put<std::int32_t>(instance("menus") + 0x8, 0);
   mem.put<std::int32_t>(instance("hud") + 0x8, 3);
@@ -822,7 +841,7 @@ std::uint64_t FakeWorld::relocate(std::uint64_t old, std::size_t size, Move mode
 
 void FakeWorld::move_all(Move mode) {
   const std::pair<const char*, std::size_t> items[] = {
-      {"task_hub", 0x40},  {"characters", 0x60}, {"session", 0x20},     {"event_flags", 0x30},
+      {"task_hub", 0x40},  {"characters", rf_ != 0 ? 0x12000u : 0x60u}, {"session", 0x20},     {"event_flags", 0x30},
       {"hud", 0x50},       {"menus", 0x20},      {"loading", 0x10},     {"world_clock", 0x20},
       {"camera", 0x10},    {"param_store", 0x20}, {"messages", 0x20},   {"save_data", 0x40},
       {"game_state", 0x20}, {"field_area", 0x20}};
@@ -833,11 +852,11 @@ void FakeWorld::move_all(Move mode) {
   }
   // The main player moves too, and the roster and the player set follow it.
   const std::uint64_t roster = instance("characters");
-  const bool in_world = mem.get<std::uint64_t>(roster + 0x10) != 0;
+  const bool in_world = mem.get<std::uint64_t>(roster + rf_ + 0x10) != 0;
   player = relocate(player, kHero, mode);
   if (in_world) {
-    mem.put<std::uint64_t>(roster + 0x10, player);
-    mem.put<std::uint64_t>(mem.get<std::uint64_t>(roster + 0x38), player);
+    mem.put<std::uint64_t>(roster + rf_ + 0x10, player);
+    mem.put<std::uint64_t>(mem.get<std::uint64_t>(roster + rf_ + 0x38), player);
   }
 }
 

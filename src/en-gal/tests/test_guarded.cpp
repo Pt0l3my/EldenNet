@@ -192,6 +192,12 @@ TEST_CASE("guarded: ObjView reads each type by its layout, bounds-checked") {
   off_end.width = 4;
   CHECK_FALSE(v.integer(&off_end).has_value());
   CHECK_FALSE(v.bit(&run).has_value());
+  // A far field's bytes lie where the reader put them (far_at), not at its offset in the object.
+  FieldLayout deep = field(0x1E508, FieldType::U16, 2);
+  CHECK_FALSE(v.integer(&deep).has_value());  // read as a field of the copy it lies past it
+  deep.is_far = true;
+  deep.far_at = 4;
+  CHECK(v.integer(&deep) == 0x1234);
   bit.bit = 1;
   CHECK(v.bit(&bit) == false);
   CHECK(v.f32(&vec, 1) == -2.0f);

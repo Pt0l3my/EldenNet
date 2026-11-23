@@ -144,25 +144,25 @@ std::optional<std::int64_t> ObjView::integer(const FieldLayout* f) const noexcep
     case FieldType::Bool8:
     case FieldType::U16:
     case FieldType::U32: {
-      const auto v = raw(f->off, f->size);
+      const auto v = raw(f->at(), f->size);
       if (!v) return std::nullopt;
       return static_cast<std::int64_t>(*v);
     }
     case FieldType::Bits: {
       if (f->width == 0 || f->width > 32 || f->shift > 63) return std::nullopt;
-      const auto v = raw(f->off, f->size);
+      const auto v = raw(f->at(), f->size);
       if (!v) return std::nullopt;
       return static_cast<std::int64_t>((*v >> f->shift) & ((std::uint64_t{1} << f->width) - 1));
     }
     case FieldType::I32: {
-      const auto v = raw(f->off, 4);
+      const auto v = raw(f->at(), 4);
       if (!v) return std::nullopt;
       return static_cast<std::int64_t>(static_cast<std::int32_t>(static_cast<std::uint32_t>(*v)));
     }
     case FieldType::U64:
     case FieldType::Handle:
     case FieldType::Ptr: {
-      const auto v = raw(f->off, 8);
+      const auto v = raw(f->at(), 8);
       if (!v || *v > static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max())) return std::nullopt;
       return static_cast<std::int64_t>(*v);
     }
@@ -177,7 +177,7 @@ std::optional<std::uint64_t> ObjView::u64(const FieldLayout* f) const noexcept {
     case FieldType::Handle:
     case FieldType::Ptr:
     case FieldType::DlVector:
-    case FieldType::DlMap: return raw(f->off, 8);
+    case FieldType::DlMap: return raw(f->at(), 8);
     default: {
       const auto v = integer(f);
       if (!v || *v < 0) return std::nullopt;
@@ -187,21 +187,21 @@ std::optional<std::uint64_t> ObjView::u64(const FieldLayout* f) const noexcept {
 }
 
 std::optional<std::uint64_t> ObjView::second(const FieldLayout* f) const noexcept {
-  if (f == nullptr || (f->type != FieldType::DlVector && f->type != FieldType::DlMap) || f->off > 0xFFFF'FFF0) {
+  if (f == nullptr || (f->type != FieldType::DlVector && f->type != FieldType::DlMap) || f->at() > 0xFFFF'FFF0) {
     return std::nullopt;
   }
-  return raw(f->off + 8, 8);
+  return raw(f->at() + 8, 8);
 }
 
 std::optional<bool> ObjView::bit(const FieldLayout* f) const noexcept {
   if (f == nullptr) return std::nullopt;
   if (f->type == FieldType::Bool8) {
-    const auto v = raw(f->off, 1);
+    const auto v = raw(f->at(), 1);
     if (!v) return std::nullopt;
     return *v != 0;
   }
   if (f->type != FieldType::Bit) return std::nullopt;
-  const auto v = raw(f->off, 1);
+  const auto v = raw(f->at(), 1);
   if (!v) return std::nullopt;
   return ((*v >> f->bit) & 1u) != 0;
 }
@@ -210,7 +210,7 @@ std::optional<float> ObjView::f32(const FieldLayout* f, std::size_t i) const noe
   if (f == nullptr) return std::nullopt;
   const std::size_t n = f->type == FieldType::F32 ? 1 : f->type == FieldType::Vec3f ? 3 : f->type == FieldType::Mat4f ? 16 : 0;
   if (i >= n) return std::nullopt;
-  const auto v = raw(f->off + static_cast<std::uint32_t>(4 * i), 4);
+  const auto v = raw(f->at() + static_cast<std::uint32_t>(4 * i), 4);
   if (!v) return std::nullopt;
   return std::bit_cast<float>(static_cast<std::uint32_t>(*v));
 }
@@ -218,7 +218,7 @@ std::optional<float> ObjView::f32(const FieldLayout* f, std::size_t i) const noe
 std::optional<std::size_t> ObjView::utf16(const FieldLayout* f, std::span<char16_t> out) const noexcept {
   if (f == nullptr || f->type != FieldType::Utf16) return std::nullopt;
   for (std::size_t i = 0; i < f->len; ++i) {
-    const auto v = raw(f->off + static_cast<std::uint32_t>(2 * i), 2);
+    const auto v = raw(f->at() + static_cast<std::uint32_t>(2 * i), 2);
     if (!v) return std::nullopt;
     if (*v == 0) return i;
     if (i >= out.size()) return std::nullopt;
