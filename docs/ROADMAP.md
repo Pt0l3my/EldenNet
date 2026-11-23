@@ -886,7 +886,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     play; S0-D 40 forced faults caught and crashes on request recorded. Each run's facts in its own folder; spike-report
     reads the folder whole; the tester's panel lists each run's steps. Checked on the fake game whole and lacking
     `game_state`, as the real game is today. Open: whether a start stopped at the banner installs the crash filter
-    (WHY§484). Package 0.1.0-s0.1, not yet sent: S0-A, S0-C and S0-D can run on the real game now, S0-B after S10.1.m.
+    (WHY§484; decided 2026-11-23, WHY§510: it does). Package 0.1.0-s0.1, not yet sent: S0-A, S0-C and S0-D can run on the real game now, S0-B after S10.1.m.
     Package 0.1.0-s0.1 rebuilt from engine 31a98e4 and sent to the owner the same day: the sums, help and version under
     Wine, its nine package cases on the fake game (whole, and lacking `game_state` as today) and the sweep passed.
 - c Spikes S1 perception and S2 text without GraceUI, and S6's core flags and S7 combat with the launcher's development Mark [waiting]
@@ -965,6 +965,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     sent to the owner the same day, in place of spikes.2: the sums, help and version under Wine, 14 GraceUI and spike
     cases, the six package cases (the panel ticking through each run's steps), GraceUI's spike and spike-after
     scenarios, its report tool on each run (no row failed) and the sweep passed.
+    The owner's run A1 crashed twice the same day, at GraceUI's first Present, before a frame was drawn, beside other
+    overlays (WHY§509); with Grace. A start stopped at a banner now installs EldenNet's crash filter (WHY§510).
 - h O89 to O91 folded into the designs: the derivation round (ARCH §6.2, §6.10), the spikes without GraceUI and the launcher's Mark (DESIGN §14, §16.1), the third-party rows (DESIGN §16.1) [done]
   - refs: O89, O90, O91, ARCH§6.2, ARCH§4.14, DESIGN§16.1
   - gives: folded on 2026-11-17 with the first in-game build's choices (WHY§159 to §204): ARCH

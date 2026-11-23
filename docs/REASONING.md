@@ -531,6 +531,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 506 | 2026-11-23 | Fields past a class's 0x4000 copy are far fields, each read by its own small copy | DECIDED | #engine #gal #lodestar |
 | 507 | 2026-11-23 | game_state's candidate is not the save's slot: the owner's save file gives the slots | FACT | #lodestar #l6 |
 | 508 | 2026-11-23 | Ground truth first, then the search | METHOD | #lodestar |
+| 509 | 2026-11-23 | S0-E's run A1 crashed on the owner's PC at GraceUI's first Present, before a frame was drawn | FACT | #spike #graceui #engine |
+| 510 | 2026-11-23 | A start that stops at a banner once the window has shown installs the crash filter | DECIDED | #engine #boot |
 
 ## Entries
 
@@ -7587,6 +7589,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   banner, as on the real game today, never installs it, so S0-D's crashes on request there are recorded by the watcher
   from the exit code and the module list, with no crash record of EldenNet's (filter_records 0). S0-D's rule asks for
   the watcher's record only, so it passes; whether a stopped start should install the filter is left to the design.
+- *Later (2026-11-23, WHY§510):* decided: a start stopped at a banner after the window installs the filter.
 
 ### 485. The panel's confirmations go on after the Mark's hand-over
 
@@ -7857,3 +7860,26 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - With the characters' slots known from the owner's own save file (one fact read offline, nothing kept), the slot's
   field is sought by the numbers it must read in two worlds (6 for the last of the list, 2 for the usual one), over the
   data's slots in use in the world, not by a lead about what it reads at the title.
+
+### 509. S0-E's run A1 crashed on the owner's PC at GraceUI's first Present, before a frame was drawn
+
+`2026-11-23` · FACT · `#spike` `#graceui` `#engine` · refs: S10.1.g, GraceUI:D175, GraceUI:D220, WHY§255
+
+- Package 0.1.0-spikes.3 (engine 31a98e4, GraceUI 0.2.24), run A1, twice: 0xC0000005 about 10 s and 24 s after the
+  start, before the title screen's first task. Both times the observer's last state line read host=hooked,
+  install_runs=1, init_step=7, hooks=9, presents=1, frames_drawn=0, standin=patched, standin_presents=1 and
+  prologue=jump: the game's Present was already patched when GraceUI hooked it.
+- Three other overlays were loaded in the game: a third-party frame-time overlay's hooks, Steam's overlay (later) and
+  the graphics driver's capture overlay. Earlier read-only rounds ran for minutes beside them, but hooked nothing.
+- EldenNet connected to GraceUI, posted its banner (the release DLL refuses the package's leads, as expected) and did
+  nothing more. The watcher's record names no module (crash: null), and EldenNet's own filter was not in (WHY§484,
+  §510). With Grace: a run with the frame-time overlay closed, and A0 (no EldenNet), are asked of the owner.
+
+### 510. A start that stops at a banner once the window has shown installs the crash filter
+
+`2026-11-23` · DECIDED · `#engine` `#boot` · refs: ARCH§3.2, WHY§484, WHY§509, WHY§172
+
+- Answers WHY§484's open point. The filter went in after WaitEngine, so a start stopped at the discovery banner (the
+  real game's case today) had none, and a crash after it was recorded by the watcher alone, with no faulting module
+  (WHY§509). Now every banner after the window installs it, as the banner path already did; it only records, then
+  passes the crash on (engine 2933494). S0-D's crash case expects the filter's record at the discovery banner too.
