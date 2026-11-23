@@ -2260,3 +2260,22 @@ with W A S D, the character wasn't moving at all. Though I think the camera move
 during chat box open." (2026-11-23)
 
 **Follows from.** NPC §5.1, §5.6; GraceUI's D176, D178; S11.4.c; WHY§529.
+
+## O114
+
+**What EldenNet says when it knows the game build but cannot read it** · *2026-11-23 · Open*
+
+**Question.** In spikes.4's run B the banner read "EldenNet inactive: game build 2.7.2.0 not supported yet (reason:
+gal_files)" while Home's Game build row read "2.7.2.0, supported" (WHY§530): the build is in EldenNet's table, but the
+start stopped before reading the game, for want of the reader's files. Which words should the player see? **Options:**
+(a) the banner names what failed, in plain words: "EldenNet inactive: its files for game build 2.7.2.0 are incomplete.
+Reinstall EldenNet, or look for an update." when its files are missing or damaged, and "EldenNet inactive: it cannot
+read game build 2.7.2.0 yet. Look for an update of EldenNet." when it does not know how to read that build fully; and
+Home's row and System › Status say "2.7.2.0, supported" only once EldenNet reads the game, otherwise "2.7.2.0,
+recognised, not readable yet"; (b) keep "not supported yet" for every stop, with the reason code, and change Home's row
+alone to match; (c) other words.
+
+**Recommendation.** (a): the words say what happened and what to do, with no code a player cannot read, and the two
+pages never disagree.
+
+**Follows from.** PAGES §4.5; ARCH §3.2; S11.4.f; WHY§529, WHY§530.
