@@ -480,6 +480,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 455 | 2026-11-23 | The flags' layout holds in a second session, and the reader's way down the tree arrives at every joined flip | FACT | #lodestar #l6 #flags |
 | 456 | 2026-11-23 | Step L6's three subjects are placed after ten read-only rounds, with no fault in some 80,000 readings | FACT | #lodestar #l6 |
 | 457 | 2026-11-23 | EldenNet's own flag reader runs first inside a read-only round, beside the round's tree reader, before the start uses it | DECIDED | #engine #lodestar #flags |
+| 458 | 2026-11-23 | One group of the reader can be read alone before the others' fields are placed: a partial discovery and a tick for that group | METHOD | #lodestar #flags |
 
 ## Entries
 
@@ -7185,3 +7186,21 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   owner's panel and the self-test flag. It touches nothing of boot.cpp.
 - So the real reader's first run stays inside a read-only round. The start's use of the layout (discovery through the
   table, the reader at start: spikes S0-A and S0-B, S10.1.b) follows once that round agrees.
+
+### 458. One group of the reader can be read alone before the others' fields are placed: a partial discovery and a tick for that group
+
+`2026-11-23` · METHOD · `#lodestar` `#flags` · refs: backend.hpp, discovery.hpp, WHY§457
+
+- The game's layout places no `game_state` and no `field_area` yet, and both are required statics, so a discovery pass
+  with the files as they stand is refused. With `DiscoveryOptions::partial` nothing is required of the patterns: a
+  missing static is simply missing, the Discovery is not ready, and `has(group)` says what can be read. It is never for
+  a start, and boot.cpp does not set it.
+- `snapshot()` cannot reach the flags without the lifecycle's and the session's fields, so `ErBackend::flags_alone` is a
+  tick of its own. It begins the tick, re-reads the statics, runs `read_flags` as it stands (the divisor's check
+  included), then reads the known flag as phase B does. The result is returned, not written into the book. Nothing is
+  read where the group is tripped.
+- The eleventh round (engine 998d078, package 0.1.0-lodestar.14) uses both. T1 runs discover once through the build's
+  files on EldenNet's own thread (no getter call), and T2 reads the flags group alone every ten seconds: flag 100 first,
+  then each flag a marked flip was joined to. Each read is compared with what the sweep saw. This is the first time the
+  table's checks (placement, witness) run on the game's own image through discover.
+- Both additions are additive; nothing that exists changes its behaviour.

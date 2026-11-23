@@ -1090,6 +1090,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     fields are in the build's layout as leads (engine 9d8fb57), after ten read-only rounds. Next (WHY§457): a round
     that runs EldenNet's own flags reader on T2 beside the round's tree reader; then the start's use of the layout
     (S10.1.b).
+    The eleventh round built the same day (engine 998d078; WHY§458): EldenNet's own reader on the flags, alone, through
+    the build's layout, compared with the round's tree reader and the known flag (package 0.1.0-lodestar.14, for the
+    owner's run). A start still needs `game_state` and `field_area` placed, which are required statics.
 - l A tester's panel for the owner's rounds: each task in order, with a timer and a mark when done (the owner's request) [done]
   - needs: k
   - refs: WHY§398, WHY§396, WHY§444, WHY§445
