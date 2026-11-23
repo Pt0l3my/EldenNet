@@ -14,9 +14,10 @@ lie, at the same two places both times, ten bytes apart from the first time to t
 clock's place into its table by itself. What it could not say is which flag each bit is: the game keeps a small tree
 beside the flags that says which group of flags each block belongs to, and the eighth round did not read it.
 
-This round reads that tree once (a few thousand small records, 64 bytes each, one at a time at the round's careful
-pace), and looks up in it the blocks your confirmations' bits lie in. Everything else is as in the eighth round: the
-same panel, the same eight tasks, about eight minutes in the world.
+This round reads that tree once (at most 32,768 records of 64 bytes, about 2 MiB, read once, one at a time at the
+round's careful pace; that is less than one of the eight stretches you agreed to in the seventh round, and the round
+reads no more in all than it did then), and looks up in it the blocks your confirmations' bits lie in. Everything else
+is as in the eighth round: the same panel, the same eight tasks, about eight minutes in the world.
 
 The panel's button now speaks for the task it belongs to, as you asked, and the last task (quit the game) has none.
 
