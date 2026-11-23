@@ -584,6 +584,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 559 | 2026-11-23 | A game that keeps its cursor at its centre pulls back any pointer that falls back to the window's position after a quiet spell | FACT | #graceui #input |
 | 560 | 2026-11-23 | A rule with a time in it needs a test that waits past that time | METHOD | #graceui #tests |
 | 561 | 2026-11-23 | A normal launch from Steam, with anti-cheat and nothing of ours, ends at the quit with the same heap fault | FACT | #crash #engine #graceui #lodestar |
+| 562 | 2026-11-23 | With the owner's on-screen-display tool exited, two quits ended clean after twelve of twelve had faulted | LIKELY | #crash #engine |
 
 ## Entries
 
@@ -8493,3 +8494,15 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   EldenNet's first run, the fault is the game's on that PC, however it is started, and comes at some quits and not
   others. Nothing of EldenNet's, GraceUI's or the launcher's offline start causes it; in-game tests resume, and the
   launcher keeps such errors quietly (O115).
+
+### 562. With the owner's on-screen-display tool exited, two quits ended clean after twelve of twelve had faulted
+
+`2026-11-23` · LIKELY · `#crash` `#engine` · refs: WHY§561, WHY§558, WHY§557, O115
+
+- Every one of the owner's sessions of 23 November that loaded a save and quit, through the launcher or from Steam,
+  ended with the heap fault (twelve of twelve). With a third-party frame-rate overlay tool, whose hook every crash
+  record since 17 November lists, fully exited, two launches from Steam with a save loaded quit with no fault, the
+  other overlays left on. The crash records list the same modules on 17, 22 and 23 November, and the sessions of 19
+  to 22 November quit clean, so that tool alone does not make the fault: it is its hook, in some state or setting,
+  beside the game's teardown (WHY§558). Next: one run with the tool back on; if it faults again, the cause is named
+  and the fix is the tool's own per-game setting, nothing of ours.
