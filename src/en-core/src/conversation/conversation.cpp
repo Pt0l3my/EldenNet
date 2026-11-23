@@ -29,11 +29,44 @@ constexpr std::string_view kProviderFailed = "No answer: the provider failed";
 constexpr std::string_view kNoPrompt = "No answer: the conversation's prompt could not be made";
 constexpr std::string_view kNoModel = "No answer: no model is ready";
 constexpr std::string_view kInputBusy = "Chat cannot take the keyboard just now.";
+// A refused box names the holder by the id GraceUI gives (its own menu: "graceui"), and a not-now one its reason
+// (WHY§442); anything else is told in the generic words above.
+constexpr std::string_view kInputMenu = "Chat cannot take the keyboard: GraceUI's menu has the controls.";
+constexpr std::string_view kInputModBefore = "Chat cannot take the keyboard: another mod (";
+constexpr std::string_view kInputModAfter = ") has the controls.";
+constexpr std::string_view kInputMod = "Chat cannot take the keyboard: another mod has the controls.";
+constexpr std::string_view kInputDanger = "Chat cannot take the keyboard: danger is near.";
+constexpr std::string_view kInputLoading = "Chat cannot take the keyboard while the game loads.";
+constexpr std::string_view kInputGameMenu = "Chat cannot take the keyboard while a game menu is open.";
 constexpr std::string_view kDegraded = "Conversation paused: part of the game EldenNet reads stopped working.";
 constexpr std::string_view kFault = "Conversation closed after a fault in EldenNet.";
 constexpr std::string_view kEllipsis = "\xE2\x80\xA6";  // the "…" page and card
 
 bool is_space(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; }
+
+// A mod's id as GraceUI checks it at connect (3 to 32 of a-z, 0-9 and '-'): only such an id is ever put in a toast.
+bool is_mod_id(std::string_view id) {
+  if (id.size() < 3 || id.size() > 32) return false;
+  return std::all_of(id.begin(), id.end(),
+                     [](char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-'; });
+}
+
+// The toast for a box GraceUI refused its input (`detail` the holder's mod id) or answered not now (`detail` the
+// overlay's word for why: danger, loading, game_menu, not_ready).
+std::string input_refusal(proto::CloseReason why, std::string_view detail) {
+  if (why == proto::CloseReason::Refused) {
+    if (detail == "graceui") return std::string(kInputMenu);
+    if (detail == "eldennet") return std::string(kInputBusy);  // EldenNet's own: nothing to name
+    if (!is_mod_id(detail)) return std::string(kInputMod);
+    std::string text(kInputModBefore);
+    text.append(detail).append(kInputModAfter);
+    return text;
+  }
+  if (detail == "danger") return std::string(kInputDanger);
+  if (detail == "loading") return std::string(kInputLoading);
+  if (detail == "game_menu") return std::string(kInputGameMenu);
+  return std::string(kInputBusy);
+}
 
 // The Tarnished's line as typed, made safe to commit and send: control characters out (C0, DEL, C1), runs of
 // whitespace as one space, none at either end, at most kLineMaxChars characters and kLineMaxBytes bytes (NPC §8.5).
@@ -147,7 +180,7 @@ struct Active {
   std::optional<Mono> native_ended_at;
   bool ending = false;  // after the current page
   EndReason end_reason = EndReason::Closed;
-  bool esc_closed = false;  // the first Esc closed the box while a reply paces: end when it is done
+  bool esc_closed = false;  // Esc closed the box while a reply paces: end when it is done (NPC §5.7)
   std::optional<proto::ChrHandle> retarget;  // open on this one once ended
 };
 
@@ -412,6 +445,7 @@ struct Conversation::Impl {
       }
       conv->box_open = true;
       conv->box_draft = take_draft(conv->persona_id);
+      conv->esc_closed = false;  // opened again while its reply paces: the conversation goes on
       ++epoch;
       return;
     }
@@ -918,7 +952,9 @@ struct Conversation::Impl {
       }
       return;
     }
-    const bool was_open = conv->box_open;
+    // Esc acts on the box only while it is open (WHY§461): with the box closed the key is the game's, and no press
+    // stops a reply that paces.
+    if (e.reason == proto::CloseReason::Escape && !conv->box_open) return;
     conv->box_open = false;
     if (e.reason != proto::CloseReason::Refused && e.reason != proto::CloseReason::NotNow) {
       keep_draft(conv->persona_id, e.draft);
@@ -926,9 +962,7 @@ struct Conversation::Impl {
     switch (e.reason) {
       case proto::CloseReason::Escape: {
         const bool pending = conv->reply.has_value() || conv->tail.has_value();
-        if (!was_open) {
-          end(EndReason::Closed, true);  // a second Esc while the reply paces: at once, unshown dropped
-        } else if (pending) {
+        if (pending) {
           conv->esc_closed = true;  // the first: the reply finishes pacing, then the conversation ends
         } else {
           end(EndReason::Closed, false);
@@ -937,7 +971,7 @@ struct Conversation::Impl {
       }
       case proto::CloseReason::Refused:
       case proto::CloseReason::NotNow:
-        toast(ToastClass::Input, proto::ToastLevel::Info, kInputBusy);
+        toast(ToastClass::Input, proto::ToastLevel::Info, input_refusal(e.reason, e.detail));
         if (conv->player_lines == 0) end(EndReason::Closed, true);
         return;
       case proto::CloseReason::Fault:
@@ -1176,6 +1210,7 @@ struct Conversation::Impl {
       return failure(ToastClass::Timeout, proto::ToastLevel::Error, kTimedOut);
     }
     if (r.on_screen) {
+      if (settle_last(r)) return;  // the queued line went: the reply is the tail now
       if (!r.shown_at || now < *r.shown_at + r.pages[*r.on_screen].hold_ms) return;
       const auto next = static_cast<std::uint8_t>(*r.on_screen + 1);
       if (next < r.pages.size()) return publish(r, next);
@@ -1198,6 +1233,30 @@ struct Conversation::Impl {
       if (r.pages.empty()) return failure(ToastClass::Provider, proto::ToastLevel::Error, kProviderFailed);
       done(r);
     }
+  }
+
+  // §6.3 (WHY§432): a page sealed while the reply still streamed is not marked last, so once no sentence follows, the
+  // pager is asked for the page after the one up: with nothing left, the page up is the reply's last, and a queued line
+  // goes as soon as it shows (now, if it has), not when its hold ends. A page that is left is sealed at once; with no
+  // sentence to come, sealing it now gives the page it would give at the hold's end. True when the queued line went.
+  bool settle_last(ReplyRun& r) {
+    if (!r.sentences_done || !r.on_screen || *r.on_screen + 1U != r.pages.size()) return false;
+    const std::uint8_t up = *r.on_screen;
+    if (!r.pages[up].last) {
+      const Sealing s = r.pager->next(now);
+      if (s.kind == Sealing::Kind::Page) {
+        r.pages.push_back(s.page);
+        return false;
+      }
+      if (s.kind != Sealing::Kind::Done) return false;
+      r.pages[up].last = true;
+    }
+    if (!r.shown_at || !conv->queued) return false;
+    to_tail(r, r.pages[up].hold_ms);
+    std::string q = std::move(*conv->queued);
+    conv->queued.reset();
+    dispatch(std::move(q));
+    return true;
   }
 
   // The reply's last page has held: back to Open, and what waits goes next.

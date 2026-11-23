@@ -112,6 +112,77 @@ TEST_CASE("Awaiting: a line waits in the one queued slot, a later one replaces i
   CHECK(r.page()->text == "Yes.");
 }
 
+TEST_CASE("a one-page reply sealed while it streamed: the queued line goes when the stream ends, not at the hold's end") {
+  // NPC §6.3, WHY§432: the page was sealed before the reply ended, so it was not marked last when it showed.
+  SUBCASE("the page showed before the stream ended") {
+    Rig r;
+    r.open_box();
+    r.say("First.");
+    r.say("Then this.");
+    r.delta("Hm. ");
+    REQUIRE(r.page().has_value());
+    CHECK_FALSE(r.page()->last);
+    r.wait(500);
+    CHECK(r.requests.size() == 1);  // the stream goes on: the page up may not be the last
+    r.finish();
+    CHECK(r.requests.size() == 2);  // the stream ended with the last page showing: the line goes at once
+    CHECK(r.page()->last);
+    CHECK_FALSE(r.conv.queued().has_value());
+    REQUIRE(r.of(Commit::Kind::PlayerSaid).size() == 2);
+    // The new reply's first page still waits for the page up to finish its hold.
+    r.delta("Yes. ");
+    CHECK(r.page()->text == "Hm.");
+    r.wait(1600);
+    CHECK(r.page()->text == "Yes.");
+  }
+  SUBCASE("the stream ended before the page showed: the line goes when it shows") {
+    Rig r;
+    r.auto_ack = false;
+    r.open_box();
+    r.say("First.");
+    r.say("Then this.");
+    r.delta("Hm. ");
+    REQUIRE(r.page().has_value());
+    const proto::PageId id = r.page()->id;
+    r.finish();
+    r.wait(100);
+    CHECK(r.requests.size() == 1);  // not shown yet
+    CHECK(r.page()->last);
+    r.shown(id);
+    CHECK(r.requests.size() == 2);
+  }
+  SUBCASE("a later page sealed while it streamed: the same when the stream ends during its hold") {
+    Rig r;
+    r.open_box();
+    r.say("First.");
+    r.say("Then this.");  // queued while nothing has shown
+    r.delta("One. ");
+    r.delta("Two. ");
+    CHECK(r.page()->text == "One.");
+    r.wait(2050);  // page 1's hold ends while the reply streams: page 2 is sealed then, not marked last
+    REQUIRE(r.page()->text == "Two.");
+    CHECK_FALSE(r.page()->last);
+    CHECK(r.requests.size() == 1);
+    r.finish();
+    CHECK(r.requests.size() == 2);
+    CHECK(r.of(Commit::Kind::CutOff).empty());
+  }
+  SUBCASE("with more left to page when the stream ends, the line waits for the last page to show") {
+    Rig r;
+    r.open_box();
+    r.say("First.");
+    r.say("Then this.");
+    r.delta("One. Two. ");
+    CHECK(r.page()->text == "One.");
+    r.finish();
+    CHECK(r.requests.size() == 1);  // "Two." is still to come
+    r.wait(2050);
+    CHECK(r.page()->text == "Two.");
+    CHECK(r.page()->last);
+    CHECK(r.requests.size() == 2);
+  }
+}
+
 TEST_CASE("Streaming: a line cuts the reply off after the page up has shown 2 s, unshown pages dropped") {
   Rig r;
   r.open_box();
@@ -308,7 +379,34 @@ TEST_CASE("the endings at once: travel, dormant, death, the partner's state, nat
   CHECK(f.toasted("Conversation closed after a fault in EldenNet."));
 }
 
-TEST_CASE("Esc: at once with nothing pending; with a reply pending the first closes the box, a second ends") {
+TEST_CASE("a refused box names the holder GraceUI gives, a not-now one its reason; anything else in generic words") {
+  // WHY§442: the Close's detail is the holder's mod id (GraceUI's menu is "graceui") or the overlay's word for why.
+  const auto toast_for = [](proto::CloseReason why, const std::string& detail) {
+    Rig r;
+    r.open_box();
+    r.ui(proto::UiEvent{proto::UiEvent::Close{why, "", detail}});
+    CHECK(r.ended == std::vector<EndReason>{EndReason::Closed});  // no line yet: the conversation never began
+    REQUIRE(r.toasts.size() == 1);
+    return r.toasts.front();
+  };
+  using proto::CloseReason;
+  CHECK(toast_for(CloseReason::Refused, "graceui") == "Chat cannot take the keyboard: GraceUI's menu has the controls.");
+  CHECK(toast_for(CloseReason::Refused, "another-mod") ==
+        "Chat cannot take the keyboard: another mod (another-mod) has the controls.");
+  // Not an id as GraceUI checks one (GraceUI's own fallback, a quote, a space, too long, empty): never repeated.
+  for (const char* odd : {"a mod", "Mod\"X", "x", "", "abcdefghijklmnopqrstuvwxyz0123456789"}) {
+    CAPTURE(odd);
+    CHECK(toast_for(CloseReason::Refused, odd) == "Chat cannot take the keyboard: another mod has the controls.");
+  }
+  CHECK(toast_for(CloseReason::Refused, "eldennet") == "Chat cannot take the keyboard just now.");
+  CHECK(toast_for(CloseReason::NotNow, "danger") == "Chat cannot take the keyboard: danger is near.");
+  CHECK(toast_for(CloseReason::NotNow, "loading") == "Chat cannot take the keyboard while the game loads.");
+  CHECK(toast_for(CloseReason::NotNow, "game_menu") == "Chat cannot take the keyboard while a game menu is open.");
+  CHECK(toast_for(CloseReason::NotNow, "not_ready") == "Chat cannot take the keyboard just now.");
+  CHECK(toast_for(CloseReason::NotNow, "another-mod") == "Chat cannot take the keyboard just now.");
+}
+
+TEST_CASE("Esc: at once with nothing pending; with a reply pending it closes the box, and no press ends it sooner") {
   SUBCASE("nothing pending") {
     Rig r;
     r.open_box();
@@ -329,16 +427,39 @@ TEST_CASE("Esc: at once with nothing pending; with a reply pending the first clo
     CHECK(r.ended == std::vector<EndReason>{EndReason::Closed});
     CHECK(r.of(Commit::Kind::NpcPage).size() == 1);  // "Two." showed
   }
-  SUBCASE("a second Esc ends at once, unshown dropped") {
+  SUBCASE("there is no second Esc: one after the box has closed changes nothing, and the reply paces out") {
+    // WHY§461 (the owner, GraceUI's G39 (c)): with the box closed Esc is the game's; were one to reach the core all
+    // the same, it neither ends the conversation nor stops the reply.
     Rig r;
     r.open_box();
     r.say("Go on.");
     r.delta("One. Two. ");
     r.close(proto::CloseReason::Escape);
-    r.close(proto::CloseReason::Escape);
+    r.close(proto::CloseReason::Escape, "never typed");
+    CHECK(r.ended.empty());
+    CHECK(r.cancels.empty());
+    CHECK(r.conv.state() == ConvState::Streaming);
+    r.finish();
+    r.wait(4100);
     CHECK(r.ended == std::vector<EndReason>{EndReason::Closed});
-    CHECK(r.cancels.size() == 1);  // the request
-    CHECK(r.of(Commit::Kind::NpcPage).empty());
+    CHECK(r.of(Commit::Kind::NpcPage).size() == 1);  // "Two." showed all the same
+    CHECK(r.cancels.empty());
+  }
+  SUBCASE("the box opened again while the reply paces: the conversation goes on after it") {
+    Rig r;
+    r.open_box();
+    r.say("Go on.");
+    r.delta("One. Two. ");
+    r.close(proto::CloseReason::Escape);
+    r.wait(400);
+    r.open();
+    CHECK(r.conv.box_open());
+    r.finish();
+    r.wait(4100);
+    CHECK(r.ended.empty());
+    CHECK(r.conv.box_open());
+    r.close(proto::CloseReason::Escape);  // nothing pending now: at once
+    CHECK(r.ended == std::vector<EndReason>{EndReason::Closed});
   }
 }
 
