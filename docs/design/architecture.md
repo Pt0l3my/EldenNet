@@ -1558,6 +1558,11 @@ stateDiagram-v2
 
 The cost is one descent and one 125-byte copy per group, not per flag.
 
+*Since 2026-11-23 (Lodestar's ninth read-only round; WHY§451, §452):* on 2.7.2.0 a mode-1 descriptor's value is a
+block's index, not a byte offset: `block = holder_base + value × 125`. Every record seen was mode 1. The record's key is
+32 bytes in, its mode 40 and its value 48, and a flag is its group times 1,000 plus its place in the block, the first
+flag of a byte in its top bit. These enter `gal/layouts` as leads once a round reads flags by number as the reader will.
+
 ### 6.10 Patch-absorption runbook (budget 1–7 days; DESIGN §4.6)
 
 *Since 2026-11-22 (Lodestar, proposal 0005 §8, §13).* The runbook is changing with the address library, step by step:

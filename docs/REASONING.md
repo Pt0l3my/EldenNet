@@ -473,6 +473,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 448 | 2026-11-23 | Bits are set in the flags' stretch where the owner does something the game remembers | FACT | #lodestar #l6 |
 | 449 | 2026-11-23 | The report may carry the numbers of a flags' tree record joined to a bit the owner set | DECIDED | #lodestar #probe |
 | 450 | 2026-11-23 | The tester's panel ran on the owner's PC over the game, with Pause as its key | FACT | #launcher |
+| 451 | 2026-11-23 | The flags' layout: the store's holder and tree, a record's key, mode and block index, a flag as group times 1,000 plus its place | FACT | #lodestar #l6 #flags |
+| 452 | 2026-11-23 | Our reader's lead was wrong in one thing: a record's value is a block's index, not a byte offset | FACT | #lodestar #flags |
+| 453 | 2026-11-23 | A join must follow the layout the counts show: the index, not the start | METHOD | #lodestar |
 
 ## Entries
 
@@ -6446,6 +6449,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   listed.
 - *Later, 2026-11-23 (the eighth round, WHY§448):* bits are set in that stretch where the owner does something the game
   remembers, and nothing else flipped there around the marks: the first candidate for the blocks holds so far.
+- *Later, 2026-11-23 (the ninth round, WHY§451):* confirmed: the holder of the blocks, 125 bytes each at the holder plus
+  the block's index times 125, and the tree behind 56 bytes in.
 
 ### 396. A list of what changed must be told when to look: the tester marks a task done
 
@@ -7068,6 +7073,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   Nothing else flipped there around the marks.
 - The report was at the writer's limit again, since stretches the sweep had given up still listed their flips; mended in
   the ninth round.
+- *Later, 2026-11-23 (the ninth round, WHY§451):* the flips decode, by the flags' tree, to round flag numbers.
 
 ### 449. The report may carry the numbers of a flags' tree record joined to a bit the owner set
 
@@ -7091,3 +7097,39 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - The owner asked for one change: "make the blue button with instructions be aware of the task, because for example it
   tells the user to press pause or click here, when the task is about to quit the game." In the ninth round the button
   speaks for its task, and the last task has none (engine 99b3de1).
+
+### 451. The flags' layout: the store's holder and tree, a record's key, mode and block index, a flag as group times 1,000 plus its place
+
+`2026-11-23` · FACT · `#lodestar` `#l6` `#flags` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§395, WHY§448, WHY§449, ARCH§6.9
+
+- The ninth read-only round (package 0.1.0-lodestar.12, the owner's run, 12.2 minutes), one session. The store (static
+  64419032) keeps the holder 40 bytes in and the tree's head 56 bytes in. The tree was read whole: 11,930 records of 64
+  bytes, each of the tree's shape, none unreadable.
+- A record holds three links, then the key 32 bytes in (32 bits, different in every record: the group; four bytes of
+  padding after it), the mode 40 bytes in (1 in all of them), and the block's index 48 bytes in (different in every
+  record, from 1 to 14,297).
+- A block is 125 bytes at the holder plus its index times 125. A flag is the group times 1,000 plus its place in the
+  block, the first flag of a byte in its top bit. The nineteen flips at the owner's marks decode to round numbers, as flag
+  numbers are; the other bit order does not give them.
+- The clock and the play time were again found by their invariants. The reader: 7,157 readings at 9.92 a second, no
+  fault. Ten managers were where they were, a ninth session. The panel's changed button ran, and all eight tasks were
+  done.
+
+### 452. Our reader's lead was wrong in one thing: a record's value is a block's index, not a byte offset
+
+`2026-11-23` · FACT · `#lodestar` `#flags` · refs: docs/ops/probes/2026-11-22-l5.md, ARCH§6.9, WHY§451
+
+- Only 94 of the 11,928 values are multiples of 125, and the flags decode only with index times 125. So en-gal's
+  `ErBackend::flag_block` must return holder + value × 125 for mode 1, where ARCH §6.9 had holder + value. Mode 2 (a
+  block by its address) was not seen.
+- Engine agreed on 2026-11-23 that Lodestar change it in en-gal (readers.cpp), with the fake game's records, en-gal's
+  fake world, the tests and the harness. ARCH §6.9 carries a dated note.
+
+### 453. A join must follow the layout the counts show: the index, not the start
+
+`2026-11-23` · METHOD · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§449
+
+- The ninth round's join took a block's start before its index, so the five flips in the stretch's first blocks were
+  joined to other blocks' records, and their groups are not in the report. A start met in the index's field belongs to
+  another block's record.
+- Also mended: one key in seven, with its padding, looked like an address, so the order's check passed it over.

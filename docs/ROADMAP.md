@@ -1080,6 +1080,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the owner's marks. The fifth built (engine be13ea4, Lodestar's 99b3de1; WHY§449): the tree beside the flags read
     once and joined to the marked flips (at most 32,768 records of 64 bytes, about 2 MiB, within the owner's yes of
     O105's note). Package 0.1.0-lodestar.12 sent to the owner the same day (engine 620dcd7).
+    L6's fifth round reviewed the same day (WHY§451 to §453): the flags' tree read whole; key, mode and block index
+    placed; the flags decode to numbers. Next: the reader's change (a value is an index, WHY§452), a round that reads
+    flags by number as the reader will, then the flags' fields into the layout.
 - l A tester's panel for the owner's rounds: each task in order, with a timer and a mark when done (the owner's request) [done]
   - needs: k
   - refs: WHY§398, WHY§396, WHY§444, WHY§445
