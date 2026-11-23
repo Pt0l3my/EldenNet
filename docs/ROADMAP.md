@@ -436,6 +436,8 @@ Work beside the engine and the increments, and the owner's housekeeping.
     again once no conversation is open; Draft with AI sends only the player's notes and current text to the draft slot
     and returns proposals, a saved draft marking the layer assisted. A layer keeps its persona's key until the player's
     own characters come (WHY§521). Ships in v0.2, ahead of PAGES' v0.3. The words players read went to the owner.
+    The owner's O112 the same day: the words as written, the page in v0.2, and the notes saved on the PC alone (the
+    editor's writing commands to be marked sensitive, S11.4.e).
 - c GraceUI's components for the editor and the Characters pages: topic families, master-detail in both views, the editor block, slow commands, the text field in game (GraceUI's G38, proposal 0010; protocol 1.5) [done]
   - refs: G38, GraceUI:D57, GraceUI:D169, WHY§375, WHY§377
   - gives: put to the owner on 2026-11-22 and decided the same day, all three as recommended ("All now, in 0.2.x
@@ -1785,11 +1787,15 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     editor (merged at c223b6e) under EldenNet's own names, since §60's example names no command of EldenNet's space
     and GraceUI's lint refuses an undeclared one: `providers.add`, `providers.remove` and `providers.key`, and the
     settings `debug.panel` and `debug.record_sessions`; the editor's save is left unmarked (WHY§523). The fake game's
-    case pairs a device on 127.0.0.2 and checks it refused (WHY§525).
+    case pairs a device on 127.0.0.2 and checks it refused (WHY§525). By the owner's O112 (b) the editor's save, reset
+    and restore join them: notes are saved on the PC alone. To build after S11.2.as.
 - f A start stopped at discovery names what failed, and Home's build row says supported only once the game is read [next]
-  - refs: WHY§530, WHY§529, PAGES§4.5
+  - refs: WHY§530, WHY§529, PAGES§4.5, O114
   - gives: on the owner's PC the banner said "game build 2.7.2.0 not supported yet (reason: gal_files)" while Home
-    said "2.7.2.0, supported" (2026-11-23). New words for the owner's approval with the fix.
+    said "2.7.2.0, supported" (2026-11-23). The words decided by the owner the same day (O114 (a)): "EldenNet inactive:
+    its files for game build X are incomplete. Reinstall EldenNet, or look for an update." or "...it cannot read game
+    build X yet. Look for an update of EldenNet."; the row "X, recognised, not readable yet" until the game is read.
+    To build after S11.2.as.
 ### S11.5 v0.2's exit checks
 
 - needs: S11.1, S11.3, S11.4
