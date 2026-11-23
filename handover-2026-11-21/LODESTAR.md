@@ -57,17 +57,22 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The owner's fifteenth read-only run, the fourteenth's rerun** (package 0.1.0-lodestar.19, engine 57f7136;
-   built, not yet run; the record's "What was changed for the fifteenth round"). The fourteenth was spoilt by
-   GraceUI's presence (the record says how); now a read round never connects to GraceUI, and the main player is
-   taken from the layout's `characters.main_player`. When the files come back:
-   - first: `connect skipped=1 why=read_round` in EldenNet's log, no `marks source=` line, the launcher's marks
-     stamped by the tasks (eight), and the launcher's end clean (no crash code at the quit);
-   - `pair`: `word_hits` 1 names `game_state` (the round writes it into its draft table); then `[class.game_state]`
-     with `save_slot` goes into the layout. Byte hits only: a third number is needed. None: the offline way;
-   - `chars`: one look, mark 3, the thirteenth round's places (main player's word 0x1E508, the near list 0x1F1E8
-     with `has_fraction`, the player set 0x10EF8, the holder 0x190);
-   - `parts`: the parts' tables of methods; `moves` (the position); `falls` with `has_max` (hp and max_hp).
+1. **The fifteenth round is reviewed (the record's "The fifteenth round in game"); the game's exit code is open.**
+   Package 0.1.0-lodestar.19 ran with GraceUI installed and not loaded; the marks were the tasks' own. Settled:
+   the save's slot is the 32-bit field 0xAC0 into the object behind the static 0x3D709A8 (the pair search hit it
+   in game, 6 then 2: the executable's lead confirmed); health is part 0 of the holder (0x190 of the player), field
+   0x138, its maximum 0x13C (leads for `vitals`); position candidates in parts 13 and 4. Not settled: the lists
+   (the search still takes element pairs for bounds), the falls' list (part 0 used it up).
+   **Open, and first: the game ended with 0xC0000374 at the quit, without GraceUI in the process.** Every session
+   since the spike runs of 2026-11-23 ended with a crash code; the ten before were clean. Checked and clean:
+   en-gal's tests under the sanitisers with a case at the game's sizes (engine 23dc535), the release DLL in the
+   fake game under Wine's full heap validation (how: the record), the threads' hand-over. Asked of the owner: two
+   short runs (package 19 quit at the title; package 17 the same) to tell the PC from the code. No new round goes
+   out before that is known.
+   Then, for the sixteenth round: the round is given the static 0x3D709A8 as a number and reads its object's class
+   by the game's type information (it enters the draft table and `leads.toml` from there), `[class.game_state]`
+   with `save_slot`, the vitals as leads, the layout's characters fields read through EldenNet's own reader, the
+   list candidates and the falls' list mended.
    **Leads from the owner's executable (the record's "The offline study of the owner's executable")**: the game's
    state's static is 0x3D709A8 (its class's table of methods 0x2A84210; made with the event flags' store, so not
    there at the title), the save's slot the 32-bit number 0xAC0 into its object (compared with -1 and with the
