@@ -245,7 +245,7 @@ of any game is in it, and every name it looks for comes from a leads file.
   those the accessor's own sites reach too (`known`) and with the same class object (`agreeing`), and the statics
   that are new, each with its class object, count of sites and witnesses; `all_statics` is the accessor's own and
   then the variants' new ones, which the naming goes through. A variant never changes the accessor's own counts or
-  `complete`. `write_report` writes kind `lodestar`, schema 13, through the numbers-only writer: whole
+  `complete`. `write_report` writes kind `lodestar`, schema 14, through the numbers-only writer: whole
   numbers, booleans, fixed words and the leads' labels. Its vocabulary holds no key of the pattern type and no
   fraction, which a test pins, so a report cannot carry a byte, a pattern, text, a name or an instruction.
   **The in-game round (step L5; proposal 0005 §6.1's `instance_class`, O92)** adds, all read-only:
@@ -331,8 +331,23 @@ of any game is in it, and every name it looks for comes from a leads file.
   like them before anything is counted, and an address is never written. `StateSearch` finds a static by what a
   field of its object holds in two states of the game the tester moves it between: over the data's slots that point
   at live memory, the first 0x2000 bytes of each object in four passes (asked for one by one, at the tester's
-  marks); a 32-bit field that reads -1, a number from 0 to 15, -1 and the same number again is a hit (`StateFound`).
-  The round names the one slot with such a field the game's state by the invariant recipe. `ErBackend::flags_alone`
+  marks); a 32-bit field that reads -1, a number from 0 to 15, -1 and such a number again is a hit (`StateFound`),
+  with both numbers, and hits that are one field of one object seen through several slots are numbered alike
+  (`same_as`). The twelfth round hit 15 slots with the same save loaded twice, so the thirteenth has the tester load
+  two saves: the round names the game's state by the invariant recipe where one field in one slot alone read two
+  numbers, or, with one save, where one slot alone was hit. Each pass says how long it took and whether the next
+  was asked for before it was through. `CharSearch` (lodestar_chars.cpp, `CharFound`) is the second step of the
+  layout for a ready start, the pointers and lists by search and class: in looks asked for as the state search's
+  are, it reads the characters manager's object and what follows it (0x40000 bytes at most), follows each address
+  in it once (the first 0x100 bytes behind it; 8,192 at most) and tells by the first word whether an object of a
+  character class lies there (the two classes' tables of methods, the player's told apart). It reports the words
+  that hold a character's address, the pairs of neighbouring addresses that bound a run of elements holding
+  characters (the element's size, the address's place in it, and a fraction that never falls along the run: the
+  list by distance), the addresses of memory that holds the main player's address (the player set), and, for the
+  main player's object and the save data's, each address in it with its target's table of methods and how many
+  addresses the target begins with (a holder of parts: at least 8 of its first 16 words are addresses; how many of
+  those objects have a class is counted). It names nothing; no value of any object is reported, and nothing is
+  allocated on the stepping thread. `ErBackend::flags_alone`
   and `DiscoveryOptions::partial` (backend.hpp, discovery.hpp) let one group of EldenNet's own reader be read before
   the others' fields are placed.
   The round watches each named manager, the objects the event flags' store's first addresses lead to and the

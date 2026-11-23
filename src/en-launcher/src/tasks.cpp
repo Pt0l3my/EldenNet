@@ -110,30 +110,34 @@ std::string timer_text(const TaskRow& row) {
 }
 
 std::vector<Task> read_tasks() {
-  // The twelfth read-only round: the game is taken through two of its states twice (the title, the world, the title,
-  // the world), and each change is marked, so that the round can tell what the game keeps differently in them. Then
-  // one thing the game remembers, marked, for the flags' reader (the eleventh round's walk ended too late for it).
+  // The thirteenth read-only round: the game is taken through two of its states twice (the title, the world, the
+  // title, the world), and each change is marked, so that the round can tell what the game keeps differently in
+  // them. The first load is the first character of the tester's list and the second the usual one (the owner
+  // agreed, 2026-11-23): the save's slot then reads two numbers, which tells it from everything that reads one. In
+  // the world the round also looks for where the game keeps the player and the characters near them, so the waits
+  // there are longer.
   using K = TaskKind;
   return {
       {K::Round, "Wait at the title screen",
-       "EldenNet is reading the game. Do not load your save yet: this row turns grey when it is time.", 0, false, ""},
-      {K::Wait, "Stay at the title screen", "EldenNet takes its first look at the title. Do not load your save yet.",
+       "EldenNet is reading the game. Do not load a save yet: this row turns grey when it is time.", 0, false, ""},
+      {K::Wait, "Stay at the title screen", "EldenNet takes its first look at the title. Do not load a save yet.",
        60, false, ""},
-      {K::Do, "Load your save", "When you stand in the world, press Pause.", 0, true, "I am in the world"},
-      {K::Wait, "Walk about", "Anything will do. Stay in the world until the time is up.", 60, false, ""},
+      {K::Do, "Load the first character in your list",
+       "Choose Load Game, not Continue, and take the character at the top of the list. When you stand in the "
+       "world, press Pause.",
+       0, true, "I am in the world"},
+      {K::Wait, "Walk about",
+       "Anything will do; near other characters is best. Stay in the world until the time is up.", 90, false, ""},
       {K::Do, "Quit to the title screen",
        "Use the game's own menu to quit to the title screen, not out of the game. When the title screen shows, "
        "press Pause.",
        0, true, "The title screen shows"},
-      {K::Wait, "Stay at the title screen", "Do not load your save until the time is up.", 60, false, ""},
-      {K::Do, "Load your save again", "The same save. When you stand in the world, press Pause.", 0, true,
+      {K::Wait, "Stay at the title screen", "Do not load a save until the time is up.", 60, false, ""},
+      {K::Do, "Load your usual character",
+       "Choose Load Game and take the character you test with. When you stand in the world, press Pause.", 0, true,
        "I am in the world again"},
-      {K::Wait, "Walk about", "Anything will do. Stay in the world until the time is up.", 60, false, ""},
-      {K::Do, "Do one thing the game remembers",
-       "Take an item from a body or a chest, open a door or a chest, discover a grace, or buy something a merchant "
-       "has only a few of. Then press Pause at once.",
-       0, true, "I have done it"},
-      {K::Wait, "Walk about", "Leave items, doors and graces alone until the time is up.", 60, false, ""},
+      {K::Wait, "Walk about",
+       "Anything will do; near other characters is best. Stay in the world until the time is up.", 90, false, ""},
       {K::End, "Quit the game", "The round is done: there is nothing more to press. Quit as you usually do.", 0, false,
        ""},
   };

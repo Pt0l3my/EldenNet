@@ -1957,17 +1957,27 @@ TEST_CASE("in game: the state search finds the field that reads -1 at the title 
   CHECK(found.alive[0] == 4);
   CHECK(found.alive[1] == 4);
   CHECK(found.alive[2] == 2);  // the stuck one and the moved one are out
-  CHECK(found.alive[3] == 1);  // and the one whose number differed
+  CHECK(found.alive[3] == 2);  // a field that reads another small number the second time stays: another save's
   CHECK(found.fields_after_title == 6);
   CHECK(found.fields_after_world == 5);
   CHECK(found.fields_after_again == 3);
-  CHECK(found.slots_hit == 1);
-  REQUIRE(found.hits.size() == 2);
+  CHECK(found.slots_hit == 2);
+  CHECK(found.slots_differ == 1);
+  CHECK(found.fields_differ == 1);
+  REQUIRE(found.hits.size() == 3);
   CHECK(found.hits[0].rva == rva(w.at("st_hud")));
   CHECK(found.hits[0].offset == 0x14);
   CHECK(found.hits[0].value == 2);
+  CHECK(found.hits[0].again == 2);
+  CHECK(found.hits[0].same_as == 0);
   CHECK(found.hits[1].rva == rva(w.at("st_hud")));
   CHECK(found.hits[1].offset == 0x1F0);
+  CHECK(found.hits[1].same_as == 1);
+  CHECK(found.hits[2].rva == rva(w.at("st_session")));
+  CHECK(found.hits[2].offset == 0x18);
+  CHECK(found.hits[2].value == 7);
+  CHECK(found.hits[2].again == 9);
+  CHECK(found.hits[2].same_as == 2);
   // Each pass was through before the next was asked for.
   REQUIRE(found.looks.size() == 4);
   CHECK_FALSE(found.overrun);
@@ -1984,7 +1994,182 @@ TEST_CASE("in game: the state search finds the field that reads -1 at the title 
   const report::Vocabulary* known[] = {&lodestar::vocabulary()};
   CHECK(report::lint(*text, known).has_value());
   CHECK(text->find("\"state_hits\": [") != std::string::npos);
-  CHECK(text->find("\"alive\": [4, 4, 2, 1]") != std::string::npos);
+  CHECK(text->find("\"alive\": [4, 4, 2, 2]") != std::string::npos);
+  CHECK(text->find("\"again\": 9") != std::string::npos);
+}
+
+TEST_CASE("in game: two slots that keep one object's address hit one field, and the hits say so") {
+  FakeWorld w;
+  const auto rva = [&](std::uint64_t at) { return static_cast<std::uint32_t>(at - w.base); };
+  const std::uint64_t state = w.mem.alloc(0x400);
+  w.mem.put<std::uint64_t>(w.at("st_hud"), state);
+  w.mem.put<std::uint64_t>(w.at("st_menus"), state);
+  lodestar::StateSearch search(w.base, {rva(w.at("st_hud")), rva(w.at("st_menus"))});
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  const auto look = [&](std::int32_t value) {
+    w.mem.put<std::int32_t>(state + 0x20, value);
+    search.ask();
+    for (int steps = 0; steps < 100; ++steps) {
+      reader.begin_tick();
+      if (search.step(gt, reader)) return;
+    }
+  };
+  look(-1);
+  look(0);  // the first save
+  look(-1);
+  look(2);  // another
+  const lodestar::StateFound found = search.found();
+  REQUIRE(found.hits.size() == 2);
+  CHECK(found.slots_hit == 2);
+  CHECK(found.slots_differ == 2);
+  CHECK(found.fields_differ == 1);  // one field, seen through two slots
+  CHECK(found.hits[0].same_as == 0);
+  CHECK(found.hits[1].same_as == 0);
+  CHECK(found.hits[0].value == 0);
+  CHECK(found.hits[0].again == 2);
+}
+
+TEST_CASE("in game: the character search finds the player's word, the near list and the player set in the manager") {
+  FakeWorld w;
+  const auto rva = [&](std::uint64_t at) { return static_cast<std::uint32_t>(at - w.base); };
+  lodestar::CharSearch::Options o;
+  o.base = w.base;
+  o.image_size = w.sys->image().size();
+  o.manager_slot = rva(w.at("st_characters"));
+  o.save_slot = rva(w.at("st_save_data"));
+  o.character_vtables = {rva(w.vtable("chr")), rva(w.vtable("hero")), rva(w.vtable("npc")), rva(w.vtable("beast"))};
+  o.player_vtables = {rva(w.vtable("hero"))};
+  o.image = &w.sys->image();
+  lodestar::CharSearch search(std::move(o));
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  std::uint64_t now = 0;
+  const auto look = [&] {
+    for (int steps = 0; steps < 2000; ++steps) {
+      reader.begin_tick();
+      now += 1000;
+      if (search.step(gt, reader, now)) return true;
+    }
+    return false;
+  };
+  // Nothing is read before a look is asked for.
+  CHECK_FALSE(search.due());
+  reader.begin_tick();
+  CHECK_FALSE(search.step(gt, reader, now));
+  CHECK(reader.copies() == 0);
+  // At the title: the manager is there, and no character.
+  search.ask();
+  REQUIRE(look());
+  // In the world.
+  w.world();
+  search.ask();
+  REQUIRE(look());
+  const lodestar::CharFound found = search.found();
+  CHECK(found.rva == rva(w.at("st_characters")));
+  CHECK(found.asked == 2);
+  CHECK(found.passes == 2);
+  CHECK_FALSE(found.overrun);
+  REQUIRE(found.looks.size() == 2);
+  const lodestar::CharLook& title = found.looks[0];
+  CHECK(title.through);
+  CHECK(title.manager_bytes == 0x40);  // the test world's objects end where they end: the piece is halved to fit
+  CHECK(title.characters == 0);
+  CHECK(title.players == 0);
+  CHECK(title.pointers.empty());
+  CHECK(title.lists.empty());  // the two addresses are the same: an empty run
+  CHECK(title.sets.empty());
+  CHECK(title.player_bytes == 0);
+  const lodestar::CharLook& world = found.looks[1];
+  CHECK(world.through);
+  CHECK_FALSE(world.cut);
+  CHECK(world.took_ms > 0);
+  CHECK(world.reads > 0);
+  CHECK(world.characters == 1);
+  CHECK(world.players == 1);
+  REQUIRE(world.pointers.size() == 1);
+  CHECK(world.pointers[0].offset == 0x10);
+  CHECK(world.pointers[0].player);
+  REQUIRE(world.lists.size() == 1);
+  CHECK(world.lists[0].offset == 0x20);
+  CHECK(world.lists[0].bytes == 0x10 * w.npcs.size());
+  CHECK(world.lists[0].stride == 0x10);
+  CHECK(world.lists[0].chr_at == 0);
+  CHECK(world.lists[0].elements == w.npcs.size());
+  CHECK(world.lists[0].characters == w.npcs.size());
+  CHECK_FALSE(world.lists[0].has_player);
+  CHECK(world.lists[0].has_distance);
+  CHECK(world.lists[0].distance_at == 8);
+  REQUIRE(world.sets.size() == 1);
+  CHECK(world.sets[0].offset == 0x38);
+  CHECK(world.sets[0].chr_at == 0);
+  CHECK(world.sets[0].vtable == 0);
+  CHECK(world.player_bytes == 0x80);
+  REQUIRE(world.members.size() == 1);  // the parts
+  CHECK(world.members[0].offset == 0x30);
+  CHECK(world.members[0].vtable == 0);
+  CHECK(world.members_total == 1);
+  // A look the tester overran, and one never begun.
+  search.ask();
+  search.ask();
+  const lodestar::CharFound hurried = search.found();
+  CHECK(hurried.asked == 4);
+  CHECK(hurried.passes == 2);
+  CHECK(hurried.overrun);
+  // The report carries it as offsets and counts, and lints clean.
+  lodestar::Found f = round_of(w).found;
+  f.chars = found;
+  const auto text = lodestar::write_report(f);
+  if (!text.has_value()) MESSAGE(report::describe(text.error()));
+  REQUIRE(text.has_value());
+  const report::Vocabulary* known[] = {&lodestar::vocabulary()};
+  CHECK(report::lint(*text, known).has_value());
+  CHECK(text->find("\"chars\": {") != std::string::npos);
+  CHECK(text->find("\"char_pointers\": [") != std::string::npos);
+  CHECK(text->find("\"player\": true") != std::string::npos);
+  CHECK(text->find("\"has_distance\": true") != std::string::npos);
+}
+
+TEST_CASE("in game: the character search tells a holder of parts in the player's object by what its words point at") {
+  FakeWorld w;
+  w.world();
+  const auto rva = [&](std::uint64_t at) { return static_cast<std::uint32_t>(at - w.base); };
+  // A holder: 0x100 bytes whose first sixteen words hold ten addresses, seven of objects with a table of methods.
+  const std::uint64_t holder = w.mem.alloc(0x100);
+  for (std::uint64_t i = 0; i < 10; ++i) {
+    const std::uint64_t part = w.mem.alloc(0x100);
+    if (i < 7) w.set_vtable(part, "hud");
+    w.mem.put<std::uint64_t>(holder + 8 * i, part);
+  }
+  w.mem.put<std::uint64_t>(w.player + 0x38, holder);
+  lodestar::CharSearch::Options o;
+  o.base = w.base;
+  o.image_size = w.sys->image().size();
+  o.manager_slot = rva(w.at("st_characters"));
+  o.character_vtables = {rva(w.vtable("chr")), rva(w.vtable("hero")), rva(w.vtable("npc")), rva(w.vtable("beast"))};
+  o.player_vtables = {rva(w.vtable("hero"))};
+  o.image = &w.sys->image();
+  lodestar::CharSearch search(std::move(o));
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  search.ask();
+  bool through = false;
+  for (int steps = 0; steps < 2000 && !through; ++steps) {
+    reader.begin_tick();
+    through = search.step(gt, reader, static_cast<std::uint64_t>(steps) * 1000);
+  }
+  REQUIRE(through);
+  const lodestar::CharFound found = search.found();
+  REQUIRE(found.looks.size() == 1);
+  const lodestar::CharLook& look = found.looks[0];
+  REQUIRE(look.members.size() == 2);
+  CHECK(look.members[0].offset == 0x30);
+  CHECK(look.members[0].classed == 0);
+  CHECK(look.members[1].offset == 0x38);
+  CHECK(look.members[1].vtable == 0);
+  CHECK(look.members[1].pointers == 10);
+  CHECK(look.members[1].classed == 7);
+  CHECK(look.save_bytes == 0);  // no slot was given for the save data
 }
 
 TEST_CASE("in game: a look of the state search that the tester overran is told, with each look's time") {
