@@ -155,6 +155,7 @@ bool content_tick(Shell& s, en::core::Core& core) noexcept {
     std::vector<en::core::ContentFile> files = en::core::builtin_content();
     for (const en::core::ContentFile& f : c->overrides) files.push_back(f);
     const std::vector<en::core::ContentError> errors = core.load_content(files, c->realm);
+    if (errors.empty()) profiles_loaded(s, core, files, c->realm);  // the profile editor's checks and loads
     const std::vector<en::core::ContentError> warnings = warnings_of(core);
     // The errors by count alone: their words name the file's keys, and the log takes words of its own shape only.
     log(Line("content_load").flag("ok", errors.empty()).num("files", files.size()).num("errors", errors.size())

@@ -328,6 +328,10 @@ GRACEUI_API uint32_t GraceUI_Test_GetSetting(const char* key, char* out, uint32_
 GRACEUI_API uint32_t GraceUI_Test_GetMenuBounds(const char* name, float* out);
 /* 1 if the menu's last layout draws `text` within one of its texts (a component's words, D184), else 0. */
 GRACEUI_API uint32_t GraceUI_Test_MenuShows(const char* text);
+/* The init thread's step (D220): 0 before it starts; 1 its fonts, 2 waiting for the game's window, 3 Direct3D bound,
+ * 4 the hook targets read from a swap chain of GraceUI's own, 5 the input targets, 6 the install, 7 done. Readable from
+ * any thread at any time, so that an init that stops says where (GraceUI's log drains on that same thread). */
+GRACEUI_API uint32_t GraceUI_Test_InitStep(void);
 /* The anti-cheat module re-check's interval while the browser view's server runs (§7.2 item 1), in milliseconds; 0
  * keeps 60 s. With GraceUI_Test_SetAntiCheatNames after the first request, a test makes a re-check find a module. */
 GRACEUI_API void GraceUI_Test_SetAntiCheatRecheck(uint32_t ms);
@@ -335,6 +339,12 @@ GRACEUI_API void GraceUI_Test_SetAntiCheatRecheck(uint32_t ms);
  * it, NUL-terminated; answers its length, or 0 before it is first published, for no such topic, or if it does not fit.
  * A copy kept under a lock: safe to read while GraceUI's thread is busy. */
 GRACEUI_API uint32_t GraceUI_Test_GetTopic(const char* topic, char* out, uint32_t capacity);
+/* ---- Other devices at home (G9). The six digits the pairing sheet shows, NUL-terminated, as a device would read them
+ * in game: their length, or 0 while no code shows. A copy kept under a lock: safe while GraceUI's thread is busy. */
+GRACEUI_API uint32_t GraceUI_Test_GetPairingCode(char* out, uint32_t capacity);
+/* The network listener's addresses in place of the PC's own: `count` IPv4 addresses of 4 bytes each (at most 4), taken
+ * at the server's next start. A test listens on 127.0.0.2 alone, never on a real address of the machine. */
+GRACEUI_API void GraceUI_Test_SetNetworkAddresses(const uint8_t* addresses, uint32_t count);
 
 /* ---- The spaces and the browser view's server (D169). */
 typedef struct GraceUiTestServer {

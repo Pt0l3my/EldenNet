@@ -204,6 +204,19 @@
       "time": "0:00:01"
     }
   ],
+  "named.list": {
+    "columns": [
+      {
+        "id": "name",
+        "label": "Name"
+      },
+      {
+        "id": "role",
+        "label": "What they do"
+      }
+    ],
+    "rows": []
+  },
   "providers": {
     "checks": [],
     "columns": [

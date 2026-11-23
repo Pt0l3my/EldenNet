@@ -304,15 +304,17 @@ Overlay::Step Overlay::step(const ViewStatus& status, Space* space, const SpaceF
       continue;
     }
     if (event.kind == GRACEUI_EVENT_COMMAND) {
-      // Every command answered exactly once, at once (§23 item 4): through the space's one command path, or, with no
-      // space to answer it (a defect), `internal`.
+      // Every command answered exactly once (§23 item 4): through the space's one command path, at once, or later for
+      // the profile editor's, which the space hands to the DLL (an empty result: answer_later sends it); with no space
+      // to answer it (a defect), `internal`.
       const std::string result =
-          serving ? space->command(frame, *facts)
+          serving ? space->command(frame, *facts, event.reply)
                   : std::string(R"({"v":1,"t":"result","space":"eldennet","id":0,"error":"internal"})");
-      const GraceUiStatus answered = api_.answer(me_, event.reply, result);
       // The frame's bytes overwritten: a row's key (providers.key, D194) is in no buffer of ours after its command.
       std::fill(frame_.begin(), frame_.begin() + static_cast<std::ptrdiff_t>(frame.size()), '\0');
       ++out.commands;
+      if (result.empty()) continue;
+      const GraceUiStatus answered = api_.answer(me_, event.reply, result);
       if (answered != GRACEUI_OK) out.page_refused = answered;
       continue;
     }
@@ -331,8 +333,13 @@ Overlay::Step Overlay::step(const ViewStatus& status, Space* space, const SpaceF
     out.lost = true;
     return out;
   }
-  // What the space has for its watched topics (§23 item 3): nothing for a topic no view watches.
+  // What the space has for its watched topics (§23 item 3): nothing for a topic no view watches. The answers made since
+  // the last step go first, so that a save's answer comes before its member's new state.
   if (serving) {
+    for (auto& [reply, frame] : space->take_answers()) {
+      const GraceUiStatus answered = api_.answer(me_, reply, frame);
+      if (answered != GRACEUI_OK) out.page_refused = answered;
+    }
     frames_.clear();
     space->collect(*facts, now_ms, frames_);
     for (const std::string& f : frames_) {
@@ -374,6 +381,15 @@ Overlay::Step Overlay::step(const ViewStatus& status, Space* space, const SpaceF
 std::vector<proto::UiEvent> Overlay::show(const proto::UiModel& model, std::uint64_t now_ms) {
   if (lost_ || notices_only_ || !surfaces_) return {};
   return surfaces_->show(model, now_ms);
+}
+
+std::uint32_t Overlay::answer_later(Space& space) {
+  std::uint32_t n = 0;
+  for (auto& [reply, frame] : space.take_answers()) {
+    if (lost_ || !pages_) continue;  // GraceUI has gone, or the space was never registered: nobody waits for these
+    if (api_.answer(me_, reply, frame) == GRACEUI_OK) ++n;
+  }
+  return n;
 }
 
 void Overlay::fault() noexcept {

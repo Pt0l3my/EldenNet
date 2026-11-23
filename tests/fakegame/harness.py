@@ -18,6 +18,7 @@ import os
 import re
 import shutil
 import signal
+import socket
 import struct
 import subprocess
 import sys
@@ -1691,11 +1692,11 @@ def check_graceui_events(r):
 
 # EldenNet's pages (S11.4.a; GraceUI D169, D171), at the title screen (in the world the fake game's player reads as in
 # danger, which keeps GraceUI's menu shut, invariant 9): F5 opens GraceUI's menu on EldenNet's Home; Page Down past AI's
-# three pages to System › Status, and once more to Logs, where Log detail's shortcut row has the focus; Enter on it opens its home, Settings ›
+# three pages and Characters › Named NPCs (S7.2.b) to System › Status, and once more to Logs, where Log detail's shortcut row has the focus; Enter on it opens its home, Settings ›
 # Developer, with the row focused; → there changes it (a command to EldenNet, answered); F5 closes the menu. While it
 # runs, a browser of the tests' own (tests/pages/browser.py) joins GraceUI's server on loopback, at the port the fake
 # game's report gives, reads EldenNet's topics and sends commands.
-PAGES_KEYS = "600:f5,720:next,780:next,840:next,900:next,1020:next,1140:return,1260:right,1380:f5"
+PAGES_KEYS = "600:f5,720:next,780:next,840:next,900:next,930:next,1020:next,1140:return,1260:right,1380:f5"
 PAGES_REPORTS = "360,660,960,1080,1200,1320,1440"
 
 
@@ -2104,7 +2105,7 @@ def check_graceui_ai(r):
     need(cards == [(slot, title, slot, "ai.jobs", slot) for slot, title in (
         ("dialogue", "Conversation"), ("bark_live", "Quick lines"), ("bark_pool", "Prepared lines"),
         ("memory", "Memory"), ("selftest", "Self-test"))], "the Models page's cards: %s" % cards, failures)
-    need(body("pages").get("minor") == 3 and [s.get("id") for s in models.get("sections", [])][:2] == ["now", "preset"]
+    need(body("pages").get("minor") == 8 and [s.get("id") for s in models.get("sections", [])][:2] == ["now", "preset"]
          and len(models.get("sections", [])) == 7, "the Models page's sections: %s" %
          [s.get("id") for s in models.get("sections", [])], failures)
     need(body("first_status").get("sentence", "").startswith("No provider yet"),
@@ -2510,7 +2511,7 @@ case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--conso
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),
      env=dict(EN_ENV, FAKEGAME_SHOWS="{text_ai_shows}"), timeout=300,
      prepare=install_eldennet(AI_SETTINGS, then=install_ai), during=browse_ai, check=check_graceui_ai,
-     what="EldenNet's AI pages through GraceUI 0.2.20 against a fake model server on loopback: AI › Models as one "
+     what="EldenNet's AI pages through GraceUI 0.2.25 against a fake model server on loopback: AI › Models as one "
           "card per job with its chip and live status, a provider added from its preset (No key yet), a wrong key on "
           "its row refused (Refused; the cards Failing) and the right one set (Ready), a server of the case's own "
           "on this PC from the form (Not needed, no key), the self-test and the model lists, a job given that server "
@@ -2519,6 +2520,227 @@ case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--conso
           "the self-test; then the picks reset (a fallback by its picker's Default), no row changed, a new preset, and "
           "the unused providers removed; either key in no topic, log line, recording, report or file, and drawn "
           "nowhere in the menu")
+# The profile editor (S7.2.b) and the sensitive marks (S11.4.e), through GraceUI 0.2.25 with its listener at home on
+# 127.0.0.2 alone (the fake game's --grace-lan, GraceUI loaded first with the launcher's --also, Other devices on in its
+# own settings). A browser of the tests' own on this PC reads Characters › Named NPCs (the shipped pilot's row, its
+# general profile and the editor's document at revision 0), checks notes holding a banned word (a warning), saves them
+# (the answer names the same row, D218; the document comes back at revision 1, and the player's layer is a file of its
+# own in the overrides folder), is refused a stale save (conflict) and a reply length out of range (its message), and
+# asks for a draft, which a local model server of the tests' own answers with a scripted JSON draft (its proposals come
+# back; the sentence naming someone the notes do not is left out). In game, F5's menu opens Named NPCs, goes into the
+# editor, types into the notes' field and saves (the document at revision 2, the file holding the typed words), then
+# opens GraceUI's Browser view page and pairs a device; that device, on 127.0.0.2, is refused EldenNet's sensitive
+# commands and settings ("Only on the PC the game runs on.") but may read the pages and check a profile. No player's
+# text, notes or draft in the log.
+# The menu's presses, by the stops GraceUI 0.2.25 gives: F5 on Home; Page Down past AI's three pages to Named NPCs, its
+# list's row (the pilot's) chosen; → into the detail, on the Profile tab; nine ↓ past the General profile and Your notes
+# sections and the editor's Save, Check, Restore, Reset, notes and Draft to the notes' field; Enter edits it, the typing
+# goes in at its end, Enter ends it; six ↑ back to Save, Enter saves. Then Page Down to System › Status, ← into the rail,
+# three ↓ to GraceUI's own pages at its foot, Enter, two Page Down to Browser view, → into the page, five ↓ to Pair a
+# device, Enter: the sheet shows the code.
+EDITOR_KEYS = ("600:f5,720:next,780:next,840:next,900:next,1020:right,1080:down,1110:down,1140:down,1170:down,1200:d"
+               "own,1230:down,1260:down,1290:down,1320:down,1440:return,1800:return,1920:up,1950:up,1980:up,2010:up,"
+               "2040:up,2070:up,2160:return,2340:next,2460:left,2520:down,2550:down,2580:down,2700:return,2820:next,"
+               "2880:next,3000:right,3060:down,3090:down,3120:down,3150:down,3180:down,3240:return")
+EDITOR_REPORTS = "660,960,1050,1380,1500,1860,2130,2280,2400,2490,2640,2760,2940,3230,3300,3600,3900,4200,4500"
+EDITOR_FRAMES = 4560
+EDITOR_SETTINGS = 'schema = 2\ndebug = { panel = false, record_sessions = false, log_level = "debug" }\n'
+EDITOR_NOTES = "Hums an old road song when trade is slow, and calls every buyer friend."
+EDITOR_TYPED = " Taps the scales twice before he names a price."
+EDITOR_DRAFT = ['{"instructions": "Hums a road song while he weighs out rope. ', 'Swears by Saint Ombrel of the Hollow. ',
+                'Names a price, then waits.", "subjects": ["rope, oil and their prices", "the songs of the road"]}']
+EDITOR_RUNS = {}
+
+
+def install_editor(paths):
+    """GraceUI's folder with Other devices on in its own settings; the fake model server with the scripted draft;
+    providers.toml naming its keyless path for the dialogue slot, which the draft slot borrows."""
+    install_graceui(paths)
+    user = os.path.join(paths["gamedir"], "GraceUI", "user")
+    os.makedirs(user, exist_ok=True)
+    # A port of the case's own for the browser view, so that another run of GraceUI's cases on this machine (on the
+    # default, 8642) never holds it.
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    with open(os.path.join(user, "settings.json"), "w", encoding="utf-8") as f:
+        json.dump({"graceui_settings": 1, "values": {"dashboard.lan": True, "dashboard.port": port}}, f)
+    server = fake_models.FakeModels("fk-invented-" + os.urandom(12).hex(), [], open_prefix="/own/",
+                                    open_models=["invented-lantern-a"], scripted=[EDITOR_DRAFT])
+    EDITOR_RUNS[paths["case"]] = server
+    cfg = os.path.join(paths["appdata"], "EldenNet", "config")
+    with open(os.path.join(cfg, "providers.toml"), "w") as f:
+        f.write('schema = 1\npreset = "custom"\n\n[[provider]]\nid = "lantern-box"\nflavor = "openai"\n'
+                'kind = "local"\nbase_url = "http://127.0.0.1:%d/own/v1"\n\n'
+                '[slots.dialogue]\nprovider = "lantern-box"\nmodel = "invented-lantern-a"\n' % server.port)
+    paths["text_editor_shows"] = "Named NPCs|Your notes on how they speak|" + EDITOR_TYPED[:24]
+
+
+def pairing_code(paths, deadline):
+    """The six digits GraceUI's pairing sheet shows, once a report of the fake game's names them."""
+    while time.monotonic() < deadline:
+        try:
+            with open(paths["status"], encoding="utf-8", errors="replace") as f:
+                text = f.read()
+        except OSError:
+            text = ""
+        m = re.search(r"^FAKEGAME grace .* pairing=([0-9]{6})", text, re.M)
+        if m:
+            return m.group(1)
+        time.sleep(0.25)
+    return None
+
+
+def browse_editor(paths, out):
+    port = grace_port(paths, time.monotonic() + 120)
+    if port is None:
+        out["error"] = "no report named the server running"
+        return
+    view = None
+    phone = None
+    try:
+        view = browser.Browser(port, timeout=10)
+        view.sub("eldennet", "named.list")
+        out["list"] = view.wait("eldennet", "named.list", lambda b: len(b.get("rows", [])) > 0, timeout=60)
+        view.sub("eldennet", "named/persona.kale")
+        out["general"] = view.wait("eldennet", "named/persona.kale", lambda b: "items" in b, timeout=10)
+        view.sub("eldennet", "profiles/persona.kale")
+        out["doc0"] = view.wait("eldennet", "profiles/persona.kale", lambda b: "fields" in b, timeout=10)
+        doc = {"instructions": "Never says the word quest, " + EDITOR_NOTES, "subjects": None, "register": None,
+               "reply_words_max": None}
+        out["check"] = view.command("eldennet", "profile.check", {"target": "persona.kale", "rev": 0, "doc": doc})
+        doc["instructions"] = EDITOR_NOTES
+        doc["subjects"] = ["the road east and its tolls", "rope, oil and good boots"]
+        out["save"] = view.command("eldennet", "profile.save", {"target": "persona.kale", "rev": 0, "doc": doc})
+        out["doc1"] = view.wait("eldennet", "profiles/persona.kale", lambda b: b.get("rev") == 1, timeout=10)
+        out["stale"] = view.command("eldennet", "profile.save", {"target": "persona.kale", "rev": 0, "doc": doc})
+        long_doc = dict(doc, reply_words_max=70)
+        out["range"] = view.command("eldennet", "profile.save", {"target": "persona.kale", "rev": 1, "doc": long_doc})
+        out["draft"] = view.command("eldennet", "profile.draft",
+                                    {"target": "persona.kale", "notes": "a merchant who hums road songs and haggles"},
+                                    timeout=95)
+        # The menu's save, then the pairing sheet's code: a device at home.
+        out["doc2"] = view.wait("eldennet", "profiles/persona.kale", lambda b: b.get("rev") == 2, timeout=120)
+        code = pairing_code(paths, time.monotonic() + 120)
+        if code is None:
+            out["error"] = "no pairing code was reported"
+            return
+        cookie = browser.pair(port, code)
+        phone = browser.Browser(port, timeout=10, address="127.0.0.2", cookie=cookie)
+        phone.sub("eldennet", "named.list")
+        out["phone_list"] = phone.wait("eldennet", "named.list", lambda b: len(b.get("rows", [])) > 0, timeout=10)
+        out["phone_add"] = phone.command("eldennet", "providers.add",
+                                         {"name": "phone-box", "base_url": "http://127.0.0.1:9/v1"})
+        out["phone_remove"] = phone.command("eldennet", "providers.remove", {"id": "lantern-box", "confirm": True})
+        out["phone_key"] = phone.command("eldennet", "providers.key", {"id": "lantern-box", "value": "fk-x"})
+        out["phone_panel"] = phone.command("eldennet", "settings.set", {"key": "debug.panel", "value": True})
+        out["phone_level"] = phone.command("eldennet", "settings.set", {"key": "debug.log_level", "value": "info"})
+        out["phone_check"] = phone.command("eldennet", "profile.check",
+                                           {"target": "persona.kale", "rev": 2, "doc": {"instructions": None}})
+    except (browser.BrowserError, OSError, ValueError, KeyError) as e:
+        out["error"] = repr(e)
+    finally:
+        for v in (view, phone):
+            if v is not None:
+                v.close()
+
+
+def check_graceui_editor(r):
+    server = EDITOR_RUNS.pop(r.paths["case"], None)
+    if server is not None:
+        server.close()
+    d = r.during
+    failures = []
+    if "error" in d:
+        return ["the browser: %s" % d["error"]]
+    field = lambda doc, fid: next((f for f in doc.get("fields", []) if f.get("id") == fid), {})
+    body = lambda key: d.get(key, {}).get("body", {})
+    # Named NPCs: the shipped pilot's row, its general profile (first-meeting fields alone, SP1), its document at 0.
+    rows = d.get("list", {}).get("rows", [])
+    need(any(row.get("id") == "persona.kale" and row.get("name") for row in rows), "the list: %s" % rows, failures)
+    labels = [i.get("label") for i in d.get("general", {}).get("items", [])]
+    need(labels[:3] == ["Who they appear to be", "What they do", "What they like to talk about"],
+         "the general profile: %s" % labels, failures)
+    doc0 = d.get("doc0", {})
+    need(doc0.get("rev") == 0 and doc0.get("state", {}).get("word") == "Not written yet" and
+         [f.get("id") for f in doc0.get("fields", [])] == ["instructions", "subjects", "register", "reply_words_max"] and
+         field(doc0, "instructions").get("value") is None and "lantern-box" in doc0.get("draft_help", ""),
+         "the document at 0: %s" % json.dumps(doc0)[:300], failures)
+    # The check: a banned word and block 4 past its cap, warnings; the save, its row; the document at 1.
+    warned = [(m.get("field"), m.get("level")) for m in body("check").get("messages", [])]
+    need(d.get("check", {}).get("ok") is True and warned == [("instructions", "warning")] * 2,
+         "the check: %s" % d.get("check"), failures)
+    need(d.get("save", {}).get("ok") is True and body("save").get("chosen") == "persona.kale",
+         "the save: %s" % d.get("save"), failures)
+    doc1 = d.get("doc1", {})
+    need(field(doc1, "instructions").get("value") == EDITOR_NOTES and
+         field(doc1, "subjects").get("value") == ["the road east and its tolls", "rope, oil and good boots"] and
+         doc1.get("state", {}).get("word") == "Saved, with warnings",
+         "the document at 1: %s" % json.dumps(doc1)[:300], failures)
+    need(d.get("stale", {}).get("error") == "conflict", "a stale save: %s" % d.get("stale"), failures)
+    need(d.get("range", {}).get("error") == "invalid_value" and
+         [m.get("field") for m in body("range").get("messages", [])] == ["reply_words_max"],
+         "a length out of range: %s" % d.get("range"), failures)
+    # The draft: the scripted reply's proposals, the sentence naming someone the notes do not left out.
+    need(body("draft").get("draft") == {"instructions": "Hums a road song while he weighs out rope. Names a price, then waits.",
+                                        "subjects": ["rope, oil and their prices", "the songs of the road"]},
+         "the draft: %s" % d.get("draft"), failures)
+    # In game: the notes typed and saved from the menu (the document at 2), drawn in the menu as typed.
+    doc2 = d.get("doc2", {})
+    need(field(doc2, "instructions").get("value") == EDITOR_NOTES + EDITOR_TYPED,
+         "the document at 2: %s" % field(doc2, "instructions"), failures)
+    failures += (want_grace(r, 960, menu_open=1, menu_page="characters.named",
+                            menu_focused="item:named.list/persona.kale", shows=lambda s: s.startswith("11")) +
+                 want_grace(r, 1380, menu_focused="editor:yours/0/f/instructions") +
+                 want_grace(r, 2130, menu_focused="editor:yours/0/save") +
+                 want_grace(r, 2280, menu_page="characters.named", shows="111") +
+                 want_grace(r, 3230, menu_page="graceui.browser", menu_focused="section-action:other-devices/pair"))
+    # The player's layer, a file of its own beside the overrides; the version before the last kept as its .bak.
+    layers = os.path.join(r.paths["appdata"], "EldenNet", "overrides", "layers")
+    try:
+        with open(os.path.join(layers, "persona-kale.toml"), encoding="utf-8") as f:
+            layer = f.read()
+        with open(os.path.join(layers, "persona-kale.toml.bak"), encoding="utf-8") as f:
+            bak = f.read()
+    except OSError as e:
+        layer, bak = "", ""
+        failures.append("the layer's files: %s" % e)
+    need('target = "persona:kale"' in layer and "rev = 2" in layer and EDITOR_TYPED.strip() in layer and
+         "base_hash = " in layer, "the layer: %r" % layer, failures)
+    need("rev = 1" in bak and EDITOR_NOTES in bak and EDITOR_TYPED.strip() not in bak, "its .bak: %r" % bak, failures)
+    # The device paired at home: refused EldenNet's sensitive commands and settings by GraceUI, before EldenNet sees
+    # them; it reads the pages, sets an unmarked setting and checks a profile as this PC's browser does.
+    need(len(d.get("phone_list", {}).get("rows", [])) >= 1, "the device's list: %s" % d.get("phone_list"), failures)
+    for key in ("phone_add", "phone_remove", "phone_key", "phone_panel"):
+        need(d.get(key, {}).get("error") == "not_now" and d.get(key, {}).get("detail") == "Only on the PC the game runs on.",
+             "%s from the device: %s" % (key, d.get(key)), failures)
+    need(d.get("phone_level", {}).get("ok") is True, "an unmarked setting from the device: %s" % d.get("phone_level"),
+         failures)
+    need(d.get("phone_check", {}).get("ok") is True, "a check from the device: %s" % d.get("phone_check"), failures)
+    # The log: each command by its target, revision and code, the writes and the loads; never the player's text, notes or
+    # the draft. Nothing of the refused commands reached EldenNet.
+    for kv in ({"what": "check", "result": "ok"}, {"what": "save", "result": "ok"}, {"what": "save", "result": "conflict"},
+               {"what": "save", "result": "invalid_value"}, {"what": "draft", "result": "ended"}):
+        failures += any_line_kv(r, "ELDENNET", "profile", kv)
+    failures += any_line(r, "ELDENNET", "content_load", why="profile", ok=1)
+    text = "\n".join(l for l in r.lines if l.startswith("ELDENNET "))
+    for secret in ("Hums", "road song", "Taps the scales", "haggles", "Ombrel"):
+        need(secret not in text, "the log holds the player's text or the draft (%s)" % secret, failures)
+    need(not any(e.get("name") in ("providers.add", "providers.remove", "providers.key") for e in
+                 r.events("ELDENNET", "page")), "a device's sensitive command reached EldenNet", failures)
+    return failures + en_log_is_clean(r)
+
+
+case("launcher-eldennet-graceui-editor", LGAME + ["--also", "{gracedll}", "--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--stay-title", "--grace-lan", "--press-keys", EDITOR_KEYS, "--type-at", "1560:" + EDITOR_TYPED,
+          "--grace-report", EDITOR_REPORTS, frames=EDITOR_FRAMES),
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),
+     env=dict(EN_ENV, FAKEGAME_SHOWS="{text_editor_shows}"), timeout=300,
+     prepare=install_eldennet(EDITOR_SETTINGS, then=install_editor), during=browse_editor, check=check_graceui_editor,
+     what="EldenNet's profile editor through GraceUI 0.2.25: Characters › Named NPCs read and the pilot's notes checked, "
+          "saved as a layer of the player's own, a stale save and an out-of-range length refused, and a draft from a "
+          "local model server; in game, the notes typed and saved from F5's menu; a device paired at home refused "
+          "EldenNet's sensitive commands and settings")
 case("launcher-eldennet-graceui", LGAME + ["--dll", "{eldennetdll}", "--console"] +
      game("--d3d12", "--press-f11-at", "420,600", "--press-pause-at", "540", "--grace-report", "360,480,660,900",
           "--grace-probe", VIEW_PROBE, frames=960),

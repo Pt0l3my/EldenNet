@@ -10,7 +10,8 @@
 
 #include <toml.hpp>
 
-#include "en/core/prompt.hpp"  // kRecordFields
+#include "en/core/profile.hpp"  // the player's layers
+#include "en/core/prompt.hpp"   // kRecordFields
 #include "schema.hpp"
 
 namespace en::core {
@@ -294,6 +295,7 @@ std::optional<Persona> read_persona(const ContentFile& file, const PersonaRow& r
   p.id = t["id"].value_or(std::string());
   p.file = file.path;
   p.origin = file.origin;
+  p.hash = record_hash(file.text);
   if (p.id != row.id) errors.add(file.path, line_of(*t.get("id")), "id: must be the id its row in identity/personas.toml gives");
   // PL12: a shipped persona records how it was drafted and its review (a test persona and the player's own need not).
   if (file.origin == ContentOrigin::Shipped && !row.test_only && (!t.contains("drafted") || !t.contains("review"))) {
@@ -388,11 +390,14 @@ const char* to_string(Conscious v) noexcept {
   return i < kState.size() ? kState[i].data() : "unknown";
 }
 
-nlohmann::json Persona::resolved(std::size_t active) const {
+nlohmann::json Persona::resolved(std::size_t active, bool with_layer) const {
   // The record with `stages` replaced by the active stage, §3.2's inheritance applied (`road`, `at`, `hears` and
-  // `knows` from the last stage that set them)...
+  // `knows` from the last stage that set them), and the player's layer's fields over the shipped ones...
   nlohmann::json full = record;
   full.erase("stages");
+  if (with_layer && layer) {
+    for (const auto& [k, v] : layer->fields.items()) full[k] = v;
+  }
   if (const auto rs = record.find("stages"); rs != record.end() && rs->is_array() && !rs->empty()) {
     const std::size_t last = std::min(active, rs->size() - 1);
     nlohmann::json stage = (*rs)[last];
@@ -518,7 +523,19 @@ proto::Expected<ContentPack, std::vector<ContentError>> load_content(std::span<c
     hash_file(*f->second);
     if (auto p = read_persona(*f->second, row, errors)) pack.personas.push_back(std::move(*p));
   }
+  // The player's layers (profile.hpp): read and held to their schema here, merged by the core once the speech parts
+  // are loaded. A layer's errors refuse that layer alone; only the overrides hold one.
   for (const auto& [path, f] : by_path) {
+    if (path.rfind(kLayerFolder, 0) != 0) continue;
+    if (f->origin != ContentOrigin::Override) {
+      errors.add(path, 0, "is a player's layer: only the overrides folder holds one");
+      continue;
+    }
+    hash_file(*f);
+    if (auto layer = read_layer(*f, pack.layer_findings)) pack.layers.push_back(std::move(*layer));
+  }
+  for (const auto& [path, f] : by_path) {
+    if (path.rfind(kLayerFolder, 0) == 0) continue;
     if (path.rfind("identity/", 0) != 0 && path.rfind("personas/", 0) != 0 && path != kDisablePath) {
       pack.others.push_back(ContentFile{path, f->text, f->origin});
     }

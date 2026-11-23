@@ -20,6 +20,7 @@
 #include <string_view>
 #include <vector>
 
+#include "en/overlay/characters.hpp"
 #include "en/proto/llm.hpp"
 #include "en/proto/snapshot.hpp"
 #include "en/proto/watch.hpp"
@@ -219,6 +220,9 @@ struct SpaceFacts {
   bool settings_refused = false;  // settings.toml was refused at the start: the defaults are in use
   std::uint64_t session_ms = 0;   // since T1's start
   const AiFacts* ai = nullptr;    // the AI pages' facts; null: none yet (their topics publish nothing)
+  // The Characters pages' facts (characters.hpp): the profiles of the loaded content and the player's layers; null
+  // before the content is loaded (the list is empty, and no member has a body).
+  const CharacterFacts* characters = nullptr;
 };
 
 // A long command the space took (selftest.run, models.list) or a change of providers.toml or secrets.toml it asked for
@@ -248,8 +252,8 @@ struct AiRequest {
 struct SpaceNote {
   enum class What : std::uint8_t { Watched, Unwatched, Command };
   What what = What::Watched;
-  std::string topic;   // Watched, Unwatched: the topic; Command: the command's name
-  std::string key;     // Command: the setting's key or the reset's target, if any
+  std::string topic;   // Watched, Unwatched: the topic (a family's member: its family); Command: the command's name
+  std::string key;     // Command: the setting's key or the reset's target, if any; Watched, Unwatched: a member's key
   std::string result;  // Command: "ok" or the error code
 };
 
@@ -276,7 +280,12 @@ class Space {
   // A view's command, validated here and answered at once, exactly once: the result frame to hand to `answer`. Nothing
   // it does takes long in this slice; a later long command answers at once and publishes its progress (§23 item 4).
   // `facts` says whether settings.toml may be written (not while the file the player wrote was refused).
-  [[nodiscard]] std::string command(std::string_view cmd_frame, const SpaceFacts& facts);
+  [[nodiscard]] std::string command(std::string_view cmd_frame, const SpaceFacts& facts) {
+    return command(cmd_frame, facts, 0);
+  }
+  // The same with GraceUI's reply handle, for the commands answered later (the profile editor's, characters.hpp): an
+  // empty result means the command went to the DLL, which answers it through answer_profile, once.
+  [[nodiscard]] std::string command(std::string_view cmd_frame, const SpaceFacts& facts, std::uint64_t reply);
   // AI › Models' rows of each job (`slots.<slot>.provider`, `.model`, `.fallback_provider` and `.fallback`) as the facts
   // have them: the job's provider, model and fallback now, the preset's or the ones chosen, a provider chosen and waiting
   // for a model of its list kept; and which jobs providers.toml holds a pick of a model or a fallback for, the rows its
@@ -297,6 +306,11 @@ class Space {
   [[nodiscard]] std::vector<Change> take_changes();
   [[nodiscard]] std::vector<AiRequest> take_requests();
   [[nodiscard]] std::vector<SpaceNote> take_notes();
+  // The profile editor's commands the space took (characters.hpp), for the DLL to make; its answers, queued for the
+  // Overlay to hand to GraceUI with their reply handles.
+  [[nodiscard]] std::vector<ProfileRequest> take_profile_requests() { return characters_.take_requests(); }
+  void answer_profile(const ProfileRequest& request, const ProfileAnswer& a) { characters_.answer(request, a); }
+  [[nodiscard]] std::vector<std::pair<std::uint64_t, std::string>> take_answers() { return characters_.take_answers(); }
 
   // ---- The logs stream: one of the log's lines (its text, `<event> key=value ...`, EldenNet's own), `t_ms` since T1's
   // start. The ring holds the newest 500, whether or not anyone watches.
@@ -368,6 +382,7 @@ class Space {
   std::map<std::string, std::string, std::less<>> pending_fallback_;
   std::set<std::string, std::less<>> picked_;           // the jobs providers.toml holds a model for, as the facts said
   std::set<std::string, std::less<>> fallback_picked_;  // and a fallback for
+  Characters characters_;  // the Characters pages and the profile editor (characters.hpp)
   bool valid_ = false;
 };
 

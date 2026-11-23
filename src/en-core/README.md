@@ -318,6 +318,32 @@ the conversation part B's (above); the core holds both.
   (banned words in prompt-facing fields and stage texts, quoted sample lines, subjects and stirs as noun phrases;
   effect adjectives warned), errors for shipped and test content, warnings for the player's own.
 
+## The player's own layer and the draft helper (`profile.hpp`; NPC §4.5, §4.7, §4.8; S7.2.b)
+
+- **The file.** `layers/persona-<id>.toml` in the overrides folder (NPC §4.7's name for it), the player's alone: a
+  shipped one refuses the pack. `schema = 1`, `target = "persona:<id>"` (the path's), `rev`, `base_hash` (the shipped
+  record's FNV-1a, `record_hash`), `drafted = "assisted"` once a draft was taken (PL12), and the four fields a layer may
+  set: `instructions`, `subjects` (in place of the shipped list), `register` and `reply_words_max`. `layer_text` writes
+  what `read_layer` reads back; a line break or a tab in the text becomes a space (one paragraph).
+- **The load.** `load_content` reads each layer with PL1's schema and caps into `ContentPack::layers`, its findings into
+  `layer_findings`: an error refuses that layer alone, never the pack. The core, once the speech parts load, runs
+  `apply_layers`: the wording of the notes and the subjects against the pack's lexicon (template marks and the safety
+  list's fingerprints errors; a banned word, a quoted line, an effect word and a subject that is no noun phrase
+  warnings) and block 4 rendered with the layer (past its 230 a warning for the player's own, WHY§472: the pilot's voice
+  leaves about six tokens). A layer with no error is merged into its persona (`Persona::layer`; the typed register and
+  reply length take its values; `resolved()` renders its instructions and register); `Persona::record` stays the shipped
+  file, so the shipped lints never see the player's text (`resolved(i, false)` for them). Every finding joins the
+  content's warnings (`to_content_error`, "refused: " before an error's words) and `Core::layer_findings()`.
+- **The editor's check.** `check_layer(files, candidate)` runs the same load over the shell's files with the candidate
+  in place of the file of its path, and answers the candidate's findings alone (`ContentDown` when nothing loads);
+  `words()` gives each its words for the editor, never a value of the file.
+- **The draft helper.** `draft_messages` renders `prompts/draft/10_profile.j2` (ours) from the player's notes (400
+  characters at most), a fixed phrase of the profile's kind and the player's own current notes and subjects, nothing
+  else; `draft_schema()` holds the reply to the two fields. `read_draft` keeps them within their caps (cut at a
+  sentence's end; subjects past ten words or the eighth left out), drops a sentence or a subject naming someone neither
+  the notes nor the current text hold (a capitalised word that is not the first; "I" is no name), and discards the whole
+  draft on a word of the safety list.
+
 ## Tests
 
 `en_core_tests` (doctest), on Linux with GCC and Clang and under Wine: the predicate's every clause alone, values not

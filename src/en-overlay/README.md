@@ -9,8 +9,9 @@ moved it to GraceUI 0.2.5's ABI 1.2 (§19, §23, §24, §26 to §29, §33, §34 
 C; WHY§364) adds EldenNet's own surfaces on GraceUI 0.2.20's ABI 1.5 (§31, §33, §47 to §50): the lower third, the chat
 box, the hint and the toasts. Later increments add the call-out box (v0.6) and the rest of its pages.
 
-It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 798934f, GraceUI
-0.2.20, ABI 1.5; its floor, 0.2.17, for the wait handle): its look for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size
+It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 92fc19c, GraceUI
+0.2.25, ABI 1.5, protocol 1.8; its floor, 0.2.22, for the profile editor's families, slow commands, editor block and
+chosen row, on 0.2.17's wait handle): its look for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size
 (`graceui_sys.hpp`), and the headless Dear ImGui helper (`graceui_imgui.hpp`). It links no hook library and no Dear
 ImGui backend and hooks nothing (R12, GraceUI's invariant 16); it never links en-core or en-gal, so it can never reach
 the game's memory (ARCH §2.3, checked by `en_link_rule`); and nothing in it waits but the look, on T1 (R6).
@@ -40,7 +41,7 @@ On T1, after WaitWindow (ARCH §3.2's Connect, and ConnectB on the banner path):
    GraceUI loaded before EldenNet is found by its name, and GraceUI installed in the game's folder but not yet loaded is
    loaded by EldenNet (and found by its name if a loader loads it later).
 2. **`Overlay::connect`** as `eldennet` (its id and its space's), display name `EldenNet`, its version, its GraceUI floor
-   (0.2.17, `en/proto/graceui_pin.hpp`) and the caps it uses: `notices world-state hotkeys`, and with the view
+   (0.2.22, `en/proto/graceui_pin.hpp`) and the caps it uses: `notices world-state hotkeys`, and with the view
    `panels textures`. The answers: `connected`; `notices_only` (inactive for the anti-cheat, with a handle: the banner
    through `notice` alone, D88); or a failed connect, `absent`, `too_old`, `duplicate_id`, `inactive` (the overlay
    could not start or turned itself off), `refused` or `not_yet`, which leave EldenNet headless (ARCH §10.3's "Overlay
@@ -227,9 +228,44 @@ game's own text entry is not read in v0.1.
   new watch) and when its body changes, no oftener than its rate (`status`, `providers` and `selftest` 4 a second,
   `system.status` and `health` once a second, the rest on change); the logs stream from its oldest row held, in batches of 100, then each new row once a second.
 
+## The Characters pages and the profile editor (`characters.hpp`; PAGES §4.6.4, NPC §4.7; S7.2.b)
+
+On GraceUI 0.2.22's topic families, master list, slow commands, editor block and chosen row (D215 to D218), registered
+in `pages/space.toml` like every page (its 0.2 increment, where PAGES ships Named NPCs in 0.3: the owner wants profiles
+edited now) and served by the space, which owns a `Characters` for them:
+
+- **Characters › Named NPCs** (`characters.named`): the roster as the page's master list, `named.list` (a table, a row
+  per profile EldenNet voices: its key, `persona.<id>` as WHY§387 has it, its first-meeting name and its role); its
+  Profile tab holds the chosen row's general profile (the family `named`, a key-value list of `public.summary`,
+  `public.role`, the `subjects` and our labels for its way of speaking and its news temperament: SP1's fields alone) and
+  "Your notes", an editor block over the family `profiles`. The Allowances and Reactions tabs, and Met and Nearby, wait
+  for the allowances and the sightings store: absent until then (SP5).
+- **The editor's document** (`profiles/<key>`, D217): the four fields a layer may set (NPC §4.5): `instructions`
+  (prose, 35 words, 210 characters), `subjects` (a list of 8 at most, 10 words and 50 characters each), `register` (a
+  choice of NPC §3.3's five, by our labels) and `reply_words_max` (10 to 60), each nullable, null where the layer leaves
+  it to the shipped profile, with the shipped value beside it as its `reference`; its revision (the layer file's `rev`);
+  a state line (Not written yet, Saved, Saved with warnings, Updated since you wrote this, Not loaded, Newer file); the
+  draft's help naming the provider, or `draft_blocked` saying why it cannot run now. A newer file's fields are locked.
+- **Commands**: `profile.check`, `profile.save` {target, rev, doc}, `profile.reset` {target, all, confirm},
+  `profile.restore` {target}, and `profile.draft` {target, notes}, the space's one slow command (D216). Each is checked
+  at the space's entry point (a row's key, a whole revision, the doc's four fields of their kinds, a list item's text
+  taken from `{text, key}`, the notes within 400 characters and not blank, a reset confirmed and of a layer that exists,
+  a draft not blocked), then handed to the DLL as a `ProfileRequest` with GraceUI's reply handle (`Space::command`'s
+  third argument). The DLL answers through `Space::answer_profile` (messages {field, item, level, words}; a save's
+  `chosen` row; a draft's `{draft, notice}`), and the Overlay hands each answer to GraceUI once (`answer_later`, and
+  every step before it publishes, so a save's answer comes before its document's new revision).
+- **Published** like every state topic: the list and each watched member on change, nothing unwatched, and a member
+  whose row is gone not at all. A watch of a member is logged as its family and its key (the log takes words alone).
+- **Sensitive** (protocol 1.8, D221; S11.4.e): `providers.add`, `providers.remove` and `providers.key` are marked, and
+  the settings `debug.panel` and `debug.record_sessions`; GraceUI refuses them from a paired device before EldenNet
+  sees them. An older GraceUI reads past the marks (it has no devices to refuse).
+
 ## Tests
 
-`en_overlay_tests` (doctest): in every build, the surfaces laid out (the panels' places, text decoded, upper-cased
+`en_overlay_tests` (doctest): in every build, the Characters pages (`test_characters.cpp`: the page data with its
+master, families, editor and marks, the bodies from invented characters, every refusal at the entry point, the
+requests handed over with their reply handles, the answers later, what is published when, and the spoiler golden: no
+string a projection does not publish reaches a body), the surfaces laid out (the panels' places, text decoded, upper-cased
 and wrapped, a page's, a card's, the box's and the hint's lists checked as GraceUI checks them, the caret and its
 scroll, the fades and PageShown, the toasts' keys, the input mapping and the swallowed character), the view's lines (every section, the newest event and the newest change
 first with their ages, each event's columns and its square's source, full lists within the view's lines and its panel,
@@ -241,7 +277,7 @@ or note), what is published and when, the logs stream's batches and ring, the wo
 (no lamp while starting, the banner's own, absence silent, nothing personal), and in the Linux builds the five fixture
 states' `tests/pages/<state>/topics.json` (EN_UPDATE_FIXTURES=1 writes them anew). In the
 Windows builds, under Wine, the connection against a fake GraceUI of our own (`tests/fake_grace.hpp`; graceui-sys has no
-C mock): ABI 1.5's table, answering as GraceUI 0.2.20 answers and checking as it checks (connect's answers, notices
+C mock): ABI 1.5's table, answering as GraceUI 0.2.25 answers and checking as it checks (connect's answers, notices
 under keys, the registration window, hidden panels, hotkeys, poll's events by the event's size, the space's slots, and
 submit's draw-list checks: counts, bounds, ranges, indices, clip rectangles inside the panel, known textures, the
 stride). The cases: the space registered once for its views, or not without the cap or beside anti-cheat; watched
