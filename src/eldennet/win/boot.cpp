@@ -171,7 +171,12 @@ void banner_path(Shell& s, BannerReason reason, const char* detail) {
   finish(w::InitState::Banner, reason, detail);
 }
 
+// Set once the game's window has shown (WaitWindow): from then on a start that stops at a banner installs the crash
+// filter, as the banner path does, so that a crash after it is recorded whoever caused it (WHY§484, §510).
+bool g_window_seen = false;
+
 void stop_at(Shell& s, BannerReason reason, const char* detail) {
+  if (g_window_seen) block::install_filter();
   log(Line("banner").word("reason", en::core::to_string(reason)).word("detail", detail), LogLevel::Warn);
   push_banner(s, reason, detail);
   finish(w::InitState::Banner, reason, detail);
@@ -306,6 +311,7 @@ void run(HMODULE module) {
   enter(w::InitState::WaitWindow);
   if (!wait_window(kStartLimitMs)) return stop_at(s, BannerReason::NotStarted, "no_window");
   log(Line("window").flag("found", true).num("ms", since_ms()));
+  g_window_seen = true;
   // The game's own thread, for the crash filter's record: v1 runs nothing on it (O101), so it is known only as the
   // thread of the game's window.
   block::game_thread(main_window_thread());

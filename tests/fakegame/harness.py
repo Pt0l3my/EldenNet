@@ -1480,10 +1480,9 @@ for _missing in (False, True):
                                                                 "--run-timeout", "90"] + S0_GAME,
          program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=300,
          prepare=install_eldennet(probe=True, then=s0_table(_drop)),
-         # At the discovery banner the start has not reached WaitEngine, where the crash filter goes in: the watcher
-         # records the crash by the game's exit code and module list alone, which is S0-D's rule.
-         check=check_s0("s0d-crash", runs=2, missing=_missing, crashes=2, records=2,
-                        **({} if _missing else {"filter_records": 2})),
+         # A start that stops at a banner once the window has shown installs the crash filter too (WHY§510), so the
+         # crash is recorded by EldenNet's filter as well as by the watcher, at the discovery banner as at Ready.
+         check=check_s0("s0d-crash", runs=2, missing=_missing, crashes=2, records=2, filter_records=2),
          what="S0-D's forced crashes " + _how + "a crash asked for once the start has stopped (" +
               ("at the discovery banner" if _missing else "Ready") + "), each recorded by the watcher")
 
