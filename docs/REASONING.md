@@ -571,6 +571,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 546 | 2026-11-23 | A guard below operator new names a block's maker by the return address each operator new passes, and takes no lock at a breach | METHOD | #graceui #crash |
 | 547 | 2026-11-23 | A heap breach is raised as its own code and ended by a vectored handler of GraceUI's, added last | METHOD | #graceui #crash |
 | 548 | 2026-11-23 | A test aid that perturbs timing must be switchable where other tests measure it | METHOD | #graceui #tests |
+| 549 | 2026-11-23 | spikes.5: S0-E passed in all five runs, A1 among them, beside the Steam overlay and another overlay; S4 passed all it could measure | FACT | #spike #graceui #engine |
+| 550 | 2026-11-23 | Every quit's crash code comes from the same place in the game's own teardown, and a read round without GraceUI has one too | FACT | #crash #graceui #lodestar |
 
 ## Entries
 
@@ -8337,3 +8339,27 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   (GRACEUI_TEST_HEAP_GUARD=off), and the guard has its own scenario and its own sweep of every scenario, which found
   no breach under Wine. EldenNet's GraceUI cases that count warm-up frames set the same switch when they move to a
   test build that carries the guard.
+
+### 549. spikes.5: S0-E passed in all five runs, A1 among them, beside the Steam overlay and another overlay; S4 passed all it could measure
+
+`2026-11-23` · FACT · `#spike` `#graceui` `#engine` · refs: WHY§529, WHY§536, S10.1.g, GraceUI:D175
+
+- GraceUI 0.2.30's report on the owner's runs: A5 and A1 to A4 passed (connected, hooked once with 9 hooks, 11,165 to
+  26,484 frames drawn, no allocation on the present thread after warm-up), EldenNet connected in both load orders;
+  the Steam overlay was loaded in A2 to B and gave no trouble. A1 no longer fell at the first Present. B (S4): typing
+  held 60 s with nothing passed to the game; pad, the Steam keyboard, Proton and movement not measured (the owner has
+  no pad; movement waits for EldenNet's ready start). By hand: the menu's pointer snaps back to the centre a second
+  after the mouse stops, a few elements show a highlight border unasked, and the typing test's panel still shows a
+  pointer (with Grace). The UI scale changed and persisted.
+
+### 550. Every quit's crash code comes from the same place in the game's own teardown, and a read round without GraceUI has one too
+
+`2026-11-23` · FACT · `#crash` `#graceui` `#lodestar` · refs: WHY§539, WHY§536, WHY§529
+
+- All six spikes.5 runs ended at the quit with the same faulting stack, recorded by GraceUI's observer: the game's
+  code at game+0x254e298 (called from game+0x25234fe and on) freeing a heap block that the heap finds damaged
+  (0xC0000374 through ntdll+0x2754c, or 0xC0000005 at ntdll+0x2730d). The fifteenth read round (0.1.0-lodestar.19),
+  which never loaded GraceUI, also ended with 0xC0000374 at its quit, while the read rounds up to lodestar.17 ended
+  clean. So GraceUI alone does not explain it. Next: a control run with nothing injected (the launcher's
+  --vanilla-offline), Lodestar placing what game+0x254e298 frees from the owner's executable, and spikes.6's heap
+  guard.

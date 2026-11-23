@@ -992,6 +992,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     G41 and the observer's fault recorder, 0xC0000374 included): the sums, help and version under Wine, 18 GraceUI and
     spike cases, the six run cases and the other-GraceUI case, and the sweep passed. A1 is kept as it was, so that the
     recorder names the caller if it falls again.
+    The owner's spikes.5 runs the same day (WHY§549): S0-E passed in all five runs (A5, A1 to A4), in both load
+    orders, beside the Steam overlay and another overlay, and A1 no longer fell; S4 passed all it could measure. Every
+    run ended at the quit with the same fault in the game's own teardown, as did a read round without GraceUI
+    (WHY§550): with Grace and Lodestar, and a control run with nothing injected asked of the owner.
 - h O89 to O91 folded into the designs: the derivation round (ARCH §6.2, §6.10), the spikes without GraceUI and the launcher's Mark (DESIGN §14, §16.1), the third-party rows (DESIGN §16.1) [done]
   - refs: O89, O90, O91, ARCH§6.2, ARCH§4.14, DESIGN§16.1
   - gives: folded on 2026-11-17 with the first in-game build's choices (WHY§159 to §204): ARCH
