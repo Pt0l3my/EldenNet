@@ -238,6 +238,9 @@ class Core {
   [[nodiscard]] const std::vector<ContentError>& content_warnings() const noexcept { return content_warnings_; }
 
   [[nodiscard]] const Directory& directory() const noexcept { return directory_; }
+  // The last load's findings about the player's layers (profile.hpp): each layer's, a refused one's errors among them,
+  // for the profile editor's states (S7.2.b).
+  [[nodiscard]] const std::vector<LayerFinding>& layer_findings() const noexcept { return layer_findings_; }
   [[nodiscard]] const MemoryLog& log() const noexcept { return log_; }
   [[nodiscard]] const Conversation& conversation() const noexcept { return conversation_; }
   [[nodiscard]] proto::NetHealth net() const noexcept { return net_; }
@@ -301,6 +304,7 @@ class Core {
   Conversation conversation_;
   Directory directory_;
   bool content_loaded_ = false;
+  std::vector<LayerFinding> layer_findings_;
   std::vector<ContentError> content_warnings_;
   MemoryLog log_;
   proto::NetHealth net_;

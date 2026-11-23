@@ -92,6 +92,57 @@ struct PersonaRow {
   friend bool operator==(const PersonaRow&, const PersonaRow&) = default;
 };
 
+// ---- The player's own layer over a shipped persona (NPC §4.5, §4.7; profile.hpp reads, checks and writes it) ----
+
+struct PersonaLayer {
+  std::string file;       // its path, "layers/persona-<id>.toml"
+  std::string persona;    // the persona's id
+  std::uint32_t rev = 0;  // +1 on every save
+  std::string base_hash;  // the shipped record's hash when it was saved; empty: not known
+  bool assisted = false;  // drafted = "assisted": a draft of the helper's was taken (PL12)
+  // What it sets, by kLayerFields' ids: "instructions" a string, "subjects" an array of strings, "register" one of
+  // register_names(), "reply_words_max" a whole number. A field it does not set is absent.
+  nlohmann::json fields = nlohmann::json::object();
+
+  bool operator==(const PersonaLayer&) const = default;
+};
+
+// What a check found, in the editor's form (GraceUI's {field, item, level, words}, D217).
+enum class LayerProblem : std::uint8_t {
+  NotRead,       // the file is past its cap, refused before it is parsed, or no valid TOML
+  NewerSchema,   // written by a newer EldenNet: read-only here
+  BadSchema,     // no schema, or one this EldenNet does not read
+  Target,        // its target is not the path's persona, or names no persona of the pack
+  UnknownKey,    // a key a layer may not set
+  WrongType,     // a value of the wrong kind
+  TooManyWords,  // past `limit` words
+  TooManyChars,  // past `limit` characters
+  TooManyItems,  // past `limit` items
+  OutOfRange,    // reply_words_max outside 10 to 60
+  NotAChoice,    // a register that is not one of the five
+  Empty,         // an empty text or item
+  Template,      // {{, {% or {#: an error (PL5)
+  Safety,        // a word of the safety list: an error (PL5; O107)
+  Banned,        // a banned word (PL5): a warning
+  Quote,         // a quoted sample line (PL5; NPC §3.3): a warning
+  Effect,        // an effect adjective (PL5; NPC §3.3): a warning
+  NounPhrase,    // a subject that is no noun phrase (PL4): a warning
+  Block4,        // block 4 with the layer's instructions past its cap (WHY§472): a warning; `value` the estimate
+  ContentDown,   // the content itself does not load, so nothing can be checked now
+};
+
+struct LayerFinding {
+  std::string file;  // the layer's path
+  std::string field;  // one of kLayerFields, or empty for the whole file
+  int item = -1;      // a list's item, from 0; -1 for the field as a whole
+  bool error = false;
+  LayerProblem problem = LayerProblem::NotRead;
+  std::uint32_t limit = 0;  // the cap the words name: words, characters, items or tokens
+  std::uint32_t value = 0;  // Block4: the estimate
+
+  bool operator==(const LayerFinding&) const = default;
+};
+
 // ---- A persona's record (NPC §3.1) ----
 
 enum class Register : std::uint8_t { ArchaicRegal, Formal, Colloquial, Broken, Chant };
@@ -140,6 +191,10 @@ struct Persona {
   std::vector<Tic> tics;                 // voice.tics
   std::vector<PersonaStage> stages;      // in file order; the first is the base stage, `when = "true"`
   nlohmann::json record;                 // the file as it is, tables as objects
+  std::string hash;                      // its file's hash (profile.hpp's record_hash): a layer's base_hash
+  // The player's layer merged into it (profile.hpp's apply_layers): the typed register and reply length above already
+  // take its values, and resolved() renders its instructions and register. `record` stays as the file holds it.
+  std::optional<PersonaLayer> layer;
 
   // The record for a dialogue prompt at stage `active` (prompt.hpp's DialogueContext::record), exactly what the
   // renderer reads (prompt.hpp's kRecordFields) as the file holds it: `stage` is the active stage with §3.2's
@@ -147,7 +202,9 @@ struct Persona {
   // so what is never rendered never reaches the renderer: the stages' `forbid` (eval-only, O36, O86), `when`, gate
   // fields, `beckon` and the rest; the record's id, `seed` and `deflections` (shown directly, never prompted); its
   // knowledge and awareness. An index past the last stage is the last stage.
-  [[nodiscard]] nlohmann::json resolved(std::size_t active) const;
+  // With `with_layer` (the default) the player's layer's instructions, register and reply length are its own; without, the
+  // record is the shipped one alone (the shipped content's lints).
+  [[nodiscard]] nlohmann::json resolved(std::size_t active, bool with_layer = true) const;
   // The gate fields at stage `active`, inheritance applied: the state (the base stage sets it), the approach (unset
   // reads unknown) and the chat mode.
   [[nodiscard]] Conscious state_at(std::size_t active) const noexcept;
@@ -164,6 +221,11 @@ struct ContentPack {
   // The pack's other files, the overrides applied, by path (prompts/, lexicon/ and the rest: part A's renderer and lint
   // read them), unread here and not in the hash.
   std::vector<ContentFile> others;
+  // The overrides' layer files (`layers/persona-<id>.toml`) that passed their schema (PL1), not yet merged: the core
+  // merges them once the speech parts are loaded (profile.hpp's apply_layers). In the hash.
+  std::vector<PersonaLayer> layers;
+  // What reading them found (PL1's errors refuse a layer, never the pack).
+  std::vector<LayerFinding> layer_findings;
 
   [[nodiscard]] const Persona* persona(std::string_view id) const noexcept;
   [[nodiscard]] const PersonaRow* row(std::string_view id) const noexcept;

@@ -7,6 +7,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "en/core/profile.hpp"
 #include "en/core/speech_content.hpp"
 #include "en/core/speech_lint.hpp"
 #include "en/core/speech_pager.hpp"
@@ -261,10 +262,16 @@ std::vector<ContentError> Core::load_content(std::span<const ContentFile> files,
   // checked whole whichever speech parts the core was given.
   auto speech = load_speech(*pack);
   if (!speech) return speech.error();
+  // The player's layers (profile.hpp): their wording and block 4 checked with the pack's speech parts, then each that
+  // holds no error merged into its persona. A layer's errors refuse that layer alone.
+  std::vector<LayerFinding> layer_findings = pack->layer_findings;
+  apply_layers(*pack, *speech->prompt, speech->lint->lexicon(), layer_findings);
   // Quest and world awareness: the world files and every predicate compiled (knowledge.hpp); errors refuse the pack.
   auto knowledge = Knowledge::build(*pack);
   if (!knowledge) return knowledge.error();
   content_warnings_ = std::move(speech->warnings);
+  for (const LayerFinding& f : layer_findings) content_warnings_.push_back(to_content_error(f));  // the player's layers'
+  layer_findings_ = std::move(layer_findings);
   if (builtin_) {
     builtin_->lint.current = std::move(speech->lint);
     builtin_->prompt.current = std::move(speech->prompt);
