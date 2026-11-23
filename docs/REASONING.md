@@ -587,6 +587,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 562 | 2026-11-23 | With the owner's on-screen-display tool exited, two quits ended clean after twelve of twelve had faulted | LIKELY | #crash #engine |
 | 563 | 2026-11-23 | An object no accessor reaches is named by a search for what its field must read and the class the leads give, checked on each hit | METHOD | #lodestar #l6 #gal |
 | 564 | 2026-11-23 | A search with a fixed number of candidates tries the place the layout gives first, and a run's own elements last | METHOD | #lodestar |
+| 565 | 2026-11-23 | A stop that a test package makes by design is shown as the test's own plain note, never as the product's warning | DECIDED | #engine #tests #graceui |
 
 ## Entries
 
@@ -8531,3 +8532,15 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - In the fifteenth round, runs of rising addresses took all 64 candidates before the lists' places were reached. The
   sixteenth judges first the run at the place the build's layout gives (characters.by_distance), lists it as
   expected, and tries last the words inside a run of four or more rising addresses.
+
+### 565. A stop that a test package makes by design is shown as the test's own plain note, never as the product's warning
+
+`2026-11-23` · DECIDED · `#engine` `#tests` `#graceui` · refs: O114, WHY§549, the owner's spikes.4 and spikes.6 runs
+
+- The S0-E and S4 package carries no reader data for the real game, so on the owner's game EldenNet's start stops in
+  discovery (22 refusals, `gal_files`) before an observer run's own stop at Reader. Its banner then spoke as the
+  product does: "not supported yet" in spikes.4, and since O114 "its files are incomplete. Reinstall EldenNet" in
+  spikes.6, in the warning tone. The owner read both as GraceUI faults. Since engine 961cae6 an observer run shows
+  the test run's banner ("EldenNet test run: it makes no call into the game", GraceUI's normal tone) at any stop of
+  the reading's own (unknown build, discovery, register, inert); the log and the init keep the real reason, and
+  anti-cheat, the session and a game that did not start show their own. Read rounds are not observer runs.
