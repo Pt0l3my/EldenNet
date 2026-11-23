@@ -398,13 +398,13 @@ python3 -I tools/spikepkg/build.py s0e-s4 --build build-cl-rel --graceui <graceu
 ```
 
 `--graceui` is a clang-cl Release tree of GraceUI with `GRACEUI_TEST_EXPORTS=ON`: its `GraceUI` folder goes in as the
-build laid it out (each file checked against its `graceui.toml`), with `grace-spike.dll` and `grace-standin.dll` from
-its `bin`. The zip's one folder, `EldenNet-Spikes`, holds the launcher, the release DLL, gal/, those, one `.cmd` file
-for each run (`build.py`'s `RUNS`: A1 to A4, A0 and B, each the launcher with fixed options from the package's own
+build laid it out (each file checked against its `graceui.toml`), with `grace-spike.dll` from its `bin` (no run loads
+GraceUI's stand-in for another overlay since 2026-11-23, WHY§518). The zip's one folder, `EldenNet-Spikes`, holds the launcher, the release DLL, gal/, those, one `.cmd` file
+for each run (`build.py`'s `RUNS`: A5, A1 to A4 and B, each the launcher with fixed options from the package's own
 folder, then a pause) and `README-SPIKES.txt` (from `README-S0E-S4.txt.in`; the S0 kind's is `README-SPIKES.txt.in`).
 Since 2026-11-23 the launcher shows the tester's panel with each run's steps (`observer_tasks.hpp`), and the package
 cases pace it (`--spike-pace-s 2`) and check it. Before it leaves: `sha256sum -c SHA256SUMS`, the launcher's `--help`
-and `eldennet-engine.exe version` under Wine, the harness's `launcher-package-spikes-a1` to `-a4`, `-a0` and `-b` with
+and `eldennet-engine.exe version` under Wine, the harness's `launcher-package-spikes-a5`, `-a1` to `-a4` and `-b` with
 `--set pkg=<the unzipped folder>` (and `engine`, `leads`, `gallayout`), each run's options exactly as its `.cmd` file
 holds them, started from the package's folder; GraceUI's own harness cases on the same GraceUI build; GraceUI's
 `tools/grace-spike/report.py` on each case's spikes folder; and the sweep.

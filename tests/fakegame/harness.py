@@ -2594,11 +2594,10 @@ case("launcher-eldennet-graceui-spike-s0e", LGAME + ["--dll", "{eldennetdll}", "
 # Steam check). Each must end cleanly, make no call (the hub's live count, WHY§250), leave grace-spike's report in the
 # run's folder, and, where EldenNet runs, its spike_run banner as GraceUI's notice.
 PKG_RUNS = {
-    "A1": ("s0e", "suspended", ["GraceUI\\graceui.dll", "grace-spike.dll", "grace-standin.dll"]),
-    "A2": ("s0e", "window", ["GraceUI\\graceui.dll", "grace-spike.dll", "grace-standin.dll"]),
-    "A3": ("s0e", "suspended", ["grace-standin.dll", "grace-spike.dll"]),
-    "A4": ("s0e", "window", ["grace-standin.dll", "grace-spike.dll"]),
-    "A0": ("s0e_alone", "suspended", ["GraceUI\\graceui.dll", "grace-spike.dll", "grace-standin.dll"]),
+    "A1": ("s0e", "suspended", ["GraceUI\\graceui.dll", "grace-spike.dll"]),
+    "A2": ("s0e", "window", ["GraceUI\\graceui.dll", "grace-spike.dll"]),
+    "A3": ("s0e", "suspended", ["grace-spike.dll"]),
+    "A4": ("s0e", "window", ["grace-spike.dll"]),
     "B": ("s4", "suspended", ["grace-spike.dll"]),
     "A5": ("s0e_alone", "suspended", ["GraceUI\\graceui.dll", "grace-spike.dll"]),
 }
@@ -2739,11 +2738,10 @@ def check_pkg_run(run):
 PKG_WHAT = {
     "A1": "S0-E, GraceUI loaded by the launcher before EldenNet, early",
     "A2": "S0-E, GraceUI loaded by the launcher before EldenNet, late (once the window shows)",
-    "A3": "S0-E, GraceUI loaded by EldenNet from the game's folder, early, the stand-in first",
-    "A4": "S0-E, GraceUI loaded by EldenNet from the game's folder, late, the stand-in first",
-    "A0": "S0-E's baseline: GraceUI, the observer and the stand-in alone, no eldennet.dll",
+    "A3": "S0-E, GraceUI loaded by EldenNet from the game's folder, early",
+    "A4": "S0-E, GraceUI loaded by EldenNet from the game's folder, late",
     "B": "S4: the observer alone loaded by the launcher, GraceUI by EldenNet",
-    "A5": "S0-E with GraceUI and the observer alone: no stand-in, no eldennet.dll",
+    "A5": "S0-E with GraceUI and the observer alone: no eldennet.dll",
 }
 for _run in PKG_RUNS:
     _extra = ["--press-f11-at", "960,1140"] if PKG_RUNS[_run][0] == "s0e" else []
