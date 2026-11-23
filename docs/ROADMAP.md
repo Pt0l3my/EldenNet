@@ -970,6 +970,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     overlays (WHY§509); with Grace. A start stopped at a banner now installs EldenNet's crash filter (WHY§510).
     A0 (no EldenNet) crashed the same way. The next package adds run A5 (GraceUI and its observer alone) and 200 ms
     state lines, with Grace's test build of the first frames (WHY§511).
+    Packed and sent the same day as 0.1.0-spikes.4 (engine 7b8c987, GraceUI 0.2.27 at 2286f20): 15 GraceUI and spike
+    cases, the seven package cases, GraceUI's two spike scenarios, its report tool on each run and the sweep passed.
 - h O89 to O91 folded into the designs: the derivation round (ARCH §6.2, §6.10), the spikes without GraceUI and the launcher's Mark (DESIGN §14, §16.1), the third-party rows (DESIGN §16.1) [done]
   - refs: O89, O90, O91, ARCH§6.2, ARCH§4.14, DESIGN§16.1
   - gives: folded on 2026-11-17 with the first in-game build's choices (WHY§159 to §204): ARCH
