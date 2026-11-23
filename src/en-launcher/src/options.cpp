@@ -3,6 +3,8 @@
 
 #include <string_view>
 
+#include "en/launcher/s0.hpp"
+
 namespace en::launcher {
 
 const char* to_string(InjectAt i) noexcept {
@@ -119,6 +121,13 @@ proto::Expected<Options, std::string> parse_options(const std::vector<std::strin
         else
           ok = proto::Unexpected{std::string("--read-pace-s is 1 to 600 seconds")};
       }
+    } else if (arg == "--spike-pace-s") {
+      if ((ok = need())) {
+        if (const auto n = number(v, 1, 600))
+          o.spike_pace_s = *n;
+        else
+          ok = proto::Unexpected{std::string("--spike-pace-s is 1 to 600 seconds")};
+      }
     } else if (arg == "--no-dialogs") {
       if ((ok = flag())) o.no_dialogs = true;
     } else if (arg == "--yes") {
@@ -223,6 +232,9 @@ proto::Expected<Options, std::string> parse_options(const std::vector<std::strin
   } else if (o.read_pace_s != 0) {
     return proto::Unexpected{std::string("--read-pace-s goes with --read")};
   }
+  if (o.spike_pace_s != 0 && !s0_run(o.spike)) {
+    return proto::Unexpected{std::string("--spike-pace-s goes with --spike s0a, s0b, s0c, s0d or s0d-crash")};
+  }
   return o;
 }
 
@@ -247,7 +259,9 @@ std::string usage_text() {
          "                       names the managers it reads and tries its reader, and calls nothing in the game;\n"
          "                       a panel beside the game lists the tester's tasks, each with its timer, and the\n"
          "                       Pause key confirms the task under way (--read-pace-s S: the tests' pace)\n"
-         "  --spike s0a|s0b|s0c|s0d|s0d-crash  [--runs N] [--run-timeout S]   the S0 spikes\n"
+         "  --spike s0a|s0b|s0c|s0d|s0d-crash  [--runs N] [--run-timeout S]   the S0 spikes: each run's folder\n"
+         "                       spikes\\<word>-<n> holds EldenNet's report of it, and a panel beside the game lists\n"
+         "                       the tester's tasks (--spike-pace-s S: the tests' pace)\n"
          "  --spike s0e|s0e_alone|s4   GraceUI's observer's runs (S0-E, S4): EldenNet calls nothing into the game,\n"
          "                       and s0e_alone loads only the --also DLLs; its report goes to spikes\\<word>-<n>\n"
          "  --no-dialogs [--yes] lines instead of dialogs; questions answered no (or yes)\n"

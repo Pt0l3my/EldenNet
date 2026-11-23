@@ -4,7 +4,10 @@
 #include <new>
 #include <string>
 
+#include <fstream>
+
 #include "en/launcher/appid.hpp"
+#include "en/launcher/s0.hpp"
 #include "win.hpp"
 
 namespace en::launcher::win {
@@ -16,6 +19,16 @@ namespace {
 constexpr int kMarkHotkey = 0x454E;  // the Mark's hotkey id ("EN")
 
 std::wstring object_name(std::wstring_view prefix, DWORD pid) { return std::wstring(prefix) + std::to_wstring(pid); }
+
+// eldennet.dll's report of an S0 run, from the run's folder (s0.hpp), or nothing.
+std::optional<S0Facts> read_report(const fs::path& path) {
+  std::ifstream in(path, std::ios::binary);
+  if (!in) return std::nullopt;
+  std::string text(kMaxSpikeReportBytes + 1, '\0');
+  in.read(text.data(), static_cast<std::streamsize>(text.size()));
+  text.resize(static_cast<std::size_t>(in.gcount()));
+  return read_s0_facts(text);
+}
 
 }  // namespace
 
@@ -120,23 +133,27 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
     console_line(read_text(step, named, of), "EldenNet read: ");
   };
   if (plan.read) read_tell(ReadStep::Asked, 0, 0);
-  // The tester's tasks (--read): the list, its panel beside the game, and a line for each task as it is done. The
-  // Pause key (or a click on the panel's button) confirms the task under way; a marked task's confirmation stamps a
-  // Mark, which the round reads.
+  // The tester's tasks (--read, and an S0 run's, s0.hpp): the list, its panel beside the game, and a line for each task
+  // as it is done. The Pause key (or a click on the panel's button) confirms the task under way; a marked task's
+  // confirmation stamps a Mark, which the round reads and an S0 run's recording keeps.
+  const bool s0 = s0_run(plan.spike) && plan.s0_report.has_value();
+  const std::string who = plan.read ? std::string("EldenNet read: ") : s0_who(plan.spike);
   std::optional<TaskList> tasks;
   TaskPanel panel;
   bool panel_placed = false;
   std::string panel_footer;
+  const auto tell_task = [&](std::uint64_t at) {
+    if (tasks->finished()) return;
+    const TaskRow row = tasks->rows(at)[tasks->current()];
+    console_line("Task " + std::to_string(tasks->current() + 1) + " of " + std::to_string(tasks->size()) + ": " +
+                     row.title + ". " + row.detail,
+                 who);
+  };
   const auto task_done = [&](const TaskList::Change& c, const char* by, std::uint64_t at) {
     if (!c.changed) return;
     say("task n=%zu of=%zu by=%s mark=%d", c.task + 1, tasks->size(), by, c.mark ? 1 : 0);
     if (c.mark && ring) own_mark(at);
-    if (!tasks->finished()) {
-      const TaskRow row = tasks->rows(at)[tasks->current()];
-      console_line("Task " + std::to_string(tasks->current() + 1) + " of " + std::to_string(tasks->size()) + ": " +
-                       row.title + ". " + row.detail,
-                   "EldenNet read: ");
-    }
+    tell_task(at);
   };
   if (plan.read) {
     tasks.emplace(read_tasks());
@@ -144,7 +161,18 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
     tasks->start(mono_ms());
     const bool opened = panel.open(nullptr);
     say("tasks count=%zu panel=%d pace_s=%u", tasks->size(), opened ? 1 : 0, plan.read_pace_s);
+  } else if (s0) {
+    // The S0 kind's own list (s0.hpp); Lodestar's read round keeps its list.
+    console_line(s0_begin_text(plan.spike, plan.run, plan.runs), who);
+    tasks.emplace(s0_tasks(plan.spike, plan.run, plan.runs));
+    tasks->set_pace(plan.spike_pace_s);
+    tasks->start(mono_ms());
+    const bool opened = panel.open(nullptr);
+    say("tasks count=%zu panel=%d pace_s=%u spike=%s run=%u of=%u", tasks->size(), opened ? 1 : 0, plan.spike_pace_s,
+        w::to_string(plan.spike), plan.run, plan.runs);
+    tell_task(mono_ms());
   }
+  bool s0_stopped = false;  // T1's start has stopped, and eldennet.dll's report of it was looked for
   const auto take_modules = [&](bool at_crash) {
     auto list = list_modules(pid);
     if (list.empty()) return;
@@ -257,6 +285,36 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
         if (*step == ReadStep::Refused || *step == ReadStep::Stopped) panel_footer = read_text(*step);
       }
     }
+    if (s0 && !s0_stopped && w::terminal(st.init)) {
+      // The start has stopped (Ready, a banner, inert): eldennet.dll wrote its report before it said so. What it did,
+      // in plain words, and what waits when it stopped short of its reading for want of something; S0-B's list then
+      // ends with quitting the game, every other spike's steps stay. The run's own task (the title's wait) is done.
+      s0_stopped = true;
+      r.s0 = read_report(*plan.s0_report);
+      if (!r.s0) {
+        say("s0 report=missing");
+        console_line(s0_missing_text(plan.spike), who);
+      } else {
+        const S0Facts& f = *r.s0;
+        say("s0 report=read state=%s waits=%s table=%u refused=%u rechecked=%d again_refused=%u changed=%u "
+            "getter_calls=%u forced=%u caught=%u inject=%s",
+            f.state.c_str(), f.waits.c_str(), f.table_items, f.table_refused, f.table_rechecked ? 1 : 0,
+            f.table_again_refused, f.table_changed, f.getter_calls, f.forced, f.caught, f.inject_group.c_str());
+        console_line(s0_stopped_text(plan.spike, f), who);
+        if (f.waits != "none") {
+          panel_footer = s0_waits_text(plan.spike, f);
+          console_line(panel_footer, who);
+          if (auto rest = s0_waiting_tasks(plan.spike, f); !rest.empty() && tasks) {
+            tasks.emplace(std::move(rest));
+            tasks->set_pace(plan.spike_pace_s);
+            tasks->start(now);
+            say("tasks count=%zu waits=%s", tasks->size(), f.waits.c_str());
+            tell_task(now);
+          }
+        }
+      }
+      if (tasks) task_done(tasks->round_step(now), "round", now);
+    }
     if (plan.console && now - last_print >= 1000 &&
         (st.snapshots != printed.snapshots || st.init != printed.init || st.flags != printed.flags ||
          st.faults != printed.faults || now - last_print >= 5000)) {
@@ -273,7 +331,9 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
       if (crash_requested) {
         if (now > crash_deadline) close_now("no_crash");
       } else if (w::terminal(st.init)) {
-        if (plan.crash_when_ready && st.init == w::InitState::Ready) {
+        // S0-D's crash once T1 has stopped where T6, which honours it, runs: at Ready, or at a banner or inert when
+        // the start stopped short of its reading (the start's layout not complete yet).
+        if (plan.crash_when_ready && st.init != w::InitState::Exit) {
           b.control.crash_request.store(1, std::memory_order_release);
           crash_requested = true;
           crash_deadline = now + 30000;
@@ -297,6 +357,14 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
   if (tasks) {
     task_done(tasks->end(end), "end", end);  // the last task is the game's end itself
     say("tasks done=%zu of=%zu finished=%d", tasks->current(), tasks->size(), tasks->finished() ? 1 : 0);
+  }
+  if (s0) {
+    // The report as T6 last wrote it, with the reader's counts (every 10 s), in place of T1's.
+    if (auto f = read_report(*plan.s0_report)) r.s0 = std::move(f);
+    if (r.s0) {
+      say("s0 end state=%s waits=%s reading=%d reading_ms=%llu", r.s0->state.c_str(), r.s0->waits.c_str(),
+          r.s0->reading ? 1 : 0, static_cast<unsigned long long>(r.s0->reading_ms));
+    }
   }
   b.control.watcher_pid.store(0, std::memory_order_release);
   r.last_init = copy_status(b).init;

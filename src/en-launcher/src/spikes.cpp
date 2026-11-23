@@ -1,5 +1,8 @@
-// The runs of GraceUI's observer: the spike folder's name and the game's environment (spikes.hpp).
+// The runs with a folder of their own (GraceUI's observer's and the S0 runs): the folder's name and the game's
+// environment (spikes.hpp).
 #include "en/launcher/spikes.hpp"
+
+#include "en/launcher/s0.hpp"
 
 namespace en::launcher {
 
@@ -19,7 +22,7 @@ bool named(std::wstring_view entry, std::wstring_view name) noexcept {
 }  // namespace
 
 std::string next_spike_folder(proto::watch::Spike spike, std::span<const std::string> existing) {
-  if (!proto::watch::observer_run(spike)) return {};
+  if (!run_folder(spike)) return {};
   const std::string prefix = std::string(proto::watch::to_string(spike)) + "-";
   std::uint32_t highest = 0;
   for (const std::string& name : existing) {
