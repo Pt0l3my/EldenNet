@@ -1536,12 +1536,18 @@ StateSearch::~StateSearch() = default;
 
 void StateSearch::ask() noexcept {
   const std::uint32_t n = asked_.load(std::memory_order_relaxed);
-  if (n < kPasses) asked_.store(n + 1, std::memory_order_release);
+  if (n >= kPasses) return;
+  if (n > 0 && done_.load(std::memory_order_acquire) < n) overrun_[n - 1].store(true, std::memory_order_relaxed);
+  asked_.store(n + 1, std::memory_order_release);
 }
 
-bool StateSearch::step(const proto::GameThread& gt, GuardedReader& reader) {
+bool StateSearch::step(const proto::GameThread& gt, GuardedReader& reader, std::uint64_t now_us) {
   const std::uint32_t pass = done_.load(std::memory_order_relaxed);
   if (pass >= asked_.load(std::memory_order_acquire) || pass >= kPasses) return false;
+  if (!pass_started_) {
+    pass_started_ = true;
+    pass_start_us_ = now_us;
+  }
   if (cursor_ >= candidates_.size()) {
     // The pass is through: what is left, counted.
     std::uint32_t alive = 0, fields = 0;
@@ -1560,6 +1566,9 @@ bool StateSearch::step(const proto::GameThread& gt, GuardedReader& reader) {
     alive_[pass].store(alive, std::memory_order_relaxed);
     if (pass < 3) fields_[pass].store(fields, std::memory_order_relaxed);
     cursor_ = 0;
+    const std::uint64_t took = now_us >= pass_start_us_ ? (now_us - pass_start_us_) / 1000 : 0;
+    took_ms_[pass].store(static_cast<std::uint32_t>(std::min<std::uint64_t>(took, 0xFFFF'FFFFu)), std::memory_order_relaxed);
+    pass_started_ = false;
     done_.store(pass + 1, std::memory_order_release);
     return true;
   }
@@ -1652,6 +1661,14 @@ StateFound StateSearch::found() const {
   out.fields_after_title = fields_[0].load(std::memory_order_relaxed);
   out.fields_after_world = fields_[1].load(std::memory_order_relaxed);
   out.fields_after_again = fields_[2].load(std::memory_order_relaxed);
+  for (std::uint32_t p = 0; p < out.asked && p < kPasses; ++p) {
+    StateLook look;
+    look.through = p < out.passes;
+    look.took_ms = look.through ? took_ms_[p].load(std::memory_order_relaxed) : 0;
+    look.overrun = overrun_[p].load(std::memory_order_relaxed);
+    out.overrun = out.overrun || look.overrun;
+    out.looks.push_back(look);
+  }
   if (out.passes < kPasses) return out;  // the candidates are the stepping thread's until the last pass is done
   for (const Candidate& c : candidates_) {
     if (!c.alive) continue;

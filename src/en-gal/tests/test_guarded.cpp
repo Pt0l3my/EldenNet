@@ -173,6 +173,25 @@ TEST_CASE("guarded: ObjView reads each type by its layout, bounds-checked") {
   CHECK(v.integer(&u32) == 0xFFFF'FFFEll);
   CHECK(v.integer(&u16) == 0x1234);
   CHECK(v.bit(&bit) == true);
+  FieldLayout run = field(0, FieldType::Bits, 4);  // the word 0xFFFFFFFE: bits 1 to 31 set
+  run.shift = 0;
+  run.width = 3;
+  CHECK(v.integer(&run) == 6);
+  run.shift = 29;
+  CHECK(v.integer(&run) == 7);
+  FieldLayout wide = field(4, FieldType::Bits, 8);  // 0x1234 at 4, 0xA5 at 8: the word 0x000000A5'00001234
+  wide.shift = 32;
+  wide.width = 8;
+  CHECK(v.integer(&wide) == 0xA5);
+  wide.shift = 4;
+  wide.width = 32;
+  CHECK(v.integer(&wide) == 0x5000'0123ll);
+  wide.width = 0;
+  CHECK_FALSE(v.integer(&wide).has_value());
+  FieldLayout off_end = field(28, FieldType::Bits, 8);
+  off_end.width = 4;
+  CHECK_FALSE(v.integer(&off_end).has_value());
+  CHECK_FALSE(v.bit(&run).has_value());
   bit.bit = 1;
   CHECK(v.bit(&bit) == false);
   CHECK(v.f32(&vec, 1) == -2.0f);

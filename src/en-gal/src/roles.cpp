@@ -193,6 +193,7 @@ bool is_int(FieldType t) {
     case FieldType::U64:
     case FieldType::I32:
     case FieldType::Bool8:
+    case FieldType::Bits:
     case FieldType::Handle: return true;
     default: return false;
   }

@@ -18,7 +18,10 @@ and into the world again, and to confirm each change on the panel. At each of th
 first 8 KiB of every object the game's data points at (about five thousand objects, some 40 MiB a look, each read
 once a look, at the round's careful pace), and keeps only which numbers read "none" at the title and the same small
 number in the world both times. That is new reading, of the same careful kind as before; it writes places and that
-small number (the save's slot, 0 to 15), nothing else. If the game stutters, quit it and tell us.
+small number (the save's slot, 0 to 15), nothing else. A look takes about half a minute, and the game must stay as
+it is until the look is through: that is what the panel's waiting tasks are timed for. The round writes how long
+each look took and whether the game was moved on before it was through, so a hurried run is known for what it is.
+If the game stutters, quit it and tell us.
 
 The rest runs as in the eleventh round, in the background: the flags' reader, the clock, the play time. The eleventh
 round showed that EldenNet's real reader finds the flags through the table and reads the flag that is always set as
@@ -26,12 +29,12 @@ set, 44 times with no fault. What it could not compare were the bits you changed
 short of finished when you quit. So that read now goes first and takes about a minute, and near the end the panel
 asks once more for one thing the game remembers.
 
-It has no wide search of the game's memory. As in the seventh round, and within what you agreed to then, it reads
-memory near the event flags' own object: up to 2 MiB from each of at most eight addresses that object keeps and up
-to 256 KiB from each of at most 32 one step further (about 24 MiB in all at most), a piece at a time at the same
-careful pace, a pass every thirty seconds at most and one more after each confirmation. A stretch in which too much
-changes all the time is given up after a few passes (four of the eight were such in the seventh round). If the game
-stutters, quit it and tell us.
+Apart from the state search above, it has no wide search of the game's memory: as in the seventh round, and within
+what you agreed to then, it reads memory near the event flags' own object: up to 2 MiB from each of at most eight
+addresses that object keeps and up to 256 KiB from each of at most 32 one step further (about 24 MiB in all at most),
+a piece at a time at the same careful pace, a pass every thirty seconds at most and one more after each
+confirmation. A stretch in which too much changes all the time is given up after a few passes (four of the eight
+were such in the seventh round).
 
 It only reads. It calls nothing in the game, adds nothing to it and changes nothing in it. The panel is a window of
 the launcher's own, outside the game. Nothing in this package is for playing with yet.
@@ -103,7 +106,7 @@ The steps
      4. Walk about, 1 minute                 anything will do
      5. Quit to the title screen             with the game's own menu, to the title screen, not out of the game;
                                              press Pause when the title screen shows
-     6. Stay at the title screen, 45 s       do not load your save until the time is up
+     6. Stay at the title screen, 1 minute   do not load your save until the time is up
      7. Load your save again                 the same save; press Pause when you stand in the world
      8. Walk about, 1 minute
      9. Do one thing the game remembers      take an item from a body or a chest, open a door or a chest, discover a
@@ -112,6 +115,7 @@ The steps
     10. Walk about, 1 minute                 leave items, doors and graces alone
     11. Quit the game
 
+   The waiting tasks are timed to let each look finish: please let each run out before you move the game on.
    A waiting task counts down and ends by itself. A task of yours waits until you press Pause (anywhere, while the
    game has the keyboard) or click the panel's button, which says what it stands for. The last task has no button:
    quitting the game ends it. The task under way is highlighted; done tasks are grey, with the time they took.
@@ -232,7 +236,9 @@ What it does
     look; of those, which read 0 to 15 in the world; of those, which read -1 again at the title; and of those,
     which read the same small number in the world again. What is left is written: the place, the offset, the small
     number, and how many instructions of the game's code refer to the place. While a look is under way the round's
-    other searches wait, so that it is through in about half a minute.
+    other searches wait, so that it is through in about half a minute. For each look the round writes how long it
+    took and whether your next confirmation came before it was through; if one did, the search names no place by
+    itself and says so.
   - Every two seconds it writes lodestar-found.json into %APPDATA%\EldenNet\probe, and lodestar-table.toml when
     another manager is named. If the report ever grows past its limit, it is written without the detail of the
     watched object that has the most, then of the next, and says which were left out. They hold only numbers

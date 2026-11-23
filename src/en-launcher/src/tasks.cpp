@@ -125,7 +125,7 @@ std::vector<Task> read_tasks() {
        "Use the game's own menu to quit to the title screen, not out of the game. When the title screen shows, "
        "press Pause.",
        0, true, "The title screen shows"},
-      {K::Wait, "Stay at the title screen", "Do not load your save until the time is up.", 45, false, ""},
+      {K::Wait, "Stay at the title screen", "Do not load your save until the time is up.", 60, false, ""},
       {K::Do, "Load your save again", "The same save. When you stand in the world, press Pause.", 0, true,
        "I am in the world again"},
       {K::Wait, "Walk about", "Anything will do. Stay in the world until the time is up.", 60, false, ""},
