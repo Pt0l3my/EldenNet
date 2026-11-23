@@ -21,8 +21,9 @@ reads the game from a thread of its own. These runs check that start, on your PC
 
 What to expect today. The table for your build (2.7.2.0) is not complete yet: one place (the object that keeps the
 save slot in use) and 36 of the fields EldenNet reads are still to be found by the next rounds. So every start ends
-where it must, at EldenNet's banner "discovery failed", once it has checked what the table holds. That is not a
-failure of any spike, and the launcher says so in plain words each time:
+where it must, at EldenNet's banner, once it has checked what the table holds (the console says "The start stopped at
+its banner (discovery_failed)."). That is not a failure of any spike, and the launcher says so in plain words each
+time:
 
   S0-A  runs whole: a start that stops at the banner counts as it should, and the table's places are checked.
   S0-B  cannot run yet: the launcher says "The start's layout is not complete yet: S0-B waits for it." within a
@@ -44,9 +45,9 @@ alone, labelled @LABEL@.
 How long it takes
 -----------------
 
-About two hours in all today, most of it unattended:
+About an hour and a half in all today, most of it unattended:
 
-  S0-A  about 30 minutes for each of its two runs (twenty starts each), unattended: you can leave the PC.
+  S0-A  about 20 minutes for each of its two runs (twenty starts each), unattended: you can leave the PC.
   S0-B  a few minutes today (it stops at the title); two hours of play once the table is complete.
   S0-C  about 10 minutes for each of its two runs.
   S0-D  about 15 minutes for each of its two sessions, and about 10 minutes, unattended, for the five crashes.
@@ -115,13 +116,13 @@ panel beside the game: a waiting task counts down and ends by itself; a task of 
 button. Once the game has ended, the console shows spike-report's lines and "Run ... has ended": press a key to close
 it, and go on to the next run, or stop there.
 
-1. run-S0A-early.cmd: S0-A, loaded early (about 30 minutes, unattended)
+1. run-S0A-early.cmd: S0-A, loaded early (about 20 minutes, unattended)
 
    The launcher starts the game twenty times, loads EldenNet as it starts, waits until EldenNet's start is over (today:
    its banner at the title screen), and closes the game again by itself. Do not press anything; you can leave the PC.
    The panel shows which run is under way. If a run hangs, the launcher closes it after three minutes.
 
-2. run-S0A-late.cmd: S0-A, loaded late (about 30 minutes, unattended)
+2. run-S0A-late.cmd: S0-A, loaded late (about 20 minutes, unattended)
 
    The same, with EldenNet loaded at the title screen, about fifteen seconds after the game's window shows.
 
