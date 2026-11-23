@@ -1,4 +1,4 @@
-# Lodestar's status, 23 November 2026 (thirteen read-only rounds run; step L6's three subjects placed; the characters manager's pointers and lists found as leads; the game's state has one candidate, read as 4 and 2 for two characters)
+# Lodestar's status, 23 November 2026 (thirteen read-only rounds run, the fourteenth built; the characters manager's pointers and lists found as leads; the save's slots known from the owner's save file, its field not yet found)
 
 For the next sitting of the Lodestar session, or a new session that takes it over. Read [HANDOVER.md](HANDOVER.md)
 first; this file adds only where Lodestar's own work stands.
@@ -29,7 +29,8 @@ first; this file adds only where Lodestar's own work stands.
 | The tenth read-only run, and the reader's correction (2026-11-23; the same record, "The tenth round in game") | package 0.1.0-lodestar.13; engine 6d56207, the flags' fields at e864140 | **Done, reviewed.** The reader's way down the tree arrived at the record of every joined flip; the store keeps the divisor 28 bytes in; the flags' fields are in the layout as leads. L6's three subjects are placed |
 | The eleventh read-only run: EldenNet's own reader on the flags (2026-11-23; the same record, "The eleventh round in game") | package 0.1.0-lodestar.14; engine 998d078 | **Done, reviewed.** `discover` through the build's layout works on the game (a partial pass, 19 ms, 12 items from the table, none refused); `ErBackend::flags_alone` read the flag set in every playthrough as set, 44 frames, no fault. The marked flags were not compared: the tree's walk was 47 records short when the owner quit |
 | The twelfth round's build: the game's state by what it holds at the title and in the world (roadmap S10.1.m) | package 0.1.0-lodestar.16; engine 082127f | **Done, reviewed** (the record's "The twelfth round in game"). The backend read the four flags the owner changed, and the always-set one, as set: five of five agree. The state search ran clean (four looks, none overrun) and hit 15 slots, so it named none; by the owner's word (the character is third in the list of saves, so slot 2) one hit alone fits: static 64543992, the 32-bit field 1,136 bytes in (LIKELY). Its candidates were only the 1,397 slots live at the title |
-| The thirteenth read-only run: the game's state by two characters, and the character search (roadmap S10.1.m; the record's "The thirteenth round in game") | package 0.1.0-lodestar.17; engine 63122b6 | **Done, reviewed.** In the characters manager (absent at the title; its object over 127 KiB): the main player's word at 0x1E508, the near list at 0x1F1E8 (16-byte elements, the address first, a fraction at 8), two lists of addresses at 0x1F1C8 and 0x1F218, the player set at 0x10EF8. In the player's object: the holder of parts at 0x190, the character's sheet at 0x580 (the class the save data points at 8 and 16 bytes in). All LIKELY, none in `gal/`: the manager's places lie past the layout's 0x4000 cap (Engine's to rule). The game's state: the candidate read 4 and 2 for the list's first and third character, which fits a slot only if the list runs last slot first; the round named nothing |
+| The thirteenth read-only run: the game's state by two characters, and the character search (roadmap S10.1.m; the record's "The thirteenth round in game") | package 0.1.0-lodestar.17; engine 63122b6 | **Done, reviewed.** In the characters manager (absent at the title; its object over 127 KiB): the main player's word at 0x1E508, the near list at 0x1F1E8 (16-byte elements, the address first, a fraction at 8), two lists of addresses at 0x1F1C8 and 0x1F218, the player set at 0x10EF8. In the player's object: the holder of parts at 0x190, the character's sheet at 0x580 (the class the save data points at 8 and 16 bytes in). All LIKELY, none in `gal/`: the manager's places lie past the layout's 0x4000 cap (Engine's to rule). The game's state: the candidate read 4 and 2 for the list's first and third character; the owner's save file shows those are slots 0 and 2, so the candidate is not the slot; the round named nothing |
+| The fourteenth round's build: the save's slot by two numbers, the parts watch (roadmap S10.1.m) | package 0.1.0-lodestar.18; engine 6d10b11 | **Built, not yet run by the owner.** `PairSearch` (the field that reads 6 then 2), the character search's one look in the second world, `PartsWatch` (position by walking, health by a hit and a heal); fourteen tasks, eight marks |
 | The layout's bit-run type, and the clock's and the play time's fields | engine a5efb98 | **Done.** `bits{word, shift, width}` in en-gal's layout (ARCH §6.3's dated note); `world_clock.hour`, `world_clock.minute` and `save_data.play_time` in the build's layout as leads |
 | Digests | — | Moved to L7 (WHY§311): v1 calls no function of the game |
 | The text for ARCH and DESIGN (proposal §15) | `docs/lodestar` | Written as dated notes and changed rows: ARCH §1.2, §3.2, §6.2, §6.3, §6.4, §6.10; DESIGN §2.1, §4.2, §16.1 |
@@ -56,19 +57,37 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The fourteenth read-only round** (not built). From the thirteenth's review:
-   - `game_state`: one more load, of the last character in the list: the candidate (static 64543992, 1,136 bytes
-     in) should read 0. Ask the owner which characters are the oldest and the newest (the list's order).
-   - The character search looks in the world only (after a confirmation), not at the title and not when the
-     manager is first named; the near list's fraction is reported without the test for order.
-   - The parts: from the holder (player + 0x190), each of its addresses with its target's table of methods; then
-     the moving numbers by invariant with panel tasks (Engine's order, WHY§460): position (three fractions that
-     move when the owner walks and stand when they stand), hp and its maximum (a hit, then a heal: a task that
-     costs the owner something is optional and says its cost), runes, the death count. Any new reading is asked
-     of the owner outright first, with its size.
-   - The layout: the manager's four places lie past 0x4000; Engine rules how the layout says them (a field read
-     by its own small copy, or a class entry at an offset) before they can enter as leads. `character.parts`
-     (0x190) and `save_data.player_data` (0x8; 0x10 holds the same class) wait for the next round's values.
+1. **The owner's fourteenth read-only run** (package 0.1.0-lodestar.18, engine 6d10b11; built, not yet run; the
+   record's "What was changed for the fourteenth round"). The owner agreed to the last character's load, the hit
+   and the heal, and the parts' reading. When the files come back:
+   - `pair`: `word_hits` 1 names `game_state` (the round writes it into its draft table); then `[class.game_state]`
+     with `save_slot` goes into the layout. No 32-bit hit and some byte hits: the slot is kept as a byte, and a
+     third number (another character) is needed to choose among them. No hit at all: the slot is not behind any
+     slot of the data in its first 8 KiB, and the offline way is next (below).
+   - `chars`: one look, mark 3, the same places as in the thirteenth round (main player's word 0x1E508, the near
+     list 0x1F1E8 with `has_fraction`, the player set 0x10EF8, the holder 0x190).
+   - `parts`: the parts' tables of methods; `moves` (the position: fractions in one part, at neighbouring offsets,
+     changed in the walk alone); `falls` with `has_max` (hp and max_hp), `rose` at least 1 if the owner healed.
+     `phase_passes` says how many seconds each phase gave.
+   - then the fields enter the layout as leads, by hand, once Engine has ruled how the layout says a place past
+     0x4000 (asked in the message on the thirteenth round), and the next round reads them through EldenNet's own
+     reader.
+   **Research inputs (O111, 2026-11-23)**: the owner's words, "nothing is off limit for our research, the only
+   limit is what we ship with the mod publicly, and what we upload to repo." HANDOVER §3 now reads with O111: nothing
+   of the game in files, reports or messages, but a file of the owner's own game given to a session to study is
+   allowed. Its conditions: each upload in its own folder outside every checkout, read with `python3 -I` from
+   scripts kept elsewhere, never run or built, deleted when the work with it is done; nothing of it in a
+   repository, package, published page, report or message (numbers and our own labels only); every fact from it a
+   lead until the game confirms it (O48); game files from the owner alone; anything personal in it never written
+   down, whatever the owner allows in a chat. The one file worth having is the game's executable (asked of the
+   owner): with it, the places the code reads through a manager can be listed offline as leads for the rounds.
+   **Far fields (Engine's ruling, WHY§506, 2026-11-23; Lodestar's to build, both sides)**: a field of the layout
+   may say `far = true`; its `off` may then lie past `copy_size`, up to 0x100000 into its object, and it is read at
+   the object's address plus `off` by a copy of its own size (at most 32 bytes: the whole numbers, f32, bool8, bit,
+   bits, ptr, handle, vec3f, dlvector; never utf16[n], mat4f or array). A class whose fields are all far may have
+   `copy_size = 0`. Each far read counts against the tick's reads. To do: the schema and lint in en-gal's
+   layout.cpp, ErBackend's groups reading far fields, tests on the fake world with a manager of over 0x4000; then
+   the characters manager's four places enter the layout as leads.
    The start's use of the layout is Engine's (discovery through the table and the reader at the start, spikes S0-A
    and S0-B, roadmap S10.1.b), shared as Engine says.
    **The layout for a ready start (roadmap S10.1.m, Lodestar's; Engine's order, WHY§460; the list is WHY§459):**
