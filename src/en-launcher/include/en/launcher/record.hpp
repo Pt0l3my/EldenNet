@@ -70,12 +70,16 @@ struct SessionRecord {
   std::vector<std::uint64_t> marks;   // the Marks' mono ms
   std::uint32_t connections_max = 0;  // s0c: the game's non-loopback connections, the most at once (no addresses)
   bool panel = false;                 // the tester's panel, a window on top of the game's, was shown in the session
+  // The game's window had gone before the end (the player quit and the game was closing): such a record is kept, and
+  // never shown at a later start (O115).
+  bool after_window = false;
   bool explained = false;             // shown at a later start
 };
 
 [[nodiscard]] bool worth_keeping(const SessionRecord& r) noexcept;  // a crash, or an exit with a code
 [[nodiscard]] nlohmann::json to_json(const SessionRecord& r);
-// The next start's explanation of a kept record not yet explained; nothing for one explained already, or another kind.
+// The next start's explanation of a kept record not yet explained; nothing for one explained already, one that came
+// after the game's window had closed (O115), or another kind.
 [[nodiscard]] std::optional<std::string> explanation(const nlohmann::json& record);
 
 // ---- The S0 spikes' runs ----

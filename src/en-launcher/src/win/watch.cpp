@@ -120,6 +120,7 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
   std::uint64_t last_print = 0;
   std::uint64_t last_connections = 0;
   bool window_seen = false;
+  std::uint64_t window_last = 0;  // the last poll that found the game's window (O115)
   bool appid_done = !plan.remove_appid || *plan.remove_appid != RemoveAfter::Window || !plan.appid;
   bool crash_requested = false;
   std::uint64_t crash_deadline = 0;
@@ -285,8 +286,11 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
     }
     if (!window_seen && main_window(pid) != nullptr) {
       window_seen = true;
+      window_last = now;
       say("window after_ms=%llu", static_cast<unsigned long long>(now - t0));
       take_modules(false);
+    } else if (window_seen && main_window(pid) != nullptr) {
+      window_last = now;
     }
     if (!appid_done && (window_seen || now - t0 >= 120000)) {
       appid_done = true;
@@ -418,15 +422,17 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
   r.record.kind = classify_end(code, r.crash_signalled);
   r.record.session_ms = r.ms;
   r.record.modules_age_ms = modules_at == 0 ? r.ms : end - modules_at;
+  // The game's window gone for two polls or more before the end: the player had quit and the game was closing (O115).
+  r.record.after_window = window_seen && end > window_last && end - window_last >= 400;
   if (!appid_done) say("appid removal=%s at=end", to_string(remove_if_ours(*plan.appid, plan.appid_value)));
   if (plan.remove_appid && *plan.remove_appid == RemoveAfter::Exit && plan.appid) {
     say("appid removal=%s at=exit", to_string(remove_if_ours(*plan.appid, plan.appid_value)));
   }
   say("end exit_code=0x%08X kind=%s crash_filter=%d closed=%d timed_out=%d init=%s modules=%zu at_crash=%d marks=%zu "
-      "session_ms=%llu connections_max=%u",
+      "session_ms=%llu connections_max=%u after_window=%d",
       code, to_string(r.record.kind), r.record.crash ? 1 : 0, r.closed_by_us ? 1 : 0, r.timed_out ? 1 : 0,
       w::to_string(r.last_init), r.record.modules.size(), r.record.modules_at_crash ? 1 : 0, r.record.marks.size(),
-      static_cast<unsigned long long>(r.ms), r.record.connections_max);
+      static_cast<unsigned long long>(r.ms), r.record.connections_max, r.record.after_window ? 1 : 0);
   return r;
 }
 
