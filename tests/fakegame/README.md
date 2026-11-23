@@ -141,6 +141,19 @@ these cases leave: `rec-stats` and `replay` on `launcher-eldennet`'s recording (
 stepped again on its inputs answering the DLL's own changes), and `spike-report s0a` on `launcher-spike-s0a`'s log
 (three early runs passing their rules, each with its load mode, the late load not run).
 
+The S0 spikes on the table-based start (2026-11-23; roadmap S10.1.b) have cases of their own with the probe build:
+`launcher-eldennet-s0a`, `-s0b`, `-s0c`, `-s0d` and `-s0d-crash` give the fake game's gal/ a build's table (the
+harness's `s0_table`: schema 2, each of the fifteen statics under the catalogue's label, its place and the places in
+the code that load it, from `--describe`, with the repository's `ids.toml`), so a start takes each id from the table
+and checks it and searches for none. Each checks eldennet.dll's report of each run in the run's folder (linted, no
+path), the table checked at the start and again with none refused or changed, no call into the game, the launcher's
+plain words on the console and its tally, and `spike-report` over the spikes and recordings folders: each spike whole,
+and, in the `-nostatic` five, with `game_state` out of the table and of patterns.toml as the real game's layout is
+today, the start at the discovery banner, S0-B waiting and nothing failed. The S0 package's own cases,
+`launcher-package-s0-*`, run its unzipped files with `--set pkg` (BUILD.md). The observer's runs
+(`launcher-eldennet-spike-*`, and `launcher-package-spikes-*` with their package) check the tester's panel too: the
+run's tasks, their confirmations and Marks, and `launcher-run.json` in the run's folder.
+
 GraceUI joined it with part 12 (`launcher-eldennet-graceui*`, clang-cl, with a test build of GraceUI, GraceUI's own
 `GRACEUI_TEST_EXPORTS` build, whose `GraceUI` folder CMake's `EN_GRACEUI_DIR` names; without it the cases are left out).
 Each installs that folder as it is, as GraceUI's build lays it out beside its `bin` (GraceUI D165): `game/GraceUI/` with
