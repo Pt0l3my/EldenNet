@@ -72,7 +72,12 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    state's static is 0x3D709A8 (its class's table of methods 0x2A84210; made with the event flags' store, so not
    there at the title), the save's slot the 32-bit number 0xAC0 into its object (compared with -1 and with the
    count of slots in the code); the main player's word 0x1E508 is read by 412 instructions. All leads until the
-   fifteenth round shows them. The executable is in the scratch folder `exe/` (never run; to be deleted when the
+   fifteenth round shows them. Engine's word (2026-11-23): the executable chooses what each round checks, in
+   WHY§460's order; the game's state's class name is not taken from the executable into `leads.toml` (O111:
+   nothing of the executable is written down): a round is given the static as a number and reads the object's
+   class from the game's own type information in game, as the naming passes do, and the name enters `leads.toml`
+   from there (a small change to the round, Lodestar's, for the round after the fifteenth). The package
+   0.1.0-lodestar.19 went to the owner after Engine's read. The executable is in the scratch folder `exe/` (never run; to be deleted when the
    work with it is done); the study's scripts are in the scratch folder `review/` (`exe_*.py`, `pe.py`).
    **Research inputs (O111, 2026-11-23)**: the owner's words, "nothing is off limit for our research, the only
    limit is what we ship with the mod publicly, and what we upload to repo." HANDOVER §3 now reads with O111: nothing
