@@ -83,22 +83,23 @@ endif()
 
 # GraceUI's graceui-sys (its C helper, C++ wrapper and headless Dear ImGui helper), the ABI header it includes, and
 # graceui_test.h, the test build's exports, which the fake game reads in the tests alone: all five vendored unmodified
-# from GraceUI at 92fc19c (GraceUI 0.2.25, protocol 1.8, ABI 1.5; graceui-sys's three unchanged since beca859, graceui.h
-# and graceui_test.h last changed at bc8fb8f) with GraceUI's licence (third_party/graceui-sys, THIRD_PARTY.md).
+# from GraceUI at 386d1ba (GraceUI 0.2.31, protocol 1.9, ABI 1.6; graceui-sys's three unchanged since beca859,
+# graceui.h last changed at de8b596 and graceui_test.h at 7022e43) with GraceUI's licence (third_party/graceui-sys,
+# THIRD_PARTY.md).
 # Each file is checked against its SHA-256 here, so that an edit is caught when the build is configured.
 foreach(pin IN ITEMS
     "LICENSE|8cdd091310968c1af65a292fad858fb4a13509d829e4d1e5594f3a391028a4e0"
-    "graceui.h|181d157907a93723e9dd6ac859f4c8c6dbc8f704f119b66bc26acb6643e16f08"
+    "graceui.h|fb18c797d5052770a52abf95c5d06348e6631ebf4f1c0659a563906fd8ff10c3"
     "graceui_sys.h|ceb0caa996291b1d60b0e3b5e7f3d61dda0b1b50db6126d4333a9353dfdd1e0e"
     "graceui_sys.hpp|2b42e2db6d4c8fd35852a22049bd009a05a75f50bb88e7c7870adb57697b548f"
     "graceui_imgui.hpp|4206f176a70cda7a7fe78af0d75b8a1d015f4dd0fb3a1451164320a4e4ac7786"
-    "graceui_test.h|55ebae53775248779c62d0350d59e80fefaa202b39fe4263fbe886b1ca510f84")
+    "graceui_test.h|eee24a352d9c814c8b2afd777a35caa9697b15957711109d4d6fdc3ee62c76db")
   string(REPLACE "|" ";" pin "${pin}")
   list(GET pin 0 _en_path)
   list(GET pin 1 _en_sha256)
   file(SHA256 ${CMAKE_CURRENT_SOURCE_DIR}/third_party/graceui-sys/${_en_path} _en_have)
   if(NOT _en_have STREQUAL _en_sha256)
-    message(FATAL_ERROR "third_party/graceui-sys/${_en_path} is not GraceUI 92fc19c's (SHA-256 ${_en_have})")
+    message(FATAL_ERROR "third_party/graceui-sys/${_en_path} is not GraceUI 386d1ba's (SHA-256 ${_en_have})")
   endif()
 endforeach()
 add_library(en_graceui_sys INTERFACE)
