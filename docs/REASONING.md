@@ -480,6 +480,14 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 455 | 2026-11-23 | The flags' layout holds in a second session, and the reader's way down the tree arrives at every joined flip | FACT | #lodestar #l6 #flags |
 | 456 | 2026-11-23 | Step L6's three subjects are placed after ten read-only rounds, with no fault in some 80,000 readings | FACT | #lodestar #l6 |
 | 457 | 2026-11-23 | EldenNet's own flag reader runs first inside a read-only round, beside the round's tree reader, before the start uses it | DECIDED | #engine #lodestar #flags |
+| 458 | 2026-11-23 | One group of the reader can be read alone before the others' fields are placed: a partial discovery and a tick for that group | METHOD | #lodestar #flags |
+| 459 | 2026-11-23 | What a ready start still needs from the layout: one static and 36 fields, by L6's ways | FACT | #lodestar #gal |
+| 460 | 2026-11-23 | The order of the start's layout, and how far a start may rest on the notes' leads for constants | DECIDED | #engine #lodestar #gal |
+| 461 | 2026-11-23 | No second Esc after the chat box closes: Esc and the pad act on the box only while it is open | DECIDED | #engine #conversation #graceui #input |
+| 462 | 2026-11-23 | EldenNet's own discovery and flags reader work on the game, through the build's layout | FACT | #lodestar #gal #flags |
+| 463 | 2026-11-23 | game_state is sought by what it holds at the title and in the world, over four looks | METHOD | #lodestar #l6 #gal |
+| 464 | 2026-11-23 | A search that must end inside a session gets the searches' whole share until it is through | METHOD | #lodestar |
+| 465 | 2026-11-23 | The menu's frame-cost check in GraceUI's harness is noisy on a four-core container | FACT | #graceui #harness |
 
 ## Entries
 
@@ -4656,6 +4664,9 @@ invariant 10, EldenNet ARCH (T3)
   is off by default.
 - (METHOD) A harness case whose program reads relative paths now names its start folder: Wine maps it to its drive,
   as cmd.exe's `cd /d "%~dp0"` does on the owner's PC.
+- *Later (2026-11-23):* repacked as 0.1.0-spikes.2 from engine fd6e23f with GraceUI 0.2.22 at b488e3c (Grace's
+  request); the same runs and the same rules. Package case A2 stalled once, under two agents' builds, after GraceUI's
+  observer was injected late (killed at 240 s), and passed three times alone; told to Grace (S10.1.g).
 
 ### 256. EldenNet's vendored graceui_test.h lagged GraceUI 0.2.1; the GraceUI case now reads the version it expects from graceui.toml
 
@@ -7185,3 +7196,133 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   owner's panel and the self-test flag. It touches nothing of boot.cpp.
 - So the real reader's first run stays inside a read-only round. The start's use of the layout (discovery through the
   table, the reader at start: spikes S0-A and S0-B, S10.1.b) follows once that round agrees.
+- *Later (2026-11-23, WHY§462):* the round ran. EldenNet's own reader read the flags through the build's layout
+  on the game, 44 frames with no fault, and the flag set in every playthrough as set; the marked flags' comparison
+  moves to the twelfth round.
+
+### 458. One group of the reader can be read alone before the others' fields are placed: a partial discovery and a tick for that group
+
+`2026-11-23` · METHOD · `#lodestar` `#flags` · refs: backend.hpp, discovery.hpp, WHY§457
+
+- The game's layout places no `game_state` and no `field_area` yet, and both are required statics, so a discovery pass
+  with the files as they stand is refused. With `DiscoveryOptions::partial` nothing is required of the patterns: a
+  missing static is simply missing, the Discovery is not ready, and `has(group)` says what can be read. It is never for
+  a start, and boot.cpp does not set it.
+- `snapshot()` cannot reach the flags without the lifecycle's and the session's fields, so `ErBackend::flags_alone` is a
+  tick of its own. It begins the tick, re-reads the statics, runs `read_flags` as it stands (the divisor's check
+  included), then reads the known flag as phase B does. The result is returned, not written into the book. Nothing is
+  read where the group is tripped.
+- The eleventh round (engine 998d078, package 0.1.0-lodestar.14) uses both. T1 runs discover once through the build's
+  files on EldenNet's own thread (no getter call), and T2 reads the flags group alone every ten seconds: flag 100 first,
+  then each flag a marked flip was joined to. Each read is compared with what the sweep saw. This is the first time the
+  table's checks (placement, witness) run on the game's own image through discover.
+- Both additions are additive; nothing that exists changes its behaviour.
+
+### 459. What a ready start still needs from the layout: one static and 36 fields, by L6's ways
+
+`2026-11-23` · FACT · `#lodestar` `#gal` · refs: roles.cpp, gal/layouts/2.7.2.0-ww.toml, WHY§456, S10.1.m
+
+- Lodestar's count against en-gal's own lists (16 items, 97 fields in 35 classes) and the build's layout (15 items; 2
+  classes, 9 fields). A ready start, not partial, still needs:
+  - `game_state`, the one required static still unplaced, with its field `save_slot`;
+  - Session's 6 fields;
+  - World's 19 fields that are not optional;
+  - Player's 10 such fields beyond the play time;
+  - for the snapshot's mode, `menus.screen_state` (with `loading.load_counter`, optional).
+  That is 36 fields and one static.
+- The ways, by L6: an invariant with the owner's panel tasks (hp, position, runes, death count, the HUD and menus, the
+  camera, the place); a search for pointers and lists with the classes the image already names (the main player, the
+  near list, the parts, vitals and motion, player_data); and leads from our notes, checked by their plain properties,
+  for constants (the session's roles and lobby state, a character's ids, the archetype and the like).
+- `game_state` is the hardest: its one field the start reads never changes in a session, so the static must be told
+  by the code's references or by a second field. Optional groups (place, flags, ui, combat, camera, text, params) only
+  turn themselves off.
+- The clock's hour and minute are runs of bits in one 64-bit word, which the layout's field types cannot yet say.
+
+### 460. The order of the start's layout, and how far a start may rest on the notes' leads for constants
+
+`2026-11-23` · DECIDED · `#engine` `#lodestar` `#gal` · refs: WHY§459, WHY§457, DESIGN§3, DESIGN§4, ARCH§6.7, ARCH§6.8, S10.1.b, S10.1.m
+
+- Engine's ruling on Lodestar's list. The work comes in this order:
+  1. `game_state` first, in a round of its own, since nothing is ready without it.
+  2. The pointers and lists by search and class: `characters.main_player`, the player set and its slot, the near list,
+     the parts, vitals and motion, and `player_data`.
+  3. The moving numbers by invariant, with tasks on the owner's panel: hp and max hp, position, the death count, runes,
+     `menus.screen_state`, `ui.hud_state` and `ui.banner_id` (the conversation's gate reads the last two), and dead and
+     on screen. A task that costs the owner something (dying drops runes; spending runes; levelling up) is optional and
+     says what it costs.
+  4. The constants as leads from our notes, checked by their plain properties.
+- How far a start may rest on such leads:
+  - The session gate's fields (`multiplay_role`, `is_my_world`, `lobby_state`) may rest on leads checked for their
+    offline values. The launcher's offline start without Easy Anti-Cheat is the first guard, and any other value
+    makes EldenNet dormant: the gate fails closed.
+  - A character's ids may rest on leads checked as constant per character and different between characters. A wrong
+    `npc_param_id` cannot bind a persona to the wrong NPC unseen: binding needs an exact row, and the row is checked
+    against the param table where the Params group reads.
+  - A lead that fails its check trips its group, as the degradation ladder has it.
+- A start may run with the structural groups whole and the optional ones off: an optional group only turns itself off
+  (ARCH §6.7, §6.8). That is enough for v0.1's in-game checks (S0-A, S0-B). v0.2's first conversation in game needs the
+  conversation's groups too (session, world, player, flags, ui, place and params), so those follow before it.
+- The clock's runs of bits: a field type of a word with a shift and a width, in en-gal's layout, by Lodestar. The play
+  time's place becomes a field of `save_data` by Lodestar.
+
+### 461. No second Esc after the chat box closes: Esc and the pad act on the box only while it is open
+
+`2026-11-23` · DECIDED · `#engine` `#conversation` `#graceui` `#input` · refs: GraceUI:G39, NPC§5.7, NPC§5.6, S11.4.d, WHY§437
+
+- The owner declined GraceUI's G39, answer (c), so proposal 0011's armed Escape (one Esc for a mod after its box has
+  closed) is not built. In the owner's words: "esc should only work whilst the chatbox is open, press Enter to enter
+  the written text. Press Esc to cancel and close down the chatbox. Once the reply is out or chatbox is closed, Esc
+  function is immediately back to normal (game's function)"; and on the pad: "no need to stop reply, user either
+  closes chatbox with Esc or enter reply with Enter. You can implement gamepad buttons to work as such too, but we
+  only care about while the chatbox is open, if the chatbox is not open those keys are back to normal function."
+- So while the box is open, Enter (and the pad's confirm, if one is mapped) sends the line, and Esc (and the pad's B,
+  NPC §5.6) cancels and closes it. Once the box has closed or the reply is out, both are the game's at once. A reply
+  still pacing after its box has closed finishes; no press stops it.
+- This answers WHY§437's third point. The core's second-Esc rule, which nothing can reach, is removed with the
+  conversation's polish (S11.4.d).
+
+### 462. EldenNet's own discovery and flags reader work on the game, through the build's layout
+
+`2026-11-23` · FACT · `#lodestar` `#gal` `#flags` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§457, WHY§458, S10.1.k
+
+- The eleventh read-only round (package 0.1.0-lodestar.14; 7.8 minutes) ran discover through the build's layout as a
+  partial pass on a thread of our own: 19 ms, 12 items resolved, all 12 from the table, none refused by its checks
+  (placement and witness, on the game's own image for the first time through discover). Not ready, as expected.
+- `ErBackend::flags_alone` gave a frame 44 times in 45 (the 45th after the game let its store go at the quit), with no
+  reader fault and no breaker trip, and read the flag set in every playthrough (100) as set.
+- The flags the owner's marks changed were not compared with the backend: the tree's walk was 47 records short of
+  11,930 when the owner quit (WHY§464). The clock and the play time held by their invariants; the round's reader ran at
+  9.92 readings a second, 4,490 readings, no fault.
+
+### 463. game_state is sought by what it holds at the title and in the world, over four looks
+
+`2026-11-23` · METHOD · `#lodestar` `#l6` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§460, O105, S10.1.m
+
+- The first piece of S10.1.m, in WHY§460's order. Over the data's slots that point at live memory, the first 8 KiB of
+  each object is read in four looks, told by the tester's marks: the title, the world, the title again, the world
+  again. A 32-bit field that reads -1, then a number from 0 to 15, then -1, then the same number is a hit (at most 32
+  listed). Each slot's value is taken from the image as loaded.
+- One slot hit, with the title clean and the slot not already named, enters the round's draft table as `game_state` by
+  the invariant recipe, with the code's references to the slot as witnesses. Nothing enters `gal/` before Lodestar's
+  review of the files.
+- About 5,000 objects, some 40 MiB a look: more than the owner's yes for the flags (24 MiB), so Lodestar asked again
+  first, and the owner agreed (O105's third note).
+
+### 464. A search that must end inside a session gets the searches' whole share until it is through
+
+`2026-11-23` · METHOD · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§462
+
+- The tree's walk ran on part of the searches' share in the eleventh round and ended 47 records short of 11,930 in a
+  session of 7.8 minutes, so the marked flags could not be compared.
+- The twelfth round gives the walk the searches' whole share until it is through, about a minute; a look of the state
+  search likewise holds the whole share while it runs, the other searches waiting.
+
+### 465. The menu's frame-cost check in GraceUI's harness is noisy on a four-core container
+
+`2026-11-23` · FACT · `#graceui` `#harness` · refs: GraceUI:BUILD.md, GraceUI:D219, S11.2.aj
+
+- With its medians unchanged (about 175 to 190 µs), the menu's p99 at 640 by 360 went over 1,000 µs on 0.2.22's build and
+  0.2.23's alike, by turns, run alone and back to back; on the earlier, larger machine it passed whole.
+- So on a four-core container a full run counts that check as the machine's, not a regression, when the medians hold
+  (Grace's full run of 0.2.23: 232 checks, all but that one on both builds).

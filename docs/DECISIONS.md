@@ -2039,6 +2039,14 @@ game's memory near the flags' own object (up to 2 MiB from each of at most 8 add
 more), slowly, one pass every 30 seconds at most. It only reads. ... May the round include it?" The owner's answer:
 "Yes, include it (Recommended)". The bounded sweep runs; the whole-memory scan stays off.
 
+*Note, 2026-11-23 (the twelfth round; WHY§463).* Put to the owner by Lodestar before the run, since the state search
+reads more than the flags' 24 MiB: "The next round finds where the game keeps which save is loaded. To do that it
+reads the first 8 KiB of every object the game's data points at (about 5,000 objects, roughly 40 MiB per look), four
+times: at the title, in the world, at the title again, in the world again. It only reads, at the same careful pace as
+before, and each look takes about half a minute. This is more reading than you agreed to for the flags (24 MiB). May
+the round do it?" The other answers offered were a smaller reading (4 KiB an object) and no. The owner's answer:
+"Yes, read it (Recommended)". The state search runs, four looks; the whole-memory scan stays off.
+
 ## O106
 
 **Retire R1** · *2026-11-22 · Decided by the owner, as recommended*

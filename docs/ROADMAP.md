@@ -875,10 +875,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     folder and graceui.toml (WHY§230 to §233). Since 2026-11-22 (O106) R1 is retired, so part 10's R1 package and probe
     mode go (S10.1.f); the S0 package waits on Lodestar's table instead of R1's review (S10.1.b, S10.1.k).
 - b Spikes S0-A to S0-D: the untouched image, the reader without dearxan (the task before O101), the launcher and offline play, guarded reads [waiting]
-  - needs: a, f
+  - needs: a, f, m
   - gives: since 2026-11-22 (O101, Lodestar's L4) S0-A checks the ids of the build's table in place of the finder's hits
     and five patterns, and S0-B the reader on EldenNet's own thread for 2 h in place of the game's task (DESIGN §16.1);
     both wait on L5's first table (S10.1.k).
+    Since 2026-11-23 they wait on a ready start's layout (S10.1.m; WHY§460).
 - c Spikes S1 perception and S2 text without GraceUI, and S6's core flags and S7 combat with the launcher's development Mark [waiting]
   - needs: b
   - refs: O90
@@ -943,6 +944,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     and eldennet.dll making no call into the game in these runs (WHY§241 to §243). EldenNet's side built the same
     day (engine 5c5b3bc; WHY§249 to §251). The owner's package sent on 2026-11-20: engine def31b4 with GraceUI 0.2.2
     at f5c16a2, runs A1 to A4, A0 and B checked on the fake game (WHY§255 to §257).
+    Repacked on 2026-11-23 at Grace's request, on the owner's go-ahead: 0.1.0-spikes.2, engine fd6e23f (the release DLL
+    with the first conversation) with GraceUI 0.2.22 at b488e3c. BUILD.md's checks passed: the sums, help and version
+    under Wine, the six package cases (A2 stalled once under the machine's load and passed three times alone), the 11
+    GraceUI cases, GraceUI's spike and spike-after scenarios, its report tool on each run (no row failed), the sweep.
+    Sent to the owner the same day (WHY§255's Later line).
 - h O89 to O91 folded into the designs: the derivation round (ARCH §6.2, §6.10), the spikes without GraceUI and the launcher's Mark (DESIGN §14, §16.1), the third-party rows (DESIGN §16.1) [done]
   - refs: O89, O90, O91, ARCH§6.2, ARCH§4.14, DESIGN§16.1
   - gives: folded on 2026-11-17 with the first in-game build's choices (WHY§159 to §204): ARCH
@@ -1090,6 +1096,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     fields are in the build's layout as leads (engine 9d8fb57), after ten read-only rounds. Next (WHY§457): a round
     that runs EldenNet's own flags reader on T2 beside the round's tree reader; then the start's use of the layout
     (S10.1.b).
+    The eleventh round built the same day (engine 998d078; WHY§458): EldenNet's own reader on the flags, alone, through
+    the build's layout, compared with the round's tree reader and the known flag (package 0.1.0-lodestar.14, for the
+    owner's run). A ready start still needs one static (`game_state`) and 36 fields (WHY§459): S10.1.m.
+    The eleventh round reviewed the same day (WHY§462): discovery through the layout and the backend's flags group work
+    on the game (flag 100 read as set, 44 frames, no fault); the marked flags' comparison moves to the twelfth round
+    (WHY§464).
 - l A tester's panel for the owner's rounds: each task in order, with a timer and a mark when done (the owner's request) [done]
   - needs: k
   - refs: WHY§398, WHY§396, WHY§444, WHY§445
@@ -1100,6 +1112,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     (WHY§444, §445). GraceUI's overlay is not cleared for the real game yet (S10.1.g, S11.1.a).
     Proved on the owner's PC in the eighth round (WHY§450); the owner's one change, a button that speaks for its task and
     none for the last, is in the ninth.
+- m The layout for a ready start: `game_state`, then the session's, world's and player's fields and the snapshot's mode, by L6's ways [active]
+  - needs: k
+  - refs: WHY§459, WHY§460, ARCH§6.7, ARCH§6.8
+  - gives: counted by Lodestar on 2026-11-23: one static and 36 fields. The order and the rule for leads are Engine's
+    ruling (WHY§460): `game_state` first; then pointers and lists by search; then moving numbers by invariant with panel
+    tasks (any task with a cost optional); then constants as leads checked by their properties, the session gate's
+    failing closed. A start runs with the optional groups off; v0.2's conversation needs its groups too. By Lodestar.
+    Begun on 2026-11-23: the twelfth round built (engine 4625fc3, package 0.1.0-lodestar.15; WHY§463): `game_state`
+    by a state search over four looks (title, world, title, world), with the owner's agreement to its reading (O105's
+    third note). Awaiting the owner's run.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1436,6 +1458,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: GraceUI:D218, GraceUI:D215, WHY§393, WHY§387
   - gives: built on 2026-11-22 (GraceUI feat/foundations 62f492e) at EldenNet's request; for the profile editor
     (S7.2.b; GraceUI's docs/eldennet-changes.md §56).
+- aj Search across spaces in game (GraceUI 0.2.23) [done]
+  - refs: GraceUI:D219, GraceUI:D166, GraceUI:D214, WHY§465
+  - gives: built on 2026-11-23 (GraceUI feat/foundations 8776e80 and b52cd7d), brought forward from GraceUI 0.4 at the
+    owner's go-ahead: the menu's search in game finds every space's settings, each named by its space and opened on
+    its home page with its row revealed, as the browser view's already did. No change of ABI or protocol, and nothing
+    for EldenNet to change (GraceUI's docs/eldennet-changes.md §58).
 
 ### S11.3 EldenNet v0.2
 
@@ -1449,8 +1477,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the HUD, the pop-up, the talk camera, teams and distances, then S4 and S3 in game (S11.1.a, b). Left: a refused or
     not-now toast that names the holder (WHY§442); target rules 1 and 2 (f), 0 with the own-initiative lines (S12.1.c)
     and 6 with the call-out (S15.1.a); the mute state's sources (`speech.toml`, `types.toml`); a second Escape
-    (S11.4.d). By O108 (2026-11-22, the owner) a game banner stops the box opening but never closes an open one, which
-    holds its pages: the core's gate changes to match.
+    (S11.4.d, dropped on 2026-11-23, WHY§461). By O108 (2026-11-22, the owner) a game banner stops the box opening but never closes an open one, which
+    holds its pages: the core's gate changed to match on 2026-11-23 (engine a7f8509).
 - b The prompt, the sanitizer and lint, pages, and commit on display
   - refs: DESIGN§8.3, DESIGN§8.4, DESIGN§8.5, WHY§402, WHY§403, WHY§409, WHY§412, WHY§414, WHY§415, WHY§427, WHY§432
   - gives: built offline on 2026-11-22 (WHY§364): the prompt's blocks in en-prompt's syntax, rendered from the
@@ -1591,13 +1619,17 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     typed line answered in the lower third and committed, end to end on the fake game. Waits for the game: S4 and
     S0-E's input half (S11.1.a). Left: the chord and danger tested against GraceUI's real test build, as they are so
     far against the stand-in only; rounded corners, and the Tarnished's lines in italic, which wait for more faces per
-    mod in GraceUI (D139 gives EldenNet eight) and an italic face; a second Escape (d); the pointer in the box. The
+    mod in GraceUI (D139 gives EldenNet eight) and an italic face; the pointer in the box (a second Escape,
+    d, dropped on 2026-11-23). The
     call-out box waits for v0.6 (WHY§364 (5); S15.1.a).
-- d A second Escape while a reply paces (NPC §5.7): a way for it to reach EldenNet once the box has closed, asked of GraceUI
+- d A second Escape while a reply paces (NPC §5.7): a way for it to reach EldenNet once the box has closed, asked of GraceUI [done]
   - needs: c
-  - refs: NPC§5.7, WHY§437
+  - refs: NPC§5.7, WHY§437, WHY§461, G39
   - gives: the core's rule is built, but with the box closed nothing holds input and GraceUI takes no hotkey on Escape,
-    so the second press never reaches EldenNet (2026-11-22).
+    so the second press never reaches EldenNet (2026-11-22). Dropped on 2026-11-23 by the owner (GraceUI's G39 (c),
+    proposal 0011): Esc and the pad act on the box only while it is open, Enter sending and Esc cancelling and
+    closing; once the box has closed or the reply is out, they are the game's again, and a reply still pacing
+    finishes (WHY§461). The core's unreachable rule is removed with the conversation's polish.
 
 ### S11.5 v0.2's exit checks
 
