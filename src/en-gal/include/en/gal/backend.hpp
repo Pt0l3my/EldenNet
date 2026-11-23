@@ -100,6 +100,16 @@ class ErBackend final : public proto::GameBackend {
   [[nodiscard]] const SteadyCounts& steady() const noexcept { return steady_; }
   // One tick of phase A (at most kPhaseATicks): each untested group's test. Failed means a structural group failed.
   PhaseA phase_a(const proto::GameThread& gt);
+  // The flags group alone, in a tick of its own (the eleventh read-only round; WHY§457): for a build whose layout
+  // places the event flags and nothing else yet, so that snapshot() never reaches them (its mode asks the lifecycle
+  // and the session). The store's static is re-read, the watched ids are read as snapshot() reads them, with the
+  // divisor's check, into `out.flags`; then the flag that is set in every playthrough is read as phase B reads it.
+  // Nothing else of `out` is touched, and the book's phase B is not set. Nothing is read where the group is tripped.
+  struct FlagsAlone {
+    bool read = false;          // `out.flags` holds a frame
+    std::optional<bool> known;  // the known flag: set, not set, or not read (no store yet, or a read refused)
+  };
+  FlagsAlone flags_alone(const proto::GameThread& gt, proto::WorldSnapshot& out);
   // Whether a structural group tripped: the task goes inert and reads nothing more (L1).
   [[nodiscard]] bool inert() const noexcept { return inert_; }
   void make_inert() noexcept { inert_ = true; }

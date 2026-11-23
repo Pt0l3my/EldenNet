@@ -95,6 +95,14 @@ TEST_CASE("discovery: the probe round's slot stands for a static that has no pat
   REQUIRE(gated.has_value());
   // Without the pattern or a slot, save_data is required and missing: patterns.toml itself is refused.
   CHECK_FALSE(discover(*w.sys, *gated, no_save, w.layout).has_value());
+  // A partial pass (one group alone, never a start) refuses nothing for it: the static is missing, the Discovery is
+  // not ready, and what it found everything for is there.
+  DiscoveryOptions partial;
+  partial.partial = true;
+  const auto in_part = discover(*w.sys, *gated, no_save, w.layout, partial);
+  REQUIRE(in_part.has_value());
+  CHECK_FALSE(in_part->report().ready);
+  CHECK(in_part->has(en::proto::Group::Flags));
   DiscoveryOptions with_slot;
   with_slot.static_slots.emplace_back("save_data", static_cast<std::uint32_t>(w.at("st_save_data") - w.base));
   const auto d = discover(*w.sys, *gated, no_save, w.layout, with_slot);

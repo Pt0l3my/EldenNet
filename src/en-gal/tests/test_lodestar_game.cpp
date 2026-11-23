@@ -1807,7 +1807,7 @@ TEST_CASE("in game: the tree beside the flags is walked once, its key told by it
   const lodestar::TreeRead::Flip flips[3] = {{1, 0x28, 125 * 5 + 3, 4, blocks},
                                              {2, 0x30, 17, 0, own},
                                              {2, 0x28, 125 * 15 + 1, 2, blocks}};
-  const lodestar::TreeFound found = tree.found(flips);
+  const lodestar::TreeFound found = tree.found(flips, 40);  // the layout says the index is kept 40 bytes in
   CHECK(found.done);
   CHECK_FALSE(found.capped);
   CHECK(found.rva == rva(w.at("st_hud")));
@@ -1877,6 +1877,107 @@ TEST_CASE("in game: the tree beside the flags is walked once, its key told by it
   none.settle(nullptr);
   CHECK(none.found({}).records == 0);
   CHECK(none.found({}).done);
+}
+
+TEST_CASE("in game: the state search finds the field that reads -1 at the title and the same small number in the world") {
+  FakeWorld w;
+  Round r = round_of(w);
+  const auto rva = [&](std::uint64_t va) { return static_cast<std::uint32_t>(va - w.base); };
+  // Four slots of the data, each pointing at an object. The first keeps the game's state: 0x14 bytes in, -1 at the
+  // title and the save's slot (2) in the world. The second has a field that is -1 always, and one that is -1 at the
+  // title and another small number each time in the world. The third's field does not go back to -1. The fourth is
+  // another object at the third pass.
+  const std::uint64_t state = w.mem.alloc(0x200);
+  const std::uint64_t other = w.mem.alloc(0x40);
+  const std::uint64_t stuck = w.mem.alloc(0x40);
+  const std::uint64_t moved = w.mem.alloc(0x40);
+  const std::uint64_t moved_to = w.mem.alloc(0x40);
+  w.mem.put<std::uint64_t>(w.at("st_hud"), state);
+  w.mem.put<std::uint64_t>(w.at("st_session"), other);
+  w.mem.put<std::uint64_t>(w.at("st_messages"), stuck);
+  w.mem.put<std::uint64_t>(w.at("st_menus"), moved);
+  const auto title = [&] {
+    w.mem.put<std::int32_t>(state + 0x14, -1);
+    w.mem.put<std::int32_t>(state + 0x1F0, -1);  // a second field of the same object that behaves so
+    w.mem.put<std::int32_t>(other + 0x10, -1);
+    w.mem.put<std::int32_t>(other + 0x18, -1);
+    w.mem.put<std::int32_t>(stuck + 0x20, -1);
+    w.mem.put<std::int32_t>(moved + 0x08, -1);
+    w.mem.put<std::int32_t>(moved_to + 0x08, -1);
+  };
+  const auto world = [&](std::int32_t slot, std::int32_t elsewhere) {
+    w.mem.put<std::int32_t>(state + 0x14, slot);
+    w.mem.put<std::int32_t>(state + 0x1F0, slot);
+    w.mem.put<std::int32_t>(other + 0x18, elsewhere);
+    w.mem.put<std::int32_t>(stuck + 0x20, 3);
+    w.mem.put<std::int32_t>(moved + 0x08, 5);
+    w.mem.put<std::int32_t>(moved_to + 0x08, 5);
+  };
+  lodestar::StateSearch search(
+      w.base, {rva(w.at("st_hud")), rva(w.at("st_session")), rva(w.at("st_messages")), rva(w.at("st_menus"))});
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  const auto pass = [&] {
+    int steps = 0;
+    for (; steps < 100; ++steps) {
+      reader.begin_tick();
+      if (search.step(gt, reader)) break;
+    }
+    return steps;
+  };
+  // Nothing is read before a pass is asked for.
+  CHECK_FALSE(search.due());
+  reader.begin_tick();
+  CHECK_FALSE(search.step(gt, reader));
+  CHECK(reader.copies() == 0);
+  title();
+  search.ask();
+  CHECK(search.due());
+  CHECK(pass() <= 8);
+  CHECK(search.passes() == 1);
+  CHECK_FALSE(search.due());
+  CHECK(search.found().hits.empty());  // nothing is told before the fourth pass
+  world(2, 7);
+  search.ask();
+  (void)pass();
+  title();
+  w.mem.put<std::int32_t>(stuck + 0x20, 0);           // not -1 again
+  w.mem.put<std::uint64_t>(w.at("st_menus"), moved_to);  // another object behind the slot
+  search.ask();
+  (void)pass();
+  world(2, 9);
+  search.ask();
+  (void)pass();
+  search.ask();  // a fifth is not taken
+  CHECK(search.asked() == 4);
+  const lodestar::StateFound found = search.found();
+  CHECK(found.candidates == 4);
+  CHECK(found.passes == 4);
+  REQUIRE(found.alive.size() == 4);
+  CHECK(found.alive[0] == 4);
+  CHECK(found.alive[1] == 4);
+  CHECK(found.alive[2] == 2);  // the stuck one and the moved one are out
+  CHECK(found.alive[3] == 1);  // and the one whose number differed
+  CHECK(found.fields_after_title == 6);
+  CHECK(found.fields_after_world == 5);
+  CHECK(found.fields_after_again == 3);
+  CHECK(found.slots_hit == 1);
+  REQUIRE(found.hits.size() == 2);
+  CHECK(found.hits[0].rva == rva(w.at("st_hud")));
+  CHECK(found.hits[0].offset == 0x14);
+  CHECK(found.hits[0].value == 2);
+  CHECK(found.hits[1].rva == rva(w.at("st_hud")));
+  CHECK(found.hits[1].offset == 0x1F0);
+  // The report carries the search as counts, places and the small number, and lints clean.
+  lodestar::Found f = r.found;
+  f.state = found;
+  const auto text = lodestar::write_report(f);
+  if (!text.has_value()) MESSAGE(report::describe(text.error()));
+  REQUIRE(text.has_value());
+  const report::Vocabulary* known[] = {&lodestar::vocabulary()};
+  CHECK(report::lint(*text, known).has_value());
+  CHECK(text->find("\"state_hits\": [") != std::string::npos);
+  CHECK(text->find("\"alive\": [4, 4, 2, 1]") != std::string::npos);
 }
 
 TEST_CASE("in game: a pass takes over a manager the search named first, and an invariant's static enters the table") {

@@ -8,18 +8,23 @@ so on), without knowing which is which. This round starts the game with EldenNet
 the game as it runs, which of those places holds which of the eleven managers EldenNet needs. Then it tries, for a few
 minutes, the way EldenNet v1 will read the game: from a thread of its own, about ten times a second.
 
-This is the tenth such round. The ninth (23 November) read the small tree the game keeps beside its event flags,
-all 11,930 records of it, and with it the bits your confirmations set became flag numbers: round numbers, as flag
-numbers are. It also showed that our own notes were wrong in one detail (a record gives a block's number, not its
-place in bytes), and EldenNet's own flag reader has been corrected to match.
+This is the twelfth such round. The rounds so far placed the time of day, the play time and the event flags in
+EldenNet's table. Before EldenNet can start for real it needs one more place first: the object in which the game
+keeps which save is loaded. Nothing in the game's code names it, so the round finds it by what it holds: by our own
+notes, one number in it reads "none" at the title screen and the save's slot once a save is loaded.
 
-This round is the check of that reader. It reads the tree once more, finds again the bits your confirmations set, and
-then goes the way EldenNet will go in play: from the top of the tree down to a flag's record by the flag's number. If
-that way arrives at the same record every time, the flags' places go into the table. It also looks in the flags' own
-object for the two numbers the reader relies on (1,000 flags to a group, 125 bytes to a block).
+So this round asks something new of you: to take the game from the title into the world, back to the title screen,
+and into the world again, and to confirm each change on the panel. At each of the four moments the round reads the
+first 8 KiB of every object the game's data points at (about five thousand objects, some 40 MiB a look, each read
+once a look, at the round's careful pace), and keeps only which numbers read "none" at the title and the same small
+number in the world both times. That is new reading, of the same careful kind as before; it writes places and that
+small number (the save's slot, 0 to 15), nothing else. If the game stutters, quit it and tell us.
 
-Everything else is as in the ninth round: the same panel, the same eight tasks, about eight minutes in the world, and
-the same reading (the tree: at most 32,768 records of 64 bytes, about 2 MiB, read once).
+The rest runs as in the eleventh round, in the background: the flags' reader, the clock, the play time. The eleventh
+round showed that EldenNet's real reader finds the flags through the table and reads the flag that is always set as
+set, 44 times with no fault. What it could not compare were the bits you changed: the tree's read was 47 records
+short of finished when you quit. So that read now goes first and takes about a minute, and near the end the panel
+asks once more for one thing the game remembers.
 
 It has no wide search of the game's memory. As in the seventh round, and within what you agreed to then, it reads
 memory near the event flags' own object: up to 2 MiB from each of at most eight addresses that object keeps and up
@@ -38,8 +43,8 @@ alone, labelled @LABEL@.
 How long it takes
 -----------------
 
-About 20 minutes: 5 to unzip and start, 1 to 2 at the title screen, about 8 in the world with your save loaded, and a
-few to send the files. The panel keeps the time for you.
+About 20 minutes: 5 to unzip and start, 2 to 3 at the title screen, then about 8 between the world and the title, and
+a few to send the files. The panel keeps the time for you.
 
 
 What is in it
@@ -89,28 +94,30 @@ The steps
 2. The game starts. At the title screen, wait. The console says, in lines starting with "EldenNet read:", that it is
    reading the game. This takes about a minute. Do not load a save until it tells you to.
 
-3. When the round is ready, the panel's first task turns grey and the console says "Now load your save." Load your
-   save, and from then on follow the panel. Its tasks, in order:
+3. When the round is ready, the panel's first task turns grey. Do not load your save yet: the second task is to stay
+   at the title screen for a minute more. From then on follow the panel. Its tasks, in order:
 
      1. Wait at the title screen             (the round does this one itself)
-     2. Load your save                       press Pause when you stand in the world
-     3. Walk about, 3 minutes                near an NPC or an enemy, open the map once; leave items, doors and
-                                             graces alone for now
-     4. Do one thing the game remembers      take an item from a body or a chest, open a door or a chest, discover a
+     2. Stay at the title screen, 1 minute   the round takes its first look; do not load your save yet
+     3. Load your save                       press Pause when you stand in the world
+     4. Walk about, 1 minute                 anything will do
+     5. Quit to the title screen             with the game's own menu, to the title screen, not out of the game;
+                                             press Pause when the title screen shows
+     6. Stay at the title screen, 45 s       do not load your save until the time is up
+     7. Load your save again                 the same save; press Pause when you stand in the world
+     8. Walk about, 1 minute
+     9. Do one thing the game remembers      take an item from a body or a chest, open a door or a chest, discover a
                                              grace, or buy something a merchant has only a few of; then press Pause
                                              at once
-     5. Walk about, 1 minute 30              leave items, doors and graces alone
-     6. Do a second such thing               then press Pause at once; if nothing is at hand, just press Pause
-     7. Walk about, 1 minute 30
-     8. Quit the game
+    10. Walk about, 1 minute                 leave items, doors and graces alone
+    11. Quit the game
 
    A waiting task counts down and ends by itself. A task of yours waits until you press Pause (anywhere, while the
    game has the keyboard) or click the panel's button, which says what it stands for. The last task has no button:
-   quitting the game ends it. The task under way is highlighted; done tasks are grey, with
-   the time they took. If you press Pause too early, nothing is lost: the task simply counts as done at that moment.
+   quitting the game ends it. The task under way is highlighted; done tasks are grey, with the time they took.
 
-   Please tell us with the files what tasks 4 and 6 were ("4: opened a chest; 6: bought an arrow" is all we need).
-   You do not need to note any times.
+   Two things matter. Press Pause only once the game is really there (standing in the world; the title screen
+   showing), and then stay there until the waiting task after it is through: that is when the round looks.
 
 4. Quit the game as you usually do. The console then says whether the two files passed their check, and the launcher
    ends.
@@ -213,6 +220,19 @@ What it does
     numbers (the group's number among them; an address is written as 0), and whether the way down the tree by
     that number arrives at the same record. Nothing else of the records is written. Of the flags' own object it
     reads the first 256 bytes once and writes only where in them the numbers 1,000 and 125 stand.
+  - EldenNet's own reader, from the same thread, every ten seconds: for the flag that is set in every playthrough
+    and for each flag the round has numbered from a bit you changed, it reads the flags' own object, goes down the
+    tree by the flag's group (up to sixteen or so records of 64 bytes), and reads the one byte that holds the
+    flag. It writes each such flag's number, whether it read as set, and whether that agrees with what the round
+    saw. Before that, once, it looks through the game's code as loaded for the places the table names and checks
+    them (the same reading as the round's first pass).
+  - From the same thread, the state search: at the title, and again at each of your three confirmations, it reads
+    the first 8,192 bytes of the object behind every place of the game's data that points at memory in use (about
+    five thousand; each object once a look). It keeps, for each object, which 32-bit numbers read -1 at the first
+    look; of those, which read 0 to 15 in the world; of those, which read -1 again at the title; and of those,
+    which read the same small number in the world again. What is left is written: the place, the offset, the small
+    number, and how many instructions of the game's code refer to the place. While a look is under way the round's
+    other searches wait, so that it is through in about half a minute.
   - Every two seconds it writes lodestar-found.json into %APPDATA%\EldenNet\probe, and lodestar-table.toml when
     another manager is named. If the report ever grows past its limit, it is written without the detail of the
     watched object that has the most, then of the next, and says which were left out. They hold only numbers

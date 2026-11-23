@@ -415,3 +415,68 @@ TEST_CASE("backend: a replaced watch list goes back to the core, never freed on 
   r.io.retired[0].reset();
   CHECK(first_weak.expired());
 }
+
+TEST_CASE("backend: the flags group alone reads through a layout that places the flags and nothing else") {
+  // As the game's layout stands after step L6: the items' statics, the event flags' store and the tree's records;
+  // no other class. Discovery is not ready to start (the structural groups lack their fields), but the flags are
+  // there, and the backend reads them alone.
+  FakeWorld w;
+  w.world();
+  w.set_flag(5000005, true);
+  std::string layout;
+  bool keep = true;
+  for (std::size_t at = 0; at < w.layout.size();) {
+    const std::size_t end = std::min(w.layout.find('\n', at), w.layout.size() - 1) + 1;
+    const std::string_view line(w.layout.data() + at, end - at);
+    if (line.starts_with("[")) {
+      keep = !line.starts_with("[class.") || line.starts_with("[class.event_flags") ||
+             line.starts_with("[class.flag_node");
+    }
+    if (keep) layout.append(line);
+    at = end;
+  }
+  REQUIRE(layout.find("[class.event_flags]") != std::string::npos);
+  REQUIRE(layout.find("[class.characters]") == std::string::npos);
+  auto gated = gate_image(*w.sys, w.builds);
+  REQUIRE(gated.has_value());
+  DiscoveryOptions options;
+  options.frame = FrameProvider::OwnThread;
+  const auto d = discover(*w.sys, *gated, w.patterns, layout, options);
+  if (!d.has_value()) {
+    for (const auto& e : d.error()) MESSAGE(e.where << ": " << e.problem);
+  }
+  REQUIRE(d.has_value());
+  CHECK(d->has(Group::Flags));
+  CHECK_FALSE(d->has(Group::Player));
+  CHECK_FALSE(d->report().ready);
+  ErBackend backend(*w.sys, *d);
+  CHECK_FALSE(backend.inert());
+  const auto gt = en::proto::GameThread::issue();
+  (void)backend.first_tick(gt, false);
+  REQUIRE(backend.apply(gt, GameCommand{GameCommand::SetWatchFlags{3, watch({100, 1234001, 5000005, 777000})}})
+              .has_value());
+  en::proto::WorldSnapshot out;
+  const ErBackend::FlagsAlone done = backend.flags_alone(gt, out);
+  CHECK(done.read);
+  REQUIRE(done.known.has_value());
+  CHECK(*done.known);  // flag 100, set in every playthrough
+  REQUIRE(out.flags.has_value());
+  CHECK(out.flags->watch_version == 3);
+  CHECK(out.flags->valid[0]);
+  CHECK(out.flags->bits[0]);        // 100
+  CHECK(out.flags->valid[1]);
+  CHECK_FALSE(out.flags->bits[1]);  // 1234001: its block lies by its index in the holder
+  CHECK(out.flags->valid[2]);
+  CHECK(out.flags->bits[2]);        // 5000005, a block by address
+  CHECK_FALSE(out.flags->valid[3]); // 777000: no such group
+  CHECK(backend.book().live(Group::Flags));  // untested by phase A, and not tripped
+  // A flag set in the game shows at the next call.
+  w.set_flag(1234001, true);
+  (void)backend.flags_alone(gt, out);
+  REQUIRE(out.flags.has_value());
+  CHECK(out.flags->bits[1]);
+  // The snapshot itself reads no flags with such a layout: the groups its mode asks are tripped.
+  en::proto::WorldSnapshot whole;
+  (void)backend.snapshot(gt, whole);
+  CHECK_FALSE(whole.flags.has_value());
+}

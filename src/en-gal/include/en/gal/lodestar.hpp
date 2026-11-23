@@ -557,6 +557,56 @@ struct TreeFound {
   std::vector<TreeJoin> joins;     // one a flip, at most 24 a stretch and 48 in all
 };
 
+// The state search (the twelfth read-only round; WHY§460): a static found by what a field of its object holds in two
+// states of the game the tester moves it between. Our notes' lead for the game state's object: its save slot reads
+// -1 at the title and the slot's number once a save is loaded. Over the data's slots that point at live memory, the
+// first bytes of each object are read in four passes (the title, the world, the title again, the world again); a
+// 32-bit field that reads -1, a small number, -1 and the same small number is a hit.
+struct StateHit {
+  std::uint32_t rva = 0;     // the slot
+  std::uint32_t offset = 0;  // the field, from the object's start
+  std::uint32_t value = 0;   // what it held in the world, both times (0 to 15)
+  std::uint32_t sites = 0;   // instructions of the code that refer to the slot (the round's count)
+};
+struct StateFound {
+  std::uint32_t candidates = 0;
+  std::uint32_t passes = 0;         // passes finished, of four
+  std::uint32_t asked = 0;          // passes asked for
+  bool title_clean = true;          // no pass at the title was made while a save was loaded (the round's word)
+  std::vector<std::uint32_t> alive; // candidates still read as the same object after each pass
+  std::uint32_t fields_after_title = 0;  // 32-bit fields that read -1 at the first pass, over all candidates
+  std::uint32_t fields_after_world = 0;  // of those, the ones that read a small number at the second
+  std::uint32_t fields_after_again = 0;  // of those, the ones that read -1 again at the third
+  std::vector<StateHit> hits;       // of those, the ones that read the same small number at the fourth; at most 32
+  std::uint32_t slots_hit = 0;      // different slots among all hits
+};
+
+// EldenNet's own reader on the flags (the eleventh read-only round; WHY§457): discovery through the build's layout
+// as it stands, the backend built on it, and its flags group read alone on the round's reading thread; compared
+// with what the round's own tree reader and sweep found. A flag is written by its number.
+struct BackendFlag {
+  std::uint32_t flag = 0;   // the flag's number
+  bool expected = false;    // what the sweep saw the bit become (the known flag: set)
+  bool known = false;       // this is the flag that is set in every playthrough, not one from a mark
+  bool valid = false;       // the backend found the flag's group
+  bool set = false;         // what the backend read
+};
+struct BackendFound {
+  bool discovered = false;   // discovery read the build's files and made its pass
+  bool flags_group = false;  // it found everything the flags group asks for
+  bool ready = false;        // it found enough to start (not expected: only the flags are placed)
+  std::uint32_t items = 0;   // items resolved, of those the design asks for
+  std::uint32_t table_items = 0;
+  std::uint32_t table_refused = 0;
+  std::uint64_t calls = 0;   // times the flags group was read alone
+  std::uint64_t reads = 0;   // of those, the ones that gave a frame
+  bool known_read = false;   // the known flag was read at the last call
+  bool known_set = false;
+  bool tripped = false;      // the flags group's breaker tripped
+  std::uint64_t reader_faults = 0;
+  std::vector<BackendFlag> flags;  // the known flag first, then the marks' flags; at most 64
+};
+
 // A static found by what its object holds (proposal 0005 §6.1's `invariant`): the slot of the data behind which one
 // field rose by the clock in nearly every pass of the rising search, far ahead of every other. The code's references
 // to the slot are its sites and witnesses.
@@ -587,6 +637,8 @@ struct Found {
   std::optional<WatchFound> watch;
   std::optional<SweepFound> sweep;
   std::optional<TreeFound> tree;
+  std::optional<BackendFound> backend;
+  std::optional<StateFound> state;
   std::vector<InvariantFound> invariants;
 };
 

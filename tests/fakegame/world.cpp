@@ -90,6 +90,7 @@ struct WorldState {
   float player_angle = 0.0f;
   float clock_s = 0.0f;
   float world_s = 0.0f;  // seconds in the world
+  bool retitled = false; // the game went back to its title once (--retitle-at-s)
   bool online = false;
   WorldStats stats;
   FG::ClockTask clock_task;
@@ -379,9 +380,13 @@ void despawn() {
 
 void enter(Phase phase, std::uint64_t frame) {
   WorldState& w = state();
-  if (phase == Phase::Loading) despawn();
+  if (phase == Phase::Loading || (phase == Phase::Title && w.retitled)) despawn();  // back at the title: no world
   w.phase = phase;
   w.phase_frames = 0;
+  // --slot-by-state: the save's slot is known only in the world.
+  if (options().slot_by_state && fg_static_run_warden != nullptr) {
+    static_cast<FG::RunWardenImp*>(fg_static_run_warden)->f.save_slot = phase == Phase::World ? 2 : -1;
+  }
   set_flag(kFlagWorld, phase == Phase::World);
   switch (phase) {
     case Phase::Title: set_screen(1); break;
@@ -473,7 +478,7 @@ void world_create_singletons() {
   ledger->f.ng_level = 0;
   (void)fg_save_ledger_swap(ledger);
   auto* warden = make<FG::RunWardenImp>();
-  warden->f.save_slot = 2;
+  warden->f.save_slot = options().slot_by_state ? -1 : 2;
   warden->f.talk_cam_param_id = -1;
   fg_static_run_warden = warden;
   auto* plot = make<FG::FieldPlotImp>();
@@ -505,7 +510,11 @@ void world_frame_begin(std::uint64_t frame) {
   if (w.phase == Phase::Boot) enter(Phase::Title, frame);
   switch (w.phase) {
     case Phase::Title:
-      if (!o.stay_title && w.phase_frames >= o.title_frames) enter(Phase::Loading, frame);
+      // The first title lasts --title-frames; the second (--retitle-at-s) --retitle-for-s seconds.
+      if (!o.stay_title &&
+          w.phase_frames >= (w.retitled ? std::uint64_t{o.retitle_for_s} * std::max<std::uint32_t>(o.fps, 1) : o.title_frames)) {
+        enter(Phase::Loading, frame);
+      }
       break;
     case Phase::Loading:
       if (auto* veil = get<FG::VeilKeeperImp>(fg_get_veil)) ++veil->load_counter;
@@ -513,7 +522,10 @@ void world_frame_begin(std::uint64_t frame) {
       break;
     case Phase::World:
       ++w.world_frames;
-      if (o.reload_every != 0 && w.world_frames % o.reload_every == 0) {
+      if (o.retitle_at_s != 0 && !w.retitled && w.world_s >= static_cast<float>(o.retitle_at_s)) {
+        w.retitled = true;
+        enter(Phase::Title, frame);
+      } else if (o.reload_every != 0 && w.world_frames % o.reload_every == 0) {
         enter(Phase::Loading, frame);
       } else if (o.move_every != 0 && w.world_frames % o.move_every == 0) {
         world_move_all();

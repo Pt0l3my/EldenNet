@@ -812,7 +812,7 @@ bool complete(const Found& found) {
   return !a.pattern || a.only_shape == 0;
 }
 
-// ---- The report: schema 10, kind `lodestar`. No key takes a pattern, and there is no free string. ----
+// ---- The report: schema 12, kind `lodestar`. No key takes a pattern, and there is no free string. ----
 
 namespace {
 
@@ -893,10 +893,17 @@ constexpr auto kKeys = std::to_array<Key>({
     U("lowest"), U("highest"), U("multiples"), U("addresses"), B("ordered"), AO("joins"), U("target"), U("flip"),
     W("match", kTreeMatch), U("field"), AU("values"), B("reached"), U("depth"), U("key_field"),
     AU("divisor_at"), AU("block_at"),
+    // EldenNet's own reader on the flags (in game)
+    O("backend"), B("discovered"), B("flags_group"), B("ready"), U("items"), U("table_items"), U("table_refused"),
+    U("calls"), U("reads"), B("known_read"), B("known_set"), B("tripped"), U("reader_faults"), AO("flags"),
+    U("flag"), B("always_set"), B("expected"), B("valid"), B("agrees"),
+    // The state search (in game)
+    O("state"), B("title_clean"), AU("alive"), U("fields_after_title"), U("fields_after_world"),
+    U("fields_after_again"), AO("state_hits"), U("value"), U("slots_hit"),
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 10, kKeys};
+constexpr report::Vocabulary kVocabulary{"lodestar", 12, kKeys};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -1460,6 +1467,63 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.end_array();
       w.boolean("reached", j.reached);
       w.number("depth", j.depth);
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
+
+  if (found.backend) {
+    const BackendFound& b = *found.backend;
+    w.begin_object("backend");
+    w.boolean("discovered", b.discovered);
+    w.boolean("flags_group", b.flags_group);
+    w.boolean("ready", b.ready);
+    w.number("items", b.items);
+    w.number("table_items", b.table_items);
+    w.number("table_refused", b.table_refused);
+    w.number("calls", b.calls);
+    w.number("reads", b.reads);
+    w.boolean("known_read", b.known_read);
+    w.boolean("known_set", b.known_set);
+    w.boolean("tripped", b.tripped);
+    w.number("reader_faults", b.reader_faults);
+    w.begin_array("flags");
+    for (const BackendFlag& f : b.flags) {
+      w.begin_object();
+      w.number("flag", f.flag);
+      w.boolean("always_set", f.known);
+      w.boolean("expected", f.expected);
+      w.boolean("valid", f.valid);
+      w.boolean("set", f.set);
+      w.boolean("agrees", f.valid && f.set == f.expected);
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
+
+  if (found.state) {
+    const StateFound& f = *found.state;
+    w.begin_object("state");
+    w.number("candidates", f.candidates);
+    w.number("asked", f.asked);
+    w.number("passes", f.passes);
+    w.boolean("title_clean", f.title_clean);
+    w.begin_array("alive");
+    for (const std::uint32_t v : f.alive) w.number(v);
+    w.end_array();
+    w.number("fields_after_title", f.fields_after_title);
+    w.number("fields_after_world", f.fields_after_world);
+    w.number("fields_after_again", f.fields_after_again);
+    w.number("slots_hit", f.slots_hit);
+    w.begin_array("state_hits");
+    for (const StateHit& h : f.hits) {
+      w.begin_object();
+      w.number("rva", h.rva);
+      w.number("offset", h.offset);
+      w.number("value", h.value);
+      w.number("sites", h.sites);
       w.end_object();
     }
     w.end_array();

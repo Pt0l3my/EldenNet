@@ -326,13 +326,13 @@ TEST_CASE("the report is numbers, words and labels: it lints clean, and its voca
   }
   CHECK(linted.has_value());
   CHECK(text->find("\"report\": \"lodestar\"") != std::string::npos);
-  CHECK(text->find("\"schema\": 10") != std::string::npos);
+  CHECK(text->find("\"schema\": 12") != std::string::npos);
   CHECK(text->size() < report::kMaxReportBytes);
   // Schema 2's promise: no key can carry a pattern (bytes) or a fraction; what is left is whole numbers, booleans,
   // fixed words, labels, and objects and arrays of those.
   const report::Vocabulary& v = lodestar::vocabulary();
   CHECK(v.kind == "lodestar");
-  CHECK(v.schema == 10);
+  CHECK(v.schema == 12);
   for (const report::Key& k : v.keys) {
     CAPTURE(k.name);
     CHECK(k.type != report::Type::Pattern);
