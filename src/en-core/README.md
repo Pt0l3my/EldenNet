@@ -60,9 +60,12 @@ memory and the store come later.
   configure time (`builtin_rule_files()`: v0.1 has no content loader); `load_rules` replaces them, keeping the old set
   on any error. `Outputs::events` holds the step's events in dispatch order (no subsystem subscribes yet).
 - **Predicates** (`predicates.hpp`, DESIGN §10.4): the DSL as v0.1 evaluates it for Augur's `requires`: `true`,
-  `false`, `!`, `&&`, `||`, parentheses and comparisons of `runes` (held) and `journey` (ng_lvl); `world()` and
-  `knows()` refused in Augur, and `flag()`, `boss()`, `stage()` and `region()` until the catalogue and regions.toml
-  exist; at most 1 KB and 32 deep; an error is a fixed text with its column, never a quote.
+  `false`, `!`, `&&`, `||`, parentheses and comparisons of `runes_held` (the runes held) and `journey` (ng_lvl);
+  `world()` and `knows()` refused in Augur, and `flag()`, `boss()`, `stage()` and `region()`, which v0.1's predicates
+  do not read; at most 1 KB and 32 deep; an error is a fixed text with its column, never a quote. `runes >= n` has one
+  meaning everywhere, MEM §6.6's, the great runes through the catalogue's `runes.ge<n>` aliases (WHY§474): v0.1's
+  predicates refuse it as they refuse `flag()`, so a persona's `when` on it is Unknown in the directory, and the
+  knowledge's predicates (below) evaluate it.
 
 `Core::step(CoreInput, Mono)` takes one input (`unique_ptr<WorldSnapshot>`, `Lifecycle`, `BootBanner` or `Tick`, and
 since the first conversation a `proto::UiEvent`, a `proto::LlmEvent` or a `proto::NetHealth`, below) and answers
@@ -170,8 +173,14 @@ Content, identity, the conversation and the core's wiring; the eval is en-tools'
   and awareness) never reaches it. Files outside `identity/` and `personas/` are kept as they are, the overrides
   applied (`ContentPack::others`), for part A's prompts and lexicons (`speech_content.hpp`, below). The shipped index and records are built in (`builtin_content()`, as the rule files are); v0.2
   ships the pilot, Kalé (NPC §3.4; below), and the test persona `lantern_keeper` (NPC §3.5, `test_only`); a shipped
-  persona that is no test persona records its provenance, `drafted` and `review` (PL12). Not yet: `overrides/disable.toml` (P3 §8.4),
-  the seed's combat keys (NPC §9.11) and the alias table's use (§2.4).
+  persona that is no test persona records its provenance, `drafted` and `review` (PL12). The overrides folder's
+  `disable.toml` (ARCH §11.6, DESIGN §11.4; S11.3.g) turns personas of the index off by id: their rows read as not
+  enabled, so no record is read for them and the index, the directory and the knowledge are built without them
+  (`ContentPack::disabled_personas`); its schema is checked as any content's (an unknown key or a wrong type refuses the
+  pack), and an id that names nothing is a warning (`ContentPack::warnings`, then `Core::content_warnings()`), never an
+  error, by its list and place, never the id: every card's, since v0.2 ships no cards, and one for each of
+  `characters`, `kb`, `triggers` and `rules`, which v0.2 does not act on yet. Not yet: the seed's combat keys
+  (NPC §9.11) and the alias table's use (§2.4).
 - **Identity** (`identity.hpp`, `src/identity/`; O45, NPC §2.3). A character binds by its NpcParam row, else a non-zero
   entity id; never by name. `Realm::Game` (the DLL's) leaves `test_only` personas out whatever an override gives them,
   so they never resolve in game; `Realm::Eval` (the self-test, the eval, the tests) keeps them. The tests' overrides
@@ -200,7 +209,10 @@ Content, identity, the conversation and the core's wiring; the eval is en-tools'
     ignored; Tab ends a hold no sooner than 300 ms after its first frame, and a skip names its page, so a late one
     never ends the next; the history strip and the next prompt read only committed text;
   - the endings (§5.7), each committed as ConversationEnded with its counts; the input epoch moves on an opening and
-    an end; the memory job waits for v0.3;
+    an end; the memory job waits for v0.3. Esc acts on the box only while it is open (WHY§461; the owner, GraceUI's
+    G39 (c)): with nothing pending it ends the conversation, with a reply pending it closes the box and the reply
+    paces out, then the conversation ends; there is no second Esc, and an Esc that reaches the core with the box
+    closed changes nothing. The box opened again on the same target while the reply paces keeps the conversation;
   - danger closes the box at once (the overlay answers `Close{Shut, draft}`, the draft kept for the target) while the
     pages pace on; a threat (the Tarnished down or riding, a boss, combat, hostiles near, a drop in HP) for 10 s ends
     the conversation; a menu or a hidden overlay closes the box and holds the pages instead (impl).
@@ -212,7 +224,12 @@ Content, identity, the conversation and the core's wiring; the eval is en-tools'
   key rejected: open settings (F10)", "Provider rate limit, try again shortly", "No answer: the provider failed", "No
   answer: the conversation's prompt could not be made", "No answer: no model is ready", "Chat cannot take the keyboard
   just now.", "Conversation paused: part of the game EldenNet reads stopped working.", "Conversation closed after a
-  fault in EldenNet."
+  fault in EldenNet." A box GraceUI refused names the holder by the id GraceUI gives (WHY§442): "Chat cannot take the
+  keyboard: GraceUI's menu has the controls." (`graceui`), "Chat cannot take the keyboard: another mod (‹id›) has the
+  controls." (an id as GraceUI checks one: 3 to 32 of a-z, 0-9 and '-'), "Chat cannot take the keyboard: another mod
+  has the controls." (anything else); a not-now box its reason: "Chat cannot take the keyboard: danger is near.",
+  "Chat cannot take the keyboard while the game loads.", "Chat cannot take the keyboard while a game menu is open.",
+  and the generic words for not ready or any other.
 - **The core** (`core.hpp`). `Core()` uses the built-in speech parts (`BuiltinSpeech`: part A's, below),
   `Core(SpeechParts)` the caller's (the tests' stubs); `load_content(files, realm)` loads content (on any error the old
   stays); before any load no persona exists and no conversation opens. `directory()`, `log()` and `conversation()`
@@ -254,8 +271,11 @@ the conversation part B's (above); the core holds both.
 - **Pages.** Each step pumps the reply: page 1 is asked for once a sentence is in (the pager may wait 250 ms for a
   second that fits), and the next when a page's hold ends (`clamp(1200 + 55 × chars, 2000, 6500)`, 400 ms more after
   "..."; Tab's Skip no sooner than 300 ms after its first frame). `Page::last` is set only on a page sealed after the
-  reply ended or filled; a page sealed while it still streamed is followed by `Done`, which ends the reply after its
-  hold, and a queued line goes then. A page's first `PageShown` commits it (commit on display).
+  reply ended or filled. A page sealed while the reply still streamed is not, so once no sentence follows, the
+  conversation asks the pager for the page after the one up: nothing left, and the page up is marked last, so a queued
+  line goes as soon as it shows (at once if it has), not when its hold ends (NPC §6.3, WHY§432); a page left is sealed
+  then, which, with no sentence to come, is the page the hold's end would seal. A page's first `PageShown` commits it
+  (commit on display).
 - **The tally.** Whenever a reply ends (its last page, a cut-off, a failure, a hold dropped), the conversation keeps
   its lint's tally (the opener used, each tic's count, the tic spent most recently, the told name's uses) and hands it
   to the next reply's lint and prompt: block 11 notes that one tic, the newest, beside the reminder (70 tokens at most).
@@ -292,7 +312,8 @@ the conversation part B's (above); the core holds both.
 - **Behaviour** (`behaviour.hpp`, ARCH §11.5): `features` and `range` with their defaults and bounds, set by
   `Core::set_behaviour` (one out of bounds refused, the old kept). v0.2 reads `features.chat` (off: no hint, the key
   opens nothing, an open conversation ends `closed` at the next step) and `features.self_awareness` (off: no "you, now"
-  line); the rest wait for the lines they govern. The DLL's settings.toml reader does not hand them over yet.
+  line); the rest wait for the lines they govern. The DLL's settings.toml reader hands them over at the start and a
+  pages' change of a `features.*` or `range.*` key at the next step (src/eldennet/README.md).
 - **Content lints at load** (speech_content.hpp): block 2 and block 4 within their caps, and PL4's and PL5's wording
   (banned words in prompt-facing fields and stage texts, quoted sample lines, subjects and stirs as noun phrases;
   effect adjectives warned), errors for shipped and test content, warnings for the player's own.
@@ -332,4 +353,10 @@ it and at `erdtree_burned` with a line offered, strict mode and MEM §7.4, the p
 howl stage, Tanith's track, the watch list and a frame (a `ci:` record in the eval's realm alone), T5's byte stability
 over the eight states, the developer-label firewall (no alias and no four-word run of a note in the pilot's prompts),
 the "you, now" bands and the behaviour bounds, and through the core: the watch list sent once, a frame grounding the
-pilot's prompt, a bloodied pilot, self-awareness and chat switched off.
+pilot's prompt, a bloodied pilot, self-awareness and chat switched off. The first conversation's polish (WHY§432, §442,
+§461, §474; S11.3.g): no second Esc, and a box opened again while its reply paces; a queued line sent when the stream ends with a
+one-page reply's page up, before or after it showed, and after a later page sealed while streaming; the refusal's and
+not-now's words, an id GraceUI would not give never repeated; `runes_held` in v0.1's predicates and `runes >= n`
+refused there, a stage on it Unknown in the directory (`tests/identity/`); and disable.toml
+(`tests/content/test_disable.cpp`): a persona off in the pack, the index and the core, the warnings that never quote an
+id, and a file of the wrong shape refusing the pack with the old content kept.
