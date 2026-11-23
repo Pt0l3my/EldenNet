@@ -875,7 +875,12 @@ class Round {
       // The flips to join with its records: those seen around the marks in the first-step stretches still read.
       std::vector<lodestar::TreeRead::Flip> flips;
       if (found_.sweep) {
-        for (const lodestar::SweepTarget& t : found_.sweep->targets) {
+        std::vector<const lodestar::SweepTarget*> stretches;
+        for (const lodestar::SweepTarget& t : found_.sweep->targets) stretches.push_back(&t);
+        std::stable_sort(stretches.begin(), stretches.end(),
+                         [](const auto* a, const auto* b) { return a->offset < b->offset; });
+        for (const lodestar::SweepTarget* stretch : stretches) {
+          const lodestar::SweepTarget& t = *stretch;
           if (t.deeper || t.retired) continue;
           for (const lodestar::MarkFlip& m : t.mark_flips) {
             flips.push_back(lodestar::TreeRead::Flip{m.mark, t.offset, m.flip.offset, m.flip.bit, t.address});
@@ -883,6 +888,30 @@ class Round {
         }
       }
       found_.tree = tree_->found(flips);
+      // Where the store keeps the flags' divisor (1,000) and a block's size (125), if it keeps them: its first 256
+      // bytes read once here on T1, asked first; only the offsets of those two numbers are kept. EldenNet's own
+      // reader checks the divisor before it trusts the tree.
+      if (!store_looked_ && tree_->done()) {
+        store_looked_ = true;
+        std::array<std::byte, 8> slot{};
+        if (ask_first_.copy(s_.sys->module_base() + found_.tree->rva, slot).copied) {
+          std::uint64_t store = 0;
+          std::memcpy(&store, slot.data(), 8);
+          std::array<std::byte, 256> bytes{};
+          if (store != 0 && ask_first_.copy(store, bytes).copied) {
+            for (std::uint32_t at = 0; at + 4 <= bytes.size(); at += 4) {
+              std::uint32_t v = 0;
+              std::memcpy(&v, bytes.data() + at, 4);
+              if (v == 1000) divisor_at_.push_back(at);
+              if (v == lodestar::TreeRead::kBlock) block_at_.push_back(at);
+            }
+          }
+        }
+        log(Line("read").word("stage", "store").num("divisor_places", divisor_at_.size())
+                .num("block_places", block_at_.size()));
+      }
+      found_.tree->divisor_at = divisor_at_;
+      found_.tree->block_at = block_at_;
     }
     // A report the writer refuses (too large, most likely: a long round's watch) is written again smaller, a step
     // at a time: the watched object with the most words loses them (and says so), then the next, the flags' objects
@@ -1051,6 +1080,9 @@ class Round {
   bool play_time_way_ = false;
   lodestar::Sweep* sweep_ = nullptr;
   lodestar::TreeRead* tree_ = nullptr;
+  bool store_looked_ = false;
+  std::vector<std::uint32_t> divisor_at_;  // offsets in the flags' store that hold 1,000
+  std::vector<std::uint32_t> block_at_;    // and 125
   std::uint32_t marks_seen_ = 0;
   std::vector<std::uint64_t> marks_kept_;  // each mark's time, on this process's clock
   std::size_t marks_given_ = 0;            // of those, the ones the sweep has

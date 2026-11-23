@@ -652,7 +652,7 @@ void FakeWorld::build_heap(const WorldOptions& options) {
     mem.put<std::uint64_t>(n + 0x20, value);
   };
   node(head, n0, n1, n2, 0, 0, 0);
-  node(n1, n0, head, n2, 1234, 1, 250);       // the root: group 1234, its block at holder + 250
+  node(n1, n0, head, n2, 1234, 1, 2);         // the root: group 1234, its block the holder's third (holder + 250)
   node(n0, head, n1, head, 0, 1, 0);          // group 0, at holder + 0
   node(n2, head, n1, head, 5000, 2, free_block);  // group 5000, by address
   mem.put<std::uint64_t>(marks + 0x10, head);
