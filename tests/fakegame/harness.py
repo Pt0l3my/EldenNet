@@ -2385,7 +2385,7 @@ def check_read(result, by_flag=False, events=False, marks=False):
     with open(table) as f:
         draft = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 9, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
+    need(d["report"] == "lodestar" and d["schema"] == 10, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
          failures)
     # Numbers and the catalogue's labels: no name of the fake game's, in either file.
     for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["SaveLedger", "FG::", "Imp", "task_loom", "Fg_"]:
@@ -2487,10 +2487,10 @@ def check_read(result, by_flag=False, events=False, marks=False):
         if marks:
             # The tester's tasks, at the tests' pace: the two marked tasks confirmed themselves, the launcher
             # stamped a Mark for each, the round took both, and the flag's flip (flag 7123: the bit of value 16 in
-            # byte 15 of the holder's second block) is kept under the mark it was seen around (the first or the
+            # byte 15 of the holder's fourth block) is kept under the mark it was seen around (the first or the
             # second, as the timing falls).
             holder = [t for t in sweep["targets"] if not t["deeper"] and t["offset"] == 0x20]
-            marked = [e for e in holder[0]["mark_flips"] if e["offset"] == 125 + 15] if holder else []
+            marked = [e for e in holder[0]["mark_flips"] if e["offset"] == 375 + 15] if holder else []
             need(len(sweep["mark_seconds"]) == 2 and sweep["mark_seconds"][0] <= sweep["mark_seconds"][1] and
                  len(marked) == 1 and marked[0]["mark"] in (1, 2) and marked[0]["bit"] == 4 and marked[0]["set"] is True,
                  "the sweep's marks: %s %s" % (sweep["mark_seconds"], holder[0]["mark_flips"] if holder else None),
@@ -2501,15 +2501,18 @@ def check_read(result, by_flag=False, events=False, marks=False):
             failures += any_line(result, "LAUNCHER", "task", n=6, of=8, by="time", mark=1)
             failures += any_line(result, "ELDENNET", "read", stage="mark", n=2)
             # The tree beside the flags: its head is the object the store's map points at (0x10 bytes in); the walk
-            # read the head and the three groups' records; and the flag's flip is joined to the record that names
-            # its block by the block's start in the holder (125): group 7, mode 1 (the fake game's record keeps the
-            # group 0x18 bytes in, the mode 0x1C and the block 0x20).
+            # read the head and the three groups' records; the key is the field the tree is ordered by (0x18 bytes
+            # into the fake game's record); and the flag's flip is joined to the record that names its block by the
+            # block's index in the holder (3): group 7, mode 1; the reader's way down from the root by the key
+            # arrives at the same record. The store keeps its divisor 8 bytes in.
             tree = d.get("tree") or {"joins": [], "records": 0, "done": False}
-            joined = [j for j in tree["joins"] if j["flip"] == 125 + 15 and j["match"] == "start"]
+            joined = [j for j in tree["joins"] if j["flip"] == 375 + 15]
             need(tree["done"] and tree.get("offset") == 0x10 and tree["records"] == 4 and tree["unreadable"] == 0 and
-                 len(tree["fields"]) == 16 and len(joined) == 1 and joined[0]["field"] == 0x20 and
-                 joined[0]["target"] == 0x20 and joined[0]["bit"] == 4 and joined[0]["values"][6] == 7 and
-                 joined[0]["values"][7] == 1 and joined[0]["values"][8] == 125 and joined[0]["values"][0] == 0,
+                 len(tree["fields"]) == 16 and tree["order"] == 1 and tree["key_field"] == 0x18 and
+                 tree["divisor_at"] == [8] and len(joined) == 1 and joined[0]["match"] == "index" and
+                 joined[0]["field"] == 0x20 and joined[0]["target"] == 0x20 and joined[0]["bit"] == 4 and
+                 joined[0]["values"][6] == 7 and joined[0]["values"][7] == 1 and joined[0]["values"][8] == 3 and
+                 joined[0]["values"][0] == 0 and joined[0]["reached"] is True and 1 <= joined[0]["depth"] <= 3,
                  "the tree: %s" % {k: v for k, v in tree.items() if k != "fields"}, failures)
             failures += want(result, "ELDENNET", "read", stage="tree_done", records=4, unreadable=0, capped=0)
         if events:
@@ -2529,10 +2532,10 @@ def check_read(result, by_flag=False, events=False, marks=False):
                  4_900 <= jumps[0]["to"] - jumps[0]["from"] <= 5_300 and
                  2_900 <= jumps[1]["to"] - jumps[1]["from"] <= 3_300 and jumps[0]["second"] < jumps[1]["second"],
                  "the clock's jumps: %s %s" % (hits, clock[0]["jump_events"] if clock else None), failures)
-            # A flag was set (--flag-set): flag 7123, the bit of value 16 in byte 15 of the holder's second block of
+            # A flag was set (--flag-set): flag 7123, the bit of value 16 in byte 15 of the holder's fourth block of
             # 125 bytes. The sweep of the stretch the store's holder (0x20 bytes in) starts saw that bit go up.
             holder = [t for t in sweep["targets"] if not t["deeper"] and t["offset"] == 0x20]
-            flips = [e for e in holder[0]["flip_events"] if e["offset"] == 125 + 15] if holder else []
+            flips = [e for e in holder[0]["flip_events"] if e["offset"] == 375 + 15] if holder else []
             need(sweep["passes"] >= 2 and len(holder) == 1 and holder[0]["readings"] >= 2 and
                  holder[0]["bytes"] >= 250 and len(flips) == 1 and flips[0]["bit"] == 4 and flips[0]["set"] is True and
                  not holder[0]["retired"],

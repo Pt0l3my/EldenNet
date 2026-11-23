@@ -1749,8 +1749,8 @@ TEST_CASE("in game: the tree beside the flags is walked once, its key told by it
   Round r = round_of(w);
   const auto rva = [&](std::uint64_t va) { return static_cast<std::uint32_t>(va - w.base); };
   // The store behind the HUD's static keeps, 0x38 bytes in, the address of the tree's head. A record is 64 bytes:
-  // left, parent, right, two small bytes, then the key (the group) and a mode in one word, then the block: its start
-  // in the stretch (mode 1) or its address (mode 2). Fifteen groups, a balanced tree; the head's links are the
+  // left, parent, right, two small bytes, then the key (the group) and a mode in one word, then the block: its index
+  // in the stretch (mode 1, as the game's records keep it) or its address (mode 2). Fifteen groups, a balanced tree; the head's links are the
   // leftmost record, the root and the rightmost, and the leaves point back at the head.
   const std::uint64_t store = w.mem.alloc(0x80);
   const std::uint64_t blocks = w.mem.alloc(125 * 16);
@@ -1772,7 +1772,8 @@ TEST_CASE("in game: the tree beside the flags is walked once, its key told by it
     w.mem.put<std::uint32_t>(at + 32, groups[mid]);
     const bool by_address = mid == 13;  // one group's block lies by itself
     w.mem.put<std::uint32_t>(at + 36, by_address ? 2u : 1u);
-    w.mem.put<std::uint64_t>(at + 40, by_address ? own : std::uint64_t{125} * static_cast<std::uint32_t>(mid));
+    // The indices are in no order of the keys' (as in the game): the record of the sixth group keeps index 5.
+    w.mem.put<std::uint64_t>(at + 40, by_address ? own : static_cast<std::uint64_t>((mid * 7) % 15));
     return at;
   };
   const std::uint64_t root = build(build, 0, 14, head);
@@ -1801,7 +1802,7 @@ TEST_CASE("in game: the tree beside the flags is walked once, its key told by it
     return w.mem.read(at, b);
   });
   CHECK(tree.settled());
-  // Two flips to join: one 3 bytes into the sixth block of the stretch (a record's start, 625), one in the block that
+  // Two flips to join: one 3 bytes into the sixth block of the stretch (a record's index, 5), one in the block that
   // lies by itself (a record's address); and one in a block no record names.
   const lodestar::TreeRead::Flip flips[3] = {{1, 0x28, 125 * 5 + 3, 4, blocks},
                                              {2, 0x30, 17, 0, own},
@@ -1824,25 +1825,31 @@ TEST_CASE("in game: the tree beside the flags is walked once, its key told by it
   CHECK(found.fields[8].highest == 9100);
   CHECK(found.fields[8].rising);
   CHECK(std::count_if(found.fields.begin(), found.fields.end(), [](const auto& f) { return f.rising; }) == 1);
-  // The mode: two numbers. The block: starts that are multiples of 125 in thirteen records (the first record's is
-  // nothing), and one address.
+  CHECK(found.key_field == 32);
+  // The mode: two numbers. The block: an index in thirteen records (the first record's is nothing), none of them a
+  // multiple of a block's size, and one address.
   CHECK(found.fields[9].distinct == 2);
   CHECK(found.fields[10].nonzero == 13);
-  CHECK(found.fields[10].multiples == 13);
+  CHECK(found.fields[10].distinct == 13);
+  CHECK(found.fields[10].multiples == 0);
   CHECK(found.fields[10].addresses == 1);
   CHECK(found.fields[0].addresses == 16);
-  // The joins: the first flip's block by its start, the second's by its address, the third's by nothing.
+  // The joins: the first flip's block by its index, the second's by its address, the third's by nothing. For each,
+  // the reader's way (from the root down by the key) arrives at the same record.
   REQUIRE(found.joins.size() == 2);
   CHECK(found.joins[0].mark == 1);
   CHECK(found.joins[0].target == 0x28);
   CHECK(found.joins[0].flip == 125 * 5 + 3);
   CHECK(found.joins[0].bit == 4);
-  CHECK(found.joins[0].match == lodestar::TreeMatch::Start);
+  CHECK(found.joins[0].match == lodestar::TreeMatch::Index);
   CHECK(found.joins[0].field == 40);
   REQUIRE(found.joins[0].values.size() == 16);
   CHECK(found.joins[0].values[8] == 61);   // the group
   CHECK(found.joins[0].values[9] == 1);    // its mode
-  CHECK(found.joins[0].values[10] == 625);
+  CHECK(found.joins[0].values[10] == 5);   // its block's index
+  CHECK(found.joins[0].reached);
+  CHECK(found.joins[0].depth >= 1);
+  CHECK(found.joins[0].depth <= 4);
   CHECK(found.joins[0].values[0] == 0);    // an address is never written
   CHECK(found.joins[0].values[2] == 0);
   CHECK(found.joins[1].mark == 2);
@@ -1851,6 +1858,7 @@ TEST_CASE("in game: the tree beside the flags is walked once, its key told by it
   CHECK(found.joins[1].values[8] == 9000);
   CHECK(found.joins[1].values[9] == 2);
   CHECK(found.joins[1].values[10] == 0);   // the block's address is not written either
+  CHECK(found.joins[1].reached);
   // The report carries the tree as numbers, and lints clean.
   lodestar::Found f = r.found;
   f.tree = found;

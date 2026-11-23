@@ -89,7 +89,11 @@ std::optional<std::uint64_t> ErBackend::flag_block(const GameThread& gt, const O
     if (*key == group) {
       const auto mode = n->integer(b_.field(Fld::NodeMode));
       const auto value = n->u64(b_.field(Fld::NodeValue));
-      if (mode == std::optional<std::int64_t>(1) && value && *value <= kAddressEnd - *holder) return *holder + *value;
+      // Mode 1: the value is the block's index in the holder, not a byte offset (the ninth read-only round: of the
+      // game's 11,928 records only 94 hold a multiple of a block's size, and the flags decode only by index).
+      if (mode == std::optional<std::int64_t>(1) && value && *value <= (kAddressEnd - *holder) / kFlagBlockBytes) {
+        return *holder + *value * kFlagBlockBytes;
+      }
       if (mode == std::optional<std::int64_t>(2) && value) return *value;
       fault(Group::Flags);  // a descriptor of no mode the design names
       return std::nullopt;

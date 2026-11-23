@@ -812,7 +812,7 @@ bool complete(const Found& found) {
   return !a.pattern || a.only_shape == 0;
 }
 
-// ---- The report: schema 9, kind `lodestar`. No key takes a pattern, and there is no free string. ----
+// ---- The report: schema 10, kind `lodestar`. No key takes a pattern, and there is no free string. ----
 
 namespace {
 
@@ -891,11 +891,12 @@ constexpr auto kKeys = std::to_array<Key>({
     // The tree beside the flags (in game)
     O("tree"), U("records"), U("off_shape"), B("capped"), U("order"), AO("fields"), U("nonzero"), U("distinct"),
     U("lowest"), U("highest"), U("multiples"), U("addresses"), B("ordered"), AO("joins"), U("target"), U("flip"),
-    W("match", kTreeMatch), U("field"), AU("values"),
+    W("match", kTreeMatch), U("field"), AU("values"), B("reached"), U("depth"), U("key_field"),
+    AU("divisor_at"), AU("block_at"),
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 9, kKeys};
+constexpr report::Vocabulary kVocabulary{"lodestar", 10, kKeys};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -1423,6 +1424,13 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     w.number("off_shape", t.off_shape);
     w.number("unreadable", t.unreadable);
     w.number("order", t.order);
+    w.number("key_field", t.key_field);
+    w.begin_array("divisor_at");
+    for (const std::uint32_t v : t.divisor_at) w.number(v);
+    w.end_array();
+    w.begin_array("block_at");
+    for (const std::uint32_t v : t.block_at) w.number(v);
+    w.end_array();
     w.begin_array("fields");
     for (const TreeField& f : t.fields) {
       w.begin_object();
@@ -1450,6 +1458,8 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.begin_array("values");
       for (const std::uint32_t v : j.values) w.number(v);
       w.end_array();
+      w.boolean("reached", j.reached);
+      w.number("depth", j.depth);
       w.end_object();
     }
     w.end_array();

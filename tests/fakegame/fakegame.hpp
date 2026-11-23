@@ -714,8 +714,8 @@ class EyeRigImp {  // CSCamera's role
 
 // The flag store (ARCH §6.9's shape, our own layout): a binary tree of groups (an id's group is id / 1000) under a
 // sentinel head whose parent is the root and to which the leaves point, each node naming its group's block of 125
-// bytes (1,000 flags, the first flag of a byte in its top bit) by an offset from the holder (mode 1) or by address
-// (mode 2).
+// bytes (1,000 flags, the first flag of a byte in its top bit) by its index in the holder (mode 1: the block lies
+// index times 125 bytes in, as the game's does) or by address (mode 2).
 struct FlagNode {
   FlagNode* left;       // 0x00
   FlagNode* parent;     // 0x08
