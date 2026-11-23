@@ -561,6 +561,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 536 | 2026-11-23 | A read round ran with GraceUI loaded: EldenNet took the Marks, and the owner's Pause presses became the round's marks | FACT | #lodestar #graceui |
 | 537 | 2026-11-23 | A read round is free of GraceUI by construction, and the panel's confirmations reach the round whoever holds the Pause key | METHOD | #lodestar #engine |
 | 538 | 2026-11-23 | Objects of the player's class are several in a world: the main player is the object at characters.main_player | FACT | #lodestar #gal |
+| 539 | 2026-11-23 | The quit's crash codes look like a damaged heap found at the quit, not damage done there | LIKELY | #graceui #crash |
 
 ## Entries
 
@@ -8224,3 +8225,15 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   words), most in a run of 16-byte elements 69,824 bytes in that held 538 characters' addresses. So "the object of the
   player's class" names no one object; the parts watch is to take the main player from the layout's
   characters.main_player. 0x1E508 held a player-class object with a third character too.
+
+### 539. The quit's crash codes look like a damaged heap found at the quit, not damage done there
+
+`2026-11-23` · LIKELY · `#graceui` `#crash` · refs: WHY§536, WHY§529, GraceUI:D231, GraceUI:D118
+
+- graceui.dll runs nothing at process exit (DllMain empty; no static or thread-local destructor, checked on its
+  compiled objects; its state never freed; its three threads hold only its own locks), and EldenNet's destructors free
+  nothing of GraceUI's. An access violation inside ntdll and 0xC0000374 are the heap manager meeting damage done
+  earlier, at the first moment many blocks are freed at once. If GraceUI is the cause, the write happened during the
+  run, perhaps with a third program's hook beside it. What would place it: spikes.5's recorder at 0xC0000374, the
+  faulting frames by module and offset, a page-heap run, and a heap guard on GraceUI's own allocations in its test
+  build (asked of Grace for spikes.6 the same day).
