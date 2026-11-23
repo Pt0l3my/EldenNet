@@ -488,6 +488,28 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 463 | 2026-11-23 | game_state is sought by what it holds at the title and in the world, over four looks | METHOD | #lodestar #l6 #gal |
 | 464 | 2026-11-23 | A search that must end inside a session gets the searches' whole share until it is through | METHOD | #lodestar |
 | 465 | 2026-11-23 | The menu's frame-cost check in GraceUI's harness is noisy on a four-core container | FACT | #graceui #harness |
+| 466 | 2026-11-23 | The layout has a field type for a run of bits in a word; the clock's two fields and the play time enter it as leads | DECIDED | #lodestar #gal |
+| 467 | 2026-11-23 | Where a stalled GraceUI init stops: a step set before each part, readable from outside | METHOD | #graceui #spike |
+| 468 | 2026-11-23 | EldenNet's own flags reader agrees with the game on flags the owner changed | FACT | #lodestar #gal #flags |
+| 469 | 2026-11-23 | game_state: one candidate after the twelfth round, by the owner's word for the slot | LIKELY | #lodestar #l6 #gal |
+| 470 | 2026-11-23 | A search by what an object holds in each state takes its candidates in each state and lists its near misses | METHOD | #lodestar |
+| 471 | 2026-11-23 | The pilot Kalé and known(P) built offline; the core watches the catalogue's verified aliases only | DECIDED | #engine #knowledge #conversation |
+| 472 | 2026-11-23 | The pilot's draft voice was past block 4's cap; the load now holds block 4 to it | FACT | #engine #content |
+| 473 | 2026-11-23 | Block 5b's lines are joined by a space | DECIDED | #engine #prompt |
+| 474 | 2026-11-23 | runes >= n means two things for now: great runes in the knowledge, runes held in v0.1's predicates | LIKELY | #engine #predicates |
+| 475 | 2026-11-23 | Kalé's index row keeps the design's NpcParam lead and leaves its entity lead out | DECIDED | #engine #identity |
+| 476 | 2026-11-23 | The "you, now" line and the behaviour switches, as far as v0.2 goes | DECIDED | #engine #conversation |
+| 477 | 2026-11-23 | The pilot's smaller choices: the catalogue's sources, clears left out, fixtures by pack | DECIDED | #engine #content |
+| 478 | 2026-11-23 | windows.h defines near and far as nothing: en-core's public names avoid both | FACT | #engine #build |
+| 479 | 2026-11-23 | An S0 run's facts reach the launcher and spike-report through a report in the run's folder, not the watch block | DECIDED | #engine #spikes #launcher |
+| 480 | 2026-11-23 | A discovery refused only for a required static with no way to be found is a layout not complete yet | DECIDED | #engine #boot #gal |
+| 481 | 2026-11-23 | S0-A's "untouched image": the table's checks made again once the start has stopped | METHOD | #engine #spikes #lodestar |
+| 482 | 2026-11-23 | Under Wine ReadProcessMemory on our own process copies a reserved no-access page | FACT | #gal #wine #spikes |
+| 483 | 2026-11-23 | A group never on shows Tripped in every snapshot; S0-B's no_trip counts the session's own trips | FACT | #gal #spikes #tools |
+| 484 | 2026-11-23 | A start stopped at Discover has no crash filter of ours; S0-D's crashes there rest on the watcher alone | FACT | #engine #spikes |
+| 485 | 2026-11-23 | The panel's confirmations go on after the Mark's hand-over | METHOD | #launcher #spikes #graceui |
+| 486 | 2026-11-23 | The probe DLL's p99 on the fake game under Wine sits near S0-B's 0.5 ms | FACT | #gal #spikes #wine |
+| 487 | 2026-11-23 | The S0 package's README is README-SPIKES; the s0e-s4 kind's template moves aside | DECIDED | #spikes #tools |
 
 ## Entries
 
@@ -7199,6 +7221,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - *Later (2026-11-23, WHY§462):* the round ran. EldenNet's own reader read the flags through the build's layout
   on the game, 44 frames with no fault, and the flag set in every playthrough as set; the marked flags' comparison
   moves to the twelfth round.
+- *Later (2026-11-23, WHY§468):* the comparison is done: the backend read the four flags the owner changed
+  and the always-set one as set, five of five.
 
 ### 458. One group of the reader can be read alone before the others' fields are placed: a partial discovery and a tick for that group
 
@@ -7294,6 +7318,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - The flags the owner's marks changed were not compared with the backend: the tree's walk was 47 records short of
   11,930 when the owner quit (WHY§464). The clock and the play time held by their invariants; the round's reader ran at
   9.92 readings a second, 4,490 readings, no fault.
+- *Later (2026-11-23, WHY§468):* the twelfth round compared them: five of five agree.
 
 ### 463. game_state is sought by what it holds at the title and in the world, over four looks
 
@@ -7326,3 +7351,238 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   0.2.23's alike, by turns, run alone and back to back; on the earlier, larger machine it passed whole.
 - So on a four-core container a full run counts that check as the machine's, not a regression, when the medians hold
   (Grace's full run of 0.2.23: 232 checks, all but that one on both builds).
+
+### 466. The layout has a field type for a run of bits in a word; the clock's two fields and the play time enter it as leads
+
+`2026-11-23` · DECIDED · `#lodestar` `#gal` · refs: ARCH§6.3, WHY§459, WHY§460, S10.1.m
+
+- 2.7.2.0 keeps the hour and the minute as two runs of one 64-bit word, so en-gal's layout gains the field type `bits`
+  { word, shift, width }: a run in a little-endian word of 1, 2, 4 or 8 bytes, width 1 to 32, read as a whole number;
+  a range lies within what the run holds; refused in a param row. A group takes it wherever it takes a whole number.
+- `world_clock` (hour and minute, the word at 0x8, shifts 34 and 39, widths 5 and 6) and `save_data` (the play time, a
+  u32 at 0xA0) enter the build's layout as leads (engine a5efb98, by Lodestar; ARCH §6.3's dated note).
+
+### 467. Where a stalled GraceUI init stops: a step set before each part, readable from outside
+
+`2026-11-23` · METHOD · `#graceui` `#spike` · refs: GraceUI:D220, GraceUI:D175, WHY§255, S11.2.ak
+
+- GraceUI's log is drained by its init thread, so a stall before the install left only host=started (package case A2's
+  one stall under load: killed at 240 s, install_runs 0).
+- The init now sets a step before each part (fonts, the game's window, Direct3D, the hook targets, the input targets,
+  the install, hooked), read through GraceUI_Test_InitStep, written by the spike observer as init_step and named by
+  report.py when the host never hooked. A later stall says where it stopped.
+
+### 468. EldenNet's own flags reader agrees with the game on flags the owner changed
+
+`2026-11-23` · FACT · `#lodestar` `#gal` `#flags` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§457, WHY§462, S10.1.k
+
+- The twelfth read-only round (package 0.1.0-lodestar.16; 8.6 minutes): four bits were set in the holder's stretch at
+  the owner's fourth mark, and the tree's walk, through by then, gave them their numbers. `ErBackend::flags_alone`, on
+  the build's layout, read each of the four as set, and the always-set flag (100) too: five of five agree. 46 calls,
+  45 frames, no reader fault, no trip. WHY§457's comparison is done.
+- Discovery through the layout took 29 ms: 12 items from the table, none refused, with the bits fields and the play
+  time's field parsed in the game for the first time. The round's reader ran at 9.94 readings a second, 5,010
+  readings, no fault.
+- To mend (Lodestar's): the report's `backend.known_set` read false although the flag's own entry read set, because the
+  last call after the quit overwrote it.
+
+### 469. game_state: one candidate after the twelfth round, by the owner's word for the slot
+
+`2026-11-23` · LIKELY · `#lodestar` `#l6` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§463, S10.1.m
+
+- The state search ran as built: 1,397 candidates, the four looks in 5.9 s, 4.5 s, 0.24 s and 0.18 s, none overrun,
+  the title clean. Of 52,501 fields that read -1 at the title, 251 read a small number in the world, 37 read -1 again
+  and 22 the same number again, in 15 slots; so the round named none.
+- Asked which place in the list of saves the rounds' character holds, the owner answered that it is third (the title's
+  Continue loads it). The third place is slot 2 counting from 0. Of the 22 hits, twelve read 0, nine read 1 and one
+  read 2: the static 64543992 (0x3D8DCF8), the 32-bit field 1,136 bytes (0x470) into its object, a static the
+  accessor's shape reaches (5 sites, 30 references), its object of a class no lead names.
+- LIKELY, on one session and the owner's word; not in the table. The thirteenth round confirms it by loading another
+  character, then the usual one.
+
+### 470. A search by what an object holds in each state takes its candidates in each state and lists its near misses
+
+`2026-11-23` · METHOD · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§463, WHY§469
+
+- The twelfth round's state search took its candidates at the title only: 1,397 slots of the data point at memory in
+  use there, some 4,000 in the world. An object that moved between looks was dropped (716 alive after the first look,
+  82 in the world), and the 214 fields that failed only the third look were not listed.
+- So such a search takes its candidates in each state, keeps both numbers a field reads in the world, and lists the
+  near misses; otherwise a lead that is half wrong leaves no trace.
+
+### 471. The pilot Kalé and known(P) built offline; the core watches the catalogue's verified aliases only
+
+`2026-11-23` · DECIDED · `#engine` `#knowledge` `#conversation` · refs: S11.3.c, S11.3.d, MEM§6, MEM§12, NPC§3.4, WHY§364, WHY§424
+
+- en-core gains `knowledge.hpp`: the flag catalogue, `regions.toml`, the world stages and tracks, predicates in three
+  values, `derive`, `known(P)` and `ground()` (block 5b's lines). The truth tables (T2) now run and pass for Kalé and the
+  test persona at the eight fixture states (engine 567dcc6 to 9dc4691, merged as 5d6577e).
+- The core's watch list holds the catalogue's verified aliases only. None is verified in game before S6, so the core
+  asks for no flag and every alias stays Unknown: in game the pilot speaks from his road alone. Watching the unverified
+  leads too (MEM §6.2) would start the flag reader for nothing it may use; S6's wide watch can widen the list later.
+- A catalogue entry whose evidence is a `ci:` record verifies in the eval's realm only. The tests' overrides
+  (`tests/scenarios/talk/pilot-overrides/`) give a catalogue of invented ids verified so, which carries a fixture state
+  through the core as a flag frame. A fixture's `[tracks]` sets every alias of the named step's `when`.
+
+### 472. The pilot's draft voice was past block 4's cap; the load now holds block 4 to it
+
+`2026-11-23` · FACT · `#engine` `#content` · refs: NPC§3.4, NPC§7.3, NPC§4.8, WHY§388
+
+- NPC §3.4's voice rendered to about 273 tokens in block 4 (cap 230); shortened, it is 224. PL9 (v0.3) wants room for a
+  player's longest note, about 70 tokens more: the voice would need about 160 then, or the rule another look (put to
+  the owner with the review list).
+- The load checks block 4 against its cap as it checks block 2 (an error for shipped and test content, a warning for
+  the player's own), and runs the part of PL4, PL5 and PL12 the first conversation can check.
+- Openers are written as bare words and a tic without its full stop: the template joins openers with a comma and ends
+  each clause, so "Ah." and "Well," had rendered as "Ah., Well,." The test persona's still doubles a full stop: a wart
+  in test content.
+
+### 473. Block 5b's lines are joined by a space
+
+`2026-11-23` · DECIDED · `#engine` `#prompt` · refs: MEM§12.6, NPC§3.6
+
+- The template joined a group's lines with "; ", made for part A's phrase-like fixture lines. The world's and the ties'
+  lines are whole sentences, and NPC §3.6 renders them one after another, so the join is a space; NPC §3.6's
+  `after_radahn` block now renders word for word. No existing golden changed.
+- `ground()` stops at the first line that would take block 5b past 200 tokens (MEM §12.6); that line and the rest are
+  kept by id for block 7's topic offers, which wait for the KB (v0.3).
+
+### 474. runes >= n means two things for now: great runes in the knowledge, runes held in v0.1's predicates
+
+`2026-11-23` · LIKELY · `#engine` `#predicates` · refs: MEM§6.6, DESIGN§10.4
+
+- The knowledge's predicates read `runes >= n` as MEM §6.6 does, the great runes. v0.1's predicates (Augur's, and the
+  tests' rig's) read it as the runes held. The conversation takes its stage from the knowledge; Augur still uses v0.1's.
+- One meaning must win before a rule or a stage relies on it. Engine's lean: MEM §6.6's (great runes), with the runes
+  held under a name of its own; settled with the conversation's polish.
+
+### 475. Kalé's index row keeps the design's NpcParam lead and leaves its entity lead out
+
+`2026-11-23` · DECIDED · `#engine` `#identity` · refs: NPC§2.1, NPC§0, O43
+
+- The row keeps NPC §2.1's NpcParam lead and flag block, unverified: a dev build binds him by the row, release mode
+  refuses it until S1.
+- The entity lead is left out: its own note says the prefix does not fit the church, and a wrong entity would voice
+  another character as Kalé. S1's capture gives his entity id.
+
+### 476. The "you, now" line and the behaviour switches, as far as v0.2 goes
+
+`2026-11-23` · DECIDED · `#engine` `#conversation` · refs: NPC§7.3, DESIGN§5.5, ARCH§11.5, O35
+
+- Wounds by DESIGN §5.5's bands, the boundaries inclusive below (75 per cent is still "unhurt"); "in the thick of a
+  fight" when the Tarnished struck the persona in the last 8 s, since v0.2 tracks no other engagement; statuses wait
+  for S8. A calm, unhurt persona gets no line.
+- `behaviour.hpp` carries `features` and `range` with ARCH §11.5's defaults and bounds; `Core::set_behaviour` refuses a
+  value out of bounds and keeps the old. v0.2 reads `features.chat` (off: no hint, the key opens nothing, an open
+  conversation ends `closed` at the next step) and `features.self_awareness`; the conversation's reach stays NPC §5.2's.
+  The DLL's settings reader does not hand them to the core yet (the polish).
+
+### 477. The pilot's smaller choices: the catalogue's sources, clears left out, fixtures by pack
+
+`2026-11-23` · DECIDED · `#engine` `#content` · refs: MEM§6.1, MEM§12.2, MEM§12.10
+
+- The catalogue's `src` points to our research documents (ER05 §7 and the like), never a label of the game's.
+- The world stages leave out `clears` (W10's, lint only) until the personas whose flags it names exist (v0.5).
+- A prompt fixture may name a persona of the pack and a fixture state, so the pilot's goldens follow his shipped file;
+  the eval's scenarios take a fixture state and `flags` steps and check what the prompt holds. The pilot's scenario
+  speaks at two states, and his knowledge differs as it should.
+
+### 478. windows.h defines near and far as nothing: en-core's public names avoid both
+
+`2026-11-23` · FACT · `#engine` `#build` · refs: WHY§446
+
+- A field named `near` in an en-core header broke clang-cl's DLL build: the DLL includes windows.h first, which defines
+  `near` and `far` as nothing. It is `near_certainty` now (engine 9dc4691).
+
+### 479. An S0 run's facts reach the launcher and spike-report through a report in the run's folder, not the watch block
+
+`2026-11-23` · DECIDED · `#engine` `#spikes` `#launcher` · refs: DESIGN§16.1, ARCH§4.14, S10.1.b, engine wip/s12-s0 57fbe42 to 7f66a3b
+
+- S0-A's table checks, S0-B's steady counts and what a stopped start waits for are not in the watch block, whose
+  layout the brief keeps (an append-only field only after asking). So every S0 run gets a folder of its own, as the
+  observer's runs do (`spikes\<word>-<n>`, named in ELDENNET_SPIKE_DIR), and eldennet.dll writes
+  `eldennet-spike.json` there (kind `spike_run`, en_shell's spikerun.hpp): T1 before it publishes its terminal state,
+  T6 every 10 s after. The DLL accepts the variable only as its own `<data>\spikes\<word>-<n>`.
+- The launcher reads a few words and numbers of it (never logging anything but plain words); spike-report reads the
+  spikes folder whole and joins each recording to its run by the game's process id in the recording's name.
+- Rejected: an appended block field (asked for first by the brief), parsing eldennet.log (another process's file),
+  a recording line of a new kind (DataPiler's schema, and S0-A records nothing).
+
+### 480. A discovery refused only for a required static with no way to be found is a layout not complete yet
+
+`2026-11-23` · DECIDED · `#engine` `#boot` `#gal` · refs: WHY§459, WHY§460, S10.1.b, S10.1.m, engine wip/s12-s0 57fbe42 to 7f66a3b
+
+- On the real game today the start never reaches discovery's retries: with no patterns.toml and game_state neither in
+  the table nor found by a recipe, `parse_patterns` refuses ("lacks the required pattern game_state") and the refusal
+  is permanent. boot.cpp now tells this refusal (every problem a missing required pattern) from one of gal's files:
+  the banner's detail is `layout`, and an S0 run's report says `waits = layout`. The start stops at once, so an S0-A
+  run on the real game takes seconds of EldenNet's own, not 30.
+- In an S0 run alone, T1 then makes one `partial` discovery pass (en-gal's option for a pass that refuses nothing for
+  such a static) to check the build's table as a start would, so that S0-A checks the table's ids on today's real
+  game; the start stops at the banner regardless. A normal start is unchanged.
+
+### 481. S0-A's "untouched image": the table's checks made again once the start has stopped
+
+`2026-11-23` · METHOD · `#engine` `#spikes` `#lodestar` · refs: proposal 0005 §7.1, §12, DESIGN§16.1, engine wip/s12-s0 57fbe42 to 7f66a3b
+
+- At its terminal state T1 builds en-gal's `Library` again over the image as loaded and compares it with what
+  discovery took from the table: each id's place, each class's tables of methods, the witnesses that still refer to
+  their ids. `table_unchanged` passes when nothing was refused or moved. It shows that nothing of ours (and nothing of
+  anyone's) changed the game's code where the table points between discovery and the end of the start; that
+  EldenNet patches and hooks nothing rests on its imports (dll_checks) and on `getter_calls` staying 0 (`no_call`).
+
+### 482. Under Wine ReadProcessMemory on our own process copies a reserved no-access page
+
+`2026-11-23` · FACT · `#gal` `#wine` `#spikes` · refs: S10.1.b, engine wip/s12-s0 57fbe42 to 7f66a3b
+
+- S0-D's trial copied a page reserved with PAGE_NOACCESS twenty times by each primitive: the SEH copy faulted and was
+  caught each time, ReadProcessMemory succeeded each time under Wine 9.0 (zeros), where Windows refuses it. The trial's
+  RPM copies read the null page instead, as the probe build's injection already did for that copy. LIKELY the same
+  on Windows either way; the owner's run shows it.
+
+### 483. A group never on shows Tripped in every snapshot; S0-B's no_trip counts the session's own trips
+
+`2026-11-23` · FACT · `#gal` `#spikes` `#tools` · refs: DESIGN§16.1, engine wip/s12-s0 57fbe42 to 7f66a3b
+
+- On the fake game with a whole table, the `status` group (not discovered) read `Tripped` in every recorded snapshot,
+  and spike-report's no_trip failed with no trip in the session. It now counts a group only if it was in the first
+  DataReady's caps (every group with no DataReady). On the real game, where most optional groups are off at first,
+  the old count would have failed S0-B for every one of them.
+
+### 484. A start stopped at Discover has no crash filter of ours; S0-D's crashes there rest on the watcher alone
+
+`2026-11-23` · FACT · `#engine` `#spikes` · refs: ARCH§3.2, O71, engine wip/s12-s0 57fbe42 to 7f66a3b
+
+- The crash filter goes in after WaitEngine (or the window, on the banner path). A start that stops at the discovery
+  banner, as on the real game today, never installs it, so S0-D's crashes on request there are recorded by the watcher
+  from the exit code and the module list, with no crash record of EldenNet's (filter_records 0). S0-D's rule asks for
+  the watcher's record only, so it passes; whether a stopped start should install the filter is left to the design.
+
+### 485. The panel's confirmations go on after the Mark's hand-over
+
+`2026-11-23` · METHOD · `#launcher` `#spikes` `#graceui` · refs: WHY§444, ARCH§4.14, S10.1.g, engine wip/s12-s0 57fbe42 to 7f66a3b
+
+- Once EldenNet's own Mark (GraceUI's hotkey on Pause) holds the ring, the launcher has no key: in a spike's run (S0,
+  and the observer's runs, which now show the panel too) each new Mark in the ring confirms the task under way
+  (`task … by=mark`), and the launcher stamps none; a press queued at the hand-over confirms as a press does. The
+  read round keeps its own way. Shown under Wine with GraceUI 0.2.22's test build
+  (`launcher-eldennet-graceui-spike-s0e`). Whether the panel was shown goes into the run's line, the session's
+  record and the run's `launcher-run.json`, so that the observer's frame counts are read knowing a topmost window was
+  over the game.
+
+### 486. The probe DLL's p99 on the fake game under Wine sits near S0-B's 0.5 ms
+
+`2026-11-23` · FACT · `#gal` `#spikes` `#wine` · refs: WHY§320, DESIGN§16.1, engine wip/s12-s0 57fbe42 to 7f66a3b
+
+- With the build's table and the probe DLL, the reader's C13 p99 on the fake game under Wine on this shared 4-core
+  machine was 511 to 895 µs across runs (WHY§320 saw under 0.2 ms for the own-thread reader alone). The fake game's
+  S0-B case allows either status for task_p99_us; the owner's PC decides the rule.
+
+### 487. The S0 package's README is README-SPIKES; the s0e-s4 kind's template moves aside
+
+`2026-11-23` · DECIDED · `#spikes` `#tools` · refs: S10.1.b, S10.1.g, engine wip/s12-s0 57fbe42 to 7f66a3b
+
+- The brief named README-SPIKES.txt.in for the S0 kind, which was the s0e-s4 kind's template: it is now
+  `README-S0E-S4.txt.in`, still packed as README-SPIKES.txt in EldenNet-Spikes, and the S0 kind's template is
+  `README-SPIKES.txt.in`. The S0 package needs no settings.toml: S0 sessions record by the spike, and S0-D's faults
+  are the probe build's own (the trial, and the first optional group read where settings.toml names none).
