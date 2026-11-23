@@ -1,15 +1,17 @@
 // The fixture flag states (MEM §7.8, §12.11: eight plus `ashen`) and the who-knows-what truth tables
-// (tests/knowledge/expect.toml, MEM §12.11 T2): their shape, and their agreement with each other. The tables'
-// comparison with known(P) is gated until S11.3.c builds it (WHY§364 (11)).
+// (tests/knowledge/expect.toml, MEM §12.11 T2): their shape, their agreement with each other, and known(P) over the
+// shipped content at each state (S11.3.c).
 #include <doctest.h>
 
 #include <array>
+#include <map>
 #include <regex>
 #include <set>
 #include <string>
 
 #include <toml.hpp>
 
+#include "en/core/knowledge.hpp"
 #include "en/proto/toml_check.hpp"
 #include "../test_files.hpp"
 
@@ -95,8 +97,43 @@ TEST_CASE("the truth tables: every persona at every state, every item, and none 
   }
 }
 
-// MEM §12.11 T2: known(P) equals the tables exactly. known(P) comes with S11.3.c; until then the tables are written and
-// their shape is checked above, and this case is skipped.
-TEST_CASE("T2: known(P) equals tests/knowledge/expect.toml for every persona and fixture state" * doctest::skip()) {
-  FAIL("known(P) is not built yet (S11.3.c)");
+// MEM §12.11 T2: known(P), over the shipped content at each fixture state, equals the tables exactly: every item the
+// table lists, "none" where the persona knows it by no path (S11.3.c).
+TEST_CASE("T2: known(P) equals tests/knowledge/expect.toml for every persona and fixture state") {
+  auto pack = load_content(builtin_content());
+  REQUIRE(pack.has_value());
+  auto knowledge = Knowledge::build(*pack);
+  REQUIRE(knowledge.has_value());
+  const toml::table expect = parse("tests/knowledge/expect.toml");
+  for (const char* state : kStates) {
+    auto fs = knowledge->fixture(test_file(std::string("tests/fixtures/flagstates/") + state + ".toml"));
+    REQUIRE_MESSAGE(fs.has_value(), state);
+    const WorldView view = knowledge->derive(*fs);
+    for (const char* persona : kPersonas) {
+      CAPTURE(state);
+      CAPTURE(persona);
+      std::size_t index = pack->personas.size();
+      for (std::size_t i = 0; i < pack->personas.size(); ++i) {
+        if (pack->personas[i].id == persona) index = i;
+      }
+      REQUIRE(index < pack->personas.size());
+      std::map<std::string, std::string> got;
+      for (const Known& k : knowledge->known(index, *fs, view)) {
+        got[k.item] = std::string(to_string(k.certainty)) + ":" + to_string(k.path);
+      }
+      const toml::table& table = *expect[state][persona].as_table();
+      for (auto&& [k, v] : table) {
+        const std::string item(k.str());
+        const auto it = got.find(item);
+        CAPTURE(item);
+        CHECK((it == got.end() ? std::string("none") : it->second) == v.value_or(std::string()));
+      }
+      for (const auto& [item, value] : got) {
+        CAPTURE(item);
+        CHECK(table.contains(item));  // nothing known that the table leaves out
+      }
+      // The stage the table's comment names: Kalé at his base stage at every fixture state (no state sets his talk).
+      CHECK(view.personas[index] == 0);
+    }
+  }
 }

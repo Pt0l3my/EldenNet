@@ -21,6 +21,8 @@ namespace {
 // schema caps (40, 20, 60 and 40 words).
 constexpr const char* kWordy = R"toml(id = "heron"
 schema = 1
+drafted = "hand"
+review = "ci"
 display_name_fallback = "Heron"
 register = "formal"
 pronouns = "he"

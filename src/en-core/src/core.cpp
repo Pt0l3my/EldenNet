@@ -261,14 +261,43 @@ std::vector<ContentError> Core::load_content(std::span<const ContentFile> files,
   // checked whole whichever speech parts the core was given.
   auto speech = load_speech(*pack);
   if (!speech) return speech.error();
+  // Quest and world awareness: the world files and every predicate compiled (knowledge.hpp); errors refuse the pack.
+  auto knowledge = Knowledge::build(*pack);
+  if (!knowledge) return knowledge.error();
   content_warnings_ = std::move(speech->warnings);
   if (builtin_) {
     builtin_->lint.current = std::move(speech->lint);
     builtin_->prompt.current = std::move(speech->prompt);
   }
   directory_ = Directory::build(std::move(*pack), realm, predicates_);
+  knowledge_ = std::move(*knowledge);
+  realm_ = realm;
+  watch_ = knowledge_.watch(realm, ++watch_version_);
+  watch_pending_ = !watch_.ids.empty();
+  forget_flags();
   content_loaded_ = true;
   return {};
+}
+
+std::optional<std::string> Core::set_behaviour(const Behaviour& b) {
+  if (auto bad = check_behaviour(b)) return bad;
+  behaviour_ = b;
+  return std::nullopt;
+}
+
+void Core::forget_flags() {
+  flags_ = knowledge_.unread();
+  known_ = knowledge_.view(flags_);
+}
+
+// MEM §6.6: the flag state from the newest processed frame of the current watch list; the view only when it changes.
+void Core::on_flags(const proto::WorldSnapshot& s) {
+  if (!s.flags || watch_.ids.empty() || s.flags->watch_version != watch_.version) return;
+  const std::uint8_t journey = s.player ? static_cast<std::uint8_t>(s.player->ng_lvl + 1) : flags_.journey;
+  FlagState next = knowledge_.from_frame(watch_, *s.flags, realm_, journey);
+  if (next == flags_) return;
+  flags_ = std::move(next);
+  known_ = knowledge_.view(flags_);
 }
 
 std::vector<augur::RuleError> Core::load_rules(std::span<const augur::RuleFile> files) {
@@ -355,6 +384,7 @@ Outputs Core::step(CoreInput input, Mono now) {
                      at = s->mono_ms;
                      snapshot = s.get();
                      on_snapshot(*s, out);
+                     if (state_.phase == Phase::InWorld || state_.phase == Phase::Loading) on_flags(*s);
                    }
                  },
                  [&](proto::Lifecycle& l) {
@@ -368,6 +398,11 @@ Outputs Core::step(CoreInput input, Mono now) {
                  [&](proto::NetHealth& h) { net_ = h; },
              },
              input.payload);
+  if (watch_pending_) {  // the watch list of the last load (MEM §6.2): sent once, shared, never copied
+    out.game.push_back(proto::GameCommand{proto::GameCommand::SetWatchFlags{
+        watch_.version, std::make_shared<const std::vector<std::uint32_t>>(watch_.ids)}});
+    watch_pending_ = false;
+  }
   settle(at, out);
   climb(at, out);
   out.ai_allowed = state_.gate_open && state_.level >= Level::L2;
@@ -427,6 +462,9 @@ void Core::run_conversation(Mono at, bool fresh, const proto::UiEvent* ui, const
   w.facts = view_.facts;
   w.hostile_teams = hostile_teams_;
   w.log = &log_;
+  w.knowledge = content_loaded_ ? &known_ : nullptr;
+  w.chat = behaviour_.features.chat;
+  w.self_awareness = behaviour_.features.self_awareness;
   ConversationOutput co = conversation_.step(in);
   for (const Commit& c : co.commits) log_.apply(c);  // in the same step (NPC §8.7 item 5; the store, v0.3)
   out.ui = std::move(co.ui);
@@ -445,6 +483,7 @@ void Core::enter(Phase to, Mono at, Outputs& out) {
   state_.phase = to;
   // Leaving a world: nothing stays tracked (§9: InWorld → Loading, → Title).
   if (from == Phase::InWorld) track_none(out);
+  if (to == Phase::Title) forget_flags();  // the playthrough's frame is gone with it
 }
 
 void Core::set_level(Level to, Mono at, Outputs& out) {
@@ -511,6 +550,7 @@ void Core::start_playthrough(const proto::WorldSnapshot& s, Outputs& out) {
   current_ = pending_;
   pending_.reset();
   ++state_.playthroughs;
+  forget_flags();  // MEM §6.6: every alias Unknown until this playthrough's first frame
   enter(Phase::Playthrough, s.mono_ms, out);
   // Without the store there is no database to open (§9's DbOpened): the world follows at once.
   enter(Phase::InWorld, s.mono_ms, out);

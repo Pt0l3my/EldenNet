@@ -1,0 +1,22 @@
+{
+  "fixture": 1,
+  "persona": "kale",
+  "name": "Kalé",
+  "pack": {"persona": "kale", "flags": "after_radahn"},
+  "earlier": [
+    {"who": "tarnished", "text": "Have you any rope?"},
+    {"who": "persona", "text": "Well, a coil or two. It costs what it costs, friend."}
+  ],
+  "scene": {
+    "place": "A ruined church by the grassland road",
+    "time_word": "by day",
+    "weather_word": "",
+    "nearby": [],
+    "tarnished": "she, in scorched armour, bloodied",
+    "just_now": [],
+    "you_now": ""
+  },
+  "recap": [
+    "I have come back from the east. What is the talk on the road?"
+  ]
+}

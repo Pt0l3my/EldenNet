@@ -169,15 +169,17 @@ Content, identity, the conversation and the core's wiring; the eval is en-tools'
   never rendered (the stages' `forbid`, `when`, gate fields and `beckon*`, the id, `seed` and `deflections`, knowledge
   and awareness) never reaches it. Files outside `identity/` and `personas/` are kept as they are, the overrides
   applied (`ContentPack::others`), for part A's prompts and lexicons (`speech_content.hpp`, below). The shipped index and records are built in (`builtin_content()`, as the rule files are); v0.2
-  ships the test persona `lantern_keeper` (NPC §3.5, `test_only`) alone. Not yet: `overrides/disable.toml` (P3 §8.4),
+  ships the pilot, Kalé (NPC §3.4; below), and the test persona `lantern_keeper` (NPC §3.5, `test_only`); a shipped
+  persona that is no test persona records its provenance, `drafted` and `review` (PL12). Not yet: `overrides/disable.toml` (P3 §8.4),
   the seed's combat keys (NPC §9.11) and the alias table's use (§2.4).
 - **Identity** (`identity.hpp`, `src/identity/`; O45, NPC §2.3). A character binds by its NpcParam row, else a non-zero
   entity id; never by name. `Realm::Game` (the DLL's) leaves `test_only` personas out whatever an override gives them,
   so they never resolve in game; `Realm::Eval` (the self-test, the eval, the tests) keeps them. The tests' overrides
   folder, `tests/scenarios/talk/overrides/`, binds the test persona to the fake game's invented row 81100. The
   directory compiles each stage's `when` with v0.1's predicates: the active stage is the last whose `when` holds, and a
-  `when` they refuse (flag(), boss(), stage(), region() until the catalogue) is Unknown, so its stage is active only
-  if it only restricts (§3.2). v0.2 reads no text or params: no `expect_name_id` check, and the name is the record's
+  `when` they refuse (flag(), boss(), stage(), region()) is Unknown, so its stage is active only
+  if it only restricts (§3.2); the core's conversation takes the stage from the knowledge's view instead (below), whose
+  predicates read the catalogue. v0.2 reads no text or params: no `expect_name_id` check, and the name is the record's
   `display_name_fallback`.
 - **The conversation** (`conversation.hpp`, `src/conversation/`; NPC §5, §6, §8.4, §8.7, §10.5; DESIGN §8). A pure
   object the core steps after Augur on every input, with the newest snapshot, the lifecycle, the ladder and the
@@ -237,7 +239,7 @@ the conversation part B's (above); the core holds both.
   from the last reply) and the `ReplyPager` (its `reply_words_max`). The prompt is rendered from
   `Persona::resolved(stage)`, which is exactly the fields the renderer reads (`kRecordFields`), with this
   conversation's committed history, the previous one's last lines, the recap, the scene (block 9's time of day), the
-  regeneration's reminder and the tally; block 5b's `tied` and `land` stay empty until S11.3.c. `dialogue_request()`
+  regeneration's reminder and the tally; block 5b's `tied` and `land` come from the knowledge's view (below), and block 9 has the "you, now" line. `dialogue_request()`
   makes the request (the dialogue slot, the two stop sequences), and `Outputs::requests` carries it. A render that
   fails sends nothing: the "…" page and its toast.
 - **The stream.** Each Delta goes to `feed()`, which gives a sentence out one delta after its boundary; Ended's
@@ -260,6 +262,41 @@ the conversation part B's (above); the core holds both.
 - **The stubs** (`stubs.hpp`) stay for the tests that want a reply's path without the real rules: the conversation's
   rig and `test_core_wiring.cpp` build a `Conversation` or `Core(SpeechParts)` on `StubSpeech`.
 
+## Quest and world awareness, and the pilot (S11.3.c, d; WHY§364)
+
+- **The pilot** (`content/eldenring/personas/kale.toml`, NPC §3.4): Kalé, a travelling merchant met early, in our own
+  words from the design and our notes, `review = "pending"` until the owner reads it field by field. His index row holds
+  the design's leads (NPC §2.1: an NpcParam row and his flag block, unverified; the doubtful entity lead is left out);
+  his one later stage, `howl_told`, waits on a placeholder alias, unresolved in the catalogue, so it never shows in game
+  before S6. His voice is shorter than the design's draft, so that block 4 keeps within its 230 tokens.
+- **The world files** (`knowledge.hpp`): `flags/catalog.toml` (MEM §6.1: the aliases v0.2's content uses, each a lead,
+  `verified = false`), `regions.toml` (NPC §9.5's keys and Sky column), `world/stages.toml` (MEM §12.4's nine stages,
+  their lines our own) and `world/tracks.toml` (Tanith's two steps). `Knowledge::build` checks them and compiles every
+  predicate (MEM §6.5: an unknown alias, a number in `flag()`, `knows()`, a world stage's `!` or `stage()` (W1), a
+  cycle, a region or a world stage that does not exist are load errors, in fixed words); its errors refuse the pack.
+- **Evaluation** (MEM §6.6, §12.3, §12.5, §12.6): three values, Kleene's; an alias Unknown before the playthrough's
+  first frame, unverified or invalid; a world stage of spoiler ≥ 2 holds only with every flag atom verified (§7.4);
+  each persona's active stage by NPC §3.2; `known(P)` by the six paths, absence silent; `ground()` block 5b's lines
+  (own affairs, then tied, then rank; four at most within 200 tokens; the rest kept by id for block 7's topic offers,
+  v0.3), the persona's tie line before the world's. No prompt names what a persona must not say, and nothing filters
+  model text (O36, O86).
+- **The core** (`core.hpp`): a load builds the knowledge and a watch list of the catalogue's verified, resolved
+  aliases for the realm; the next step sends it as SetWatchFlags if it is not empty. In game nothing is verified before
+  S6, so nothing is sent and every alias stays Unknown: the pilot speaks from his road alone. A `ci:` evidence (test
+  content) verifies in the eval's realm only: `tests/scenarios/talk/pilot-overrides/` gives the tests and the eval a
+  catalogue of invented ids so, and binds the pilot to the fake game's invented row 81200. A FlagFrame of the list's
+  version gives the flag state; a change of it, the view (`known_view()`) the conversation reads: the active stage and
+  block 5b. A new playthrough and the title forget the frame.
+- **The "you, now" line** (NPC §7.3; O35): `you_now()`, the partner's wounds by DESIGN §5.5's bands and "in the thick of
+  a fight" when the Tarnished struck it in the last 8 s; nothing when calm; statuses wait for S8.
+- **Behaviour** (`behaviour.hpp`, ARCH §11.5): `features` and `range` with their defaults and bounds, set by
+  `Core::set_behaviour` (one out of bounds refused, the old kept). v0.2 reads `features.chat` (off: no hint, the key
+  opens nothing, an open conversation ends `closed` at the next step) and `features.self_awareness` (off: no "you, now"
+  line); the rest wait for the lines they govern. The DLL's settings.toml reader does not hand them over yet.
+- **Content lints at load** (speech_content.hpp): block 2 and block 4 within their caps, and PL4's and PL5's wording
+  (banned words in prompt-facing fields and stage texts, quoted sample lines, subjects and stirs as noun phrases;
+  effect adjectives warned), errors for shipped and test content, warnings for the player's own.
+
 ## Tests
 
 `en_core_tests` (doctest), on Linux with GCC and Clang and under Wine: the predicate's every clause alone, values not
@@ -281,7 +318,7 @@ overrides and the resolved record (exactly `kRecordFields`, the stage's inherita
 (`tests/content/`); the pack's speech: the shipped prompts and lexicon loading with it, a pack whose prompts or lexicon
 fail refused with the old content kept, and block 2's content lint, an error for shipped and test content and a
 warning for the player's own (`tests/content/test_speech_content.cpp`); the fixture flag states and the truth tables'
-shape, their comparison with known(P) skipped until S11.3.c (`tests/content/test_fixtures.cpp`); identity, the game's
+shape, and T2: known(P) equal to them for both personas at the eight states (`tests/content/test_fixtures.cpp`); identity, the game's
 realm refusing the test persona, and the active stage (`tests/identity/`); and the conversation on a simulated clock
 (`tests/conversation/`, over `rig.hpp`): every §6.1 transition and timer, queue-don't-cancel, the cut-off, the endings,
 danger and the draft, commit on display with its grace and a late skip, each clause of the gates alone, the target
@@ -289,4 +326,10 @@ order, the observer, the refusals, no request while gated (C4) and the cancels, 
 session through the core into its log. Parts A and B joined (`tests/conversation/test_core_speech.cpp`), on the core's
 own speech: reasoning, a stage direction and the speaker's name taken out before a reply shows; a banned word
 regenerating once with block 11's reminder, then deflecting; the pager's cap filling a reply and cancelling the
-stream; a tic spent in one reply noted in the next prompt.
+stream; a tic spent in one reply noted in the next prompt. Quest and world awareness (`tests/knowledge/`): the shipped
+world files and their leads, nothing holding before a frame, the pilot's block 5b at `after_radahn` as NPC §3.6 renders
+it and at `erdtree_burned` with a line offered, strict mode and MEM §7.4, the predicates' values and load errors, the
+howl stage, Tanith's track, the watch list and a frame (a `ci:` record in the eval's realm alone), T5's byte stability
+over the eight states, the developer-label firewall (no alias and no four-word run of a note in the pilot's prompts),
+the "you, now" bands and the behaviour bounds, and through the core: the watch list sent once, a frame grounding the
+pilot's prompt, a bloodied pilot, self-awareness and chat switched off.

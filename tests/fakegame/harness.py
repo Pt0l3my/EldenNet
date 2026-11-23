@@ -553,7 +553,8 @@ def check_spike_report_s0a(result):
     the early rules pass, and the late load, not run, leaves the verdict incomplete."""
     failures = []
     folder = os.path.join(result.paths["appdata"], "EldenNet", "spikes")
-    logs = [os.path.join(folder, n) for n in sorted(os.listdir(folder)) if n.startswith("s0a-")]
+    logs = [os.path.join(folder, n) for n in sorted(os.listdir(folder)) if n.startswith("s0a-") and
+            n.endswith(".jsonl")]  # the runs' own folders, s0a-<n>, are no logs
     out = os.path.join(result.paths["case"], "s0a-report.json")
     code, text, _ = run_engine(result.args, result.env, ["spike-report", "s0a", "--need", "3", "--log",
                                                          result.as_win(logs[-1]), "--out", result.as_win(out)])
@@ -804,9 +805,12 @@ case("launcher-spike-s0d-crash", LGAME + ["--dll", "{galtest}", "--spike", "s0d-
      what="--spike s0d-crash --runs 2: a crash asked for at the title each run, every one recorded by the watcher")
 case("launcher-spike-s0c", LGAME + ["--dll", "{galtest}", "--spike", "s0c"] + game(frames=300), program="{launcher}",
      needs=LGAL_NEEDS, toolchains=("clang-cl",), env=dict(GALTEST_ENV, **LEFTOVER_SPIKE_DIR), timeout=180,
-     check=lambda r: (check_spike("s0c", 1, crashes=0)(r) + want(r, "FAKEGAME", "spike_dir", set=0, exists=0) +
-                      (["an S0-C run made a spike folder"] if r.events("LAUNCHER", "spike_dir") else [])),
-     what="--spike s0c: one watched session, the game's connections counted (none), the tally kept")
+     check=lambda r: (check_spike("s0c", 1, crashes=0, reports=0)(r) +
+                      check_lines(("LAUNCHER", "spike_dir", {"spike": "s0c", "n": 1, "made": 1}),
+                                  ("FAKEGAME", "spike_dir", {"set": 1, "exists": 1}),
+                                  ("LAUNCHER", "s0", {"report": "missing"}))(r)),
+     what="--spike s0c: one watched session, the game's connections counted (none), the tally kept; since 2026-11-23 "
+          "the run's own folder in place of a leftover variable, where galtest writes no report of the run")
 case("launcher-watch", GAL + ["--frames", "720", "--load", "ready:{galtest}", "--crash", "av-read", "--crash-at", "400"],
      needs=LGAL_NEEDS, toolchains=("clang-cl",), exit=AV, settle=True, timeout=180,
      env=dict(GALTEST_ENV, EN_GALTEST_WATCHER="{launcher}",
@@ -1187,19 +1191,54 @@ def check_spike_recording(word):
     return check
 
 
-case("launcher-eldennet-spike-s0e", LGAME + ["--dll", "{eldennetdll}", "--console", "--spike", "s0e"] +
+# The tester's panel in the observer's runs (the owner's request, 2026-11-23; observer_tasks.hpp): the run's tasks,
+# each line on the console under its own prefix, every task of the tester's confirmed (paced here) and stamped as a
+# Mark while the launcher holds the ring, and the run's folder saying that the panel was shown.
+OBSERVER_TASKS = {"s0e": (7, 5), "s0e_alone": (6, 4), "s4": (6, 5)}  # tasks, and those of the tester's
+OBSERVER_WHO = {"s0e": "Spike S0-E: ", "s0e_alone": "Spike S0-E (GraceUI alone): ", "s4": "Spike S4: "}
+
+
+def check_observer_panel(word, launcher_marks=True, by="time"):
+    """The observer's run's panel: its tasks listed and shown, the tester's confirmed (`by` time, paced, or mark: an
+    owner's Pause that EldenNet's own Mark took into the ring), the Marks the launcher stamped while it held the ring,
+    and launcher-run.json in the run's folder."""
+    count, mine = OBSERVER_TASKS[word]
+
+    def check(r):
+        failures = any_line(r, "LAUNCHER", "tasks", count=count, panel=1, spike=word)
+        failures += any_line(r, "LAUNCHER", "task", n=1, of=count, by=by, mark=1)
+        failures += said(r, OBSERVER_WHO[word], "Task 1 of %d: " % count)
+        if launcher_marks:
+            failures += any_line(r, "LAUNCHER", "mark", n=mine)
+        path = os.path.join(r.paths["appdata"], "EldenNet", "spikes", "%s-1" % word, "launcher-run.json")
+        if not os.path.exists(path):
+            return failures + ["no launcher-run.json in %s-1" % word]
+        with open(path) as f:
+            run = json.load(f)
+        need(run.get("panel") is True and run.get("spike") == word and run.get("tasks") == count and
+             run.get("tasks_done", 0) >= (mine if by == "time" else 1), "launcher-run.json: %s" % run, failures)
+        log = spike_log(r, word)
+        need(log and log[0].get("panel") is True, "the run's line says no panel: %s" % (log and log[0]), failures)
+        return failures
+    return check
+
+
+case("launcher-eldennet-spike-s0e", LGAME + ["--dll", "{eldennetdll}", "--console", "--spike", "s0e",
+                                             "--spike-pace-s", "1"] +
      game(frames=900), program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",),
      env=dict(EN_ENV, **LEFTOVER_SPIKE_DIR), timeout=180, prepare=install_eldennet(EN_RECORD),
-     check=lambda r: check_en_spike("s0e")(r) + check_spike_recording("s0e")(r),
+     check=lambda r: check_en_spike("s0e")(r) + check_spike_recording("s0e")(r) + check_observer_panel("s0e")(r),
      what="S0-E with the release DLL: the run's folder made and named in the game's environment (the launcher's own "
           "variable replaced), the DLL stopped at Reader with the spike_run banner and no call into the game, "
           "T6 and the recorder running on, a clean end")
-case("launcher-eldennet-spike-s4", LGAME + ["--dll", "{eldennetdll}", "--console", "--spike", "s4"] + game(frames=900),
+case("launcher-eldennet-spike-s4", LGAME + ["--dll", "{eldennetdll}", "--console", "--spike", "s4",
+                                            "--spike-pace-s", "1"] + game(frames=900),
      program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=180,
-     prepare=install_eldennet(), check=check_en_spike("s4"),
+     prepare=install_eldennet(), check=lambda r: check_en_spike("s4")(r) + check_observer_panel("s4")(r),
      what="S4 (input), as S0-E: its own folder, no call into the game, the banner")
-case("launcher-eldennet-spike-s0e-alone", LGAME + ["--also", "{vehprobe}", "--console", "--spike", "s0e_alone"] +
-     game(frames=300), program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",),
+case("launcher-eldennet-spike-s0e-alone", LGAME + ["--also", "{vehprobe}", "--console", "--spike", "s0e_alone",
+                                                   "--spike-pace-s", "1"] +
+     game(frames=600), program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",),
      env=dict(EN_ENV, VEHPROBE_MODE="pass", VEHPROBE_LOG="{status}"), timeout=180, prepare=install_eldennet(),
      check=lambda r: (check_spike_folder("s0e_alone")(r) +
                       check_lines(("LAUNCHER", "preflight", {"dll": "none"}),
@@ -1211,10 +1250,242 @@ case("launcher-eldennet-spike-s0e-alone", LGAME + ["--also", "{vehprobe}", "--co
                       (["eldennet.dll was loaded"] if any(e.get("dll") == "eldennet.dll"
                                                           for e in r.events("LAUNCHER", "inject")) else []) +
                       (["an ELDENNET line"] if any(l.startswith("ELDENNET ") for l in r.lines) else []) +
-                      want(r, "FAKEGAME", "end", foreign_tasks=0, live=4)),
+                      want(r, "FAKEGAME", "end", foreign_tasks=0, live=4) + check_observer_panel("s0e_alone")(r)),
      what="S0-E's baseline: the --also DLL alone (a stand-in for GraceUI's observer), no eldennet.dll in the process, "
-          "the run's folder named in the game's environment")
+          "the run's folder named in the game's environment; the panel's tasks with no Round task, the launcher's "
+          "Marks")
 
+
+
+# --- The S0 spikes on the table-based start (DESIGN §16.1; roadmap S10.1.b): the probe build of eldennet.dll, as the S0
+# package carries it, with the fake game's gal/ given a build's table (s0_table: schema 2, every static the fake game
+# has under the catalogue's label, its place and the places in the code that load it, from --describe), so that a
+# start takes each id from the table and checks it, and searches for none of them. Each run's folder holds
+# eldennet.dll's report of it (eldennet-spike.json, linted), and spike-report reads the spikes folder whole. Each spike
+# runs whole on the fake game; then each again with the table and the patterns lacking game_state, a required static,
+# as the real game's layout lacks it today (WHY§459): the start ends at the discovery banner, S0-A, S0-C and S0-D
+# report what they can, and S0-B says it waits, failing nothing.
+def s0_table(drop=()):
+    """A prepare's `then`: the build's table in the case's eldennet gal/ (and the catalogue beside it); `drop`'s labels
+    left out of it, and their patterns out of patterns.toml, so that nothing can find them."""
+    def prepare(paths):
+        gal = os.path.join(paths["endir"], "gal")
+        truth = paths["truth"]
+        shutil.copy2(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "gal", "ids.toml"),
+                     os.path.join(gal, "ids.toml"))
+        with open(os.path.join(gal, "ids.toml")) as f:
+            ids = {m.group(2): int(m.group(1)) for m in re.finditer(r'n = (\d+)\nlabel = "(\w+)"', f.read())}
+        items = []  # (label, rva, witnesses, recipe)
+        for e in truth["fd4"]["singletons"]:
+            label = READ_SINGLETONS.get(e["name"])
+            if label is None:
+                continue
+            sites = sorted({x["site"] for x in e["sites"] if x["static"] == e["static_rva"]})[:8]
+            items.append((label, e["static_rva"], sites, "accessor"))
+        aob_labels = {"global_hinstance": "module_handle", "GameDataMan": "save_data", "GameMan": "game_state",
+                      "FieldArea": "field_area"}
+        for a in truth["aob"]:
+            if a["role"] in aob_labels and "target_rva" in a:
+                # The instruction that holds the capture: a 7-byte load or store with a RIP-relative operand.
+                items.append((aob_labels[a["role"]], a["target_rva"], [a["hit_rva"] + a["capture"]["insn_end"] - 7],
+                              "invariant"))
+        text = []
+        for label, rva, witnesses, recipe in sorted(items):
+            if label in drop:
+                continue
+            text.append('[item.%s]\nid = %d\nkind = "static"\nrva = 0x%X\nfound_by = ["%s"]\nwitnesses = [%s]\n'
+                        'checks = ["placement", "witness"]\nstatus = "lead"\n'
+                        % (label, ids[label], rva, recipe, ", ".join("0x%X" % w for w in witnesses)))
+        layout = os.path.join(gal, "layouts", "fakegame.toml")
+        with open(layout) as f:
+            body = f.read()
+        body = body.replace("schema = 1\n", "schema = 2\n", 1)
+        body += ('\n[provenance]\nmethod = "own-derivation"\ntool = "0.1.0-test"\ntool_sha256 = "%s"\nround = "fakegame"'
+                 '\ndate = "2026-11-23"\n\n' % ("0" * 64)) + "\n".join(text)
+        with open(layout, "w") as f:
+            f.write(body)
+        if drop:
+            pats = os.path.join(gal, "patterns.toml")
+            with open(pats) as f:
+                blocks = f.read().split("[[pattern]]")
+            with open(pats, "w") as f:
+                f.write("[[pattern]]".join(b for b in blocks if not any('id = "%s"' % d in b for d in drop)))
+        paths["table_items"] = str(len([i for i in items if i[0] not in drop]))
+    return prepare
+
+
+S0_DLL = ["--dll", "{eldennetdll}", "--console"]
+S0_MISSING = ("game_state",)
+
+
+def s0_reports(result, word):
+    """eldennet.dll's reports of the runs of `word`, by folder: each linted clean by the engine first."""
+    folder = os.path.join(result.paths["appdata"], "EldenNet", "spikes")
+    out, failures = {}, []
+    for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
+        m = re.fullmatch(r"%s-(\d+)" % re.escape(word), name)
+        path = os.path.join(folder, name, "eldennet-spike.json")
+        if not m or not os.path.exists(path):
+            continue
+        code, text, _ = run_engine(result.args, result.env, ["lint", "--report", result.as_win(path)])
+        need(code == 0 and "the report is clean" in text, "lint --report on %s's report: %s %s" % (name, code, text),
+             failures)
+        with open(path, encoding="utf-8") as f:
+            raw = f.read()
+        need(":\\" not in raw and "\\\\" not in raw and "/" not in raw, "%s's report holds a path" % name, failures)
+        out[int(m.group(1))] = json.loads(raw)
+    return out, failures
+
+
+def s0_spike_report(result, spike, *extra):
+    """spike-report over the case's spikes folder and recordings folder, as the package's .cmd files run it."""
+    en = os.path.join(result.paths["appdata"], "EldenNet")
+    out = os.path.join(result.paths["case"], "report-%s.json" % spike)
+    argv = ["spike-report", spike, "--spikes", result.as_win(os.path.join(en, "spikes")), "--recordings",
+            result.as_win(os.path.join(en, "recordings")), "--out", result.as_win(out)] + list(extra)
+    code, text, _ = run_engine(result.args, result.env, argv)
+    rep = None
+    if os.path.exists(out):
+        with open(out) as f:
+            rep = json.load(f)
+        lcode, ltext, _ = run_engine(result.args, result.env, ["lint", "--report", result.as_win(out)])
+        if lcode != 0:
+            rep = None
+            text += " (its report did not lint: %s)" % ltext[-200:]
+    return code, text, rep
+
+
+def s0_rules(rep):
+    return {(x["rule"], x.get("mode")): x for x in (rep or {}).get("rules", [])}
+
+
+def said(result, who, part):
+    """The launcher's plain words on the console: a line of `who`'s holding `part`."""
+    if any(l.startswith(who) and part in l for l in result.lines):
+        return []
+    return ["no console line of %r with %r" % (who, part)]
+
+
+def check_s0(word, runs=1, missing=False, rules=None, verdict=None, extra=(), **tally):
+    """An S0 run on the probe DLL: its folders and reports; the table checked at the start and again, none refused or
+    changed; no call into the game; the start Ready (or, `missing`, at the discovery banner, waiting for its layout,
+    said on the console); the launcher's tally passing; spike-report's verdict and the rules given (rule: status, or
+    a tuple of the statuses allowed). The task's p99 is Wine's on a shared machine here, not the owner's PC: a fail of
+    task_p99_us alone, where `rules` allows it, leaves a verdict of pass wanted as fail."""
+    who = {"s0a": "EldenNet S0-A: ", "s0b": "EldenNet S0-B: ", "s0c": "EldenNet S0-C: ", "s0d": "EldenNet S0-D: ",
+           "s0d-crash": "EldenNet S0-D's crashes: "}[word]
+
+    def check(r):
+        failures = check_spike(word, runs, reports=runs, table_failed=0, waiting=runs if missing else 0, **tally)(r)
+        reports, lint = s0_reports(r, word)
+        failures += lint
+        need(sorted(reports) == list(range(1, runs + 1)), "the runs' reports: folders %s" % sorted(reports), failures)
+        items = int(r.paths.get("table_items", "0"))
+        for n, rep in reports.items():
+            t, d = rep["table"], rep["discovery"]
+            need(rep["spike"] == word and rep["probe_build"] is True and rep["pid"] > 0, "report %d: %s" % (n, rep),
+                 failures)
+            need(t["items"] == items and t["refused"] == 0 and t["rechecked"] and t["again_refused"] == 0 and
+                 t["changed"] == 0 and t["witnesses"] >= items and d["getter_calls"] == 0 and d["ran"],
+                 "report %d's table: %s, discovery %s (the table's %d)" % (n, t, d, items), failures)
+            if missing:
+                need(rep["state"] == "banner" and rep["banner"] == "discovery_failed" and rep["waits"] == "layout" and
+                     not d["ready"] and not rep["reading"]["started"], "report %d stopped: %s" % (n, rep), failures)
+            else:
+                need(rep["state"] == "ready" and rep["waits"] == "none" and d["ready"] and rep["reading"]["started"],
+                     "report %d ready: %s" % (n, rep), failures)
+        failures += any_line(r, "LAUNCHER", "s0", report="read", state="banner" if missing else "ready",
+                             waits="layout" if missing else "none", table=items, refused=0, changed=0)
+        failures += said(r, who, "ids of the build's table passed their checks")
+        if missing:
+            failures += said(r, who, "The start's layout is not complete yet")
+            failures += any_line(r, "ELDENNET", "banner", reason="discovery_failed")
+        else:
+            failures += ready_no_call(r)
+        failures += en_log_is_clean(r)
+        if verdict is not None:
+            code, text, rep = s0_spike_report(r, "s0d" if word == "s0d-crash" else word, *extra)
+            got = s0_rules(rep)
+            wanted = verdict
+            if verdict == "pass" and got.get(("task_p99_us", None), {}).get("status") == "fail" and \
+                    [k for k, x in got.items() if x["status"] == "fail"] == [("task_p99_us", None)]:
+                wanted = "fail"
+            need(rep is not None and rep["verdict"] == wanted and code == (0 if wanted == "pass" else 1),
+                 "spike-report %s: exit %s %s %s" % (word, code, text[-400:], rep and rep["verdict"]), failures)
+            for (rule, mode), status in (rules or {}).items():
+                ok = status if isinstance(status, tuple) else (status,)
+                need(got.get((rule, mode), {}).get("status") in ok, "spike-report %s's %s: %s, wanted %s" % (
+                    word, rule, got.get((rule, mode)), status), failures)
+            if missing and word != "s0a":
+                need(rep is not None and rep["waits"] == "layout" and "waits=layout" in text and
+                     not any(x["status"] == "fail" for x in rep["rules"]),
+                     "spike-report %s waits: %s %s" % (word, text[-300:], rep and rep["rules"]), failures)
+        return failures
+    return check
+
+
+S0_GAME = ["--", "--forever", "--stay-title", "--fps", "60", "--status-file", "{status}"]
+for _missing in (False, True):
+    _tag, _drop = ("-nostatic", S0_MISSING) if _missing else ("", ())
+    _how = ("with game_state missing from the table, as on the real game today: " if _missing else
+            "on the whole fake game: ")
+    case("launcher-eldennet-s0a" + _tag, LGAME + S0_DLL + ["--spike", "s0a", "--runs", "2", "--run-timeout", "90"] +
+         S0_GAME, program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=300,
+         prepare=install_eldennet(probe=True, then=s0_table(_drop)),
+         check=check_s0("s0a", runs=2, missing=_missing, verdict="incomplete", extra=("--need", "2"),
+                        rules={("runs_per_mode", "suspended"): "pass", ("ready_or_l1", "suspended"): "pass",
+                               ("table_checked", None): "pass", ("table_unchanged", None): "pass",
+                               ("no_call", None): "pass", ("both_modes", None): "not_measured"},
+                        **({"banner": 2} if _missing else {"ready": 2})),
+         what="S0-A " + _how + "two early runs, each its table's ids checked at the start and again, no call, closed "
+              "by the launcher; spike-report passes every rule but the late load, not run")
+    case("launcher-eldennet-s0b" + _tag, LGAME + S0_DLL + ["--spike", "s0b", "--spike-pace-s", "2"] +
+         game(frames=1500), program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV,
+         timeout=240, prepare=install_eldennet(probe=True, then=s0_table(_drop)),
+         check=check_s0("s0b", missing=_missing, verdict="incomplete" if _missing else "pass",
+                        extra=("--session-s", "8"),
+                        rules=({("ready_start", None): "not_measured", ("session_length", None): "not_measured",
+                                ("no_crash", None): "pass"} if _missing else
+                               {("ready_start", None): "pass", ("session_length", None): "pass",
+                                ("faults", None): "pass", ("no_trip", None): "pass",
+                                ("task_p99_us", None): ("pass", "fail")})),
+         what="S0-B " + _how + "the reader on EldenNet's own thread, the panel's tasks paced, the session recorded and "
+              "joined to its run; spike-report's rules (8 s in place of two hours)" if not _missing else
+              "S0-B " + _how + "the start stops at the discovery banner; the console and the report say S0-B waits "
+              "for the layout, the panel's list ends there, and nothing fails")
+    case("launcher-eldennet-s0c" + _tag, LGAME + S0_DLL + ["--spike", "s0c", "--spike-pace-s", "2"] +
+         game(frames=900), program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",),
+         env=dict(EN_ENV, **LEFTOVER_SPIKE_DIR), timeout=240, prepare=install_eldennet(probe=True, then=s0_table(_drop)),
+         check=check_s0("s0c", missing=_missing, verdict="incomplete" if _missing else "pass",
+                        rules=({("gate_closed_unless_solo", None): "not_measured", ("connections", None): "pass"}
+                               if _missing else {("gate_closed_unless_solo", None): "pass",
+                                                 ("connections", None): "pass", ("no_crash", None): "pass"})),
+         what="S0-C " + _how + "offline, the connections counted, the session recorded; the gate " +
+              ("waits for the layout" if _missing else "checked on every snapshot"))
+    case("launcher-eldennet-s0d" + _tag, LGAME + S0_DLL + ["--spike", "s0d", "--spike-pace-s", "2"] +
+         game(frames=1200), program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV,
+         timeout=240, prepare=install_eldennet(probe=True, then=s0_table(_drop)),
+         check=lambda r, _m=_missing: (
+             check_s0("s0d", missing=_m, verdict="incomplete",
+                      rules=({("faults_caught", None): "pass", ("breaker_tripped", None): "not_measured",
+                              ("crashes_recorded", None): "not_measured"} if _m else
+                             {("faults_caught", None): "pass", ("breaker_tripped", None): "pass",
+                              ("no_crash", None): "pass", ("crashes_recorded", None): "not_measured"}))(r) +
+             any_line(r, "ELDENNET", "spike_trial", seh_forced=20, seh_caught=20, rpm_forced=20, rpm_caught=20) +
+             (any_line(r, "ELDENNET", "tripped", group="camera") +
+              any_line(r, "ELDENNET", "spike_inject", group="camera", every=1) if not _m else [])),
+         what="S0-D " + _how + "20 forced faults by each copy primitive, all caught; " +
+              ("the breakers wait for the layout" if _missing else "camera's injected faults trip its breaker"))
+    case("launcher-eldennet-s0d-crash" + _tag, LGAME + S0_DLL + ["--spike", "s0d-crash", "--runs", "2",
+                                                                "--run-timeout", "90"] + S0_GAME,
+         program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=300,
+         prepare=install_eldennet(probe=True, then=s0_table(_drop)),
+         # At the discovery banner the start has not reached WaitEngine, where the crash filter goes in: the watcher
+         # records the crash by the game's exit code and module list alone, which is S0-D's rule.
+         check=check_s0("s0d-crash", runs=2, missing=_missing, crashes=2, records=2,
+                        **({} if _missing else {"filter_records": 2})),
+         what="S0-D's forced crashes " + _how + "a crash asked for once the start has stopped (" +
+              ("at the discovery banner" if _missing else "Ready") + "), each recorded by the watcher")
 
 
 # --- GraceUI with eldennet.dll (part 12): the GraceUI folder of a test build of GraceUI (EN_GRACEUI_DIR: graceui.dll
@@ -2288,7 +2559,8 @@ case("launcher-eldennet-graceui-anticheat", LGAME + ["--also", "{easyanticheat_e
      what="a simulated anti-cheat module with GraceUI installed: GraceUI's own check puts it in the notice-only mode, "
           "connect answers inactive (anti-cheat), and the banner goes through notice alone")
 case("launcher-eldennet-graceui-spike-s0e", LGAME + ["--dll", "{eldennetdll}", "--console", "--spike", "s0e"] +
-     game("--d3d12", "--press-f11-at", "480", "--grace-report", "420,600", "--grace-probe", VIEW_PROBE, frames=720),
+     game("--d3d12", "--press-f11-at", "480", "--press-pause-at", "540", "--grace-report", "420,600", "--grace-probe",
+          VIEW_PROBE, frames=720),
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=200,
      prepare=install_eldennet(EN_PANEL, then=install_graceui),
      check=lambda r: (check_en_spike("s0e", grace=True)(r) +
@@ -2298,9 +2570,14 @@ case("launcher-eldennet-graceui-spike-s0e", LGAME + ["--dll", "{eldennetdll}", "
                                  shown=0) +
                       want_grace(r, 600, shown=1, refused=0, panel_frames=(1, 1e9), probe=(VIEW_AREA // 2, VIEW_AREA),
                                  banner="Spike_run:_EldenNet_makes_no_call_into_the_game") +
-                      any_line(r, "ELDENNET", "view", presses=1, open=1)),
+                      any_line(r, "ELDENNET", "view", presses=1, open=1) +
+                      # The owner's Pause once EldenNet's own Mark holds the ring: the launcher has no key, and the
+                      # Mark in the ring confirms the task under way.
+                      ([] if any(e.get("released") == "1" and e.get("source") == "eldennet"
+                                 for e in r.events("LAUNCHER", "mark")) else ["the launcher kept the ring"]) +
+                      check_observer_panel("s0e", launcher_marks=False, by="mark")(r)),
      what="S0-E with GraceUI installed: the connect on T1, the spike_run banner as GraceUI's notice, F11's view, and "
-          "still no call into the game")
+          "still no call into the game; the owner's Pause, EldenNet's Mark in the ring, confirms the panel's task")
 
 
 # --- The owner's package for S0-E and S4 (tools/spikepkg's s0e-s4 kind), each run as its .cmd file runs it -------------
@@ -2416,6 +2693,10 @@ def check_pkg_run(run):
 
     def check(r):
         failures = check_pkg_cmd(run)(r) + check_spike_folder(word)(r)
+        # The panel lists the run's steps (paced here): shown, its first task done by time; where EldenNet loads it
+        # takes the ring and the launcher stamps no Mark, where it does not (A0) the launcher stamps one for each task of
+        # the tester's.
+        failures += check_observer_panel(word, launcher_marks=word == "s0e_alone")(r)
         # GraceUI keeps its settings in its folder's user\ (its D179): in the case's copies, never in the package given.
         need(not os.path.exists(os.path.join(r.paths["pkg"], "GraceUI", "user")), "a user folder in the package's "
              "GraceUI folder", failures)
@@ -2460,12 +2741,135 @@ PKG_WHAT = {
 for _run in PKG_RUNS:
     _extra = ["--press-f11-at", "960,1140"] if PKG_RUNS[_run][0] == "s0e" else []
     case("launcher-package-spikes-%s" % _run.lower(),
-         ["--no-dialogs", "--appdata", "{appdata}", "--no-steam-check", "--game", "{game}"] + pkg_options(_run) +
+         ["--no-dialogs", "--appdata", "{appdata}", "--no-steam-check", "--game", "{game}", "--spike-pace-s", "2"] +
+         pkg_options(_run) +
          game("--d3d12", *_extra, "--grace-report", "900,1080,1260", "--grace-probe", VIEW_PROBE, frames=1380),
          program="{pkglauncher}", cwd="{pkgdir}", needs=PKG_NEEDS, toolchains=("clang-cl",),
          env=dict(EN_ENV, GRACE_SPIKE_STATE_MS="1000"), timeout=240, prepare=install_package,
          check=check_pkg_run(_run),
          what="the owner's package, run %s (run-%s.cmd): %s" % (_run, _run, PKG_WHAT[_run]))
+
+
+# --- The owner's S0 package (tools/spikepkg's s0 kind), each run as its .cmd file runs it -------------------------------
+# `--set pkg=<the unzipped EldenNet-S0 folder>` (with `engine`, `leads` and `gallayout`; CMake never sets `pkg`, so these
+# run by hand, before the package leaves). Each case copies the package into its own folder with the fake game's gal/
+# in place of the package's (the owner's game's), given its build's table as s0_table writes it: lacking game_state, as
+# the owner's table does today (WHY§459), and whole for one more S0-B run. It adds invented saves for the backup, writes
+# no settings.toml (the README asks for none), and runs the package's own launcher from the package's folder with the
+# run's options exactly as its .cmd file holds them (checked against the file) and the tests' own (no dialogs, the
+# case's %APPDATA%, the fake game, no Steam check, the tasks' pace, and two runs where the file asks for twenty or
+# five). Then the package's own eldennet-engine.exe runs spike-report as the .cmd file's next line does, over the case's
+# %APPDATA% in place of the owner's (and --need 2 for the two runs), and its report must lint and say what the run
+# allows: S0-A's table checked, S0-B and S0-C waiting for the layout, S0-D's forced faults caught, every crash recorded.
+PKG_S0_RUNS = {
+    "S0A-early": ("s0a", "s0a", ["--console", "--spike", "s0a", "--runs", "20", "--inject-at", "suspended"]),
+    "S0A-late": ("s0a", "s0a", ["--console", "--spike", "s0a", "--runs", "20", "--inject-at", "title"]),
+    "S0B": ("s0b", "s0b", ["--console", "--spike", "s0b"]),
+    "S0C-file": ("s0c", "s0c", ["--console", "--spike", "s0c", "--appid-method", "file"]),
+    "S0C-env": ("s0c", "s0c", ["--console", "--spike", "s0c", "--appid-method", "env"]),
+    "S0D": ("s0d", "s0d", ["--console", "--spike", "s0d"]),
+    "S0D-veh": ("s0d", "s0d", ["--console", "--spike", "s0d", "--also", "vehprobe.dll"]),
+    "S0D-crash": ("s0d-crash", "s0d", ["--console", "--spike", "s0d-crash", "--runs", "5"]),
+}
+PKG_S0_REPORT = ('eldennet-engine.exe spike-report %s --spikes "%%APPDATA%%\\EldenNet\\spikes" --recordings '
+                 '"%%APPDATA%%\\EldenNet\\recordings" --out "%%APPDATA%%\\EldenNet\\spikes\\report-%s.json"')
+
+
+def install_s0_package(drop):
+    def prepare(paths):
+        pkg = os.path.join(paths["case"], "EldenNet-S0")
+        shutil.copytree(paths["pkg"], pkg)
+        shutil.rmtree(os.path.join(pkg, "gal"))
+        shutil.copytree(paths["galdir"], os.path.join(pkg, "gal"))
+        shutil.copy2(os.path.join(paths["work"], "gal-leads.toml"), os.path.join(pkg, "gal", "leads.toml"))
+        paths["endir"] = pkg
+        s0_table(drop)(paths)
+        with_saves(paths)
+        paths["pkgdir"] = pkg
+        paths["pkglauncher"] = os.path.join(pkg, "eldennet-launcher.exe")
+    return prepare
+
+
+def check_s0_pkg(run, missing):
+    word, report_spike, options = PKG_S0_RUNS[run]
+    runs = 2 if "--runs" in options else 1
+
+    def check(r):
+        failures = []
+        with open(os.path.join(r.paths["pkg"], "run-%s.cmd" % run), "rb") as f:
+            text = f.read().decode("utf-8")
+        lines = text.split("\r\n")
+        need(text.endswith("\r\n") and "\n" not in text.replace("\r\n", ""), "run-%s.cmd: not CRLF lines" % run,
+             failures)
+        need('cd /d "%~dp0"' in lines, "run-%s.cmd: no cd to its own folder" % run, failures)
+        need("eldennet-launcher.exe " + " ".join(options) in lines, "run-%s.cmd: the launcher's line differs: %s" % (
+            run, [l for l in lines if "launcher.exe" in l]), failures)
+        need(PKG_S0_REPORT % (report_spike, report_spike) in lines, "run-%s.cmd: the report's line differs: %s" % (
+            run, [l for l in lines if "spike-report" in l]), failures)
+        need([l for l in lines if l.strip()][-1] == "pause", "run-%s.cmd: no pause at its end" % run, failures)
+        need(":\\" not in text, "run-%s.cmd names a path of a PC" % run, failures)
+        failures += check_s0(word, runs=runs, missing=missing,
+                             **({"crashes": 2, "records": 2} if word == "s0d-crash" else {}))(r)
+        failures += any_line(r, "LAUNCHER", "backup", folders=2)
+        if run == "S0C-env":
+            failures += any_line(r, "LAUNCHER", "appid", method="env")
+        if run == "S0D-veh":
+            failures += any_line(r, "VEHPROBE", "installed", mode="pass")
+            seen = [e for e in r.events("VEHPROBE", "saw") if e.get("code") == "0xC0000005"]
+            need(len(seen) >= 20, "vehprobe saw %d of the trial's faults" % len(seen), failures)
+        # The .cmd file's next line, with the package's own engine, over the case's %APPDATA%.
+        en = os.path.join(r.paths["appdata"], "EldenNet")
+        out = os.path.join(en, "spikes", "report-%s.json" % report_spike)
+        argv = [os.path.join(r.paths["pkgdir"], "eldennet-engine.exe"), "spike-report", report_spike, "--spikes",
+                r.as_win(os.path.join(en, "spikes")), "--recordings", r.as_win(os.path.join(en, "recordings")),
+                "--out", r.as_win(out), "--need", "2"]
+        if word == "s0b" and not missing:
+            argv += ["--session-s", "8"]
+        code, so, _, _ = launch(r.args, argv, r.env, 120)
+        rep = None
+        if os.path.exists(out):
+            with open(out) as f:
+                rep = json.load(f)
+            lcode, ltext, _ = run_engine(r.args, r.env, ["lint", "--report", r.as_win(out)])
+            need(lcode == 0, "report-%s.json does not lint: %s" % (report_spike, ltext[-200:]), failures)
+        got = s0_rules(rep)
+        want_rules = {
+            "s0a": {("table_checked", None): "pass", ("table_unchanged", None): "pass", ("no_call", None): "pass",
+                    ("ready_or_l1", "suspended" if run == "S0A-early" else "title"): "pass"},
+            "s0b": ({("ready_start", None): "not_measured", ("no_crash", None): "pass"} if missing else
+                    {("ready_start", None): "pass", ("session_length", None): "pass", ("no_crash", None): "pass"}),
+            "s0c": {("gate_closed_unless_solo", None): "not_measured" if missing else "pass",
+                    ("connections", None): "pass", ("no_crash", None): "pass"},
+            "s0d": {("faults_caught", None): "pass", ("breaker_tripped", None): "not_measured",
+                    ("no_crash", None): "pass"},
+            "s0d-crash": {("crashes_recorded", None): "pass"},
+        }[word]
+        verdict = "pass" if word == "s0b" and not missing else "incomplete"
+        if verdict == "pass" and [k for k, x in got.items() if x["status"] == "fail"] == [("task_p99_us", None)]:
+            verdict = "fail"  # the task's p99 is Wine's on a shared machine here, as check_s0 allows
+        need(rep is not None and rep["verdict"] == verdict, "spike-report %s: exit %s %s %s" % (
+            report_spike, code, so[-400:], rep and rep["verdict"]), failures)
+        for key, status in want_rules.items():
+            need(got.get(key, {}).get("status") == status, "spike-report %s's %s: %s, wanted %s" % (
+                report_spike, key[0], got.get(key), status), failures)
+        return failures
+    return check
+
+
+for _run, (_word, _rs, _options) in PKG_S0_RUNS.items():
+    for _whole in ((False, True) if _run == "S0B" else (False,)):
+        _crash_or_a = _word in ("s0a", "s0d-crash")
+        _test = ["--no-dialogs", "--appdata", "{appdata}", "--no-steam-check", "--game", "{game}"]
+        # After the run's own options, so that two runs take the place of its twenty or five (the last --runs wins).
+        _over = ["--runs", "2", "--run-timeout", "120"] if "--runs" in _options else ["--spike-pace-s", "2"]
+        _fake = S0_GAME if _crash_or_a else game(frames=1500 if _whole else 3600)
+        case("launcher-package-s0-%s%s" % (_run.lower(), "-whole" if _whole else ""), _test + _options + _over + _fake,
+             program="{pkglauncher}", cwd="{pkgdir}", needs=PKG_NEEDS, toolchains=("clang-cl",),
+             env=dict(EN_ENV, VEHPROBE_LOG="{status}"), timeout=480,
+             prepare=install_s0_package(() if _whole else S0_MISSING),
+             check=check_s0_pkg(_run, not _whole),
+             what="the owner's S0 package, run %s (run-%s.cmd)%s" % (
+                 _run, _run, " on the whole fake game" if _whole else ", the table lacking game_state as today"))
 
 
 # The read-only round (Lodestar's step L5; proposal 0005 §6.2): a probe build with `probe = { round = "read" }` names the
@@ -2559,7 +2963,7 @@ def check_read(result, by_flag=False, events=False, marks=False):
     with open(table) as f:
         draft = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 12, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
+    need(d["report"] == "lodestar" and d["schema"] == 13, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
          failures)
     # Numbers and the catalogue's labels: no name of the fake game's, in either file.
     for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["SaveLedger", "FG::", "Imp", "task_loom", "Fg_"]:
@@ -2928,6 +3332,10 @@ def check_read_state(result):
          state.get("slots_hit") == 1 and len(state["state_hits"]) == 1 and state["state_hits"][0]["offset"] == 0x14 and
          state["state_hits"][0]["value"] == 2 and state["state_hits"][0]["sites"] >= 1,
          "the state search: %s" % state, failures)
+    looks = state.get("looks") or []
+    need(state.get("overrun") is False and len(looks) == 4 and
+         all(l["through"] is True and l["overrun"] is False and l["took_ms"] < 8000 for l in looks),
+         "the state search's looks, each through before the next confirmation: %s" % looks, failures)
     games = [v for v in d.get("invariants") or [] if v["label"] == "game_state"]
     need(len(games) == 1 and games[0]["id"] == 1003 and games[0]["offset"] == 0x14 and
          state["state_hits"] and games[0]["rva"] == state["state_hits"][0]["rva"] and games[0]["sites"] >= 1 and
@@ -4037,6 +4445,7 @@ def launcher_setup(args, env, c, paths):
     truth = None
     if "gallayout" in c.needs:
         paths["galdir"], truth = make_gal(args, env)
+        paths["truth"] = truth  # for a prepare that writes the build's table (s0_table)
     else:
         paths["galdir"] = write_builds(os.path.join(case_dir, "gal"), args.exe)
     if c.prepare is not None:

@@ -26,6 +26,8 @@ npc_params = [ { param = 4100, form = "default" } ]
 // An invented persona with two stages: the base, and one behind a flag v0.1's predicates cannot read yet.
 constexpr const char* kWren = R"toml(id = "wren"
 schema = 1
+drafted = "hand"
+review = "ci"
 display_name_fallback = "Wren"
 register = "colloquial"
 pronouns = "she"
@@ -73,14 +75,25 @@ std::string with(std::string text, const std::string& from, const std::string& t
 
 }  // namespace
 
-TEST_CASE("the shipped pack loads: the test persona, test_only, with its typed fields") {
+TEST_CASE("the shipped pack loads: the pilot with its lead row, and the test persona, test_only, with its typed fields") {
   const auto files = builtin_content();
   auto pack = load_content(files);
   REQUIRE(pack.has_value());
-  REQUIRE(pack->rows.size() == 1);
-  CHECK(pack->rows[0].id == "lantern_keeper");
-  CHECK(pack->rows[0].test_only);
-  CHECK(pack->rows[0].npc_params.empty());
+  REQUIRE(pack->rows.size() == 2);
+  const PersonaRow* keeper = pack->row("lantern_keeper");
+  REQUIRE(keeper != nullptr);
+  CHECK(keeper->test_only);
+  CHECK(keeper->npc_params.empty());
+  // The pilot (NPC §2.1, §3.4): one NpcParam row and its flag block, both leads until S1 and S6.
+  const PersonaRow* kale = pack->row("kale");
+  REQUIRE(kale != nullptr);
+  CHECK_FALSE(kale->test_only);
+  REQUIRE(kale->npc_params.size() == 1);
+  CHECK_FALSE(kale->npc_params[0].verified);
+  CHECK(kale->entity_ids.empty());
+  REQUIRE(kale->flag_block.has_value());
+  CHECK(kale->flag_block->alias == "kale");
+  CHECK_FALSE(kale->flag_block->verified);
   const Persona* p = pack->persona("lantern_keeper");
   REQUIRE(p != nullptr);
   CHECK(p->display_name_fallback == "Lantern-Keeper");
@@ -138,6 +151,8 @@ TEST_CASE("the resolved record is exactly what the renderer reads: kRecordFields
   // An invented record with every field the dialogue prompt reads, and fields it does not.
   constexpr const char* kFull = R"toml(id = "wren"
 schema = 1
+drafted = "hand"
+review = "ci"
 display_name_fallback = "Wren"
 register = "colloquial"
 reply_words_max = 25
@@ -254,7 +269,7 @@ TEST_CASE("errors name the file, the line and the key, and never quote a value")
   SUBCASE("an unknown key") {
     const std::string bad = with(kWren, "[voice]", "secret_lore = \"the hidden boats\"\n[voice]");
     const auto e = errors_of(kIndex, bad.c_str());
-    CHECK(has(e, "personas/wren.toml:7: (top): has an unknown key \"secret_lore\""));
+    CHECK(has(e, "personas/wren.toml:9: (top): has an unknown key \"secret_lore\""));
     CHECK_FALSE(has(e, "hidden boats"));
   }
   SUBCASE("over a cap in words") {
@@ -274,6 +289,12 @@ TEST_CASE("errors name the file, the line and the key, and never quote a value")
     CHECK(has(errors_of(kIndex, bad.c_str()), "pronouns: must be a string"));
     const std::string reg = with(kWren, "register = \"colloquial\"", "register = \"shouty\"");
     CHECK(has(errors_of(kIndex, reg.c_str()), "register: must be one of archaic-regal, formal, colloquial, broken, chant"));
+  }
+  SUBCASE("a shipped persona records its provenance (PL12)") {
+    const std::string bad = with(kWren, "review = \"ci\"\n", "");
+    CHECK(has(errors_of(kIndex, bad.c_str()), "drafted, review: a shipped persona must set both (PL12)"));
+    const std::string drafted = with(kWren, "drafted = \"hand\"", "drafted = \"dreamt\"");
+    CHECK(has(errors_of(kIndex, drafted.c_str()), "drafted: must be one of hand, assisted"));
   }
   SUBCASE("the base stage's rules") {
     const std::string bad = with(with(kWren, "when = \"true\"", "when = \"runes >= 1\""), "road = \"You mend nets by the ford.\"\n", "");

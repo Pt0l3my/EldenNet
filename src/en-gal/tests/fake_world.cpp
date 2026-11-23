@@ -540,6 +540,17 @@ void FakeWorld::build_image(const WorldOptions& options) {
         std::string(kProvenance) + "\n";
   patterns = pt;
   layout = kLayout;
+  if (options.clock_bits) {
+    const std::string bytes = "fields = { hour = { off = 0x10, ty = \"u8\", group = \"place\" }, "
+                              "minute = { off = 0x11, ty = \"u8\", group = \"place\" } }";
+    const std::size_t at = layout.find(bytes);
+    if (at != std::string::npos) {
+      layout.replace(at, bytes.size(),
+                     "fields = { hour = { off = 0x10, ty = \"bits\", word = 8, shift = 34, width = 5, group = \"place\" }, "
+                     "minute = { off = 0x10, ty = \"bits\", word = 8, shift = 39, width = 6, group = \"place\" } }");
+    }
+  }
+  clock_bits_ = options.clock_bits;
 }
 
 std::uint64_t FakeWorld::make_character(const std::string& cls, std::uint32_t index, std::int32_t max_hp,
@@ -604,8 +615,12 @@ void FakeWorld::build_heap(const WorldOptions& options) {
   mem.put<std::uint64_t>(menus + 0x10, popup);
   obj("loading", 0x10, "veil");
   const std::uint64_t clock = obj("world_clock", 0x20, "clock");
-  mem.put<std::uint8_t>(clock + 0x10, 9);
-  mem.put<std::uint8_t>(clock + 0x11, 30);
+  if (options.clock_bits) {  // other bits of the word are set too: the reader must take the runs alone
+    mem.put<std::uint64_t>(clock + 0x10, 0xFFFF'E003'FFFF'FFFFull | (std::uint64_t{9} << 34) | (std::uint64_t{30} << 39));
+  } else {
+    mem.put<std::uint8_t>(clock + 0x10, 9);
+    mem.put<std::uint8_t>(clock + 0x11, 30);
+  }
   const std::uint64_t eye = obj("camera", 0x10, "eye");
   const std::uint64_t view = mem.alloc(0x50);
   for (int i = 0; i < 4; ++i) mem.put<float>(view + 4 * static_cast<std::uint64_t>(i * 5), 1.0f);
@@ -763,7 +778,15 @@ void FakeWorld::advance_play(std::uint32_t ms) {
 }
 
 void FakeWorld::set_lobby(std::int32_t raw) { mem.put<std::int32_t>(instance("session") + 0x8, raw); }
-void FakeWorld::set_hour(std::uint8_t hour) { mem.put<std::uint8_t>(instance("world_clock") + 0x10, hour); }
+void FakeWorld::set_hour(std::uint8_t hour) {
+  const std::uint64_t at = instance("world_clock") + 0x10;
+  if (!clock_bits_) {
+    mem.put<std::uint8_t>(at, hour);
+    return;
+  }
+  const std::uint64_t word = mem.get<std::uint64_t>(at) & ~(std::uint64_t{0x1F} << 34);
+  mem.put<std::uint64_t>(at, word | (std::uint64_t{hour & 0x1Fu} << 34));
+}
 
 void FakeWorld::set_flag(std::uint32_t id, bool on) {
   const std::uint32_t group = id / 1000;

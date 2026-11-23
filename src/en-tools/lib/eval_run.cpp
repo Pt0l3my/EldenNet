@@ -14,6 +14,7 @@
 #include "en/core/core.hpp"
 #include "en/proto/toml_check.hpp"
 #include "golden_run.hpp"
+#include "prompt_fixture.hpp"  // find_flag_state
 
 namespace en::tools {
 
@@ -46,7 +47,7 @@ bool inside(const fs::path& p) {
   return true;
 }
 
-constexpr std::array<std::string_view, 7> kStepKinds = {"open", "say", "wait", "esc", "skip", "move", "expect"};
+constexpr std::array<std::string_view, 8> kStepKinds = {"open", "say", "wait", "esc", "skip", "move", "expect", "flags"};
 
 }  // namespace
 
@@ -80,7 +81,7 @@ proto::Expected<EvalScenario, std::string> parse_eval_scenario(std::string_view 
     }
   }
   if (const toml::table* w = root["world"].as_table()) {
-    constexpr std::array<std::string_view, 5> kWorld = {"param", "distance_m", "bearing_deg", "clock", "subtitles"};
+    constexpr std::array<std::string_view, 6> kWorld = {"param", "distance_m", "bearing_deg", "clock", "subtitles", "flags"};
     for (auto&& [k, v] : *w) {
       if (std::find(kWorld.begin(), kWorld.end(), k.str()) == kWorld.end()) return proto::Unexpected{at(v, "world: an unknown key")};
     }
@@ -88,6 +89,7 @@ proto::Expected<EvalScenario, std::string> parse_eval_scenario(std::string_view 
     s.distance_m = static_cast<float>((*w)["distance_m"].value_or(2.5));
     s.bearing_deg = static_cast<float>((*w)["bearing_deg"].value_or(0.0));
     s.subtitles = (*w)["subtitles"].value_or(true);
+    if (const auto f = (*w)["flags"].value<std::string>()) s.flags = *f;
     if (const toml::array* c = (*w)["clock"].as_array(); c != nullptr && c->size() == 2) {
       s.clock_h = static_cast<std::uint8_t>((*c)[0].value_or(std::int64_t{12}) % 24);
       s.clock_m = static_cast<std::uint8_t>((*c)[1].value_or(std::int64_t{0}) % 60);
@@ -96,10 +98,11 @@ proto::Expected<EvalScenario, std::string> parse_eval_scenario(std::string_view 
   if (s.param == 0) return proto::Unexpected{std::string("world.param, the persona's invented row, is needed")};
   const toml::array* steps = root["step"].as_array();
   if (steps == nullptr || !steps->is_array_of_tables()) return proto::Unexpected{std::string("the scenario needs [[step]]s")};
-  constexpr std::array<std::string_view, 17> kStep = {"do",           "text",     "ms",          "distance_m",
+  constexpr std::array<std::string_view, 20> kStep = {"do",           "text",     "ms",          "distance_m",
                                                       "state",        "box",      "ended",       "last_npc",
                                                       "toast",        "npc_lines", "player_lines", "failures",
-                                                      "deflections",  "regenerations", "cancels", "note", "at"};
+                                                      "deflections",  "regenerations", "cancels", "note", "at",
+                                                      "flags",        "prompt_has", "prompt_lacks"};
   for (std::size_t i = 0; i < steps->size(); ++i) {
     const toml::table& t = *steps->get(i)->as_table();
     const std::string where = "step[" + std::to_string(i) + "]";
@@ -110,7 +113,7 @@ proto::Expected<EvalScenario, std::string> parse_eval_scenario(std::string_view 
     st.line = static_cast<std::size_t>(t.source().begin.line);
     const std::string kind = t["do"].value_or(std::string());
     const auto k = std::find(kStepKinds.begin(), kStepKinds.end(), kind);
-    if (k == kStepKinds.end()) return proto::Unexpected{at(t, where + ".do: must be one of open, say, wait, esc, skip, move, expect")};
+    if (k == kStepKinds.end()) return proto::Unexpected{at(t, where + ".do: must be one of open, say, wait, esc, skip, move, expect, flags")};
     st.kind = static_cast<EvalStep::Kind>(k - kStepKinds.begin());
     st.text = t["text"].value_or(std::string());
     st.ms = static_cast<Mono>(std::max<std::int64_t>(0, t["ms"].value_or(std::int64_t{0})));
@@ -133,6 +136,18 @@ proto::Expected<EvalScenario, std::string> parse_eval_scenario(std::string_view 
       }
     }
     if (st.kind == EvalStep::Kind::Say && st.text.empty()) return proto::Unexpected{at(t, where + ": say needs a text")};
+    st.flags = t["flags"].value_or(std::string());
+    if (st.kind == EvalStep::Kind::Flags && st.flags.empty()) return proto::Unexpected{at(t, where + ": flags needs a state's name")};
+    for (const char* key : {"prompt_has", "prompt_lacks"}) {
+      if (!t.contains(key)) continue;
+      const toml::array* a = t[key].as_array();
+      if (a == nullptr) return proto::Unexpected{at(t, where + "." + key + ": must be an array of strings")};
+      for (const toml::node& n : *a) {
+        const auto v = n.value<std::string>();
+        if (!v || v->empty()) return proto::Unexpected{at(t, where + "." + key + ": must be an array of strings")};
+        (std::string_view(key) == "prompt_has" ? st.prompt_has : st.prompt_lacks).push_back(*v);
+      }
+    }
     s.steps.push_back(std::move(st));
   }
   return s;
@@ -182,6 +197,11 @@ class Runner {
     if (const auto errors = core_.load_content(files, core::Realm::Eval); !errors.empty()) {
       return proto::Unexpected{"the content does not load: " + core::describe(errors.front())};
     }
+    if (s_.flags) {
+      auto f = flag_state(*s_.flags);
+      if (!f) return proto::Unexpected{f.error()};
+      flags_ = std::move(*f);
+    }
     const auto persona = core_.directory().find(s_.persona);
     if (!persona) return proto::Unexpected{std::string("the scenario's persona is not in the content")};
     persona_ = &core_.directory().persona(*persona);
@@ -226,8 +246,34 @@ class Runner {
     return c;
   }
 
+  // A fixture flag state by its name, through the loaded content's catalogue (MEM §7.8).
+  proto::Expected<core::FlagState, std::string> flag_state(const std::string& name) const {
+    const auto path = find_flag_state(s_.folder, name);
+    if (!path) return proto::Unexpected{std::string("no fixture flag state of that name above the scenario")};
+    const auto text = read_file(path->string(), 64 * 1024);
+    if (!text) return proto::Unexpected{std::string("the fixture flag state cannot be read")};
+    auto fs = core_.knowledge().fixture(*text);
+    if (!fs) return proto::Unexpected{"the fixture flag state: " + fs.error()};
+    return std::move(*fs);
+  }
+
+  // The game task's answer to the core's watch list: each watched id's bit as the state has its alias, every id valid.
+  std::optional<proto::FlagFrame> frame() const {
+    if (!watch_ || !flags_) return std::nullopt;
+    const core::WatchList& list = core_.watch_list();
+    if (list.version != watch_->version) return std::nullopt;
+    proto::FlagFrame f;
+    f.watch_version = list.version;
+    for (std::size_t b = 0; b < list.ids.size() && b < proto::kMaxWatchFlags; ++b) {
+      f.valid[b] = true;
+      f.bits[b] = list.flags[b] < flags_->bits.size() && flags_->bits[list.flags[b]] != 0;
+    }
+    return f;
+  }
+
   proto::WorldSnapshot snapshot() const {
     proto::WorldSnapshot s;
+    if (seq_ % 4 == 0) s.flags = frame();  // every fourth snapshot, as the task reads them (ARCH §6)
     s.seq = seq_;
     s.mono_ms = t_;
     for (auto& g : s.health.groups) {
@@ -280,6 +326,9 @@ class Runner {
   }
 
   void absorb(const core::Outputs& o) {
+    for (const proto::GameCommand& c : o.game) {
+      if (const auto* w = std::get_if<proto::GameCommand::SetWatchFlags>(&c.payload)) watch_ = *w;
+    }
     for (const core::Commit& c : o.commits) {
       switch (c.kind) {
         case core::Commit::Kind::PlayerSaid:
@@ -311,6 +360,10 @@ class Runner {
       }
     }
     for (const proto::LlmRequest& r : o.requests) {
+      if (const auto* chat = std::get_if<proto::ChatRequest>(&r.body)) {
+        last_prompt_.clear();
+        for (const proto::Message& m : chat->messages) last_prompt_ += m.joined() + "\n";
+      }
       with_model([&](auto& m) { m.submit(r, t_); });
       ++run_.requests;
       if (!run_.turns.empty()) ++run_.turns.back().requests;
@@ -401,6 +454,13 @@ class Runner {
       case EvalStep::Kind::Expect:
         expect(st);
         return;
+      case EvalStep::Kind::Flags:
+        if (auto f = flag_state(st.flags)) {
+          flags_ = std::move(*f);
+        } else {
+          run_.failed.push_back("line " + std::to_string(st.line) + ": " + f.error());
+        }
+        return;
     }
   }
 
@@ -438,6 +498,16 @@ class Runner {
       check(st, "regenerations", std::to_string(n), std::to_string(*st.regenerations));
     }
     if (st.cancels) check(st, "cancels", std::to_string(run_.cancels), std::to_string(*st.cancels));
+    for (std::size_t i = 0; i < st.prompt_has.size(); ++i) {
+      if (last_prompt_.find(st.prompt_has[i]) == std::string::npos) {
+        run_.failed.push_back("line " + std::to_string(st.line) + ": the prompt lacks prompt_has[" + std::to_string(i) + "]");
+      }
+    }
+    for (std::size_t i = 0; i < st.prompt_lacks.size(); ++i) {
+      if (last_prompt_.find(st.prompt_lacks[i]) != std::string::npos) {
+        run_.failed.push_back("line " + std::to_string(st.line) + ": the prompt holds prompt_lacks[" + std::to_string(i) + "]");
+      }
+    }
   }
 
   void settle() {
@@ -466,6 +536,9 @@ class Runner {
   std::optional<proto::PageId> failure_page_;
   proto::UiModel ui_;
   std::vector<Mono> said_at_;
+  std::optional<proto::GameCommand::SetWatchFlags> watch_;  // the core's last watch list
+  std::optional<core::FlagState> flags_;                    // the world's flag state, by the catalogue's aliases
+  std::string last_prompt_;                                 // the last dialogue request's messages, for prompt_has
   std::map<std::pair<proto::ConvId, proto::ReplyId>, std::size_t> replies_;
 };
 

@@ -38,6 +38,7 @@ enum class FieldType : std::uint8_t {
   F32,
   Bool8,
   Bit,
+  Bits,  // a run of bits in a little-endian word: { word, shift, width }
   Ptr,
   Handle,
   Vec3f,
@@ -63,6 +64,8 @@ struct FieldLayout {
   bool boot = false;                  // the boot group's (read once, at registration)
   std::optional<std::pair<std::int64_t, std::int64_t>> range;  // a whole-number field's plausible values
   std::uint8_t bit = 0;                                        // a bit field's bit, 0 to 7
+  std::uint8_t shift = 0;                                      // a bits field's lowest bit in its word
+  std::uint8_t width = 0;                                      // a bits field's number of bits, 1 to 32
   std::string to;                                              // a pointer's class
   std::string enum_table;                                      // a whole-number field's enum table
   std::string elem;                                            // an array's element class

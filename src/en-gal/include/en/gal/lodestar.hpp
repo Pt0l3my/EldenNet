@@ -568,6 +568,13 @@ struct StateHit {
   std::uint32_t value = 0;   // what it held in the world, both times (0 to 15)
   std::uint32_t sites = 0;   // instructions of the code that refer to the slot (the round's count)
 };
+// One pass of the state search, as it went: a pass must be through before the tester moves the game on, or its later
+// candidates were read in the next state.
+struct StateLook {
+  std::uint32_t took_ms = 0;  // from its first read to its last; 0 while it is not through
+  bool through = false;
+  bool overrun = false;       // the next pass was asked for before this one was through
+};
 struct StateFound {
   std::uint32_t candidates = 0;
   std::uint32_t passes = 0;         // passes finished, of four
@@ -579,6 +586,8 @@ struct StateFound {
   std::uint32_t fields_after_again = 0;  // of those, the ones that read -1 again at the third
   std::vector<StateHit> hits;       // of those, the ones that read the same small number at the fourth; at most 32
   std::uint32_t slots_hit = 0;      // different slots among all hits
+  std::vector<StateLook> looks;     // one a pass asked for
+  bool overrun = false;             // any pass was overrun: the hits are weaker for it, and no slot is named
 };
 
 // EldenNet's own reader on the flags (the eleventh read-only round; WHY§457): discovery through the build's layout

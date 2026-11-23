@@ -21,6 +21,12 @@ the tally and block 5b's lines (src/en-tools/lib/prompt_fixture.hpp). It prints 
 `--json` the messages, their parts and marks, the estimate, the blocks and the trim. A refused render prints the
 refusal and exits 1: nothing would be sent. The fixtures and their goldens are in `tests/fixtures/prompt/`.
 
+A fixture may name a persona of the pack at a fixture flag state in place of a record and block 5b's lines (`"pack":
+{"persona", "flags", "set"}`, S11.3.c): the pack's content is loaded as the core loads it (the index and records, the
+world files, the prompts' and lexicon's checks), the flag state (`tests/fixtures/flagstates/<name>.toml`, found from the
+fixture's folder upwards, `set` naming aliases set on top) gives the persona's active stage, and its record at that
+stage and its grounding (en-core's knowledge.hpp) fill the prompt. The pilot's three fixtures are made so.
+
 ## lexicon: the lint's lexicon (NPC §8.3; O107)
 
 ```text
@@ -214,14 +220,17 @@ pattern holds a byte string quoted in `docs/research/` needs the design branch's
 ```text
 eldennet-engine rec-stats <recording> [--out FILE]
 eldennet-engine replay <recording> [--out FILE] [--events FILE]
-eldennet-engine spike-report s0a|s0b|s0c|s0d [--log FILE]... [--recording FILE]... [--need N] [--out FILE]
+eldennet-engine spike-report s0a|s0b|s0c|s0d [--spikes DIR] [--recordings DIR] [--log FILE]... [--recording FILE]...
+                             [--run FILE]... [--need N] [--session-s S] [--out FILE]
 ```
 
 Each reads what the owner's PC wrote, numbers and fixed words only: eldennet.dll's recordings (`*.ensnap.jsonl`, linted
 first as `lint --recording` lints them, then read back with en_shell's `read_recorded_line`, the recorder's own words)
 and the launcher's spike logs (`%APPDATA%\EldenNet\spikes\<spike>-<stamp>.jsonl`: a line per run with its load
-`mode`, then the tally). Each writes a numbers-only report through en-gal's writer, of the kinds `rec_stats`, `replay`
-and `spike` (schema 1; `lint --report` checks them), to `--out` or, for rec-stats and replay, to standard output.
+`mode`, then the tally), and, for spike-report, eldennet.dll's reports of S0 runs (`spike_run`, schema 1, which
+`lint --report` knows too). Each writes a numbers-only report through en-gal's writer, of the kinds `rec_stats`,
+`replay` (schema 1) and `spike` (schema 2 since 2026-11-23; `lint --report` checks them), to `--out` or, for rec-stats
+and replay, to standard output.
 `docs/design/spikes/formats.md` describes the inputs and the reports for DataPiler's importer.
 
 - **rec-stats**: the lines by kind; the header (game version, region, EldenNet's version, the spike, a probe build,
@@ -238,21 +247,35 @@ and `spike` (schema 1; `lint --report` checks them), to `--out` or, for rec-stat
   has a defect, or the file was changed. The report adds Augur's events: `events` (their count) and `event_kinds`
   (each kind's count), and `--events FILE` writes them in the golden files' form, so that a recording can become a
   route (below).
-- **spike-report**: DESIGN §16.1's pass rules, each `pass`, `fail` or `not_measured`, with its value and limit:
+- **spike-report**: DESIGN §16.1's pass rules on the table-based start (since 2026-11-23; report schema 2), each `pass`,
+  `fail` or `not_measured`, with its value and limit. Its inputs: the launcher's logs, eldennet.dll's reports of the
+  runs (`eldennet-spike.json`, kind `spike_run`, linted first; `--run`), the spikes folder whole (`--spikes`: its
+  `*.jsonl` logs and each run's folder `<word>-<n>` with its report) and the recordings folder (`--recordings`: each
+  recording joined to a run of the spike by the game's process id in its name, and its header's spike; with no run's
+  report, every recording of the spike). A spike whose start stopped short of its reading says what it waits for
+  (`waits`: layout, files, build, anticheat, not_started), in the report and in a plain line on standard output, and
+  what needs the reading is not measured, never failed. `--session-s` stands in for S0-B's two hours in the tests.
   - `s0a` over `--log` files: per load mode (`suspended`, early; `window` or `title`, late), `runs_per_mode` (at least
     `--need`, 20 by default), `ready_or_l1` (every run Ready or L1: a banner or inert) and `no_crash`; and
-    `both_modes`, not measured until both loads have run. Per mode too: the items resolved (least and most, of how
+    `both_modes`, not measured until both loads have run. Over the runs' reports: `table_checked` (every run's table
+    held ids and refused none; a run with no report counts against it), `table_unchanged` (and checked again once the
+    start stopped, none refused or moved: the image untouched where the table points) and `no_call` (no call into the
+    game); not measured with no report, or no table. Per mode too: the items resolved (least and most, of how
     many), the runs by discovery pass (the retries at +5, +15, +30 s) and the time to Ready (p50, most). The
     third-party rows (O91) are the owner's runs under the same rules, a log each.
-  - `s0b` over the session's recording and its log: `session_length` (at least 7,200 s of snapshots), `faults` (0),
-    `no_trip` (no group tripped), `task_p99_us` (the C13 p99 at the session's end, at most 500), `no_crash`.
+  - `s0b` over the session's recording, its report and its log: `ready_start` (the start reached its reading; not
+    measured when it waits), `session_length` (at least 7,200 s of snapshots, or of the reader's own time without a
+    recording), `faults` (0 confirmed), `no_trip` (no group the reading started with tripped: a group never on is no
+    trip), `task_p99_us` (the C13 p99 at the session's end, at most 500), `no_crash`; and the reader's steady counts
+    (`steady`: torn, held, unconfirmed) and `reading_ms`.
   - `s0c` over each session's recording and the s0c log: `gate_closed_unless_solo` (no snapshot of another world, a
     lobby, another player or anti-cheat left with the gate open: the core closes it on the first, so its change
-    follows that snapshot's line), `connections` (the game's connections beyond this PC, at most 0), `no_crash`, and
+    follows that snapshot's line; not measured when the start waits and no snapshot was made), `connections` (the game's connections beyond this PC, at most 0), `no_crash`, and
     `online_menu`, the owner's to see (never measured); the gate's openings, closings and time open.
-  - `s0d` over the session's recording, its log and the s0d-crash log: `faults_caught` (at least `--need` faults
-    caught, 20 by default), `breaker_tripped` (a group's breaker tripped), `no_crash` (the session), and
-    `crashes_recorded` (every forced crash recorded by the watcher).
+  - `s0d` over the session's recording, its report, its log and the s0d-crash log: `faults_caught` (at least `--need`
+    faults caught, 20 by default: the start's trial and the recording's injected faults; `trial` {`forced`,
+    `caught`}), `breaker_tripped` (a group's breaker tripped; not measured when the start waits, or no group was given
+    the faults), `no_crash` (the session), and `crashes_recorded` (every forced crash recorded by the watcher).
 
   The verdict is `pass` when every rule measured passes and none is missing, `incomplete` when one could not be
   measured from the files given (`online_menu` aside), else `fail`; each rule is a line on standard output
@@ -333,10 +356,16 @@ recorded` with its recorded events, each request's from its own start with the l
 
 A scenario (`tests/scenarios/talk/*.toml`, `lib/eval_run.hpp` has its schema) names its persona, its overrides, its
 script and recording, one invented character (its NpcParam row, distance, bearing; the clock and the subtitles), and
-its steps from when the world is ready and the observer allows chat: `open`, `say`, `wait`, `esc`, `skip`, `move` and
-`expect`, whose fields (the state, the box, the lines, the "…" pages, the deflections, the regenerations and the
-requests cancelled so far, the last ending, the last reply's text, a toast that went up) are each checked.
-`tests/scenarios/talk/` holds four: `lantern-first-words` (the test persona's first words, a cut-off, Esc),
+its steps from when the world is ready and the observer allows chat: `open`, `say`, `wait`, `esc`, `skip`, `move`,
+`flags` and `expect`, whose fields (the state, the box, the lines, the "…" pages, the deflections, the regenerations and
+the requests cancelled so far, the last ending, the last reply's text, a toast that went up, and texts the last
+dialogue request's messages hold or lack, `prompt_has` and `prompt_lacks`) are each checked. The world's flag state is
+a fixture state (`[world] flags`, then each `flags` step): the scenario's overrides give a catalogue that a `ci:` record
+verifies in the eval's realm alone, the core sends its watch list, and the runner answers every fourth snapshot with a
+FlagFrame of the state's aliases, as the game task would (S11.3.c). A failed `prompt_has` names its line and index.
+`tests/scenarios/talk/` holds five: `pilot-two-states` (the pilot asked for news on a fresh journey and again after the
+general's fall and the star: his prompt holds his road alone, then the star as known and the two falls as heard),
+`lantern-first-words` (the test persona's first words, a cut-off, Esc),
 `lantern-no-answer` (no answer in 20 s, a 429, a reply, walking away), `lantern-regenerate` (a reply breaking the
 world's frame in its first sentence regenerated once with block 11's reminder; then a regeneration that breaks it too,
 and the persona's deflection) and `lantern-long-reply` (the reply's second sentence fills it past the word cap, and the
@@ -397,7 +426,8 @@ runs `golden check` on each route as CI does, and `en_golden_prompt.<name>` on e
 think leak and its reset, a trailer, the error classes, a cancel, the last reply repeating), its script's refusals by
 line and key, the recorded model with the live ids, and every conversation scenario through `eval --llm mock` and
 `--llm recorded` to a report, every expectation holding, with a summary that holds no line of the conversation; the
-regeneration, the deflection and the pager's cap in their scenarios' turns.
+regeneration, the deflection and the pager's cap in their scenarios' turns; and the pilot at two states, the same
+scenario failing by index with the world left fresh, and an unknown state named as the scenario's error.
 
 Its `test_dialogue_prompt.cpp` runs the first conversation's part A on the shipped content: the pack loads, the frame and
 the registers keep their caps, blocks 1 to 5 never move with the turn and 5b only with the stage and its lines (T5),

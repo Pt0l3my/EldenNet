@@ -229,7 +229,7 @@ class Body final : public en::gal::TaskBody {
       const std::uint64_t start = quiet_.now_us();
       for (;;) {
         const std::uint32_t before = reader_.copies();
-        const bool ended = state->step(gt, reader_);
+        const bool ended = state->step(gt, reader_, quiet_.now_us());
         if (ended || reader_.spent() || quiet_.now_us() - start >= kSearchShareUs) break;
         if (reader_.copies() == before && !state->due()) break;
       }
@@ -1164,6 +1164,12 @@ class Round {
       if (state_->passes() == 0 && trial_ != nullptr && trial_->found().world_readings != 0) state_dirty_ = true;
       lodestar::StateFound f = state_->found();
       f.title_clean = !state_dirty_;
+      // Each look as it ends: its time, and whether the tester had moved the game on before it was through.
+      for (; state_looks_said_ < f.passes && state_looks_said_ < f.looks.size(); ++state_looks_said_) {
+        const lodestar::StateLook& l = f.looks[state_looks_said_];
+        log(Line("read").word("stage", "state_look").num("n", state_looks_said_ + 1).num("took_ms", l.took_ms)
+                .flag("overrun", l.overrun));
+      }
       if (f.passes >= lodestar::StateSearch::kPasses && !state_said_) {
         // The hits' slots, with the code's references to each; one slot alone is the game state's static, by what
         // its object holds (the invariant recipe), unless a lead's class has named it or a manager sits there.
@@ -1184,13 +1190,13 @@ class Round {
             std::any_of(held_.managers.begin(), held_.managers.end(), [&](const lodestar::ManagerFound& m) {
               return m.id == game.id && m.status == en::gal::derive::Status::Derived;
             });
-        if (f.slots_hit == 1 && f.title_clean && !named && !named_at(f.hits[0].rva)) {
+        if (f.slots_hit == 1 && f.title_clean && !f.overrun && !named && !named_at(f.hits[0].rva)) {
           lodestar::InvariantFound& v = invariant(game.id, game.label, f.hits[0].rva, f.hits[0].offset);
           v.rose = 2;    // the two passes in the world that read the same small number
           v.passes = 4;
         }
         log(Line("read").word("stage", "state_done").num("slots", f.slots_hit).num("hits", f.hits.size())
-                .flag("title_clean", f.title_clean).flag("named", named)
+                .flag("title_clean", f.title_clean).flag("overrun", f.overrun).flag("named", named)
                 .num("offset", f.hits.empty() ? 0 : f.hits[0].offset)
                 .num("sites", f.hits.empty() ? 0 : state_sites_[f.hits[0].rva]));
       }
@@ -1376,6 +1382,7 @@ class Round {
   lodestar::StateSearch* state_ = nullptr;
   bool state_dirty_ = false;                        // a save was loaded before the first pass was through
   bool state_said_ = false;
+  std::size_t state_looks_said_ = 0;                // looks whose end the log has told
   std::map<std::uint32_t, std::uint32_t> state_sites_;  // by slot: the code's references to it
   const en::gal::Gated* gated_ = nullptr;           // the gate's, which lives for the process
   en::gal::Discovery* discovery_ = nullptr;         // EldenNet's own, through the build's layout

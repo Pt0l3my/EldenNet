@@ -16,10 +16,13 @@ list(SORT EN_AUGUR_RULE_FILES)
 set(_en_builtin ${CMAKE_CURRENT_BINARY_DIR}/builtin_rules.cpp)
 en_embed_files(${_en_builtin} INCLUDE en/core/core.hpp NAMESPACE en::core TYPE BuiltinFile FUNCTION builtin_rule_files
   FILES ${EN_AUGUR_RULE_FILES})
-# The shipped persona index and records (part B), the dialogue prompt's templates and the lint's lexicon (part A),
-# built in as the rule files are: the shell adds the overrides folder's.
+# The shipped persona index and records (part B), the dialogue prompt's templates and the lint's lexicon (part A), and
+# the world files that quest and world awareness reads (S11.3.c: the flag catalogue, regions.toml, the world stages and
+# tracks), built in as the rule files are: the shell adds the overrides folder's.
 file(GLOB EN_CONTENT_FILES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/content/eldenring/identity/*.toml
   ${PROJECT_SOURCE_DIR}/content/eldenring/personas/*.toml ${PROJECT_SOURCE_DIR}/content/eldenring/lexicon/*.toml
+  ${PROJECT_SOURCE_DIR}/content/eldenring/*.toml ${PROJECT_SOURCE_DIR}/content/eldenring/flags/*.toml
+  ${PROJECT_SOURCE_DIR}/content/eldenring/world/*.toml
   ${PROJECT_SOURCE_DIR}/content/eldenring/prompts/*/*.md ${PROJECT_SOURCE_DIR}/content/eldenring/prompts/*/*.j2)
 list(SORT EN_CONTENT_FILES)
 set(_en_content ${CMAKE_CURRENT_BINARY_DIR}/builtin_content.cpp)
@@ -32,9 +35,10 @@ target_link_libraries(en_core PUBLIC en_proto en_augur en_prompt)
 
 if(EN_BUILD_TESTS)
   file(GLOB_RECURSE EN_CORE_TESTS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp)
-  # The tests' own files, built in so that the Windows builds read no path under Wine: the overrides folder that binds
-  # the test persona (part B), the fixture flag states and the truth tables.
+  # The tests' own files, built in so that the Windows builds read no path under Wine: the overrides folders that bind
+  # the test persona (part B) and the pilot (S11.3.c), the fixture flag states and the truth tables.
   file(GLOB_RECURSE EN_CORE_TEST_FILES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/tests/scenarios/talk/overrides/*.toml
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/talk/pilot-overrides/*.toml
     ${PROJECT_SOURCE_DIR}/tests/fixtures/flagstates/*.toml ${PROJECT_SOURCE_DIR}/tests/knowledge/*.toml)
   list(SORT EN_CORE_TEST_FILES)
   set(_en_test_files ${CMAKE_CURRENT_BINARY_DIR}/test_files.cpp)

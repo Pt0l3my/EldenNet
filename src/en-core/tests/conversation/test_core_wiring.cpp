@@ -142,15 +142,15 @@ TEST_CASE("C4: with the gate closed nothing is ever sent, whatever the player do
   CHECK(s.core.log().events().empty());
 }
 
-TEST_CASE("the built-in content loads in the game's realm with no persona to bind") {
+TEST_CASE("the built-in content loads in the game's realm: the pilot's lead row binds, the test persona's none") {
   Core core;
   CHECK(core.load_content(builtin_content(), Realm::Game).empty());
-  CHECK(core.directory().size() == 1);
-  CHECK(core.directory().index().rows() == 0);
+  CHECK(core.directory().size() == 2);
+  CHECK(core.directory().index().rows() == 1);
   std::vector<ContentFile> broken = builtin_content();
   broken[0].text += "\nunknown_key = 1\n";
   CHECK_FALSE(core.load_content(broken, Realm::Game).empty());
-  CHECK(core.directory().size() == 1);  // the old content stays
+  CHECK(core.directory().size() == 2);  // the old content stays
 }
 
 TEST_CASE("content loaded anew while a conversation is open ends it, its request cancelled") {

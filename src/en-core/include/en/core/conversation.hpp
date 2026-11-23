@@ -38,6 +38,7 @@
 #include "en/core/event_log.hpp"
 #include "en/core/gate.hpp"  // Mono
 #include "en/core/identity.hpp"
+#include "en/core/knowledge.hpp"
 #include "en/core/predicates.hpp"
 #include "en/core/prompt.hpp"
 #include "en/core/speech.hpp"
@@ -144,6 +145,13 @@ struct ConversationWorld {
   PredicateFacts facts;
   std::span<const std::uint8_t> hostile_teams;  // teams.toml's hostile set
   const MemoryLog* log = nullptr;          // block 6 (a): the previous conversation's lines
+  // Quest and world awareness (knowledge.hpp; S11.3.c, d), each defaulting to what changes nothing: the core's view of
+  // the newest flag state, which then gives each persona's active stage and block 5b's lines (else the stage comes from
+  // `predicates`, and block 5b holds the road alone); and the player's switches (behaviour.hpp): `chat` off opens no
+  // conversation and ends an open one at the next step, `self_awareness` off leaves block 9's "you, now" line out.
+  const KnowledgeView* knowledge = nullptr;
+  bool chat = true;
+  bool self_awareness = true;
 };
 
 struct ConversationInput {

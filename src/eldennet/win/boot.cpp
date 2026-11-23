@@ -17,6 +17,10 @@
 //   A probe build with probe.round = "read" runs the read-only round after WaitWindow instead (probe_read.cpp).
 //   A run of GraceUI's observer (the launcher's --spike s0e or s4) stops at Reader with the spike_run banner, before
 //   the reader is made; the read-only round is set aside in such a run.
+//   An S0 run (--spike s0a, s0b, s0c, s0d or s0d-crash, DESIGN §16.1) is a start like any other, run as far as gal/'s
+//   layout allows, with its report beside (spike.cpp): its folder at Safety, discovery's and the table's counts, S0-D's
+//   trial and injected group before the reader, the table checked again and the report at the terminal state.
+#include <algorithm>
 #include <cstring>
 
 #include "dll.hpp"
@@ -52,7 +56,28 @@ void enter(w::InitState s) {
   log(Line("init").word("state", w::to_string(s)));
 }
 
-void finish(w::InitState s) {
+// Why a start that stopped short of its reading stopped, for an S0 run's report (spike.cpp): the spike that needs the
+// reading waits for what is missing, and nothing is counted against it.
+en::shell::SpikeWaits waits_of(std::optional<BannerReason> reason, std::string_view detail) noexcept {
+  using en::shell::SpikeWaits;
+  if (!reason) return SpikeWaits::None;
+  switch (*reason) {
+    case BannerReason::UnknownBuild: return SpikeWaits::Build;
+    case BannerReason::AntiCheat: return SpikeWaits::Anticheat;
+    case BannerReason::NotStarted: return SpikeWaits::NotStarted;
+    case BannerReason::DiscoveryFailed:
+      return detail == "files" || detail == "gal_files" ? SpikeWaits::Files : SpikeWaits::Layout;
+    default: return SpikeWaits::None;
+  }
+}
+
+// T1's terminal state. In an S0 run its report is written first (with S0-D's trial where the start never reached the
+// reader), so that the launcher finds it as soon as it sees the state.
+void finish(w::InitState s, std::optional<BannerReason> reason = std::nullopt, std::string_view detail = {}) {
+  if (Shell* sh = shell()) {
+    if (s != w::InitState::Exit) spike_trial(*sh);
+    spike_stopped(*sh, s, reason, waits_of(reason, detail));
+  }
   block::ready_ms(static_cast<std::uint32_t>(since_ms()));
   enter(s);
 }
@@ -143,13 +168,13 @@ void banner_path(Shell& s, BannerReason reason, const char* detail) {
   connect_overlay(s, true);  // ConnectB: the banner reaches GraceUI's notice through T6 (overlay.cpp)
   log(Line("banner").word("reason", en::core::to_string(reason)).word("detail", detail), LogLevel::Warn);
   push_banner(s, reason, detail);
-  finish(w::InitState::Banner);
+  finish(w::InitState::Banner, reason, detail);
 }
 
 void stop_at(Shell& s, BannerReason reason, const char* detail) {
   log(Line("banner").word("reason", en::core::to_string(reason)).word("detail", detail), LogLevel::Warn);
   push_banner(s, reason, detail);
-  finish(w::InitState::Banner);
+  finish(w::InitState::Banner, reason, detail);
 }
 
 void run(HMODULE module) {
@@ -225,6 +250,7 @@ void run(HMODULE module) {
   log(Line("safety").flag("first_copy", true).flag("anticheat", anticheat).flag("protected_parent", protected_parent)
           .flag("logging", logging).flag("watched", watched).flag("watcher_started", watcher_started)
           .word("spike", w::to_string(block::spike())));
+  spike_begin(s);  // an S0 run: its folder and report (spike.cpp)
 
   // ---- Settings (ARCH §11.5) ----
   enter(w::InitState::Settings);
@@ -323,10 +349,30 @@ void run(HMODULE module) {
                                                             while (since_ms() - pass0 < at_ms) Sleep(100);
                                                           });
   if (!found.last) {
-    log(Line("discovery").flag("refused", true).num("problems", found.last.error().size()), LogLevel::Error);
-    return stop_at(s, BannerReason::DiscoveryFailed, "gal_files");
+    // A refusal for want of a required static alone (neither a place in the build's table nor a way to find it) is a
+    // layout that is not complete yet, as the real game's is until Lodestar places game_state (WHY§459); any other
+    // refusal is of gal/'s files.
+    const en::gal::SchemaErrors& problems = found.last.error();
+    const bool layout_short = !problems.empty() && std::all_of(problems.begin(), problems.end(), [](const auto& e) {
+      return e.problem.rfind("lacks the required pattern", 0) == 0;
+    });
+    log(Line("discovery").flag("refused", true).num("problems", problems.size()).flag("layout_short", layout_short),
+        LogLevel::Error);
+    // An S0 run checks the build's table all the same (S0-A), with one pass that refuses nothing for such a static
+    // (en-gal's DiscoveryOptions::partial): the same checks a start makes, and the start stops here regardless.
+    const en::gal::Discovery* checked = nullptr;
+    if (layout_short && s.spike.load(std::memory_order_acquire) != nullptr) {
+      en::gal::DiscoveryOptions check = options;
+      check.partial = true;
+      if (auto pass = en::gal::discover(*s.sys, g, *patterns, *layout, check)) {
+        checked = new en::gal::Discovery(std::move(*pass));  // lives for the process: the report's recheck reads it
+      }
+    }
+    spike_discovered(s, checked, found.passes);
+    return stop_at(s, BannerReason::DiscoveryFailed, layout_short ? "layout" : "gal_files");
   }
   auto* d = new en::gal::Discovery(std::move(*found.last));  // lives for the process
+  spike_discovered(s, d, found.passes);
   const en::gal::DiscoveryReport& r = d->report();
   std::uint32_t resolved = 0;
   for (const en::gal::ItemResult& item : r.items) resolved += item.status == en::gal::ItemStatus::Resolved ? 1 : 0;
@@ -360,6 +406,10 @@ void run(HMODULE module) {
   }
   log(Line("engine").flag("ready", true).word("by", waited_on).num("ms", since_ms()));
   block::install_filter();  // the game has started: its C runtime's filter is in, ours goes over it (WHY§172)
+  // S0-D (a probe build): the trial's forced faults on T1, before the reader exists, and the group the reader's own
+  // faults go into. Nothing in any other run.
+  spike_trial(s);
+  spike_inject(s, *d);
 
   // ---- Reader: T2, a thread of our own; no call into the game ----
   enter(w::InitState::Reader);
@@ -397,7 +447,7 @@ void run(HMODULE module) {
       log(Line("first_reading").word("state", "inert").word("why", en::gal::to_string(st.inert_why.load())),
           LogLevel::Error);
       push_banner(s, BannerReason::Inert, en::gal::to_string(st.inert_why.load()));
-      finish(w::InitState::Inert);
+      finish(w::InitState::Inert, BannerReason::Inert);
       return;
     }
     if (ts == en::gal::TaskState::Running && st.snapshots.load(std::memory_order_acquire) >= 1) break;
@@ -405,12 +455,13 @@ void run(HMODULE module) {
       log(Line("first_reading").word("state", en::gal::to_string(ts)).word("why", "no_reading"), LogLevel::Error);
       task->backend().make_inert();
       push_banner(s, BannerReason::Inert, "no_reading");
-      finish(w::InitState::Inert);
+      finish(w::InitState::Inert, BannerReason::Inert);
       return;
     }
     Sleep(50);
   }
   log(Line("first_reading").word("state", "running").num("ms", since_ms() - asked));
+  spike_reading(s);
 
   // ---- Ready (DataReady went to the core on C2 from the task) ----
   finish(w::InitState::Ready);

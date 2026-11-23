@@ -292,6 +292,27 @@ TEST_CASE("backend: real faults trip an optional group's breaker (L3), and a str
   CHECK(copier.copies == copies);
 }
 
+TEST_CASE("backend: a clock kept as runs of bits in one word reads by the layout's shift and width") {
+  WorldOptions o;
+  o.clock_bits = true;
+  Running r(o);
+  r.start();
+  r.w.world();
+  r.run(1.0, 60);
+  REQUIRE(r.io.last().clock.has_value());
+  CHECK(r.io.last().clock->h == 9);  // the word's other bits are all set: only the two runs are read
+  CHECK(r.io.last().clock->m == 30);
+  r.w.set_hour(17);
+  r.run(0.3, 60);
+  REQUIRE(r.io.last().clock.has_value());
+  CHECK(r.io.last().clock->h == 17);
+  CHECK(r.io.last().clock->m == 30);
+  r.w.set_hour(25);  // five bits hold it; a day does not
+  r.run(0.3, 60);
+  CHECK(r.task.backend().book().breaker_total(Group::Place) >= 1);
+  CHECK_FALSE(r.io.last().clock.has_value());
+}
+
 TEST_CASE("backend: per-tick plausibility: a camera that is no rotation, an hour past the day, a session not solo") {
   Running r;
   r.start();

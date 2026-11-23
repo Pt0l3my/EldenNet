@@ -16,6 +16,7 @@ namespace en::core {
 namespace {
 
 using T = ConversationTimes;
+constexpr Mono kStruckMs = 8000;  // the "you, now" line's fight: struck in the last 8 s (NPC §7.3)
 
 // ---- Words a player reads (our own; DESIGN §2.7's where it has them). Drafts until the owner approves them. ----
 constexpr std::string_view kNothingToSay = "They have nothing to say to you.";
@@ -340,6 +341,9 @@ struct Conversation::Impl {
   }
 
   [[nodiscard]] std::size_t stage_of(std::size_t persona) const {
+    if (const KnowledgeView* k = in->world.knowledge; k != nullptr && persona < k->personas.size()) {
+      return k->personas[persona].stage;  // the catalogue's flags, in three values (knowledge.hpp; NPC §3.2)
+    }
     if (cast() == nullptr || in->world.predicates == nullptr) return 0;
     return cast()->active_stage(persona, *in->world.predicates, in->world.facts);
   }
@@ -384,7 +388,7 @@ struct Conversation::Impl {
   // ---- Opening ----
 
   void on_open_chat() {
-    if (snap() == nullptr || cast() == nullptr) return;
+    if (snap() == nullptr || cast() == nullptr || !in->world.chat) return;  // features.chat off: the key does nothing
     const std::optional<proto::ChrHandle> target = stable && candidate_of(*stable) ? stable : best;
     if (conv) {
       if (conv->box_open || conv->ending) return;
@@ -556,6 +560,13 @@ struct Conversation::Impl {
   [[nodiscard]] Scene scene() const {
     Scene s;
     if (snap() != nullptr && snap()->clock) s.time_word = time_word(*snap()->clock);
+    // The "you, now" line (NPC §7.3; O35): the partner's wounds, and the fight when the Tarnished struck it in the
+    // last 8 s; its statuses wait for S8.
+    if (const proto::Chr* c = conv ? chr_of(conv->handle) : nullptr; c != nullptr) {
+      const auto hit = attacked_at.find(c->handle.raw);
+      const bool fighting = hit != attacked_at.end() && now - hit->second < kStruckMs;
+      s.you_now = you_now(c->hp, fighting, in->world.self_awareness);
+    }
     return s;
   }
 
@@ -622,7 +633,11 @@ struct Conversation::Impl {
     ctx.recap = recap;
     ctx.reminder = r.reminder;
     ctx.tally = conv->tally;  // block 11's tic note, carried from reply to reply
-    // Block 5b's tied and land stay empty until the known set lands (S11.3.c).
+    // Block 5b's lines: what the persona knows at its stage, set out positively (MEM §12.6; O36, O86).
+    if (const KnowledgeView* k = in->world.knowledge; k != nullptr && conv->persona < k->personas.size()) {
+      ctx.tied = k->personas[conv->persona].tied;
+      ctx.land = k->personas[conv->persona].land;
+    }
     auto rendered = parts.prompt.render(ctx);
     if (!rendered) return false;
     r.request = next_request++;
@@ -1003,6 +1018,7 @@ struct Conversation::Impl {
     const ConversationWorld& w = in->world;
     if (w.loading) return end(EndReason::Travel, true);
     if (w.dormant || !w.in_world) return end(EndReason::Dormant, true);
+    if (!w.chat) return end(EndReason::Closed, true);  // features.chat turned off (ARCH §11.6: the next step)
     if (w.player_died || around.player_dead) return end(EndReason::Death, true);
     if (around.degraded) {
       toast(ToastClass::Degraded, proto::ToastLevel::Warning, kDegraded);
@@ -1211,7 +1227,7 @@ struct Conversation::Impl {
     proto::UiModel m;
     m.toasts = toasts.visible();
     if (!conv) {
-      if (stable && snap() != nullptr && cast() != nullptr) {
+      if (stable && snap() != nullptr && cast() != nullptr && in->world.chat) {
         if (const Candidate* c = candidate_of(*stable); c != nullptr && would_open(*c)) {
           m.hint = proto::TalkHint{proto::HintVerb::Speak, cast()->persona(c->binding.persona).display_name_fallback,
                                    *stable};

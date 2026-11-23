@@ -65,6 +65,7 @@ name   = { off = 0x20, ty = "utf16[16]", group = "player" }
 inner  = { off = 0x40, ty = "ptr", to = "Inner", group = "world" }
 slots  = { off = 0x50, ty = "array", elem = "Slot", len = 3, stride = 0x10, group = "ui" }
 when   = { off = 0x80, ty = "u64", group = "boot" }
+hour   = { off = 0x88, ty = "bits", word = 8, shift = 34, width = 5, group = "place", range = [0, 23] }
 
 [class.Inner]
 copy_size = 0x20
@@ -159,6 +160,13 @@ TEST_CASE("a layout reads for the build the gate matched, with every table") {
   CHECK(mode->enum_table == "mode");
   CHECK(holder->field("name")->size == 32);
   CHECK(holder->field("flags")->bit == 6);
+  const FieldLayout* hour = holder->field("hour");
+  REQUIRE(hour != nullptr);
+  CHECK(hour->type == FieldType::Bits);
+  CHECK(hour->size == 8);
+  CHECK(hour->shift == 34);
+  CHECK(hour->width == 5);
+  CHECK(hour->range == std::pair<std::int64_t, std::int64_t>{0, 23});
   CHECK(holder->field("slots")->size == 0x30);
   CHECK(holder->field("when")->boot);
   CHECK_FALSE(holder->field("when")->group.has_value());
@@ -219,6 +227,18 @@ TEST_CASE("fields stay within their class, and what they name exists") {
                   "must be one of"));
   CHECK(has_error(refusal(changed("bit = 6", "bit = 8")), "layout.toml: class.Holder.fields.flags.bit",
                   "must be between 0 and 7"));
+  CHECK(has_error(refusal(changed("word = 8, shift = 34", "word = 3, shift = 4")),
+                  "layout.toml: class.Holder.fields.hour.word", "must be 1, 2, 4 or 8"));
+  CHECK(has_error(refusal(changed("word = 8, shift = 34", "word = 4, shift = 28")),
+                  "layout.toml: class.Holder.fields.hour.width", "runs past the word"));
+  CHECK(has_error(refusal(changed("shift = 34, width = 5", "shift = 34, width = 33")),
+                  "layout.toml: class.Holder.fields.hour.width", "must be between 1 and 32"));
+  CHECK(has_error(refusal(changed("word = 8, shift = 34, width = 5", "word = 8, width = 5")),
+                  "layout.toml: class.Holder.fields.hour.shift", "is missing"));
+  CHECK(has_error(refusal(changed("range = [0, 23]", "range = [0, 32]")),
+                  "layout.toml: class.Holder.fields.hour.range[1]", "must be between 0 and 31"));
+  CHECK(has_error(refusal(changed("ty = \"u16\", group", "ty = \"u16\", shift = 2, group")),
+                  "layout.toml: class.Inner.fields.level", "which only bits fields take"));
   CHECK(has_error(refusal(changed("range = [1, 999]", "range = [1, 70000]")),
                   "layout.toml: class.Inner.fields.level.range[1]", "must be between 0 and 65535"));
   CHECK(has_error(

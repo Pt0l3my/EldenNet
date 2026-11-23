@@ -1,0 +1,88 @@
+# Our region keys (NPC §9.5) and the Sky column: whether a persona whose stage `at` is that region has the sky over it,
+# which gives it the Sky path of world news (MEM §12.5). Our own slugs. The map from PlaceName ids and map areas to keys,
+# and each region's short phrase for prompts, join once S2 and the place group verify them (NPC §9.5; ER04 §3.1).
+schema = 1
+
+[[region]]
+key = "limgrave"
+sky = true
+
+[[region]]
+key = "stormhill"
+sky = true
+
+[[region]]
+key = "weeping_peninsula"
+sky = true
+
+[[region]]
+key = "stormveil"
+sky = true
+
+[[region]]
+key = "liurnia"
+sky = true
+
+[[region]]
+key = "raya_lucaria"
+sky = true
+
+[[region]]
+key = "caelid"
+sky = true
+
+[[region]]
+key = "dragonbarrow"
+sky = true
+
+[[region]]
+key = "altus"
+sky = true
+
+[[region]]
+key = "gelmir"
+sky = true
+
+[[region]]
+key = "leyndell"
+sky = true
+
+[[region]]
+key = "mountaintops"
+sky = true
+
+[[region]]
+key = "snowfield"
+sky = true
+
+[[region]]
+key = "haligtree"
+sky = true
+
+[[region]]
+key = "farum_azula"
+sky = true
+
+[[region]]
+key = "shadow"
+sky = true
+
+[[region]]
+key = "shadow_legacy"
+sky = true
+
+[[region]]
+key = "volcano_manor"
+sky = false
+
+[[region]]
+key = "roundtable"
+sky = false
+
+[[region]]
+key = "underground"
+sky = false
+
+[[region]]
+key = "depths"
+sky = false

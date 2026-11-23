@@ -463,15 +463,17 @@ class StateSearch {
   StateSearch(const StateSearch&) = delete;
   StateSearch& operator=(const StateSearch&) = delete;
 
-  // Asks for the next pass. From one thread; at most kPasses times.
+  // Asks for the next pass. From one thread; at most kPasses times. A pass still under way (or not yet begun) when
+  // the next is asked for is marked overrun: the tester has moved the game on under it.
   void ask() noexcept;
   [[nodiscard]] std::uint32_t asked() const noexcept { return asked_.load(std::memory_order_acquire); }
   [[nodiscard]] std::uint32_t passes() const noexcept { return done_.load(std::memory_order_acquire); }
   // Whether a call would read: a pass is asked for and not finished. For the stepping thread only.
   [[nodiscard]] bool due() const noexcept { return done_.load(std::memory_order_relaxed) < asked(); }
 
-  // Reads one candidate of the pass under way; answers whether a pass ended on this call.
-  bool step(const proto::GameThread& gt, GuardedReader& reader);
+  // Reads one candidate of the pass under way; answers whether a pass ended on this call. `now_us`: the stepping
+  // thread's clock, for the pass's time.
+  bool step(const proto::GameThread& gt, GuardedReader& reader, std::uint64_t now_us = 0);
 
   // The hits' `sites` are left 0: the caller counts the code's references.
   [[nodiscard]] StateFound found() const;
@@ -488,6 +490,10 @@ class StateSearch {
   std::atomic<std::uint32_t> done_{0};
   std::array<std::atomic<std::uint32_t>, kPasses> alive_{};
   std::array<std::atomic<std::uint32_t>, 3> fields_{};  // after the first, second and third pass
+  std::array<std::atomic<std::uint32_t>, kPasses> took_ms_{};
+  std::array<std::atomic<bool>, kPasses> overrun_{};
+  std::uint64_t pass_start_us_ = 0;  // the stepping thread's
+  bool pass_started_ = false;
 };
 
 }  // namespace en::gal::lodestar

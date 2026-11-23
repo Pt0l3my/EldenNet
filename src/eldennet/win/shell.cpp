@@ -142,7 +142,9 @@ DWORD WINAPI core_main(void* param) noexcept {
     auto core = std::make_unique<en::core::Core>();
     auto latest = std::make_unique<en::proto::WorldSnapshot>();
     Recorder rec(s);
-    if (s.settings.record_sessions && !rec.open()) log(Line("recording").flag("open", false), LogLevel::Warn);
+    // An S0 session (s0b, s0c, s0d) records whatever settings.toml says: its rules read the recording (spike.cpp).
+    const bool record = s.settings.record_sessions || en::shell::s0_session(block::spike());
+    if (record && !rec.open()) log(Line("recording").flag("open", false), LogLevel::Warn);
     std::deque<en::proto::GameCommand> outbox;
     std::uint64_t last_tick = mono_ms();
     std::uint64_t last_status = 0;
@@ -296,6 +298,7 @@ DWORD WINAPI core_main(void* param) noexcept {
           f.word("mode", en::gal::to_string(task->status().mode.load())).flag("throttled", task->status().throttled.load());
           log(f);
         }
+        spike_tick(s, tripped);  // an S0 run's report, with the reader's counts (spike.cpp)
       }
       if (rec.on() && now - last_flush >= 1000) {
         last_flush = now;

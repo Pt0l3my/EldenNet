@@ -1,0 +1,243 @@
+# The flag catalogue (MEM §6.1): our own aliases for the game's event flags, each mapped to a research lead. Our own
+# file: `note` is our own words, developer-facing and never rendered; `src` points to our research documents, never a
+# label of the game's (MEM §7.6). Every entry is a lead, `verified = false`, until S6 records it in game with evidence
+# (MEM §6.3): an unverified alias evaluates Unknown whatever its bit says, so it can hide content, never show it
+# (MEM §6.4). `id = 0` is unresolved: never watched, always Unknown. The aliases are the ones v0.2's content uses: the
+# nine world stages (MEM §12.4), the great runes, Tanith's track and the pilot's block (NPC §3.4).
+schema = 1
+
+[[block]]                              # Kalé's 20-flag block in the merchant states (ER07 §4.2)
+alias = "kale"
+base = 4700
+src = ["ER07 §4.2"]
+verified = false
+
+[[block]]                              # Tanith's block; which of its two label sets the game reads is owed to S6
+alias = "tanith"
+base = 3100
+src = ["ER04 §4.4", "ER07 §6 item 16"]
+verified = false
+
+# ---- The world stages' outcome flags (MEM §12.4) ----
+
+[[flag]]
+alias = "boss.godrick"
+id = 9101
+kind = "outcome"
+ng = "unknown"
+src = ["ER05 §7"]
+verified = false
+spoiler = 1
+match = ["godrick", "grafted"]
+note = "The castle's lord defeated: a global kill flag."
+
+[[flag]]
+alias = "boss.rennala"
+id = 9118
+kind = "outcome"
+ng = "unknown"
+src = ["ER05 §7"]
+verified = false
+spoiler = 1
+match = ["rennala"]
+note = "The academy's queen defeated: a global kill flag."
+
+[[flag]]
+alias = "boss.radahn"
+id = 9130
+kind = "outcome"
+ng = "unknown"
+src = ["ER05 §7"]
+verified = false
+spoiler = 1
+match = ["radahn"]
+note = "The red general defeated: a global kill flag."
+
+[[flag]]
+alias = "boss.rykard"
+id = 9122
+kind = "outcome"
+ng = "unknown"
+src = ["ER05 §7"]
+verified = false
+spoiler = 2
+match = ["rykard"]
+note = "The manor's lord defeated: a global kill flag."
+
+[[flag]]
+alias = "boss.morgott"
+id = 9104
+kind = "outcome"
+ng = "unknown"
+src = ["ER05 §7"]
+verified = false
+spoiler = 2
+match = ["morgott"]
+note = "The capital's king defeated: a global kill flag."
+
+[[flag]]
+alias = "boss.mohg_lord"
+id = 9112
+kind = "outcome"
+ng = "unknown"
+src = ["ER05 §7"]
+verified = false
+spoiler = 2
+match = ["mohg"]
+note = "The lord of blood defeated, in his hidden palace: a global kill flag."
+
+[[flag]]
+alias = "boss.maliketh"
+id = 9116
+kind = "outcome"
+ng = "unknown"
+src = ["ER07 §3", "ER07 §2.5"]
+verified = false
+spoiler = 3
+match = ["maliketh"]
+note = "A lead, likely only: the fall before the capital is buried in ash."
+
+[[flag]]
+alias = "story.star_fell"
+id = 310
+kind = "outcome"
+ng = "unknown"
+src = ["ER05 §5", "ER07 §2.3", "ER07 §2.4"]
+verified = false
+spoiler = 1
+note = "Likely the meteor after the general's fall; read only beside his fall."
+
+[[flag]]
+alias = "story.erdtree_burned"
+id = 118
+kind = "outcome"
+ng = "unknown"
+src = ["ER05 §5", "ER05 §7", "ER07 §2.3"]
+verified = false
+spoiler = 2
+note = "The great tree set alight; its order and persistence are owed to S6."
+
+# ---- The great runes held (MEM §6.1: flags 181 to 187; 180 means none) ----
+
+[[flag]]
+alias = "runes.ge1"
+id = 181
+kind = "state"
+ng = "unknown"
+src = ["ER05 §2"]
+verified = false
+spoiler = 0
+core = true
+note = "At least one great rune held."
+
+[[flag]]
+alias = "runes.ge2"
+id = 182
+kind = "state"
+ng = "unknown"
+src = ["ER05 §2"]
+verified = false
+spoiler = 0
+core = true
+note = "At least two great runes held."
+
+[[flag]]
+alias = "runes.ge3"
+id = 183
+kind = "state"
+ng = "unknown"
+src = ["ER05 §2"]
+verified = false
+spoiler = 0
+core = true
+note = "At least three great runes held."
+
+[[flag]]
+alias = "runes.ge4"
+id = 184
+kind = "state"
+ng = "unknown"
+src = ["ER05 §2"]
+verified = false
+spoiler = 0
+core = true
+note = "At least four great runes held."
+
+[[flag]]
+alias = "runes.ge5"
+id = 185
+kind = "state"
+ng = "unknown"
+src = ["ER05 §2"]
+verified = false
+spoiler = 0
+core = true
+note = "At least five great runes held."
+
+[[flag]]
+alias = "runes.ge6"
+id = 186
+kind = "state"
+ng = "unknown"
+src = ["ER05 §2"]
+verified = false
+spoiler = 0
+core = true
+note = "At least six great runes held."
+
+[[flag]]
+alias = "runes.ge7"
+id = 187
+kind = "state"
+ng = "unknown"
+src = ["ER05 §2"]
+verified = false
+spoiler = 0
+core = true
+note = "Seven great runes held."
+
+# ---- Tanith's track (world/tracks.toml; MEM §12.4): silent until S6 ----
+
+[[flag]]
+alias = "tanith.hosting"
+id = 0                                 # unresolved: +5 or +6 of her block, owed to S6 (ER04 §4.4)
+kind = "state"
+ng = "unknown"
+src = ["ER04 §4.4"]
+verified = false
+spoiler = 1
+note = "The manor's lady taking in wanderers."
+
+[[flag]]
+alias = "tanith.devouring"
+block = "tanith"
+offset = 9                             # 3109 lead: label FACT, meaning LIKELY (ER04 §4.4; ER07 §5)
+kind = "state"
+ng = "unknown"
+src = ["ER04 §4.4", "ER07 §5"]
+verified = false
+spoiler = 3
+note = "The lady's vigil beside her dead lord."
+
+# ---- The pilot's block (NPC §3.4; ER07 §4.2) ----
+
+[[flag]]
+alias = "kale.howl_told"
+id = 0                                 # unresolved: S6 searches the grassland church's conversation bands (ER01 §9; ER07 §4.2, §6 item 15)
+kind = "outcome"
+ng = "unknown"
+src = ["ER07 §4.2", "ER07 §6 item 15"]
+verified = false
+spoiler = 0
+note = "The merchant's talk about the howling in the woods has happened."
+
+[[flag]]
+alias = "kale.asleep"
+block = "kale"
+offset = 17                            # its label is known, its purpose is not: a sleep lead (W13), skipped by his stages
+kind = "state"
+ng = "unknown"
+src = ["ER07 §4.2"]
+verified = false
+spoiler = 0
+note = "Purpose unknown; possibly the merchant asleep or away."
