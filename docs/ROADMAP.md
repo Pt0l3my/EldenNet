@@ -1620,6 +1620,17 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     scenario with the guard on found no breach under Wine. spikes.6 ships graceui.pdb beside the test build's
     graceui.dll (GraceUI's docs/eldennet-changes.md §65), after spikes.5's results.
 
+- au The owner's spikes.5 findings in GraceUI: the pointer kept where the mouse took it, still or moving; the observer's typing test on the keyboard and the pad only (GraceUI 0.2.33) [done]
+  - refs: GraceUI:D236, GraceUI:D232, O113, WHY§549, WHY§559, WHY§560
+  - gives: built on 2026-11-23 (GraceUI feat/foundations 910ad0a, run 2e219de). The menu-recentred scenario holds still
+    for 1.5 s and keeps the pointer; the spike scenario's typing test checks the letters reach the panel and the mouse
+    the game. For spikes.6, with 0.2.31's free test port and 0.2.32's heap guard.
+- av G42: the menu's focus ring after a key or the pad, gone with the mouse (GraceUI 0.2.33) [done]
+  - refs: G42, GraceUI:D237
+  - gives: decided by the owner on 2026-11-23 as recommended ("After keys or pad") and built the same day (GraceUI
+    feat/foundations 63d63c3); the harness's menu-focus-ring scenario reads the ring's pixels beside the focus (none at
+    open, there after a key, gone after a mouse move, the focus kept). EldenNet's goldens do not change.
+
 ### S11.3 EldenNet v0.2
 
 - S11.3.a The LLM client in the DLL (built in S8.1.a and g; config file only), the chat box, input capture and gating, the talk observer

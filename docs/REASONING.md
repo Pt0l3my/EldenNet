@@ -581,6 +581,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 556 | 2026-11-23 | The quit's crash code comes with the game alone: a run with nothing injected ended with 0xC0000374 too | FACT | #crash #engine #graceui #lodestar |
 | 557 | 2026-11-23 | Windows' own record: the game's heap fault at the quit predates EldenNet's first run in the game | FACT | #crash #engine |
 | 558 | 2026-11-23 | The quit's heap fault is the game's own teardown of its file system: the archive file device's owned object | LIKELY | #lodestar #crash |
+| 559 | 2026-11-23 | A game that keeps its cursor at its centre pulls back any pointer that falls back to the window's position after a quiet spell | FACT | #graceui #input |
+| 560 | 2026-11-23 | A rule with a time in it needs a test that waits past that time | METHOD | #graceui #tests |
 
 ## Entries
 
@@ -8457,3 +8459,19 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   object. Whether the block was freed twice or damaged beside cannot be told from the code. With WHY§557's history
   (the same fault before EldenNet ever ran in the game), a damaged or modified install, or a tool that hooks the
   game's file loading, is the likelier cause; verifying the game's files is the first step.
+
+### 559. A game that keeps its cursor at its centre pulls back any pointer that falls back to the window's position after a quiet spell
+
+`2026-11-23` · FACT · `#graceui` `#input` · refs: GraceUI:D236, GraceUI:D232, WHY§549
+
+- The game sends WM_MOUSEMOVE at its centre whenever it sets the cursor, the mouse still or not, so D232's
+  one-second fallback to the window's position snapped the owner's pointer back after a second of stillness. Since
+  GraceUI 0.2.33 the pointer stays on the mouse's own motion for the whole of a holder's turn; only an absolute
+  device's raw input (MOUSE_MOVE_ABSOLUTE) hands it back.
+
+### 560. A rule with a time in it needs a test that waits past that time
+
+`2026-11-23` · METHOD · `#graceui` `#tests` · refs: GraceUI:D236
+
+- The recentred scenario held still for 12 frames (about 120 ms) against a one-second window, so it could not see
+  the snap the owner saw at once; it now waits 1.5 s, and failed on the old build before the fix.
