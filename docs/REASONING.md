@@ -533,6 +533,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 508 | 2026-11-23 | Ground truth first, then the search | METHOD | #lodestar |
 | 509 | 2026-11-23 | S0-E's run A1 crashed on the owner's PC at GraceUI's first Present, before a frame was drawn | FACT | #spike #graceui #engine |
 | 510 | 2026-11-23 | A start that stops at a banner once the window has shown installs the crash filter | DECIDED | #engine #boot |
+| 511 | 2026-11-23 | S0-E's next package: A5 with GraceUI and its observer alone, state lines every 200 ms, other overlays closed | DECIDED | #spike #graceui #engine |
 
 ## Entries
 
@@ -7874,6 +7875,9 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - EldenNet connected to GraceUI, posted its banner (the release DLL refuses the package's leads, as expected) and did
   nothing more. The watcher's record names no module (crash: null), and EldenNet's own filter was not in (WHY§484,
   §510). With Grace: a run with the frame-time overlay closed, and A0 (no EldenNet), are asked of the owner.
+- *Later (2026-11-23, WHY§511):* A1 again and A0 (no eldennet.dll) crashed the same way, 5.8 to 6.0 s in, one
+  Present passed, no queue found, nothing drawn; so EldenNet is out of it. The frame-time overlay's hooks were still
+  loaded in both, so its part is not yet tested.
 
 ### 510. A start that stops at a banner once the window has shown installs the crash filter
 
@@ -7883,3 +7887,16 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   real game's case today) had none, and a crash after it was recorded by the watcher alone, with no faulting module
   (WHY§509). Now every banner after the window installs it, as the banner path already did; it only records, then
   passes the crash on (engine 2933494). S0-D's crash case expects the filter's record at the discovery banner too.
+
+### 511. S0-E's next package: A5 with GraceUI and its observer alone, state lines every 200 ms, other overlays closed
+
+`2026-11-23` · DECIDED · `#spike` `#graceui` `#engine` · refs: WHY§509, S10.1.g, GraceUI:D175, GraceUI:D220
+
+- After four crashes (A1 three times, A0 once), all within seconds of GraceUI's install, with or without EldenNet, the
+  s0e-s4 package gains run A5, first in the order: GraceUI and its observer alone, injected early, with no stand-in and
+  no EldenNet. It tells GraceUI's own hook from the chain the stand-in and other programs' overlays make with it.
+- Every run file sets `GRACE_SPIKE_STATE_MS=200` (Grace's request), so the observer's last state line lies within a
+  frame or two of a fault; the launcher hands its environment to the game.
+- The README asks for every other overlay to be closed, its background process too, since a closed window left one
+  loaded in the owner's second runs. The next package also carries Grace's test build that records how far GraceUI's
+  first frames got, when it is ready (engine 4f9e9d2).
