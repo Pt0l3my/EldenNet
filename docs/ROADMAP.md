@@ -1215,8 +1215,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     §564): game_state by the class the leads give, on the pair search's hits; the layout's list judged first; the
     falls and moves ranked. The quit's code is the game's on that PC (WHY§556, §557, §561); it came at every quit
     for an afternoon and evening, then stopped, cause unknown (WHY§562). Awaiting the owner's run.
-    The sixteenth round's package (0.1.0-lodestar.20, engine 55874cd, merged at dfea743) is with the owner after
-    Engine's read of its README. Awaiting the owner's run.
+    The sixteenth round's package (0.1.0-lodestar.20, engine 6ee4d5d, merged at c6472f0) is with the owner after
+    Engine's read of its README (sent again with the README corrected, the programs the same). Awaiting the
+    owner's run.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
