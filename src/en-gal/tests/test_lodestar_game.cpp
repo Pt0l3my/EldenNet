@@ -1807,7 +1807,7 @@ TEST_CASE("in game: the tree beside the flags is walked once, its key told by it
   const lodestar::TreeRead::Flip flips[3] = {{1, 0x28, 125 * 5 + 3, 4, blocks},
                                              {2, 0x30, 17, 0, own},
                                              {2, 0x28, 125 * 15 + 1, 2, blocks}};
-  const lodestar::TreeFound found = tree.found(flips);
+  const lodestar::TreeFound found = tree.found(flips, 40);  // the layout says the index is kept 40 bytes in
   CHECK(found.done);
   CHECK_FALSE(found.capped);
   CHECK(found.rva == rva(w.at("st_hud")));

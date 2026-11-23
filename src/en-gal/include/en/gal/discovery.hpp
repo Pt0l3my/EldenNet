@@ -80,6 +80,10 @@ struct DiscoveryOptions {
   // gal/ids.toml's text, or empty for none: Lodestar's catalogue, which a layout that holds a table (`[item.*]`) is
   // checked against. Such a layout is refused without it; a text that does not read is a refusal.
   std::string ids;
+  // A pass for one group alone (the eleventh read-only round; WHY§457): a required static that has neither a pattern,
+  // a slot nor a place in the table refuses nothing. It is simply missing, and the Discovery is not ready to start;
+  // the groups it does find everything for can still be read. Never for a start.
+  bool partial = false;
 };
 
 enum class ItemStatus : std::uint8_t {

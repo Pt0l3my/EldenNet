@@ -812,7 +812,7 @@ bool complete(const Found& found) {
   return !a.pattern || a.only_shape == 0;
 }
 
-// ---- The report: schema 10, kind `lodestar`. No key takes a pattern, and there is no free string. ----
+// ---- The report: schema 11, kind `lodestar`. No key takes a pattern, and there is no free string. ----
 
 namespace {
 
@@ -893,10 +893,14 @@ constexpr auto kKeys = std::to_array<Key>({
     U("lowest"), U("highest"), U("multiples"), U("addresses"), B("ordered"), AO("joins"), U("target"), U("flip"),
     W("match", kTreeMatch), U("field"), AU("values"), B("reached"), U("depth"), U("key_field"),
     AU("divisor_at"), AU("block_at"),
+    // EldenNet's own reader on the flags (in game)
+    O("backend"), B("discovered"), B("flags_group"), B("ready"), U("items"), U("table_items"), U("table_refused"),
+    U("calls"), U("reads"), B("known_read"), B("known_set"), B("tripped"), U("reader_faults"), AO("flags"),
+    U("flag"), B("always_set"), B("expected"), B("valid"), B("agrees"),
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 10, kKeys};
+constexpr report::Vocabulary kVocabulary{"lodestar", 11, kKeys};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -1460,6 +1464,36 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.end_array();
       w.boolean("reached", j.reached);
       w.number("depth", j.depth);
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
+
+  if (found.backend) {
+    const BackendFound& b = *found.backend;
+    w.begin_object("backend");
+    w.boolean("discovered", b.discovered);
+    w.boolean("flags_group", b.flags_group);
+    w.boolean("ready", b.ready);
+    w.number("items", b.items);
+    w.number("table_items", b.table_items);
+    w.number("table_refused", b.table_refused);
+    w.number("calls", b.calls);
+    w.number("reads", b.reads);
+    w.boolean("known_read", b.known_read);
+    w.boolean("known_set", b.known_set);
+    w.boolean("tripped", b.tripped);
+    w.number("reader_faults", b.reader_faults);
+    w.begin_array("flags");
+    for (const BackendFlag& f : b.flags) {
+      w.begin_object();
+      w.number("flag", f.flag);
+      w.boolean("always_set", f.known);
+      w.boolean("expected", f.expected);
+      w.boolean("valid", f.valid);
+      w.boolean("set", f.set);
+      w.boolean("agrees", f.valid && f.set == f.expected);
       w.end_object();
     }
     w.end_array();
