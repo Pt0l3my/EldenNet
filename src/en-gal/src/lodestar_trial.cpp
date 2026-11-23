@@ -1511,4 +1511,159 @@ TreeFound TreeRead::found(std::span<const Flip> flips, std::optional<std::uint32
   return out;
 }
 
+// ---- The state search ----
+
+struct StateSearch::Candidate {
+  std::uint32_t slot = 0;
+  std::uint32_t span = kSpan;      // what is copied: shortened where the object's memory ends sooner
+  std::uint64_t address = 0;       // the object at the first pass; the later passes must find the same
+  bool alive = true;
+  std::uint8_t kept = 0;           // fields kept after the second pass
+  std::array<std::uint16_t, kKept> offset{};
+  std::array<std::uint8_t, kKept> value{};
+  std::array<std::uint8_t, kKept> state{};  // 1: read a small number at the second pass; 2: -1 again; 3: the same again
+};
+
+StateSearch::StateSearch(std::uint64_t base, std::vector<std::uint32_t> slots, const ByteSource* image)
+    : base_(base), image_(image), bytes_(kSpan) {
+  if (slots.size() > kMaxCandidates) slots.resize(kMaxCandidates);
+  candidates_.resize(slots.size());
+  for (std::size_t i = 0; i < slots.size(); ++i) candidates_[i].slot = slots[i];
+  bits_.assign(slots.size() * (kSpan / 4 / 64), 0);
+}
+
+StateSearch::~StateSearch() = default;
+
+void StateSearch::ask() noexcept {
+  const std::uint32_t n = asked_.load(std::memory_order_relaxed);
+  if (n < kPasses) asked_.store(n + 1, std::memory_order_release);
+}
+
+bool StateSearch::step(const proto::GameThread& gt, GuardedReader& reader) {
+  const std::uint32_t pass = done_.load(std::memory_order_relaxed);
+  if (pass >= asked_.load(std::memory_order_acquire) || pass >= kPasses) return false;
+  if (cursor_ >= candidates_.size()) {
+    // The pass is through: what is left, counted.
+    std::uint32_t alive = 0, fields = 0;
+    for (std::size_t i = 0; i < candidates_.size(); ++i) {
+      const Candidate& c = candidates_[i];
+      if (!c.alive) continue;
+      ++alive;
+      if (pass == 0) {
+        for (std::size_t w = 0; w < kSpan / 4 / 64; ++w) {
+          for (std::uint64_t b = bits_[i * (kSpan / 4 / 64) + w]; b != 0; b &= b - 1) ++fields;
+        }
+      } else {
+        for (std::size_t k = 0; k < c.kept; ++k) fields += c.state[k] == pass ? 1 : 0;
+      }
+    }
+    alive_[pass].store(alive, std::memory_order_relaxed);
+    if (pass < 3) fields_[pass].store(fields, std::memory_order_relaxed);
+    cursor_ = 0;
+    done_.store(pass + 1, std::memory_order_release);
+    return true;
+  }
+  Candidate& c = candidates_[cursor_];
+  if (!c.alive) {
+    ++cursor_;
+    return false;
+  }
+  // The slot (from the image as loaded where there is one, else through the reader), then the object's first bytes.
+  std::uint64_t at = 0;
+  if (image_ != nullptr) {
+    std::array<std::byte, 8> raw{};
+    if (image_->read(c.slot, raw)) std::memcpy(&at, raw.data(), 8);
+  } else {
+    const auto slot = reader.copy<std::uint64_t>(gt, proto::Group::Session, base_ + c.slot);
+    if (!slot && reader.spent()) return false;
+    at = slot ? *slot : 0;
+  }
+  if (at == 0 || at % 8 != 0 || at < kLowestAddress || at > kAddressEnd || (pass != 0 && at != c.address)) {
+    c.alive = false;  // nothing there, or another object than at the first pass
+    ++cursor_;
+    return false;
+  }
+  bool copied = false;
+  while (!copied) {
+    copied = reader.copy_into(gt, proto::Group::Session, at, std::span<std::byte>(bytes_).first(c.span), 8)
+                 .has_value();
+    if (copied) break;
+    if (reader.spent()) return false;  // the same candidate again at the next step
+    if (pass != 0 || c.span <= 0x40) break;  // a later pass reads what the first could
+    c.span /= 2;
+  }
+  if (!copied) {
+    c.alive = false;
+    ++cursor_;
+    return false;
+  }
+  const std::size_t fields = c.span / 4;
+  const auto field = [&](std::size_t f) {
+    std::uint32_t v = 0;
+    std::memcpy(&v, bytes_.data() + f * 4, 4);
+    return v;
+  };
+  std::uint64_t* bits = bits_.data() + cursor_ * (kSpan / 4 / 64);
+  if (pass == 0) {
+    c.address = at;
+    bool any = false;
+    for (std::size_t f = 0; f < fields; ++f) {
+      if (field(f) != 0xFFFFFFFFu) continue;
+      bits[f / 64] |= std::uint64_t{1} << (f % 64);
+      any = true;
+    }
+    if (!any) c.alive = false;  // nothing of it reads -1 at the title: no candidate
+  } else if (pass == 1) {
+    for (std::size_t f = 0; f < fields && c.kept < kKept; ++f) {
+      if ((bits[f / 64] >> (f % 64) & 1) == 0) continue;
+      const std::uint32_t v = field(f);
+      if (v > kSmall) continue;
+      c.offset[c.kept] = static_cast<std::uint16_t>(f * 4);
+      c.value[c.kept] = static_cast<std::uint8_t>(v);
+      c.state[c.kept] = 1;
+      ++c.kept;
+    }
+    if (c.kept == 0) c.alive = false;
+  } else {
+    bool any = false;
+    for (std::size_t k = 0; k < c.kept; ++k) {
+      if (c.state[k] != pass - 1 || c.offset[k] / 4u >= fields) continue;
+      const std::uint32_t v = field(c.offset[k] / 4u);
+      const bool holds = pass == 2 ? v == 0xFFFFFFFFu : v == c.value[k];
+      if (holds) {
+        c.state[k] = static_cast<std::uint8_t>(pass);
+        any = true;
+      }
+    }
+    if (!any) c.alive = false;
+  }
+  ++cursor_;
+  return false;
+}
+
+StateFound StateSearch::found() const {
+  StateFound out;
+  out.candidates = static_cast<std::uint32_t>(candidates_.size());
+  out.asked = asked_.load(std::memory_order_acquire);
+  out.passes = done_.load(std::memory_order_acquire);
+  for (std::uint32_t p = 0; p < out.passes && p < kPasses; ++p) {
+    out.alive.push_back(alive_[p].load(std::memory_order_relaxed));
+  }
+  out.fields_after_title = fields_[0].load(std::memory_order_relaxed);
+  out.fields_after_world = fields_[1].load(std::memory_order_relaxed);
+  out.fields_after_again = fields_[2].load(std::memory_order_relaxed);
+  if (out.passes < kPasses) return out;  // the candidates are the stepping thread's until the last pass is done
+  for (const Candidate& c : candidates_) {
+    if (!c.alive) continue;
+    bool hit = false;
+    for (std::size_t k = 0; k < c.kept; ++k) {
+      if (c.state[k] != 3) continue;
+      hit = true;
+      if (out.hits.size() < kMaxHits) out.hits.push_back(StateHit{c.slot, c.offset[k], c.value[k], 0});
+    }
+    out.slots_hit += hit ? 1 : 0;
+  }
+  return out;
+}
+
 }  // namespace en::gal::lodestar

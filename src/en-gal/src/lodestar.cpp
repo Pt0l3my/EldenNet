@@ -812,7 +812,7 @@ bool complete(const Found& found) {
   return !a.pattern || a.only_shape == 0;
 }
 
-// ---- The report: schema 11, kind `lodestar`. No key takes a pattern, and there is no free string. ----
+// ---- The report: schema 12, kind `lodestar`. No key takes a pattern, and there is no free string. ----
 
 namespace {
 
@@ -897,10 +897,13 @@ constexpr auto kKeys = std::to_array<Key>({
     O("backend"), B("discovered"), B("flags_group"), B("ready"), U("items"), U("table_items"), U("table_refused"),
     U("calls"), U("reads"), B("known_read"), B("known_set"), B("tripped"), U("reader_faults"), AO("flags"),
     U("flag"), B("always_set"), B("expected"), B("valid"), B("agrees"),
+    // The state search (in game)
+    O("state"), B("title_clean"), AU("alive"), U("fields_after_title"), U("fields_after_world"),
+    U("fields_after_again"), AO("state_hits"), U("value"), U("slots_hit"),
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 11, kKeys};
+constexpr report::Vocabulary kVocabulary{"lodestar", 12, kKeys};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -1494,6 +1497,33 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.boolean("valid", f.valid);
       w.boolean("set", f.set);
       w.boolean("agrees", f.valid && f.set == f.expected);
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
+
+  if (found.state) {
+    const StateFound& f = *found.state;
+    w.begin_object("state");
+    w.number("candidates", f.candidates);
+    w.number("asked", f.asked);
+    w.number("passes", f.passes);
+    w.boolean("title_clean", f.title_clean);
+    w.begin_array("alive");
+    for (const std::uint32_t v : f.alive) w.number(v);
+    w.end_array();
+    w.number("fields_after_title", f.fields_after_title);
+    w.number("fields_after_world", f.fields_after_world);
+    w.number("fields_after_again", f.fields_after_again);
+    w.number("slots_hit", f.slots_hit);
+    w.begin_array("state_hits");
+    for (const StateHit& h : f.hits) {
+      w.begin_object();
+      w.number("rva", h.rva);
+      w.number("offset", h.offset);
+      w.number("value", h.value);
+      w.number("sites", h.sites);
       w.end_object();
     }
     w.end_array();

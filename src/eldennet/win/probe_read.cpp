@@ -222,6 +222,41 @@ class Body final : public en::gal::TaskBody {
     if (sweep != nullptr && !sweep->due(frame.qpc_now_us)) sweep = nullptr;  // it rests between its passes
     auto* tree = tree_.load(std::memory_order_acquire);
     if (tree != nullptr && tree->done()) tree = nullptr;  // walked once
+    // The state search's pass, while one is asked for, has the searches' whole share to itself: the game must stay
+    // in the state the tester put it in until the pass is through, so it is to be quick; the others wait.
+    auto* state = state_.load(std::memory_order_acquire);
+    if (state != nullptr && state->due()) {
+      const std::uint64_t start = quiet_.now_us();
+      for (;;) {
+        const std::uint32_t before = reader_.copies();
+        const bool ended = state->step(gt, reader_);
+        if (ended || reader_.spent() || quiet_.now_us() - start >= kSearchShareUs) break;
+        if (reader_.copies() == before && !state->due()) break;
+      }
+      slots = nullptr;
+      members = nullptr;
+      rising = nullptr;
+      watch = nullptr;
+      sweep = nullptr;
+      tree = nullptr;
+    } else if (tree != nullptr) {
+      // The tree's walk, likewise, until it is through: it is read once, and what the round compares waits for it.
+      // With a share among the others it took seven minutes, and the eleventh round's session ended 47 records
+      // short of it; alone it takes about one.
+      const std::uint64_t start = quiet_.now_us();
+      for (;;) {
+        const std::uint32_t before = reader_.copies();
+        const bool ended = tree->step(gt, reader_);
+        if (ended || reader_.spent() || reader_.copies() == before) break;
+        if (quiet_.now_us() - start >= kSearchShareUs) break;
+      }
+      slots = nullptr;
+      members = nullptr;
+      rising = nullptr;
+      watch = nullptr;
+      sweep = nullptr;
+      tree = nullptr;
+    }
     const std::uint64_t active = (slots != nullptr ? 1u : 0u) + (members != nullptr ? 1u : 0u) +
                                  (rising != nullptr ? 1u : 0u) + (watch != nullptr ? 1u : 0u) +
                                  (sweep != nullptr ? 1u : 0u) + (tree != nullptr ? 1u : 0u);
@@ -297,6 +332,7 @@ class Body final : public en::gal::TaskBody {
   void set_watch(lodestar::Watch* watch) noexcept { watch_.store(watch, std::memory_order_release); }
   void set_sweep(lodestar::Sweep* sweep) noexcept { sweep_.store(sweep, std::memory_order_release); }
   void set_tree(lodestar::TreeRead* tree) noexcept { tree_.store(tree, std::memory_order_release); }
+  void set_state(lodestar::StateSearch* state) noexcept { state_.store(state, std::memory_order_release); }
   // EldenNet's own reader: built by T1 over this thread's careful reads, stepped here. A list of flags is handed
   // over by its address; T1 keeps every list it ever handed over.
   struct FlagList {
@@ -335,6 +371,7 @@ class Body final : public en::gal::TaskBody {
   std::atomic<lodestar::Watch*> watch_{nullptr};
   std::atomic<lodestar::Sweep*> sweep_{nullptr};
   std::atomic<lodestar::TreeRead*> tree_{nullptr};
+  std::atomic<lodestar::StateSearch*> state_{nullptr};
   std::atomic<en::gal::ErBackend*> backend_{nullptr};
   std::atomic<const FlagList*> flag_list_{nullptr};
   en::proto::WorldSnapshot snapshot_;  // the backend's, of which only the flags are filled
@@ -454,6 +491,16 @@ class Round {
     }
     log(Line("first_reading").word("state", "running").num("ms", since_ms() - asked));
     trial_at_ms_ = since_ms();
+    // The state search (WHY§460: the game state's static, by a field that reads -1 at the title and the save's slot
+    // in the world): over the data's slots that point at live memory now, at the title. Its first pass is asked for
+    // at once; the later ones at the tester's marks (in the world, at the title again, in the world again).
+    {
+      en::gal::probe::HeapSlots slots = live_slots(kMaxSlotCandidates);
+      state_ = new lodestar::StateSearch(s_.sys->module_base(), std::move(slots.slots), &s_.sys->image());
+      state_->ask();
+      body_->set_state(state_);
+      log(Line("read").word("stage", "state").num("candidates", state_->found().candidates));
+    }
     block::ready_ms(static_cast<std::uint32_t>(since_ms()));
     state(w::InitState::Ready);
     report_loop();
@@ -1112,6 +1159,47 @@ class Round {
       found_.tree->block_at = block_at_;
     }
     compare_backend();
+    if (state_ != nullptr) {
+      // A first pass made while a save was loaded is no pass at the title.
+      if (state_->passes() == 0 && trial_ != nullptr && trial_->found().world_readings != 0) state_dirty_ = true;
+      lodestar::StateFound f = state_->found();
+      f.title_clean = !state_dirty_;
+      if (f.passes >= lodestar::StateSearch::kPasses && !state_said_) {
+        // The hits' slots, with the code's references to each; one slot alone is the game state's static, by what
+        // its object holds (the invariant recipe), unless a lead's class has named it or a manager sits there.
+        state_said_ = true;
+        std::vector<std::uint32_t> slots;
+        for (const lodestar::StateHit& h : f.hits) {
+          if (std::find(slots.begin(), slots.end(), h.rva) == slots.end()) slots.push_back(h.rva);
+        }
+        if (!slots.empty()) {
+          const std::vector<lodestar::References> refs =
+              lodestar::references(*image_, s_.sys->image(), ".text", slots, lodestar::kMaxSiteWitnesses);
+          for (std::size_t i = 0; i < slots.size() && i < refs.size(); ++i) {
+            state_sites_[slots[i]] = static_cast<std::uint32_t>(std::min<std::uint64_t>(refs[i].count, 0xFFFFFFFFu));
+          }
+        }
+        const en::gal::roles::ItemInfo game = en::gal::roles::info(en::gal::roles::Item::GameState);
+        const bool named =
+            std::any_of(held_.managers.begin(), held_.managers.end(), [&](const lodestar::ManagerFound& m) {
+              return m.id == game.id && m.status == en::gal::derive::Status::Derived;
+            });
+        if (f.slots_hit == 1 && f.title_clean && !named && !named_at(f.hits[0].rva)) {
+          lodestar::InvariantFound& v = invariant(game.id, game.label, f.hits[0].rva, f.hits[0].offset);
+          v.rose = 2;    // the two passes in the world that read the same small number
+          v.passes = 4;
+        }
+        log(Line("read").word("stage", "state_done").num("slots", f.slots_hit).num("hits", f.hits.size())
+                .flag("title_clean", f.title_clean).flag("named", named)
+                .num("offset", f.hits.empty() ? 0 : f.hits[0].offset)
+                .num("sites", f.hits.empty() ? 0 : state_sites_[f.hits[0].rva]));
+      }
+      for (lodestar::StateHit& h : f.hits) {
+        const auto sites = state_sites_.find(h.rva);
+        if (sites != state_sites_.end()) h.sites = sites->second;
+      }
+      found_.state = std::move(f);
+    }
     // A report the writer refuses (too large, most likely: a long round's watch) is written again smaller, a step
     // at a time: the watched object with the most words loses them (and says so), then the next, the flags' objects
     // last (theirs are what this round is after); with no words left, the sweep's flips go, the longest list
@@ -1124,7 +1212,7 @@ class Round {
                 .flag("too_large", text.error().problem.find("larger") != std::string::npos),
             LogLevel::Error);
       }
-      if (!found_.watch && !found_.sweep && !found_.tree && !found_.backend) break;
+      if (!found_.watch && !found_.sweep && !found_.tree && !found_.backend && !found_.state) break;
       lodestar::WatchObject* most = nullptr;
       if (found_.watch) {
         const auto ahead = [&](const lodestar::WatchObject& a, const lodestar::WatchObject& b) {
@@ -1168,8 +1256,10 @@ class Round {
         found_.sweep.reset();
       } else if (found_.tree) {
         found_.tree.reset();
-      } else {
+      } else if (found_.backend) {
         found_.backend.reset();
+      } else {
+        found_.state.reset();
       }
       text = lodestar::write_report(found_);
     }
@@ -1205,6 +1295,7 @@ class Round {
       for (const std::uint32_t n = block::marks(); marks_seen_ < n;) {
         ++marks_seen_;
         marks_kept_.push_back(s_.sys->now_us());
+        if (state_ != nullptr) state_->ask();  // the tester says the game is in the next state
         log(Line("read").word("stage", "mark").num("n", marks_seen_).flag("sweep", sweep_ != nullptr));
       }
       for (; sweep_ != nullptr && marks_given_ < marks_kept_.size(); ++marks_given_) {
@@ -1282,6 +1373,10 @@ class Round {
   bool play_time_way_ = false;
   lodestar::Sweep* sweep_ = nullptr;
   lodestar::TreeRead* tree_ = nullptr;
+  lodestar::StateSearch* state_ = nullptr;
+  bool state_dirty_ = false;                        // a save was loaded before the first pass was through
+  bool state_said_ = false;
+  std::map<std::uint32_t, std::uint32_t> state_sites_;  // by slot: the code's references to it
   const en::gal::Gated* gated_ = nullptr;           // the gate's, which lives for the process
   en::gal::Discovery* discovery_ = nullptr;         // EldenNet's own, through the build's layout
   en::gal::ErBackend* backend_ = nullptr;           // built on it; stepped on T2

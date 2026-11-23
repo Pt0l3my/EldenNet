@@ -160,12 +160,11 @@ TEST_CASE("tasks: with a pace every wait is that long and the tester's tasks con
   CHECK(list.finished());
 }
 
-TEST_CASE("tasks: the read-only round's list starts with the round's own task and marks the things to do") {
+TEST_CASE("tasks: the read-only round's list starts with the round's own task and marks each change of the game's state") {
   const std::vector<Task> tasks = read_tasks();
-  REQUIRE(tasks.size() == 8);
+  REQUIRE(tasks.size() == 11);
   CHECK(tasks[0].kind == TaskKind::Round);
-  CHECK(tasks[1].kind == TaskKind::Do);
-  CHECK_FALSE(tasks[1].mark);
+  CHECK(tasks[1].kind == TaskKind::Wait);  // the first look at the title, before the save is loaded
   std::size_t marks = 0, waits = 0, seconds = 0;
   for (const Task& t : tasks) {
     CHECK_FALSE(t.title.empty());
@@ -179,14 +178,19 @@ TEST_CASE("tasks: the read-only round's list starts with the round's own task an
     if (t.kind == TaskKind::Wait) {
       ++waits;
       seconds += t.seconds;
-      CHECK(t.seconds >= 60);
+      CHECK(t.seconds >= 45);
     } else {
       CHECK(t.seconds == 0);
     }
   }
-  CHECK(marks == 2);
-  CHECK(waits == 3);
-  CHECK(seconds == 360);
+  // Four marks: in the world, at the title again, in the world again, and one thing the game remembers. Each is
+  // followed by a wait, in which the round reads the game in that state.
+  CHECK(marks == 4);
+  CHECK(waits == 5);
+  CHECK(seconds == 285);
+  for (std::size_t i = 0; i + 1 < tasks.size(); ++i) {
+    if (tasks[i].mark) CHECK(tasks[i + 1].kind == TaskKind::Wait);
+  }
   // The last task is to quit the game: it has no button and nothing confirms it.
   CHECK(tasks.back().kind == TaskKind::End);
   CHECK_FALSE(tasks.back().mark);

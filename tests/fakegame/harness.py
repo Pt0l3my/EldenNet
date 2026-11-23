@@ -2385,7 +2385,7 @@ def check_read(result, by_flag=False, events=False, marks=False):
     with open(table) as f:
         draft = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 11, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
+    need(d["report"] == "lodestar" and d["schema"] == 12, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
          failures)
     # Numbers and the catalogue's labels: no name of the fake game's, in either file.
     for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["SaveLedger", "FG::", "Imp", "task_loom", "Fg_"]:
@@ -2491,15 +2491,18 @@ def check_read(result, by_flag=False, events=False, marks=False):
             # second, as the timing falls).
             holder = [t for t in sweep["targets"] if not t["deeper"] and t["offset"] == 0x20]
             marked = [e for e in holder[0]["mark_flips"] if e["offset"] == 375 + 15] if holder else []
-            need(len(sweep["mark_seconds"]) == 2 and sweep["mark_seconds"][0] <= sweep["mark_seconds"][1] and
-                 len(marked) == 1 and marked[0]["mark"] in (1, 2) and marked[0]["bit"] == 4 and marked[0]["set"] is True,
+            need(len(sweep["mark_seconds"]) == 4 and sweep["mark_seconds"][0] <= sweep["mark_seconds"][1] and
+                 len(marked) == 1 and marked[0]["mark"] in (1, 2, 3, 4) and marked[0]["bit"] == 4 and
+                 marked[0]["set"] is True,
                  "the sweep's marks: %s %s" % (sweep["mark_seconds"], holder[0]["mark_flips"] if holder else None),
                  failures)
-            failures += want(result, "LAUNCHER", "tasks", which="first", count=8, panel=(0, 1), pace_s=5)
-            failures += any_line(result, "LAUNCHER", "task", n=1, of=8, by="round", mark=0)
-            failures += any_line(result, "LAUNCHER", "task", n=4, of=8, by="time", mark=1)
-            failures += any_line(result, "LAUNCHER", "task", n=6, of=8, by="time", mark=1)
-            failures += any_line(result, "ELDENNET", "read", stage="mark", n=2)
+            failures += want(result, "LAUNCHER", "tasks", which="first", count=11, panel=(0, 1), pace_s=5)
+            failures += any_line(result, "LAUNCHER", "task", n=1, of=11, by="round", mark=0)
+            failures += any_line(result, "LAUNCHER", "task", n=3, of=11, by="time", mark=1)
+            failures += any_line(result, "LAUNCHER", "task", n=5, of=11, by="time", mark=1)
+            failures += any_line(result, "LAUNCHER", "task", n=7, of=11, by="time", mark=1)
+            failures += any_line(result, "LAUNCHER", "task", n=9, of=11, by="time", mark=1)
+            failures += any_line(result, "ELDENNET", "read", stage="mark", n=4)
             # The tree beside the flags: its head is the object the store's map points at (0x10 bytes in); the walk
             # read the head and the three groups' records; the key is the field the tree is ordered by (0x18 bytes
             # into the fake game's record); and the flag's flip is joined to the record that names its block by the
@@ -2712,6 +2715,69 @@ case("launcher-eldennet-read-clock", LGAME + ["--dll", "{eldennetdll}", "--conso
           "static the world's clock by the invariant recipe, and writes it into the draft table")
 
 
+def read_state_gal(gal):
+    """The read round's gal/ with no lead for the game's state: as in the game, no class names its static, and the
+    round must find it by what its object holds in two states of the game."""
+    read_round_gal(gal)
+    path = os.path.join(gal, "leads.toml")
+    with open(path) as f:
+        text = f.read()
+    changed = text.replace('game_state = "RunWarden"\n', "")
+    assert changed != text, "the leads' game_state line was not found"
+    with open(path, "w") as f:
+        f.write(changed)
+
+
+def check_read_state(result):
+    """The state search: the fake game keeps its save slot as the game does by our notes (-1 outside the world, the
+    slot's number in it: --slot-by-state) and goes back to its title once (--retitle-at-s); the launcher's tasks, at
+    the tests' pace, mark each change. The round finds the one slot of the data behind which a field reads -1, the
+    slot, -1 and the slot again, names it the game's state by the invariant recipe, and writes it into the table."""
+    failures = any_line(result, "LAUNCHER", "task", n=3, of=11, by="time", mark=1)
+    failures += any_line(result, "LAUNCHER", "task", n=5, of=11, by="time", mark=1)
+    failures += any_line(result, "LAUNCHER", "task", n=7, of=11, by="time", mark=1)
+    failures += want(result, "ELDENNET", "read", stage="state_done", slots=1, title_clean=1, named=0, offset=0x14,
+                     sites=(1, 1e6))
+    folder = os.path.join(result.paths["appdata"], "EldenNet", "probe")
+    report, table = os.path.join(folder, "lodestar-found.json"), os.path.join(folder, "lodestar-table.toml")
+    if not (os.path.exists(report) and os.path.exists(table)):
+        return failures + ["no lodestar-found.json or lodestar-table.toml in the probe folder"]
+    code, out, _ = run_engine(result.args, result.env, ["lint", "--report", result.as_win(report)])
+    need(code == 0, "lint --report lodestar-found.json: exit %s %s" % (code, out[-400:]), failures)
+    with open(report) as f:
+        d = json.load(f)
+    with open(table) as f:
+        draft = f.read()
+    state = d.get("state") or {"state_hits": [], "alive": []}
+    need(state.get("passes") == 4 and state.get("asked") == 4 and state.get("title_clean") is True and
+         state.get("candidates", 0) >= 4 and len(state["alive"]) == 4 and state["alive"][0] >= state["alive"][3] >= 1 and
+         state.get("slots_hit") == 1 and len(state["state_hits"]) == 1 and state["state_hits"][0]["offset"] == 0x14 and
+         state["state_hits"][0]["value"] == 2 and state["state_hits"][0]["sites"] >= 1,
+         "the state search: %s" % state, failures)
+    games = [v for v in d.get("invariants") or [] if v["label"] == "game_state"]
+    need(len(games) == 1 and games[0]["id"] == 1003 and games[0]["offset"] == 0x14 and
+         state["state_hits"] and games[0]["rva"] == state["state_hits"][0]["rva"] and games[0]["sites"] >= 1 and
+         1 <= len(games[0]["witnesses"]) <= 8, "the game state's invariant: %s" % games, failures)
+    at = draft.find("[item.game_state]")
+    need(at >= 0 and 'found_by = ["invariant"]' in draft[at:at + 400] and "witnesses = [" in draft[at:at + 400],
+         "the draft table's game_state: %s" % draft[at:at + 300], failures)
+    failures += check_lines(("ELDENNET", "init", {"state": "ready"}), ("LAUNCHER", "end", {"kind": "clean"}))(result)
+    return failures + ready_no_call(result) + en_log_is_clean(result)
+
+
+case("launcher-eldennet-read-state", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
+                                              "--read", "--read-pace-s", "8"] +
+     game("--field-mirror", "--slot-by-state", "--title-frames", "720", "--retitle-at-s", "15", "--retitle-for-s", "16",
+          frames=3900),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     prepare=install_eldennet(None, probe=True, gal_change=read_state_gal, then=with_saves),
+     check=check_read_state,
+     what="the read-only round where no class names the game's state (as in the game): the fake game is taken from its "
+          "title to the world, back to the title and to the world again, each change marked by the launcher's tasks; "
+          "the round finds the slot behind which a field reads -1, the save's slot, -1 and the slot again, and writes "
+          "it into the draft table by the invariant recipe")
+
+
 # The read-only round as the owner runs it (README-READ.txt): `eldennet-launcher --read`, with no settings.toml and the
 # save backup made first; the console's steps in plain words and no key to press; a first pass before the game has made
 # its managers ("Now load your save."), a later one that names them all ("All 13 managers are named."); the game ends
@@ -2737,10 +2803,10 @@ def check_read_owner(result):
     # The tester's tasks, told on the console too as each begins: the second when the round says to load the save,
     # the last when the list is through.
     tasks = [l for l in said if l.startswith("EldenNet read: Task ")]
-    need(len(tasks) == 7 and tasks[0].startswith("EldenNet read: Task 2 of 8: Load your save.") and
-         tasks[-1].startswith("EldenNet read: Task 8 of 8: Quit the game."), "the console's tasks: %s" % tasks,
+    need(len(tasks) == 10 and tasks[0].startswith("EldenNet read: Task 2 of 11: Stay at the title screen.") and
+         tasks[-1].startswith("EldenNet read: Task 11 of 11: Quit the game."), "the console's tasks: %s" % tasks,
          failures)
-    failures += want(result, "LAUNCHER", "tasks", done=8, of=8, finished=1)
+    failures += want(result, "LAUNCHER", "tasks", done=11, of=11, finished=1)
     for name in ("lodestar-found.json", "lodestar-table.toml"):
         failures += any_line(result, "LAUNCHER", "read", report=name, lint="clean")
     failures += want(result, "ELDENNET", "probe", asked="read", accepted=1, probe_build=1)

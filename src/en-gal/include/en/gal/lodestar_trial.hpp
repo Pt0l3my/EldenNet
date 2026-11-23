@@ -443,4 +443,51 @@ class TreeRead {
   bool settled_ = false;
 };
 
+// The state search (lodestar.hpp's StateFound). Each candidate is a slot of the data; a pass reads the first bytes of
+// the object each slot points at, a candidate a call. The passes are asked for one by one, from another thread (the
+// round's, at the tester's marks); the stepping thread takes each up when the one before is done. Everything is
+// allocated when the search is made.
+class StateSearch {
+ public:
+  static constexpr std::uint32_t kSpan = 0x2000;       // bytes of each object: 8 KiB, shortened where it ends sooner
+  static constexpr std::size_t kMaxCandidates = 8192;
+  static constexpr std::size_t kKept = 16;             // fields kept a candidate after the second pass
+  static constexpr std::size_t kMaxHits = 32;
+  static constexpr std::uint32_t kPasses = 4;          // the title, the world, the title, the world
+  static constexpr std::uint32_t kSmall = 15;          // "a small number": 0 to 15
+
+  // `image`: where given, a slot is read from the image as loaded (its data is always there) and only the object
+  // through the guarded reader: one careful read a candidate, not two.
+  StateSearch(std::uint64_t base, std::vector<std::uint32_t> slots, const ByteSource* image = nullptr);
+  ~StateSearch();
+  StateSearch(const StateSearch&) = delete;
+  StateSearch& operator=(const StateSearch&) = delete;
+
+  // Asks for the next pass. From one thread; at most kPasses times.
+  void ask() noexcept;
+  [[nodiscard]] std::uint32_t asked() const noexcept { return asked_.load(std::memory_order_acquire); }
+  [[nodiscard]] std::uint32_t passes() const noexcept { return done_.load(std::memory_order_acquire); }
+  // Whether a call would read: a pass is asked for and not finished. For the stepping thread only.
+  [[nodiscard]] bool due() const noexcept { return done_.load(std::memory_order_relaxed) < asked(); }
+
+  // Reads one candidate of the pass under way; answers whether a pass ended on this call.
+  bool step(const proto::GameThread& gt, GuardedReader& reader);
+
+  // The hits' `sites` are left 0: the caller counts the code's references.
+  [[nodiscard]] StateFound found() const;
+
+ private:
+  struct Candidate;
+  std::uint64_t base_;
+  const ByteSource* image_;
+  std::vector<Candidate> candidates_;
+  std::vector<std::uint64_t> bits_;   // by candidate: kSpan / 4 bits, a field that read -1 at the first pass
+  std::vector<std::byte> bytes_;      // one object's bytes, as just read
+  std::size_t cursor_ = 0;
+  std::atomic<std::uint32_t> asked_{0};
+  std::atomic<std::uint32_t> done_{0};
+  std::array<std::atomic<std::uint32_t>, kPasses> alive_{};
+  std::array<std::atomic<std::uint32_t>, 3> fields_{};  // after the first, second and third pass
+};
+
 }  // namespace en::gal::lodestar
