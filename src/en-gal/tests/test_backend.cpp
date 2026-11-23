@@ -292,6 +292,38 @@ TEST_CASE("backend: real faults trip an optional group's breaker (L3), and a str
   CHECK(copier.copies == copies);
 }
 
+TEST_CASE("backend: a manager's fields far into a large object are read by copies of their own") {
+  WorldOptions o;
+  o.far_roster = true;  // the roster is 0x12000 bytes, its fields 0x10000 bytes in; the layout says each is far
+  Running r(o);
+  r.start();
+  REQUIRE(r.task.status().state.load() == TaskState::Running);
+  const ClassLayout* roster = r.d.layout().find_class("characters");
+  REQUIRE(roster != nullptr);
+  CHECK(roster->copy_size == 0x8u);  // the first word alone, for the class's check
+  CHECK(roster->far_bytes == 40);    // a pointer, a vector's two, a pointer and a number, each at a multiple of 8
+  r.w.world();
+  r.run(2.0, 60);
+  const auto& s = r.io.last();
+  // The world and the session read as they do from a near roster: the main player, the near list, the player set.
+  CHECK(s.life.main_player);
+  REQUIRE(s.player.has_value());
+  Running plain;  // the same world with the roster's fields at its start
+  plain.start();
+  plain.w.world();
+  plain.run(2.0, 60);
+  CHECK(s.chars.size() == plain.io.last().chars.size());
+  CHECK(s.chars.size() >= r.w.npcs.size());
+  CHECK(state_of(r, Group::World) == GroupState::Ok);
+  CHECK(state_of(r, Group::Session) == GroupState::Ok);
+  CHECK(r.task.backend().book().breaker_total(Group::World) == 0);
+  // Back at the title the far pointer reads empty, as a near one does.
+  r.w.title();
+  r.run(0.5, 60);
+  CHECK_FALSE(r.io.last().life.main_player);
+  CHECK(r.io.last().chars.empty());
+}
+
 TEST_CASE("backend: a clock kept as runs of bits in one word reads by the layout's shift and width") {
   WorldOptions o;
   o.clock_bits = true;
