@@ -1,7 +1,20 @@
 # The persona index (NPC §2.1): each persona's id, its record, and the NpcParam rows and entity ids it binds by
-# (O45: the speaker is matched by id, never by name). Our own file. v0.2 ships the test persona alone; the pilot,
-# Kalé, joins with his S1 and S6 records (NPC §3.4).
+# (O45: the speaker is matched by id, never by name). Our own file. v0.2 ships the pilot, Kalé (NPC §3.4), and the test
+# persona. Kalé's row, block and name id are research leads, each unverified until S1 (the row) or S6 (the block) checks
+# it in game (NPC §2.1). Release mode (lint --strict, NPC §0) refuses an unverified row; a dev build resolves it.
 schema = 1
+
+[[persona]]
+id = "kale"
+file = "personas/kale.toml"
+talk_code = 800                           # metadata only; never used to resolve (ER04 §1)
+flag_block = { alias = "kale", base = 4700, verified = false }   # lead from both datasets (ER07 §4.2); S6 verifies it
+npc_params = [
+  { param = 32000000, form = "default", expect_name_id = 180000, verified = false },   # ER04 §1, WHY§22; S1
+]
+# NPC §2.1's entity lead (ER05 §6.3) is left out: its prefix does not fit the church, and an entity that is not his would
+# voice another character as Kalé in a dev build. S1's capture gives his entity id.
+enabled = true
 
 [[persona]]
 id = "lantern_keeper"

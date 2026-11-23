@@ -5,6 +5,12 @@ budget, each block against its cap and the trim) changes only with an entry here
 hash, which `eldennet-engine golden update <fixture>.prompt.json` prints; `golden check` fails without it, as a route's
 golden does (ARCH §8.12). Newest first. The fixtures' persona, names and lines are invented.
 
+- 2026-11-23 `pilot_start` fnv1a64:95e89ce7671406db: first golden (S11.3.c, d): the pilot, Kalé, from the shipped
+  persona at `fresh`: block 5b his road alone.
+- 2026-11-23 `pilot_middle` fnv1a64:f26343acd29aaa7a: first golden: the pilot at `after_radahn`, block 5b as NPC §3.6
+  renders it (152 tokens), an earlier talk's lines in block 6.
+- 2026-11-23 `pilot_late` fnv1a64:6416733abf2af777: first golden: the pilot at `erdtree_burned` with his talk about the
+  howl set: his `howl_told` stage in block 7, four lines in block 5b (164 tokens), and block 9's "you, now" line.
 - 2026-11-22 `crowded_regen` fnv1a64:e3c324ab19b937f7: block 11's cap rises from 40 to 70 tokens and carries one tic
   note at most, the newest (WHY§388): of the two spent tics only the last is noted, and the note loses "in this talk"
   so the ask, a note and the promise reminder fit (67/70); 1,517 tokens in all.

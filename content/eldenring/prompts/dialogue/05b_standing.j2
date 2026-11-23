@@ -1,14 +1,15 @@
 {# Block 5b, as things stand now (NPC §7.3; MEM §12.6): the stage's road, then the lines tied to the persona's own road
-   and the land's, each grouped by certainty; cache B after it. At most 200 tokens. #}
+   and the land's, each grouped by certainty, a group's lines (whole sentences) one after another as NPC §3.6 renders
+   them; cache B after it. At most 200 tokens. #}
 [ system ]
 {% if not (empty(stage.road) and empty(standing.tied.known) and empty(standing.tied.heard) and empty(standing.tied.believed) and empty(standing.land.known) and empty(standing.land.heard) and empty(standing.land.believed)) %}
 As things stand now:
 {% if not empty(stage.road) %}Your own road: {{ stage.road }}{% endif %}
-{% if not empty(standing.tied.known) %}Tied to your road, you know: {{ join(standing.tied.known, "; ") }}{% endif %}
-{% if not empty(standing.tied.heard) %}Tied to your road, you have heard: {{ join(standing.tied.heard, "; ") }}{% endif %}
-{% if not empty(standing.tied.believed) %}Tied to your road, you believe: {{ join(standing.tied.believed, "; ") }}{% endif %}
-{% if not empty(standing.land.known) %}In the land, you know: {{ join(standing.land.known, "; ") }}{% endif %}
-{% if not empty(standing.land.heard) %}In the land, you have heard: {{ join(standing.land.heard, "; ") }}{% endif %}
-{% if not empty(standing.land.believed) %}In the land, you believe: {{ join(standing.land.believed, "; ") }}{% endif %}
+{% if not empty(standing.tied.known) %}Tied to your road, you know: {{ join(standing.tied.known, " ") }}{% endif %}
+{% if not empty(standing.tied.heard) %}Tied to your road, you have heard: {{ join(standing.tied.heard, " ") }}{% endif %}
+{% if not empty(standing.tied.believed) %}Tied to your road, you believe: {{ join(standing.tied.believed, " ") }}{% endif %}
+{% if not empty(standing.land.known) %}In the land, you know: {{ join(standing.land.known, " ") }}{% endif %}
+{% if not empty(standing.land.heard) %}In the land, you have heard: {{ join(standing.land.heard, " ") }}{% endif %}
+{% if not empty(standing.land.believed) %}In the land, you believe: {{ join(standing.land.believed, " ") }}{% endif %}
 [ cache ]
 {% endif %}

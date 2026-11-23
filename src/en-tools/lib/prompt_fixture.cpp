@@ -7,7 +7,10 @@
 #include <iterator>
 #include <system_error>
 
+#include "en/core/knowledge.hpp"
+#include "en/core/speech_content.hpp"
 #include "en/prompt/environment.hpp"
+#include "eval_run.hpp"  // read_content_folder
 
 namespace en::tools {
 namespace {
@@ -191,9 +194,9 @@ proto::Expected<PromptFixture, std::string> parse_prompt_fixture(const std::stri
   if (j.is_discarded() || !j.is_object()) return proto::Unexpected{std::string("the fixture is not a JSON object")};
   if (!j.contains("fixture") || j["fixture"] != 1)
     return proto::Unexpected{std::string("the fixture's format is not 1")};
-  static constexpr std::array<std::string_view, 12> kKeys = {"fixture",  "persona", "name",  "record",
+  static constexpr std::array<std::string_view, 13> kKeys = {"fixture",  "persona", "name",  "record",
                                                              "earlier",  "history", "scene", "recap",
-                                                             "reminder", "tally",   "tied",  "land"};
+                                                             "reminder", "tally",   "tied",  "land", "pack"};
   for (const auto& [k, v] : j.items()) {
     if (std::find(kKeys.begin(), kKeys.end(), k) == kKeys.end()) {
       return proto::Unexpected{"the fixture has an unknown key \"" + k + "\""};
@@ -206,9 +209,26 @@ proto::Expected<PromptFixture, std::string> parse_prompt_fixture(const std::stri
   if (!persona || !name) return proto::Unexpected{problem};
   f.persona = *persona;
   f.name = *name;
-  if (!j.contains("record") || !j["record"].is_object())
-    return proto::Unexpected{std::string("the fixture has no record")};
-  f.record = j["record"];
+  if (const auto pk = j.find("pack"); pk != j.end()) {
+    if (j.contains("record") || j.contains("tied") || j.contains("land"))
+      return proto::Unexpected{std::string("\"pack\" takes the place of \"record\", \"tied\" and \"land\"")};
+    if (!pk->is_object()) return proto::Unexpected{std::string("\"pack\" is not an object")};
+    for (const auto& [k, v] : pk->items()) {
+      if (k != "persona" && k != "flags" && k != "set") return proto::Unexpected{"\"pack\" has an unknown key \"" + k + "\""};
+    }
+    PackPersona pp;
+    const auto who = text_of(*pk, "persona", problem);
+    const auto flags = text_of(*pk, "flags", problem);
+    if (!who || !flags || !texts_of(*pk, "set", pp.set, problem)) return proto::Unexpected{problem};
+    if (who->empty() || flags->empty()) return proto::Unexpected{std::string("\"pack\" needs a persona and a flag state")};
+    pp.persona = *who;
+    pp.flags = *flags;
+    f.pack = std::move(pp);
+  } else {
+    if (!j.contains("record") || !j["record"].is_object())
+      return proto::Unexpected{std::string("the fixture has no record")};
+    f.record = j["record"];
+  }
   if (!turns_of(j, "earlier", f.earlier, problem) || !turns_of(j, "history", f.history, problem) ||
       !texts_of(j, "recap", f.recap, problem) || !standing_of(j, "tied", f.tied, problem) ||
       !standing_of(j, "land", f.land, problem)) {
@@ -273,6 +293,58 @@ proto::Expected<PromptFixture, std::string> parse_prompt_fixture(const std::stri
     }
   }
   return f;
+}
+
+std::optional<fs::path> find_flag_state(const fs::path& folder, const std::string& name) {
+  const bool slug = !name.empty() && name.size() <= 32 &&
+                    std::all_of(name.begin(), name.end(), [](char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'; });
+  if (!slug) return std::nullopt;
+  std::error_code ec;
+  fs::path from = fs::absolute(folder, ec);
+  for (int up = 0; up < 8 && !from.empty(); ++up) {
+    for (const fs::path& sub : {fs::path("flagstates"), fs::path("fixtures") / "flagstates", fs::path("tests") / "fixtures" / "flagstates"}) {
+      const fs::path f = from / sub / (name + ".toml");
+      if (fs::is_regular_file(f, ec)) return f;
+    }
+    if (from == from.parent_path()) break;
+    from = from.parent_path();
+  }
+  return std::nullopt;
+}
+
+std::string complete_from_pack(PromptFixture& f, const fs::path& pack_root, const fs::path& folder) {
+  if (!f.pack) return {};
+  auto files = read_content_folder(pack_root, core::ContentOrigin::Shipped);
+  if (!files) return "the pack: " + files.error();
+  auto pack = core::load_content(*files);
+  if (!pack) return "the pack does not load: " + core::describe(pack.error().front());
+  if (auto speech = core::load_speech(*pack); !speech) return "the pack does not load: " + core::describe(speech.error().front());
+  auto knowledge = core::Knowledge::build(*pack);
+  if (!knowledge) return "the pack does not load: " + core::describe(knowledge.error().front());
+  std::size_t index = pack->personas.size();
+  for (std::size_t i = 0; i < pack->personas.size(); ++i) {
+    if (pack->personas[i].id == f.pack->persona) index = i;
+  }
+  if (index == pack->personas.size()) return "the pack has no persona of that id";
+  const auto path = find_flag_state(folder, f.pack->flags);
+  if (!path) return "no fixture flag state of that name above the fixture";
+  const auto text = slurp(*path);
+  if (!text) return "the fixture flag state cannot be read";
+  std::string state = *text;
+  if (!f.pack->set.empty()) {  // the aliases set on top: a [flags] table's entries, added
+    if (state.find("[flags]") == std::string::npos) state += "\n[flags]\n";
+    std::string extra;
+    for (const std::string& a : f.pack->set) extra += "\"" + a + "\" = true\n";
+    state.insert(state.find("[flags]") + 8, extra);
+  }
+  auto flags = knowledge->fixture(state);
+  if (!flags) return "the fixture flag state: " + flags.error();
+  const core::WorldView view = knowledge->derive(*flags);
+  const core::Grounding g = knowledge->ground(index, *flags, view);
+  f.record = pack->personas[index].resolved(g.stage);
+  f.tied = g.tied;
+  f.land = g.land;
+  return {};
 }
 
 std::string prompt_golden_text(const std::string& name,

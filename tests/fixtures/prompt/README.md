@@ -16,3 +16,14 @@ changes `golden/CHANGES.md` records. Nothing here is a game's: the persona, its 
 Every fixture's block 2 is within its 120 tokens: `golden check` refuses one past it, as the content's load refuses
 shipped and test records past it (WHY§388).
 - `over_cap`: two exchanges far past the hard cap, which the trim may not touch: the render is refused.
+
+The pilot's fixtures (S11.3.c, d) name the shipped persona and a fixture flag state (`"pack"`, prompt_fixture.hpp) in
+place of a hand-written record, so their goldens follow `content/eldenring/personas/kale.toml` and what he knows at
+that state (`known(P)`, block 5b). Their scenes and lines are invented, in our own words.
+
+- `pilot_start`: `fresh`, a first talk: block 5b holds his road alone.
+- `pilot_middle`: `after_radahn`, an earlier talk's lines: block 5b as NPC §3.6 renders it, the star as known and the
+  castle's and the general's falls as heard.
+- `pilot_late`: `erdtree_burned` with his talk about the howl set, so his `howl_told` stage is active (its mood and gist
+  in block 7), four lines in block 5b with the queen's fall left for block 7's topic offers (v0.3), and his "you, now"
+  line.

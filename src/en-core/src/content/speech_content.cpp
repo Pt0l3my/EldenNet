@@ -1,6 +1,8 @@
 // The content pack's speech: its prompts and lexicon, and block 2's content lint (speech_content.hpp; WHY§388).
 #include "en/core/speech_content.hpp"
 
+#include <algorithm>
+#include <array>
 #include <map>
 #include <string>
 #include <utility>
@@ -10,6 +12,7 @@ namespace en::core {
 namespace {
 
 constexpr std::size_t kIdentity = static_cast<std::size_t>(Block::Identity);
+constexpr std::size_t kVoice = static_cast<std::size_t>(Block::Voice);
 
 const ContentFile* other(const ContentPack& pack, std::string_view path) {
   for (const ContentFile& f : pack.others) {
@@ -18,7 +21,124 @@ const ContentFile* other(const ContentPack& pack, std::string_view path) {
   return nullptr;
 }
 
+// NPC §3.3's effect adjectives: a warning in the persona's voice, public and personality fields (PL5).
+constexpr std::array<std::string_view, 19> kEffectWords = {
+    "cryptic", "enigmatic", "mysterious", "riddling", "terse",     "clipped", "curt",  "blunt", "laconic", "gruff",
+    "sardonic", "sarcastic", "snarky",    "witty",    "quirky",    "sassy",   "edgy",  "brooding", "ominous"};
+// PL4's imperative words: a subject or a stir is a noun phrase, never an instruction (W7's list).
+constexpr std::array<std::string_view, 7> kImperatives = {"tell", "mention", "say", "ask", "remind", "must", "should"};
+
+// Whether a lint entry's words occur in order in the text's words (an entry's last word may be a prefix).
+bool matches(const LexiconEntry& e, const std::vector<std::string>& words) {
+  if (e.words.empty() || e.words.size() > words.size()) return false;
+  for (std::size_t i = 0; i + e.words.size() <= words.size(); ++i) {
+    bool all = true;
+    for (std::size_t j = 0; j < e.words.size() && all; ++j) {
+      const bool last = j + 1 == e.words.size();
+      all = (last && e.prefix) ? words[i + j].rfind(e.words[j], 0) == 0 : words[i + j] == e.words[j];
+    }
+    if (all) return true;
+  }
+  return false;
+}
+
+bool has_quote(std::string_view s) {
+  return s.find('"') != std::string_view::npos || s.find("\xE2\x80\x9C") != std::string_view::npos;  // " or “
+}
+
+// A record's text at a dotted path: a string, or each string of a list.
+std::vector<std::string> texts_at(const nlohmann::json& record, std::string_view path) {
+  const nlohmann::json* v = &record;
+  for (std::size_t start = 0; v != nullptr && start <= path.size();) {
+    const std::size_t dot = std::min(path.find('.', start), path.size());
+    const auto it = v->is_object() ? v->find(std::string(path.substr(start, dot - start))) : v->end();
+    v = v->is_object() && it != v->end() ? &*it : nullptr;
+    start = dot + 1;
+  }
+  std::vector<std::string> out;
+  if (v == nullptr) return out;
+  if (v->is_string()) out.push_back(v->get<std::string>());
+  if (v->is_array()) {
+    for (const auto& x : *v) {
+      if (x.is_string()) out.push_back(x.get<std::string>());
+      if (x.is_object() && x.contains("text") && x["text"].is_string()) out.push_back(x["text"].get<std::string>());
+    }
+  }
+  return out;
+}
+
 }  // namespace
+
+void lint_persona_wording(const ContentPack& pack, const Lexicon& lexicon, std::vector<ContentError>& errors,
+                          std::vector<ContentError>& warnings) {
+  // PL5's prompt-facing fields, and the stages' texts that render (NPC §3.1, §7.3).
+  constexpr std::array<std::string_view, 16> kFacing = {
+      "public.summary",   "public.appearance", "public.role",      "private.personality", "private.honesty",
+      "private.claims",   "private.seeks",     "private.ties",     "voice.cadence",       "voice.diction",
+      "voice.deflection", "voice.tics",        "subjects",         "stirs",               "instructions",
+      "address_forms"};
+  constexpr std::array<std::string_view, 6> kStageFacing = {"identity", "where", "mood", "gist", "road", "unlock.text"};
+  constexpr std::array<std::string_view, 5> kNoQuotes = {"voice.cadence", "voice.diction", "voice.deflection",
+                                                         "private.claims", "instructions"};
+  constexpr std::array<std::string_view, 7> kEffectFields = {"voice.cadence",      "voice.diction",  "voice.deflection",
+                                                             "public.summary",     "public.appearance",
+                                                             "private.personality", "instructions"};
+  for (const Persona& p : pack.personas) {
+    const PersonaRow* row = pack.row(p.id);
+    const bool strict = p.origin == ContentOrigin::Shipped || (row != nullptr && row->test_only);
+    auto& hard = strict ? errors : warnings;
+    const auto banned = [&](const std::string& text) {
+      const std::vector<std::string> words = lint_words(text);
+      return std::any_of(lexicon.banned.begin(), lexicon.banned.end(), [&](const LexiconEntry& e) { return matches(e, words); });
+    };
+    for (const std::string_view field : kFacing) {
+      for (const std::string& t : texts_at(p.record, field)) {
+        if (banned(t)) hard.push_back(ContentError{p.file, 0, std::string(field) + ": holds a banned word (PL5)"});
+      }
+    }
+    if (const auto rs = p.record.find("stages"); rs != p.record.end() && rs->is_array()) {
+      for (std::size_t i = 0; i < rs->size(); ++i) {
+        for (const std::string_view field : kStageFacing) {
+          for (const std::string& t : texts_at((*rs)[i], field)) {
+            if (banned(t)) {
+              hard.push_back(ContentError{p.file, i < p.stages.size() ? p.stages[i].line : 0,
+                                          "stages[" + std::to_string(i) + "]." + std::string(field) +
+                                              ": holds a banned word (PL5)"});
+            }
+          }
+        }
+      }
+    }
+    for (const std::string_view field : kNoQuotes) {
+      for (const std::string& t : texts_at(p.record, field)) {
+        if (has_quote(t)) hard.push_back(ContentError{p.file, 0, std::string(field) + ": a quoted sample line (PL5; NPC §3.3)"});
+      }
+    }
+    for (const std::string_view field : kEffectFields) {
+      for (const std::string& t : texts_at(p.record, field)) {
+        const std::vector<std::string> words = lint_words(t);
+        if (std::any_of(words.begin(), words.end(), [](const std::string& w) {
+              return std::find(kEffectWords.begin(), kEffectWords.end(), w) != kEffectWords.end();
+            })) {
+          warnings.push_back(ContentError{p.file, 0, std::string(field) + ": an effect adjective (PL5; NPC §3.3)"});
+        }
+      }
+    }
+    // PL4: subjects and stirs are noun phrases: no sentence's end, no question, no quotation, no imperative.
+    for (const std::string_view field : {std::string_view("subjects"), std::string_view("stirs")}) {
+      for (const std::string& t : texts_at(p.record, field)) {
+        const char last = t.empty() ? ' ' : t.back();
+        const std::vector<std::string> words = lint_words(t);
+        const bool imperative = std::any_of(words.begin(), words.end(), [](const std::string& w) {
+          return std::find(kImperatives.begin(), kImperatives.end(), w) != kImperatives.end();
+        });
+        if (last == '.' || last == '!' || t.find('?') != std::string::npos || has_quote(t) || imperative) {
+          hard.push_back(ContentError{p.file, 0, std::string(field) + ": must be a noun phrase (PL4)"});
+        }
+      }
+    }
+  }
+}
 
 void lint_identity_blocks(const ContentPack& pack, const DialoguePrompt& prompt, std::vector<ContentError>& errors,
                           std::vector<ContentError>& warnings) {
@@ -39,11 +159,21 @@ void lint_identity_blocks(const ContentPack& pack, const DialoguePrompt& prompt,
         errors.push_back(ContentError{p.file, p.stages[i].line, at + ": block 2 does not render"});
         continue;
       }
-      if (*tokens <= cap) continue;
-      ContentError e{p.file, p.stages[i].line,
-                     at + ": block 2 (the stage's identity, the role, summary and appearance) comes to about " +
-                         std::to_string(*tokens) + " tokens, past its cap of " + std::to_string(cap)};
-      (strict ? errors : warnings).push_back(std::move(e));
+      if (*tokens > cap) {
+        ContentError e{p.file, p.stages[i].line,
+                       at + ": block 2 (the stage's identity, the role, summary and appearance) comes to about " +
+                           std::to_string(*tokens) + " tokens, past its cap of " + std::to_string(cap)};
+        (strict ? errors : warnings).push_back(std::move(e));
+      }
+      // Block 4, the voice, is never trimmed either (NPC §7.3): held to its cap as block 2 is, once (it has no stage).
+      if (i != 0) continue;
+      const auto voice = prompt.block_tokens(c, Block::Voice);
+      if (voice && *voice > kBlocks[kVoice].cap) {
+        ContentError e{p.file, 0,
+                       "voice: block 4 (the register, the voice fields and the instructions) comes to about " +
+                           std::to_string(*voice) + " tokens, past its cap of " + std::to_string(kBlocks[kVoice].cap)};
+        (strict ? errors : warnings).push_back(std::move(e));
+      }
     }
   }
 }
@@ -78,6 +208,7 @@ proto::Expected<SpeechContent, std::vector<ContentError>> load_speech(const Cont
   }
 
   if (out.prompt) lint_identity_blocks(pack, *out.prompt, errors, out.warnings);
+  if (out.lint) lint_persona_wording(pack, out.lint->lexicon(), errors, out.warnings);
   if (!errors.empty()) return proto::Unexpected{std::move(errors)};
   return out;
 }

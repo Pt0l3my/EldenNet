@@ -150,6 +150,11 @@ int golden_prompt(const fs::path& in, bool update, const std::optional<std::stri
     std::fputs("golden: no content pack found above the fixture: name one with --content\n", stderr);
     return 2;
   }
+  if (const std::string problem = en::tools::complete_from_pack(*fixture, *pack, fs::absolute(in, ec).parent_path());
+      !problem.empty()) {
+    std::fprintf(stderr, "golden: the fixture: %s\n", problem.c_str());
+    return 2;
+  }
   const std::string file = in.filename().string();
   const std::string name = file.substr(0, file.size() - std::string_view(".prompt.json").size());
   // Twice, each from templates loaded afresh: the same input renders byte for byte the same (T5).
