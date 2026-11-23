@@ -72,4 +72,12 @@ struct GraceReport {
 // What E12's text names, in plain words: "graceui.dll does not match graceui.toml", and the like.
 [[nodiscard]] std::string graceui_problem(const GraceReport& r);
 
+// A test package's GraceUI against the game's (--expect-graceui; the owner's request of 2026-11-23, after a run that
+// loaded an older GraceUI from the game's folder than the package carried): graceui.toml read from a file, or what is
+// wrong with it (fixed words).
+[[nodiscard]] proto::Expected<GraceManifest, std::string> read_graceui_manifest(const std::filesystem::path& toml);
+// Empty when `have` (the game's) is the GraceUI `want` (the package's) names: the same version, ABI and files, each of
+// the same size and SHA-256. Otherwise what differs, in plain words, for E13: versions and a relative file name only.
+[[nodiscard]] std::string graceui_differs(const GraceManifest& want, const GraceManifest& have);
+
 }  // namespace en::launcher

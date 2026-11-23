@@ -21,6 +21,8 @@ struct WorldOptions {
   std::uint32_t actors = 6;
   bool params = true;  // the param store holds tables
   bool texts = true;   // the text store holds tables
+  bool far_roster = false;  // the roster is a large object with its fields 0x10000 bytes in (the layout's far fields)
+  bool clock_bits = false;  // the clock is one 64-bit word: the hour 5 bits from bit 34, the minute 6 from bit 39
 };
 
 enum class Move : std::uint8_t { Poison, Free, Keep };
@@ -75,6 +77,8 @@ class FakeWorld {
   void rebuild_near();
   std::uint64_t relocate(std::uint64_t old, std::size_t size, Move mode);
   std::uint32_t generation_ = 1;
+  bool clock_bits_ = false;
+  std::uint64_t rf_ = 0;  // where the roster's fields begin in its object
 };
 
 }  // namespace en::gal::test

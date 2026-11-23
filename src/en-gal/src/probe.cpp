@@ -38,13 +38,21 @@ std::uint64_t data_values(const SysLayer& sys, const ImageInfo& image, Take take
 
 }  // namespace
 
-HeapSlots heap_slots(const SysLayer& sys, const ImageInfo& image, std::size_t max) {
+HeapSlots heap_slots(const SysLayer& sys, const ImageInfo& image, std::size_t max, const LiveFn* live) {
   HeapSlots out;
   const std::uint64_t base = sys.module_base();
   const std::uint64_t image_end = base + image.size_of_image;
   out.unreadable = data_values(sys, image, [&](std::uint32_t rva, std::uint64_t v) {
     if (out.slots.size() >= max) return false;
     if (v < kLowestAddress || v > kAddressEnd || v % 8 != 0 || (v >= base && v < image_end)) return true;
+    ++out.pointer_like;
+    if (live != nullptr && *live) {
+      const Liveness l = (*live)(v);
+      if (l != Liveness::Live) {
+        ++(l == Liveness::NotCommitted ? out.not_committed : out.no_access);
+        return true;
+      }
+    }
     out.slots.push_back(rva);
     out.values.push_back(v);
     return true;
@@ -75,6 +83,12 @@ SlotSearch::SlotSearch(const SysLayer& sys, const ImageInfo& image, const Vtable
   unreadable_.store(found.unreadable, std::memory_order_relaxed);
 }
 
+SlotSearch::SlotSearch(HeapSlots candidates, const VtableSet& set) : set_(set) {
+  slots_ = std::move(candidates.slots);
+  values_ = std::move(candidates.values);
+  unreadable_.store(0, std::memory_order_relaxed);
+}
+
 bool SlotSearch::step(const proto::GameThread& gt, GuardedReader& reader, std::uint32_t copies) {
   std::size_t next = next_.load(std::memory_order_relaxed);
   for (std::uint32_t n = 0; n < copies && next < slots_.size(); ++n, ++next) {
@@ -85,9 +99,12 @@ bool SlotSearch::step(const proto::GameThread& gt, GuardedReader& reader, std::u
       unreadable_.fetch_add(1, std::memory_order_relaxed);
       continue;
     }
+    if (!set_.contains(*vt)) continue;
+    found_total_.fetch_add(1, std::memory_order_relaxed);
     const std::size_t count = found_count_.load(std::memory_order_relaxed);
-    if (set_.contains(*vt) && count < kMaxFound) {
+    if (count < kMaxFound) {
       found_[count] = slots_[next];
+      found_object_[count] = values_[next];
       found_count_.store(count + 1, std::memory_order_release);
     }
   }
@@ -106,6 +123,9 @@ RisingSearch::RisingSearch(HeapSlots candidates, std::uint32_t span, std::size_t
   last_us_.assign(n, 0);
   dead_.assign(n, 0);
   scratch_.assign(span_, std::byte{0});
+  rose_.assign(n * (span_ / 4), 0);
+  still_.assign(n * (span_ / 4), 0);
+  other_.assign(n * (span_ / 4), 0);
 }
 
 void RisingSearch::compare(std::size_t i, std::span<const std::byte> now, std::uint64_t now_us) noexcept {
@@ -113,6 +133,10 @@ void RisingSearch::compare(std::size_t i, std::span<const std::byte> now, std::u
   const std::uint64_t then_us = last_us_[i];
   if (then_us != 0 && now_us > then_us) {
     const std::uint64_t elapsed_ms = (now_us - then_us) / 1000;
+    const std::size_t first = i * (span_ / 4);
+    const auto count = [](std::uint16_t& n) {
+      if (n < 0xFFFF) ++n;
+    };
     for (std::uint32_t off = 0; off + 4 <= span_; off += 4) {
       std::uint32_t a = 0, b = 0;
       std::memcpy(&a, before.data() + off, 4);
@@ -121,28 +145,40 @@ void RisingSearch::compare(std::size_t i, std::span<const std::byte> now, std::u
       const std::uint64_t delta = b >= a ? b - a : 0;
       const bool rose = b > a && elapsed_ms >= 500 && delta * 5 >= elapsed_ms * 4 && delta * 5 <= elapsed_ms * 6;
       // Only a field that has risen once is followed; afterwards each pass is counted for it.
-      std::size_t count = hit_count_.load(std::memory_order_relaxed);
-      Hit* hit = nullptr;
-      for (std::size_t h = 0; h < count; ++h) {
-        if (hits_[h].slot == slots_[i] && hits_[h].offset == off) hit = &hits_[h];
-      }
-      if (hit == nullptr) {
-        if (!rose || count >= kMaxHits) continue;
-        hits_[count] = Hit{slots_[i], off, 0, 0, 0};
-        hit = &hits_[count];
-        hit_count_.store(count + 1, std::memory_order_release);
-      }
+      const std::size_t f = first + off / 4;
       if (rose) {
-        ++hit->rose;
-      } else if (a == b) {
-        ++hit->still;
-      } else {
-        ++hit->other;
+        count(rose_[f]);
+      } else if (rose_[f] != 0) {
+        count(a == b ? still_[f] : other_[f]);
       }
     }
   }
   std::memcpy(before.data(), now.data(), span_);
   last_us_[i] = now_us;
+}
+
+// The fields that rose in the most passes, into the table the readers are not looking at; then that table is shown.
+void RisingSearch::publish() noexcept {
+  const std::size_t to = 1 - shown_.load(std::memory_order_relaxed);
+  std::array<Hit, kMaxHits>& best = hits_[to];
+  std::size_t n = 0;
+  std::uint64_t risen = 0;
+  const std::size_t fields = span_ / 4;
+  for (std::size_t f = 0; f < rose_.size(); ++f) {
+    if (rose_[f] == 0) continue;
+    ++risen;
+    const Hit hit{slots_[f / fields], static_cast<std::uint32_t>((f % fields) * 4), rose_[f], still_[f], other_[f]};
+    // Kept in order, the most passes risen first; among equals the first met stays first.
+    std::size_t at = n;
+    while (at > 0 && hit.rose > best[at - 1].rose) --at;
+    if (at >= kMaxHits) continue;
+    for (std::size_t k = (n < kMaxHits ? n : kMaxHits - 1); k > at; --k) best[k] = best[k - 1];
+    best[at] = hit;
+    if (n < kMaxHits) ++n;
+  }
+  hit_count_[to].store(n, std::memory_order_release);
+  shown_.store(to, std::memory_order_release);
+  risen_.store(risen, std::memory_order_relaxed);
 }
 
 bool RisingSearch::step(const proto::GameThread& gt, GuardedReader& reader, std::uint32_t copies,
@@ -157,6 +193,7 @@ bool RisingSearch::step(const proto::GameThread& gt, GuardedReader& reader, std:
       const auto done = reader.copy_into(gt, proto::Group::Status, values_[i], scratch_, 8);
       if (!done && reader.spent()) break;
       ++made;
+      read_in_sweep_ = true;
       if (done) {
         compare(i, scratch_, now_us);
       } else {
@@ -166,116 +203,20 @@ bool RisingSearch::step(const proto::GameThread& gt, GuardedReader& reader, std:
     }
     if (++next_ >= slots_.size()) {
       next_ = 0;
-      passes_.fetch_add(1, std::memory_order_acq_rel);
-      ended = true;
+      // A sweep that copied no candidate (each was copied under a second ago) is no pass.
+      if (read_in_sweep_) {
+        read_in_sweep_ = false;
+        publish();
+        passes_.fetch_add(1, std::memory_order_acq_rel);
+        ended = true;
+      }
+      break;  // a call ends with the sweep, so that every candidate of a pass is copied before the next begins
     }
   }
   return ended;
 }
 
-// ---- The hub census ----
-
-namespace {
-constexpr std::size_t kSeenSlots = 1u << 15;  // a power of two, twice the queue's cap and more
-}  // namespace
-
-Census::Census(std::vector<std::uint64_t> vtables, std::uint64_t hub_static, std::uint64_t module_base,
-               std::uint64_t image_size, std::vector<AddressRange> data)
-    : vtables_(std::move(vtables)),
-      data_(std::move(data)),
-      hub_static_(hub_static),
-      base_(module_base),
-      image_end_(module_base + image_size) {
-  std::sort(vtables_.begin(), vtables_.end());
-  std::size_t total = 0;
-  for (const std::size_t c : kCap) total += c;
-  queue_.reserve(total);
-  scratch_.assign(kSpan[0], std::byte{0});
-  seen_.assign(kSeenSlots, 0);
-}
-
-bool Census::follow(std::uint64_t v) const noexcept {
-  if (v < kLowestAddress || v > kAddressEnd || v % 8 != 0) return false;
-  if (v < base_ || v >= image_end_) return true;
-  return std::any_of(data_.begin(), data_.end(), [&](const AddressRange& r) { return v >= r.begin && v < r.end; });
-}
-
-void Census::found(std::uint64_t vtable) noexcept {
-  objects_.fetch_add(1, std::memory_order_relaxed);
-  const std::size_t count = found_count_.load(std::memory_order_relaxed);
-  for (std::size_t i = 0; i < count; ++i) {
-    if (found_[i] == vtable) {
-      ++found_n_[i];
-      return;
-    }
-  }
-  if (count >= kMaxFound) return;
-  found_[count] = vtable;
-  found_n_[count] = 1;
-  found_count_.store(count + 1, std::memory_order_release);
-}
-
-bool Census::step(const proto::GameThread& gt, GuardedReader& reader, std::uint32_t copies) {
-  if (done()) return true;
-  if (!started_) {
-    // The hub's instance, from its static (R5: read again now, on the game thread).
-    started_ = true;
-    const auto inst = reader.copy<std::uint64_t>(gt, proto::Group::Status, hub_static_);
-    copies_.fetch_add(1, std::memory_order_relaxed);
-    if (!inst || !follow(*inst)) {
-      faults_.fetch_add(1, std::memory_order_relaxed);
-      done_.store(true, std::memory_order_release);
-      return true;
-    }
-    queue_.push_back(Item{*inst, kSpan[0], 0});
-    queued_[0] = 1;
-  }
-  for (std::uint32_t n = 0; n < copies && next_ < queue_.size(); ++n) {
-    const Item item = queue_[next_];
-    const std::span<std::byte> dst(scratch_.data(), item.span);
-    const auto ok = reader.copy_into(gt, proto::Group::Status, item.address, dst, 8);
-    if (!ok && reader.spent()) break;
-    copies_.fetch_add(1, std::memory_order_relaxed);
-    if (!ok) {
-      if (item.span > 16) {
-        queue_[next_].span = item.span / 2;  // the same object again, shorter
-        continue;
-      }
-      ++next_;
-      faults_.fetch_add(1, std::memory_order_relaxed);
-      continue;
-    }
-    ++next_;
-    std::uint64_t first = 0;
-    std::memcpy(&first, dst.data(), 8);
-    if (item.level > 0 && std::binary_search(vtables_.begin(), vtables_.end(), first)) found(first);
-    const std::size_t child = item.level + 1u;
-    if (child >= kSpan.size()) continue;
-    for (std::size_t at = 0; at + 8 <= dst.size(); at += 8) {
-      std::uint64_t v = 0;
-      std::memcpy(&v, dst.data() + at, 8);
-      if (!follow(v) || queued_[child] >= kCap[child] || queue_.size() >= queue_.capacity()) continue;
-      // A small open-addressed set: an address is queued once.
-      std::size_t h = static_cast<std::size_t>((v >> 3) * 0x9E3779B97F4A7C15ull) & (kSeenSlots - 1);
-      bool seen = false;
-      for (std::size_t probe = 0; probe < 16; ++probe, h = (h + 1) & (kSeenSlots - 1)) {
-        if (seen_[h] == v) {
-          seen = true;
-          break;
-        }
-        if (seen_[h] == 0) {
-          seen_[h] = v;
-          break;
-        }
-      }
-      if (seen) continue;
-      queue_.push_back(Item{v, kSpan[child], static_cast<std::uint8_t>(child)});
-      ++queued_[child];
-    }
-  }
-  if (next_ >= queue_.size()) done_.store(true, std::memory_order_release);
-  return done();
-}
+// ---- The searches over one copied object's bytes ----
 
 std::vector<std::uint32_t> vtable_offsets(std::span<const std::byte> obj, const VtableSet& set) {
   std::vector<std::uint32_t> out;

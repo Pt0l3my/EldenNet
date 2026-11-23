@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <type_traits>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -45,6 +46,39 @@ void read(const json& j, const At& at, double& out);
 void read(const json& j, const At& at, std::string& out);
 void read(const json& j, const At& at, std::chrono::milliseconds& out);
 void read(const json& j, const At& at, json& out);
+
+// Every integer type but bool and the two json.cpp reads (int, std::uint64_t), refusing what does not fit: the game
+// messages' (game_json.cpp) and the UI's (ui_json.cpp).
+template <class I>
+  requires(std::is_integral_v<I> && !std::is_same_v<I, bool> && !std::is_same_v<I, int> &&
+           !std::is_same_v<I, std::uint64_t>)
+void read(const json& j, const At& at, I& out) {
+  if constexpr (std::is_unsigned_v<I>) {
+    std::uint64_t value = 0;
+    if (j.is_number_unsigned()) {
+      value = j.get<std::uint64_t>();
+    } else if (j.is_number_integer() && j.get<std::int64_t>() >= 0) {
+      value = static_cast<std::uint64_t>(j.get<std::int64_t>());
+    } else {
+      fail(at, "must be a whole number of 0 or more");
+    }
+    if (!std::in_range<I>(value)) fail(at, "is out of range");
+    out = static_cast<I>(value);
+  } else {
+    std::int64_t value = 0;
+    if (j.is_number_unsigned()) {
+      const auto u = j.get<std::uint64_t>();
+      if (!std::in_range<std::int64_t>(u)) fail(at, "is out of range");
+      value = static_cast<std::int64_t>(u);
+    } else if (j.is_number_integer()) {
+      value = j.get<std::int64_t>();
+    } else {
+      fail(at, "must be a whole number");
+    }
+    if (!std::in_range<I>(value)) fail(at, "is out of range");
+    out = static_cast<I>(value);
+  }
+}
 
 template <class T>
 void read(const json& j, const At& at, std::optional<T>& out) {

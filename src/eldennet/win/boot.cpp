@@ -5,14 +5,22 @@
 //   Pin (and R16's mutex) → Gate → Safety (the anti-cheat check; the log starts here) → Settings (enabled = false: Exit)
 //   → T6, T10 and T11 → WaitWindow (≤ 120 s from T1's start) → Connect (GraceUI, overlay.cpp: ≤ 30 s, at once when
 //   none is installed; a failed connect goes on headless)
-//   → Discover (the AOB items, the FD4 singletons, the RTTI sets; retried at +5, +15 and +30 s)
-//   → WaitEngine (the task hub's instance non-null, ≤ 120 s) → the crash filter → Register (the one call)
-//   → FirstTick (≤ 30 s: the group check and phase A on the game thread) → Ready (R16's marker scan) → end.
+//   → Discover (the build's table, checked; for what it does not hold yet the AOB items, the FD4 singletons and the
+//     RTTI sets; retried at +5, +15 and +30 s)
+//   → WaitEngine (a static of the game's start non-null, ≤ 120 s) → the crash filter
+//   → Reader (T2, a thread of EldenNet's own, started: proposal 0005 §9.4, §10; O101)
+//   → FirstReading (≤ 30 s: phase A and the first snapshot, on T2) → Ready (R16's marker scan) → end.
+//   A start calls nothing of the game and registers nothing with it: the game's task (en-gal's install_task) is not
+//   v1's (O101 (b)), and no round of the probe makes that call (R1, which did, was retired 2026-11-22, O106).
 //   An unknown build, or anti-cheat, takes the banner path: WaitWindow, the crash filter, ConnectB (GraceUI's notice-only
 //   mode with anti-cheat), the banner, end.
-//   A probe build with probe.round = "r1" runs R1 after WaitWindow instead (probe_r1.cpp).
-//   A run of GraceUI's observer (the launcher's --spike s0e or s4) stops at Register with the spike_run banner and
-//   calls nothing; R1 is set aside in such a run.
+//   A probe build with probe.round = "read" runs the read-only round after WaitWindow instead (probe_read.cpp).
+//   A run of GraceUI's observer (the launcher's --spike s0e or s4) stops at Reader with the spike_run banner, before
+//   the reader is made; the read-only round is set aside in such a run.
+//   An S0 run (--spike s0a, s0b, s0c, s0d or s0d-crash, DESIGN §16.1) is a start like any other, run as far as gal/'s
+//   layout allows, with its report beside (spike.cpp): its folder at Safety, discovery's and the table's counts, S0-D's
+//   trial and injected group before the reader, the table checked again and the report at the terminal state.
+#include <algorithm>
 #include <cstring>
 
 #include "dll.hpp"
@@ -41,20 +49,41 @@ std::uint64_t allocations_watched() noexcept;
 namespace {
 
 constexpr std::uint64_t kStartLimitMs = 120'000;  // WaitWindow and WaitEngine, from T1's start
-constexpr std::uint64_t kFirstTickMs = 30'000;
+constexpr std::uint64_t kFirstReadingMs = 30'000;
 
 void enter(w::InitState s) {
   block::state(s);
   log(Line("init").word("state", w::to_string(s)));
 }
 
-void finish(w::InitState s) {
+// Why a start that stopped short of its reading stopped, for an S0 run's report (spike.cpp): the spike that needs the
+// reading waits for what is missing, and nothing is counted against it.
+en::shell::SpikeWaits waits_of(std::optional<BannerReason> reason, std::string_view detail) noexcept {
+  using en::shell::SpikeWaits;
+  if (!reason) return SpikeWaits::None;
+  switch (*reason) {
+    case BannerReason::UnknownBuild: return SpikeWaits::Build;
+    case BannerReason::AntiCheat: return SpikeWaits::Anticheat;
+    case BannerReason::NotStarted: return SpikeWaits::NotStarted;
+    case BannerReason::DiscoveryFailed:
+      return detail == "files" || detail == "gal_files" ? SpikeWaits::Files : SpikeWaits::Layout;
+    default: return SpikeWaits::None;
+  }
+}
+
+// T1's terminal state. In an S0 run its report is written first (with S0-D's trial where the start never reached the
+// reader), so that the launcher finds it as soon as it sees the state.
+void finish(w::InitState s, std::optional<BannerReason> reason = std::nullopt, std::string_view detail = {}) {
+  if (Shell* sh = shell()) {
+    if (s != w::InitState::Exit) spike_trial(*sh);
+    spike_stopped(*sh, s, reason, waits_of(reason, detail));
+  }
   block::ready_ms(static_cast<std::uint32_t>(since_ms()));
   enter(s);
 }
 
-// The task's body on the game thread: the thread named for the crash filter, and in a probe build the allocation
-// watch and S0-D's fault injection (part 4's probe option), then the task.
+// The task's body on T2, the reader: the thread named for the crash filter, and in a probe build the allocation watch
+// and S0-D's fault injection (part 4's probe option), then the task.
 class Body final : public en::gal::TaskBody {
  public:
   Body(en::gal::GalTask& task, Shell& s) : task_(task), s_(s) {}
@@ -62,7 +91,7 @@ class Body final : public en::gal::TaskBody {
   void run(const en::proto::GameThread& gt, const en::gal::FrameCtx& frame) override {
     if (!named_) {
       named_ = true;
-      block::game_thread(GetCurrentThreadId());
+      block::reader_thread(GetCurrentThreadId());
     }
 #if EN_PROBE
     const auto& st = task_.status();
@@ -93,6 +122,27 @@ class Body final : public en::gal::TaskBody {
 #endif
 };
 
+// T2, the reader (proposal 0005 §9.4, §10; O101): a thread of EldenNet's own that steps the task's body about thirty
+// times a second, through en-gal's guard (run_task), for as long as the game runs. It calls nothing of the game and
+// writes nothing to it; what it reads, it copies through the guarded reader. It never ends (R14: nothing is torn down),
+// short of an exception outside the body's own guard, which trips the task's component and ends the thread (R3): the
+// task is then inert, and the core's stall detector says so.
+struct ReaderStart {
+  en::gal::SysLayer* sys = nullptr;
+  en::gal::TaskBody* body = nullptr;
+};
+
+DWORD WINAPI reader_main(void* arg) noexcept {
+  return en::proto::ffi_guard(en::proto::Component::Task, DWORD{1}, [&]() -> DWORD {
+    const ReaderStart start = *static_cast<const ReaderStart*>(arg);  // lives for the process
+    en::gal::ReaderLoop loop(*start.sys, *start.body);
+    for (;;) {
+      const std::uint64_t wait_us = loop.step();
+      Sleep(static_cast<DWORD>((wait_us + 999) / 1000));
+    }
+  });
+}
+
 std::optional<std::string> gal_text(const Shell& s, const std::string& name) {
   std::wstring wide(name.begin(), name.end());  // gal/'s names are ASCII (builds.toml's layout path is checked)
   for (wchar_t& c : wide) {
@@ -118,13 +168,18 @@ void banner_path(Shell& s, BannerReason reason, const char* detail) {
   connect_overlay(s, true);  // ConnectB: the banner reaches GraceUI's notice through T6 (overlay.cpp)
   log(Line("banner").word("reason", en::core::to_string(reason)).word("detail", detail), LogLevel::Warn);
   push_banner(s, reason, detail);
-  finish(w::InitState::Banner);
+  finish(w::InitState::Banner, reason, detail);
 }
 
+// Set once the game's window has shown (WaitWindow): from then on a start that stops at a banner installs the crash
+// filter, as the banner path does, so that a crash after it is recorded whoever caused it (WHY§484, §510).
+bool g_window_seen = false;
+
 void stop_at(Shell& s, BannerReason reason, const char* detail) {
+  if (g_window_seen) block::install_filter();
   log(Line("banner").word("reason", en::core::to_string(reason)).word("detail", detail), LogLevel::Warn);
   push_banner(s, reason, detail);
-  finish(w::InitState::Banner);
+  finish(w::InitState::Banner, reason, detail);
 }
 
 void run(HMODULE module) {
@@ -200,6 +255,7 @@ void run(HMODULE module) {
   log(Line("safety").flag("first_copy", true).flag("anticheat", anticheat).flag("protected_parent", protected_parent)
           .flag("logging", logging).flag("watched", watched).flag("watcher_started", watcher_started)
           .word("spike", w::to_string(block::spike())));
+  spike_begin(s);  // an S0 run: its folder and report (spike.cpp)
 
   // ---- Settings (ARCH §11.5) ----
   enter(w::InitState::Settings);
@@ -217,22 +273,17 @@ void run(HMODULE module) {
   for (const en::shell::SettingsProblem& p : loaded.problems) {
     log(Line("settings_problem").word("where", p.where.empty() ? "file" : p.where), LogLevel::Warn);
   }
-  // The launcher's --probe (O89): R1, in a probe build only, with the file's other probe settings, and always at the
-  // Mark (the owner's Pause at the title) unless the file says never. A release build, or EldenNet turned off, refuses.
-  if (block::probe_request() == w::ProbeRequest::R1) {
+  // The launcher's --read (Lodestar's step L5): the read-only round, in a probe build only. It calls nothing. A
+  // release build, or EldenNet turned off, refuses.
+  if (block::probe_request() == w::ProbeRequest::Read) {
     const bool accept = kProbeBuild && s.settings.enabled;
-    if (accept) {
-      s.settings.probe.round = en::shell::ProbeRound::R1;
-      if (s.settings.probe.register_when == en::shell::ProbeRegister::Auto) {
-        s.settings.probe.register_when = en::shell::ProbeRegister::Mark;
-      }
-    }
+    if (accept) s.settings.probe.round = en::shell::ProbeRound::Read;
     block::probe_answer(accept ? w::ProbeRequest::Accepted : w::ProbeRequest::Refused);
-    log(Line("probe").word("asked", "r1").flag("accepted", accept).flag("probe_build", kProbeBuild)
+    log(Line("probe").word("asked", "read").flag("accepted", accept).flag("probe_build", kProbeBuild)
             .flag("enabled", s.settings.enabled),
         accept ? LogLevel::Info : LogLevel::Warn);
     if (!accept) {
-      finish(w::InitState::Exit);  // the owner asked for R1 alone: no other start, and nothing called
+      finish(w::InitState::Exit);  // the owner asked for the round alone: no other start
       return;
     }
   }
@@ -253,23 +304,29 @@ void run(HMODULE module) {
 
   // The AI pages' files (ai.cpp), on the main path alone: at L1 EldenNet calls no model.
   read_ai_files(s, text);
+  // The conversation's content: the overrides folder and the realm (conversation.cpp), on the main path alone.
+  read_content(s);
 
   // ---- WaitWindow, Connect ----
   enter(w::InitState::WaitWindow);
   if (!wait_window(kStartLimitMs)) return stop_at(s, BannerReason::NotStarted, "no_window");
   log(Line("window").flag("found", true).num("ms", since_ms()));
+  g_window_seen = true;
+  // The game's own thread, for the crash filter's record: v1 runs nothing on it (O101), so it is known only as the
+  // thread of the game's window.
+  block::game_thread(main_window_thread());
   enter(w::InitState::Connect);
   connect_overlay(s, false);
 
 #if EN_PROBE
-  if (s.settings.probe.round == en::shell::ProbeRound::R1) {
-    // R1's one call (at the Mark) never joins an observer's run: settings.toml's round is set aside, and the start
-    // goes on to its stop at Register (the launcher refuses --probe with these spikes).
+  if (s.settings.probe.round == en::shell::ProbeRound::Read) {
+    // The read-only round (Lodestar's L5) never joins an observer's run: settings.toml's round is set aside, and the
+    // start goes on to its stop at Reader.
     if (!w::observer_run(block::spike())) {
-      run_r1(s, gated);
+      run_read(s, gated);
       return;
     }
-    log(Line("probe").word("round", "r1").flag("skipped", true).word("why", "spike"), LogLevel::Warn);
+    log(Line("probe").word("round", "read").flag("skipped", true).word("why", "spike"), LogLevel::Warn);
   }
 #endif
 
@@ -285,6 +342,12 @@ void run(HMODULE module) {
   if (!patterns || !layout) return stop_at(s, BannerReason::DiscoveryFailed, "files");
   en::gal::DiscoveryOptions options;
   if (recipes) options.recipes = *recipes;
+  // The catalogue a layout's table is checked against (proposal 0005 §4); a layout that holds a table is refused
+  // without it.
+  if (const std::optional<std::string> ids = gal_text(s, "ids.toml")) options.ids = *ids;
+  // The reading runs on a thread of our own (O101): nothing is registered with the game and nothing of it is called,
+  // so the registration, the task hub and the layout's [task] are not asked for.
+  options.frame = en::gal::FrameProvider::OwnThread;
   options.mode = kProbeBuild ? en::gal::LayoutMode::Dev : en::gal::LayoutMode::Release;
   const std::uint64_t pass0 = since_ms();
   en::gal::Retried found = en::gal::discover_with_retries(*s.sys, g, *patterns, *layout, options,
@@ -292,80 +355,119 @@ void run(HMODULE module) {
                                                             while (since_ms() - pass0 < at_ms) Sleep(100);
                                                           });
   if (!found.last) {
-    log(Line("discovery").flag("refused", true).num("problems", found.last.error().size()), LogLevel::Error);
-    return stop_at(s, BannerReason::DiscoveryFailed, "gal_files");
+    // A refusal for want of a required static alone (neither a place in the build's table nor a way to find it) is a
+    // layout that is not complete yet, as the real game's is until Lodestar places game_state (WHY§459); any other
+    // refusal is of gal/'s files.
+    const en::gal::SchemaErrors& problems = found.last.error();
+    const bool layout_short = !problems.empty() && std::all_of(problems.begin(), problems.end(), [](const auto& e) {
+      return e.problem.rfind("lacks the required pattern", 0) == 0;
+    });
+    log(Line("discovery").flag("refused", true).num("problems", problems.size()).flag("layout_short", layout_short),
+        LogLevel::Error);
+    // An S0 run checks the build's table all the same (S0-A), with one pass that refuses nothing for such a static
+    // (en-gal's DiscoveryOptions::partial): the same checks a start makes, and the start stops here regardless.
+    const en::gal::Discovery* checked = nullptr;
+    if (layout_short && s.spike.load(std::memory_order_acquire) != nullptr) {
+      en::gal::DiscoveryOptions check = options;
+      check.partial = true;
+      if (auto pass = en::gal::discover(*s.sys, g, *patterns, *layout, check)) {
+        checked = new en::gal::Discovery(std::move(*pass));  // lives for the process: the report's recheck reads it
+      }
+    }
+    spike_discovered(s, checked, found.passes);
+    return stop_at(s, BannerReason::DiscoveryFailed, layout_short ? "layout" : "gal_files");
   }
   auto* d = new en::gal::Discovery(std::move(*found.last));  // lives for the process
+  spike_discovered(s, d, found.passes);
   const en::gal::DiscoveryReport& r = d->report();
   std::uint32_t resolved = 0;
   for (const en::gal::ItemResult& item : r.items) resolved += item.status == en::gal::ItemStatus::Resolved ? 1 : 0;
   block::items(resolved, static_cast<std::uint32_t>(r.items.size()), found.passes);
   log(Line("discovery").num("passes", found.passes).flag("ready", r.ready).num("items", resolved)
-          .num("of", r.items.size()).num("fd4_names", r.fd4_names).num("rtti_classes", r.rtti_classes)
+          .num("of", r.items.size()).num("table", r.table_items).num("table_refused", r.table_refused)
+          .num("fd4_names", r.fd4_names).num("getter_calls", r.getter_calls).num("rtti_classes", r.rtti_classes)
           .num("pass_us", r.pass_us).num("ms", since_ms()));
   if (!r.ready) return stop_at(s, BannerReason::DiscoveryFailed, r.failure);
 
-  // ---- WaitEngine: the task hub's instance non-null (ARCH §3.2), ≤ 120 s from T1's start ----
+  // ---- WaitEngine: a static the game sets as it starts is non-null (ARCH §3.2), ≤ 120 s from T1's start ----
+  // The task hub's instance where discovery has it, else the module handle's static; with neither, there is nothing
+  // to wait on and the start goes on (the reader's own checks then decide what it may read).
   enter(w::InitState::WaitEngine);
-  const std::uint64_t hub_rva = *d->address(en::gal::roles::Item::TaskHub) - d->module_base();
-  bool engine = false;
+  const char* waited_on = "none";
+  std::optional<std::uint64_t> started_at;
+  for (const en::gal::roles::Item item : {en::gal::roles::Item::TaskHub, en::gal::roles::Item::ModuleHandle}) {
+    if (const auto address = d->address(item); address && !started_at) {
+      started_at = *address - d->module_base();
+      waited_on = en::gal::roles::info(item).label.data();
+    }
+  }
+  bool engine = !started_at.has_value();
   while (!engine) {
     std::array<std::byte, 8> v{};
     std::uint64_t inst = 0;
-    if (s.sys->image().read(hub_rva, v)) std::memcpy(&inst, v.data(), 8);
+    if (s.sys->image().read(static_cast<std::uint32_t>(*started_at), v)) std::memcpy(&inst, v.data(), 8);
     engine = inst != 0;
     if (!engine && since_ms() >= kStartLimitMs) return stop_at(s, BannerReason::NotStarted, "engine");
     if (!engine) Sleep(100);
   }
-  log(Line("engine").flag("ready", true).num("ms", since_ms()));
+  log(Line("engine").flag("ready", true).word("by", waited_on).num("ms", since_ms()));
   block::install_filter();  // the game has started: its C runtime's filter is in, ours goes over it (WHY§172)
+  // S0-D (a probe build): the trial's forced faults on T1, before the reader exists, and the group the reader's own
+  // faults go into. Nothing in any other run.
+  spike_trial(s);
+  spike_inject(s, *d);
 
-  // ---- Register: the one call into the game ----
-  enter(w::InitState::Register);
-  // A run of GraceUI's observer (S0-E, S4; watch.hpp's observer_run): no call into the game. T1 stops here at a
+  // ---- Reader: T2, a thread of our own; no call into the game ----
+  enter(w::InitState::Reader);
+  // A run of GraceUI's observer (S0-E, S4; watch.hpp's observer_run): EldenNet reads nothing. T1 stops here at a
   // banner, as a stopped start does: T6, T10 and T11, the connect to GraceUI with the banner's notice and F11's view,
-  // and the recorder stay; nothing waits for the task, which is never made.
+  // and the recorder stay; nothing waits for the reader, which is never made.
   if (w::observer_run(block::spike())) {
-    log(Line("register").flag("skipped", true).word("why", "spike").word("spike", w::to_string(block::spike())));
+    log(Line("reader").flag("skipped", true).word("why", "spike").word("spike", w::to_string(block::spike())));
     return stop_at(s, BannerReason::SpikeRun, w::to_string(block::spike()));
   }
-  // The stack table made again, without T1's own stack: threads that ended since the first scan (the launcher's
-  // loading thread), and T1 itself once it ends at Ready, leave memory the game reuses for its own objects, which a
-  // stale range would refuse as a stack (WHY§190).
-  const std::size_t stacks = s.sys->rescan_stacks();
-  auto* task = new en::gal::GalTask(*s.sys, *d, task_io(*s.io));  // lives for the process
+  const en::gal::TaskOptions task_options = en::gal::own_thread_options();
+  auto* task = new en::gal::GalTask(*s.sys, *d, task_io(*s.io), task_options,
+                                    en::gal::own_thread_backend({}));  // lives for the process
   auto* body = new Body(*task, s);
-  const auto registered = en::gal::install_task(*s.sys, *d, *body);
-  log(Line("register").flag("ok", registered.has_value()).num("stacks", stacks)
-          .word("error", registered ? "none" : en::gal::to_string(registered.error())));
-  if (!registered) return stop_at(s, BannerReason::RegisterFaulted, en::gal::to_string(registered.error()));
+  auto* start = new ReaderStart{s.sys, body};
+  // Made suspended, so that the stack table is made again before it reads: with the reader's own stack in it, and
+  // without T1's. Threads that ended since the first scan (the launcher's loading thread), and T1 itself once it ends
+  // at Ready, leave memory the game reuses for its own objects, which a stale range would refuse as a stack (WHY§190).
+  const HANDLE reader = CreateThread(nullptr, 0, &reader_main, start, CREATE_SUSPENDED, nullptr);
+  const std::size_t stacks = reader != nullptr ? s.sys->rescan_stacks() : 0;
+  const bool started = reader != nullptr && ResumeThread(reader) != static_cast<DWORD>(-1);
+  if (reader != nullptr) CloseHandle(reader);
+  log(Line("reader").flag("started", started).num("stacks", stacks).num("period_ms", task_options.period_us / 1000));
+  if (!started) return stop_at(s, BannerReason::NotStarted, "reader");
   s.task = task;
   s.task_set.store(true, std::memory_order_release);
 
-  // ---- FirstTick (≤ 30 s): the group check and phase A on the game thread ----
-  enter(w::InitState::FirstTick);
+  // ---- FirstReading (≤ 30 s): phase A and the first snapshot, on T2 ----
+  enter(w::InitState::FirstReading);
   const std::uint64_t asked = since_ms();
   for (;;) {
     const en::gal::TaskStatus& st = task->status();
     const en::gal::TaskState ts = st.state.load(std::memory_order_acquire);
     if (ts == en::gal::TaskState::Inert) {
-      log(Line("first_tick").word("state", "inert").word("why", en::gal::to_string(st.inert_why.load()))
-              .sig("group_found_at", st.group_found_at.load()), LogLevel::Error);
+      log(Line("first_reading").word("state", "inert").word("why", en::gal::to_string(st.inert_why.load())),
+          LogLevel::Error);
       push_banner(s, BannerReason::Inert, en::gal::to_string(st.inert_why.load()));
-      finish(w::InitState::Inert);
+      finish(w::InitState::Inert, BannerReason::Inert);
       return;
     }
     if (ts == en::gal::TaskState::Running && st.snapshots.load(std::memory_order_acquire) >= 1) break;
-    if (since_ms() - asked >= kFirstTickMs) {
-      log(Line("first_tick").word("state", en::gal::to_string(ts)).word("why", "no_tick"), LogLevel::Error);
+    if (since_ms() - asked >= kFirstReadingMs) {
+      log(Line("first_reading").word("state", en::gal::to_string(ts)).word("why", "no_reading"), LogLevel::Error);
       task->backend().make_inert();
-      push_banner(s, BannerReason::Inert, "no_tick");
-      finish(w::InitState::Inert);
+      push_banner(s, BannerReason::Inert, "no_reading");
+      finish(w::InitState::Inert, BannerReason::Inert);
       return;
     }
     Sleep(50);
   }
-  log(Line("first_tick").word("state", "running").num("ms", since_ms() - asked));
+  log(Line("first_reading").word("state", "running").num("ms", since_ms() - asked));
+  spike_reading(s);
 
   // ---- Ready (DataReady went to the core on C2 from the task) ----
   finish(w::InitState::Ready);

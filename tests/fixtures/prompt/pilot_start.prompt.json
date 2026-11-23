@@ -1,0 +1,18 @@
+{
+  "fixture": 1,
+  "persona": "kale",
+  "name": "Kalé",
+  "pack": {"persona": "kale", "flags": "fresh"},
+  "scene": {
+    "place": "A ruined church by the grassland road",
+    "time_word": "at dusk",
+    "weather_word": "",
+    "nearby": [],
+    "tarnished": "he, in a worn travelling cloak, unhurt",
+    "just_now": [],
+    "you_now": ""
+  },
+  "recap": [
+    "Good evening. What do you sell here?"
+  ]
+}

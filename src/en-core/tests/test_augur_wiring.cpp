@@ -100,9 +100,9 @@ TEST_CASE("every character is Mute and the Tarnished is Player until personas ex
   CHECK(struck);
 }
 
-TEST_CASE("v0.1's predicates: runes and journey, and every call refused") {
+TEST_CASE("v0.1's predicates: runes_held and journey, and every call refused") {
   Predicates p;
-  const auto a = p.compile("runes >= 1000 && !(journey > 0)");
+  const auto a = p.compile("runes_held >= 1000 && !(journey > 0)");
   REQUIRE(a);
   CHECK(p.eval(*a, PredicateFacts{1000, 0}));
   CHECK_FALSE(p.eval(*a, PredicateFacts{999, 0}));
@@ -113,10 +113,19 @@ TEST_CASE("v0.1's predicates: runes and journey, and every call refused") {
   CHECK_FALSE(p.eval(*b, PredicateFacts{0, 3}));
   CHECK(p.eval(augur::kAlwaysTrue, PredicateFacts{}));
   for (const char* bad : {"world(\"ash\")", "knows(\"x\")", "flag(\"rest\")", "boss(\"x\")", "stage(\"k\", 2)",
-                          "region(\"limgrave\")", "runes >= ", "runes", "(true", "true &&", "frobnicate",
-                          "runes >= 1234567890123"}) {
+                          "region(\"limgrave\")", "runes_held >= ", "runes_held", "(true", "true &&", "frobnicate",
+                          "runes_held >= 1234567890123", "runes_heldx >= 1"}) {
     CAPTURE(bad);
     CHECK_FALSE(p.compile(bad));
+  }
+  // `runes >= n` is MEM §6.6's, the great runes, everywhere (WHY§474): v0.1's predicates read no catalogue alias, so
+  // it is refused, by a fixed text that names the runes held's own word.
+  for (const char* great : {"runes >= 2", "runes >= 0", "true && runes > 1", "runes"}) {
+    CAPTURE(great);
+    const auto r = p.compile(great);
+    REQUIRE_FALSE(r);
+    CHECK(r.error().find("great runes") != std::string::npos);
+    CHECK(r.error().find("runes_held") != std::string::npos);
   }
   std::string deep;
   for (int i = 0; i < 40; ++i) deep += "(";

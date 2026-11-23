@@ -2,12 +2,16 @@
 // Discovery in game (ARCH §3.2's Gate and Discover, §6.2): over the main module's mapped image, as the SysLayer shows it
 // (guarded copies in game, a byte buffer in the tests), driven by gal/'s files and never by names in code:
 // - the gate: the image's fingerprint against builds.toml (R7: a Layout only for the build it matched);
+// - the build's table (Lodestar, proposal 0005 §7.1, §9.1; resolve.hpp): each item and class the layout's `[item.*]`
+//   entries hold is taken from there and checked (placement, witnesses), and nothing below looks for it: an id whose
+//   check fails is refused alone. What the table does not hold yet is found as before:
 // - the AOB items of patterns.toml (register_task and the statics, by their items' labels) in one multi-pattern pass;
 //   a static the probe round gives by its slot (the derivation's `--static label=rva`, R1) needs no pattern;
 // - the FD4 singletons: patterns.toml's `fd4_idiom` and its path suffix, each site named through the runtime class
 //   object where builds.toml says the name layout is confirmed (`dlrf_name_layout`), else by calling the getter once
-//   per candidate under SEH (ARCH §6.2 step 3, the init-only fallback), and matched to the layout's classes by their
-//   `singleton` names; a name with two statics is ambiguous and its item missing;
+//   per candidate under SEH (ARCH §6.2 step 3, the init-only fallback; never with the reader on a thread of our own,
+//   which makes no call into the game, O101), and matched to the layout's classes by their `singleton` names; a name
+//   with two statics is ambiguous and its item missing;
 // - the RTTI walk: for each layout class with `rtti`, the vtables of the class and of every class deriving from it.
 // A pass resolves what it can; required items still missing are retried at +5, +15 and +30 s (ARCH §3.2; DESIGN §3.5).
 // An optional item missing turns its group off. Everything here runs on T1, before registration, over the image only.
@@ -65,10 +69,21 @@ struct DiscoveryOptions {
   LayoutMode mode = LayoutMode::Release;  // a dev build accepts a layout's leads, with a banner
   // The probe round's slots of statics (R1; the derivation's --static label=rva): such a static needs no pattern.
   std::vector<std::pair<std::string, std::uint32_t>> static_slots;
+  // Who will run the reading (sys.hpp; proposal 0005 §9.4, O101). A thread of our own registers nothing with the game:
+  // the registration function, the task hub and the layout's [task] are then not needed, not required and not asked of
+  // the files, and being ready means ready to read.
+  FrameProvider frame = FrameProvider::GameTask;
   // gal/recipes.toml's text, or empty for none (proposal 0005 §6; O102). With an `accessor` recipe in it, the FD4
   // singletons are found by its shape, and patterns.toml needs no fd4_idiom. A text that does not read is a refusal,
   // as a patterns.toml that does not read is.
   std::string recipes;
+  // gal/ids.toml's text, or empty for none: Lodestar's catalogue, which a layout that holds a table (`[item.*]`) is
+  // checked against. Such a layout is refused without it; a text that does not read is a refusal.
+  std::string ids;
+  // A pass for one group alone (the eleventh read-only round; WHY§457): a required static that has neither a pattern,
+  // a slot nor a place in the table refuses nothing. It is simply missing, and the Discovery is not ready to start;
+  // the groups it does find everything for can still be read. Never for a start.
+  bool partial = false;
 };
 
 enum class ItemStatus : std::uint8_t {
@@ -86,6 +101,7 @@ struct ItemResult {
   std::uint32_t sites = 0;  // an FD4 singleton's sites
   bool from_slot = false;   // given by the probe round's slot, not found by a pattern
   const char* why = "";     // a fixed text
+  bool from_table = false;  // taken from the build's table and checked there (resolve.hpp), or refused by its checks
 };
 
 struct DiscoveryReport {
@@ -103,6 +119,8 @@ struct DiscoveryReport {
   std::uint32_t rtti_classes = 0;   // layout classes whose RTTI resolved
   std::uint32_t rtti_missing = 0;   // layout classes whose RTTI did not
   std::uint64_t image_unreadable = 0;
+  std::uint32_t table_items = 0;    // items and classes the build's table holds
+  std::uint32_t table_refused = 0;  // of those, the ones its checks refused
   std::uint64_t pass_us = 0;
   bool layout_has_leads = false;
   bool ready = false;          // every required item, the boot fields and the structural groups are there

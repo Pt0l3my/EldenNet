@@ -4,7 +4,8 @@
 //
 //   eldennet-engine rec-stats <recording> [--out FILE]
 //   eldennet-engine replay <recording> [--out FILE]
-//   eldennet-engine spike-report s0a|s0b|s0c|s0d [--log FILE]... [--recording FILE]... [--need N] [--out FILE]
+//   eldennet-engine spike-report s0a|s0b|s0c|s0d [--spikes DIR] [--recordings DIR] [--log FILE]...
+//                                [--recording FILE]... [--run FILE]... [--need N] [--session-s S] [--out FILE]
 //
 // - rec-stats: what a recording holds (README.md lists it): its lines by kind, its length, the snapshots' rate, gaps,
 //   late and stalled intervals, the task's build times and its C13 p99, the faults and trips by group, the lifecycle
@@ -12,10 +13,14 @@
 // - replay: the recording's own inputs (its lifecycle messages, banners and snapshots, in their order) stepped through
 //   en-core's v0.1 slice again, and the changes it answers compared with those the recording holds: the same core on
 //   the same inputs must answer the same, or the core or the recorder has a defect.
-// - spike-report: DESIGN §16.1's pass rules for S0-A to S0-D over the launcher's spike logs and the recordings, each
-//   rule `pass`, `fail` or `not_measured` (what no file measures, such as "no online menu", the owner's to observe),
-//   and the spike's verdict: `pass` when every measured rule passes, `incomplete` when one could not be measured from
-//   the files given, else `fail`.
+// - spike-report: DESIGN §16.1's pass rules for S0-A to S0-D on the table-based start (since 2026-11-23) over the
+//   launcher's spike logs, eldennet.dll's reports of the runs (eldennet-spike.json, en_shell's spikerun.hpp) and the
+//   recordings, each rule `pass`, `fail` or `not_measured` (what no file measures, such as "no online menu", the
+//   owner's to observe, or what a start that stopped short of its reading could not give), and the spike's verdict:
+//   `pass` when every measured rule passes, `incomplete` when one could not be measured from the files given, else
+//   `fail`. A spike whose start waits for something (the start's layout not complete yet) says so, and is never failed
+//   for it. `--spikes` takes the spikes folder whole (its logs, and each run's folder with its report), `--recordings`
+//   the recordings folder, each recording joined to its run by the game's process id in its name.
 //
 // Exit codes: 0 the report was written (rec-stats, replay: and the replay agrees; spike-report: its verdict is pass);
 // 1 replay disagrees, or the spike's verdict is fail or incomplete; 2 a usage error, or a file that cannot be read, is
@@ -38,6 +43,7 @@
 #include "en/proto/watch.hpp"
 #include "en/augur/events.hpp"
 #include "en/shell/record.hpp"
+#include "en/shell/spikerun.hpp"
 #include "golden_run.hpp"
 
 namespace {
@@ -70,11 +76,13 @@ constexpr std::array<std::string_view, 3> kLevels = {"starting", "l1", "l2"};
 constexpr std::array<std::string_view, 3> kVerdicts = {"pass", "fail", "incomplete"};
 constexpr std::array<std::string_view, 3> kStatuses = {"pass", "fail", "not_measured"};
 constexpr std::array<std::string_view, 6> kModes = {"suspended", "window", "title", "watch", "vanilla", "unknown"};
-constexpr std::array<std::string_view, 16> kRules = {
+constexpr std::array<std::string_view, 20> kRules = {
     "runs_per_mode", "ready_or_l1",   "no_crash",           "both_modes",        "session_length",
     "faults",        "no_trip",       "task_p99_us",        "gate_closed_unless_solo", "connections",
     "online_menu",   "faults_caught", "breaker_tripped",    "crashes_recorded",  "recording",
-    "spike_log"};
+    "spike_log",     "table_checked", "table_unchanged",    "no_call",           "ready_start"};
+// What a spike waits for when its start stopped short of its reading (en_shell's spikerun.hpp: SpikeWaits).
+constexpr std::array<std::string_view, 6> kWaits = {"none", "layout", "files", "build", "anticheat", "not_started"};
 
 constexpr std::array<Key, 73> kKeys = {{
     {"header", Type::Object},
@@ -182,6 +190,38 @@ const std::array<Key, kKeys.size() + kMoreKeys.size()>& keys() {
   return table;
 }
 
+// The spike report's own keys since its schema 2 (2026-11-23, the table-based start): eldennet.dll's reports of the
+// runs (`run_reports`), what the spike waits for, the build's table, S0-D's forced faults and the reader's steady
+// counts.
+constexpr std::array<Key, 13> kSpikeKeys = {{
+    {"waits", Type::Word, Type::Object, kWaits},
+    {"run_reports", Type::Unsigned},
+    {"table_items", Type::Unsigned},
+    {"table_refused", Type::Unsigned},
+    {"table_changed", Type::Unsigned},
+    {"trial", Type::Object},
+    {"forced", Type::Unsigned},
+    {"caught", Type::Unsigned},
+    {"steady", Type::Object},
+    {"torn", Type::Unsigned},
+    {"held", Type::Unsigned},
+    {"unconfirmed", Type::Unsigned},
+    {"reading_ms", Type::Unsigned},
+}};
+
+std::array<Key, kKeys.size() + kMoreKeys.size() + kSpikeKeys.size()> all_spike_keys() {
+  std::array<Key, kKeys.size() + kMoreKeys.size() + kSpikeKeys.size()> out{};
+  const auto& base = keys();
+  std::copy(base.begin(), base.end(), out.begin());
+  std::copy(kSpikeKeys.begin(), kSpikeKeys.end(), out.begin() + base.size());
+  return out;
+}
+
+const std::array<Key, kKeys.size() + kMoreKeys.size() + kSpikeKeys.size()>& spike_keys() {
+  static const auto table = all_spike_keys();
+  return table;
+}
+
 }  // namespace
 
 // The three kinds, for lint --report too (lint.cpp).
@@ -193,8 +233,9 @@ const report::Vocabulary& replay_vocabulary() {
   static const report::Vocabulary v{"replay", 1, keys()};
   return v;
 }
+// Schema 2 since 2026-11-23: the table-based start's rules and keys (a new key or word is a new schema, WHY§188).
 const report::Vocabulary& spike_vocabulary() {
-  static const report::Vocabulary v{"spike", 1, keys()};
+  static const report::Vocabulary v{"spike", 2, spike_keys()};
   return v;
 }
 
@@ -279,6 +320,11 @@ struct Stats {
   std::array<std::uint64_t, en::proto::kGroupCount> ok{};
   std::array<bool, en::proto::kGroupCount> tripped{};
   std::uint64_t data_ready = 0, playthrough_ready = 0, group_tripped = 0;
+  // The groups the reading started with (the first DataReady's caps; every group when the recording has none): a
+  // group that was never on (discovery did not find it) shows as tripped in every snapshot, and is no trip of the
+  // session's.
+  std::uint16_t live = 0xFFFF;
+  bool live_known = false;
   std::array<std::uint64_t, 6> changes{};
   std::uint64_t opened = 0, closed = 0, open_ms = 0;
   std::optional<std::uint64_t> open_since;
@@ -326,7 +372,11 @@ Stats stats_of(const std::vector<RecordedLine>& lines) {
         break;
       }
       case RecordedLine::Kind::Life:
-        if (std::holds_alternative<en::proto::Lifecycle::DataReady>(l.life.payload)) ++s.data_ready;
+        if (const auto* d = std::get_if<en::proto::Lifecycle::DataReady>(&l.life.payload)) {
+          ++s.data_ready;
+          if (!s.live_known) s.live = static_cast<std::uint16_t>(d->caps.groups);
+          s.live_known = true;
+        }
         if (std::holds_alternative<en::proto::Lifecycle::PlaythroughReady>(l.life.payload)) ++s.playthrough_ready;
         if (const auto* g = std::get_if<en::proto::Lifecycle::GroupTripped>(&l.life.payload)) {
           ++s.group_tripped;
@@ -444,13 +494,24 @@ void write_stats_body(report::Writer& w, const Stats& s) {
   w.number("marks", s.marks);
 }
 
+// The groups the session tripped: of those it started with (S0-B's no_trip, S0-D's breaker), as Stats::live says.
+std::uint64_t session_trips(const Stats& st) {
+  std::uint64_t trips = 0;
+  for (std::size_t g = 0; g < en::proto::kGroupCount; ++g) trips += st.tripped[g] && ((st.live >> g) & 1u) != 0 ? 1 : 0;
+  return trips;
+}
+
 struct Common {
   std::vector<std::string> positional;
   std::vector<std::string> logs;
   std::vector<std::string> recordings;
+  std::vector<std::string> runs;           // spike-report: eldennet.dll's reports of runs (eldennet-spike.json)
+  std::optional<std::string> spikes_dir;   // spike-report: the spikes folder, its logs and its runs' folders
+  std::optional<std::string> recordings_dir;  // spike-report: the recordings folder, each joined to its run
   std::optional<std::string> out;
   std::optional<std::string> events;  // replay: Augur's events, in the golden files' form
   std::uint32_t need = 20;
+  std::uint32_t session_s = 7200;  // spike-report s0b: the session's length to reach (DESIGN §16.1: two hours)
 };
 
 std::optional<Common> parse(int argc, char** argv, const char* cmd, bool spike) {
@@ -466,6 +527,19 @@ std::optional<Common> parse(int argc, char** argv, const char* cmd, bool spike) 
       c.logs.emplace_back(argv[++i]);
     } else if (spike && a == "--recording" && more) {
       c.recordings.emplace_back(argv[++i]);
+    } else if (spike && a == "--run" && more) {
+      c.runs.emplace_back(argv[++i]);
+    } else if (spike && a == "--spikes" && more && !c.spikes_dir) {
+      c.spikes_dir = argv[++i];
+    } else if (spike && a == "--recordings" && more && !c.recordings_dir) {
+      c.recordings_dir = argv[++i];
+    } else if (spike && a == "--session-s" && more) {
+      const std::string v = argv[++i];
+      if (v.empty() || v.size() > 5 || v.find_first_not_of("0123456789") != std::string::npos || std::stoul(v) == 0) {
+        std::fprintf(stderr, "%s: --session-s is 1 to 99999 seconds\n", cmd);
+        return std::nullopt;
+      }
+      c.session_s = static_cast<std::uint32_t>(std::stoul(v));
     } else if (spike && a == "--need" && more) {
       const std::string v = argv[++i];
       if (v.empty() || v.size() > 4 || v.find_first_not_of("0123456789") != std::string::npos || std::stoul(v) == 0) {
@@ -785,19 +859,184 @@ void write_rule(report::Writer& w, const Rule& r) {
   std::printf("\n");
 }
 
+// ---- eldennet.dll's reports of the runs (spike_run, en_shell's spikerun.hpp) ----
+
+constexpr std::uintmax_t kMaxRunReportBytes = 64u << 10;
+
+struct RunReport {
+  std::string spike;         // the run's word
+  std::uint32_t folder = 0;  // spikes\<word>-<folder>; 0 when given by --run
+  std::uint64_t pid = 0;
+  std::string state = "none", waits = "none";
+  std::uint64_t getter_calls = 0;
+  std::uint64_t table_items = 0, table_refused = 0, again_refused = 0, changed = 0;
+  bool rechecked = false;
+  bool trial = false;
+  std::uint64_t forced = 0, caught = 0;
+  bool inject = false;  // a group was named for the reader's injected faults
+  bool reading = false;
+  std::uint64_t reading_ms = 0, snapshots = 0, torn = 0, held = 0, unconfirmed = 0, tripped = 0, p99_us = 0;
+};
+
+std::uint64_t num_of(const Json& j, const char* key) {
+  const auto it = j.find(key);
+  return it != j.end() && it->is_number_unsigned() ? it->get<std::uint64_t>() : 0;
+}
+bool flag_of(const Json& j, const char* key) {
+  const auto it = j.find(key);
+  return it != j.end() && it->is_boolean() && it->get<bool>();
+}
+std::string word_of(const Json& j, const char* key) {
+  const auto it = j.find(key);
+  return it != j.end() && it->is_string() ? it->get<std::string>() : std::string("none");
+}
+Json part_of(const Json& j, const char* key) {
+  const auto it = j.find(key);
+  return it != j.end() && it->is_object() ? *it : Json::object();
+}
+
+// One report: read, linted against its own vocabulary (it is the DLL's, numbers and words only), then its numbers.
+std::optional<RunReport> load_run(const std::string& path, std::uint32_t folder) {
+  const auto text = read_file(path, kMaxRunReportBytes);
+  if (!text) {
+    std::fputs("spike-report: a run's report cannot be read, or is larger than 64 KiB\n", stderr);
+    return std::nullopt;
+  }
+  const std::array<const report::Vocabulary*, 1> known = {&en::shell::spike_run_vocabulary()};
+  if (const auto ok = report::lint(*text, known); !ok) {
+    std::fputs("spike-report: a run's report is refused by the lint:\n", stderr);
+    for (const report::Problem& p : ok.error()) std::fprintf(stderr, "  %s\n", report::describe(p).c_str());
+    return std::nullopt;
+  }
+  const Json j = Json::parse(*text, nullptr, false);
+  RunReport r;
+  r.folder = folder;
+  r.spike = word_of(j, "spike");
+  r.pid = num_of(j, "pid");
+  r.state = word_of(j, "state");
+  r.waits = word_of(j, "waits");
+  r.getter_calls = num_of(part_of(j, "discovery"), "getter_calls");
+  const Json table = part_of(j, "table");
+  r.table_items = num_of(table, "items");
+  r.table_refused = num_of(table, "refused");
+  r.rechecked = flag_of(table, "rechecked");
+  r.again_refused = num_of(table, "again_refused");
+  r.changed = num_of(table, "changed");
+  const Json trial = part_of(j, "trial");
+  r.trial = flag_of(trial, "ran");
+  r.forced = num_of(trial, "seh_forced") + num_of(trial, "rpm_forced");
+  r.caught = num_of(trial, "seh_caught") + num_of(trial, "rpm_caught");
+  r.inject = word_of(part_of(j, "inject"), "group") != "none";
+  const Json reading = part_of(j, "reading");
+  r.reading = flag_of(reading, "started");
+  r.reading_ms = num_of(reading, "ms");
+  r.snapshots = num_of(reading, "snapshots");
+  r.torn = num_of(reading, "torn");
+  r.held = num_of(reading, "held");
+  r.unconfirmed = num_of(reading, "unconfirmed");
+  r.p99_us = num_of(reading, "p99_us");
+  if (const auto it = reading.find("tripped"); it != reading.end() && it->is_array()) r.tripped = it->size();
+  return r;
+}
+
+// A name `<word>-<n>`, n of 1 to 9 digits: the word and n, or nothing.
+std::optional<std::pair<std::string, std::uint32_t>> run_folder_name(const std::string& name) {
+  const std::size_t dash = name.rfind('-');
+  if (dash == std::string::npos || dash == 0 || dash + 1 >= name.size() || name.size() - dash - 1 > 9) return {};
+  const std::string digits = name.substr(dash + 1);
+  if (digits.find_first_not_of("0123456789") != std::string::npos) return {};
+  const std::string word = name.substr(0, dash);
+  if (std::find(kSpikes.begin(), kSpikes.end(), word) == kSpikes.end()) return {};
+  return std::make_pair(word, static_cast<std::uint32_t>(std::stoul(digits)));
+}
+
+// A recording's name, `<date>-<time>-<pid>-<n>.ensnap.jsonl`: its process id, or nothing.
+std::optional<std::uint64_t> recording_pid(const std::string& name) {
+  constexpr std::string_view kExt = ".ensnap.jsonl";
+  if (name.size() <= kExt.size() || name.compare(name.size() - kExt.size(), kExt.size(), kExt) != 0) return {};
+  std::vector<std::string> parts;
+  std::size_t at = 0;
+  const std::string stem = name.substr(0, name.size() - kExt.size());
+  while (at <= stem.size()) {
+    const std::size_t dash = std::min(stem.find('-', at), stem.size());
+    parts.push_back(stem.substr(at, dash - at));
+    at = dash + 1;
+  }
+  if (parts.size() != 4) return {};
+  for (const std::string& p : parts) {
+    if (p.empty() || p.size() > 10 || p.find_first_not_of("0123456789") != std::string::npos) return {};
+  }
+  return std::stoull(parts[2]);
+}
+
 }  // namespace
 
 int run_spike_report(int argc, char** argv) {
-  const auto c = parse(argc, argv, "spike-report", true);
+  auto c = parse(argc, argv, "spike-report", true);
   const auto usage = [] {
-    std::fputs("usage: eldennet-engine spike-report s0a|s0b|s0c|s0d [--log FILE]... [--recording FILE]... "
-               "[--need N] [--out FILE]\n",
+    std::fputs("usage: eldennet-engine spike-report s0a|s0b|s0c|s0d [--spikes DIR] [--recordings DIR] [--log FILE]... "
+               "[--recording FILE]... [--run FILE]... [--need N] [--session-s S] [--out FILE]\n",
                stderr);
     return 2;
   };
   if (!c || c->positional.size() != 1) return usage();
   const std::string spike = c->positional[0];
   if (spike != "s0a" && spike != "s0b" && spike != "s0c" && spike != "s0d") return usage();
+  namespace fs = std::filesystem;
+
+  // The spikes folder whole: its logs (the launcher's, `<word>-<stamp>.jsonl`), and each run's folder with
+  // eldennet.dll's report of the run. Sorted, so that the report is the same for the same folder.
+  std::vector<std::pair<std::string, std::uint32_t>> run_files;  // a report's path, and its folder's number
+  for (const std::string& path : c->runs) run_files.emplace_back(path, 0);
+  if (c->spikes_dir) {
+    std::error_code ec;
+    if (!fs::is_directory(*c->spikes_dir, ec)) {
+      std::fputs("spike-report: --spikes names no folder\n", stderr);
+      return 2;
+    }
+    std::vector<fs::directory_entry> entries;
+    for (fs::directory_iterator it(*c->spikes_dir, ec), end; !ec && it != end; it.increment(ec)) entries.push_back(*it);
+    std::sort(entries.begin(), entries.end(),
+              [](const fs::directory_entry& a, const fs::directory_entry& b) { return a.path() < b.path(); });
+    for (const fs::directory_entry& e : entries) {
+      const std::string name = e.path().filename().string();
+      if (e.is_regular_file(ec) && e.path().extension() == ".jsonl") {
+        c->logs.push_back(e.path().string());
+      } else if (e.is_directory(ec)) {
+        const auto folder = run_folder_name(name);
+        const fs::path file = e.path() / "eldennet-spike.json";
+        if (folder && (folder->first == spike || (spike == "s0d" && folder->first == "s0d-crash")) &&
+            fs::is_regular_file(file, ec)) {
+          run_files.emplace_back(file.string(), folder->second);
+        }
+      }
+    }
+  }
+  std::vector<RunReport> runs;
+  for (const auto& [path, folder] : run_files) {
+    auto r = load_run(path, folder);
+    if (!r) return 2;
+    if (r->spike == spike) runs.push_back(std::move(*r));  // S0-D's crashes have their logs, not reports, counted
+  }
+  // The recordings folder: each recording joined to a run of this spike by the game's process id in its name (and its
+  // header's spike, read below); with no report of a run, every recording of this spike.
+  if (c->recordings_dir) {
+    std::error_code ec;
+    std::vector<std::string> names;
+    for (fs::directory_iterator it(*c->recordings_dir, ec), end; !ec && it != end; it.increment(ec)) {
+      if (it->is_regular_file(ec)) names.push_back(it->path().filename().string());
+    }
+    std::sort(names.begin(), names.end());
+    for (const std::string& name : names) {
+      const auto pid = recording_pid(name);
+      if (!pid) continue;
+      const bool joined = runs.empty() || std::any_of(runs.begin(), runs.end(), [&](const RunReport& r) {
+                            return r.pid == *pid;
+                          });
+      if (joined) c->recordings.push_back((fs::path(*c->recordings_dir) / name).string());
+    }
+  }
+
   // S0-D's forced crashes are a log of their own (--spike s0d-crash); its other logs are the session's.
   const auto logs = load_logs(c->logs, spike);
   const auto crash_logs = spike == "s0d" ? load_logs(c->logs, "s0d-crash") : std::optional<Logs>(Logs{});
@@ -806,10 +1045,29 @@ int run_spike_report(int argc, char** argv) {
   for (const std::string& path : c->recordings) {
     auto lines = load_recording(path, "spike-report");
     if (!lines) return 2;
+    // A recording of another spike's session (the recordings folder holds every session's) is left out.
+    if (c->recordings_dir && !lines->empty() && lines->front().kind == RecordedLine::Kind::Header &&
+        lines->front().header.spike != spike) {
+      continue;
+    }
     recordings.push_back(std::move(*lines));
   }
   std::vector<Stats> stats;
   for (const auto& r : recordings) stats.push_back(stats_of(r));
+
+  // What the runs' reports say: the start reached its reading in one of them, or what it waited for.
+  const bool any_ready = std::any_of(runs.begin(), runs.end(), [](const RunReport& r) { return r.state == "ready"; });
+  std::string_view waits = "none";
+  if (!any_ready) {
+    for (const RunReport& r : runs) {
+      if (r.waits != "none") {
+        const auto it = std::find(kWaits.begin(), kWaits.end(), r.waits);
+        waits = it != kWaits.end() ? *it : std::string_view("none");
+        break;
+      }
+    }
+  }
+  const bool waiting = waits != "none";
 
   std::vector<Rule> rules;
   std::vector<ModeTally> modes;
@@ -820,6 +1078,21 @@ int run_spike_report(int argc, char** argv) {
   const auto session_crash = [&] {
     return logs->runs.empty() ? unmeasured("no_crash") : at_most("no_crash", log_crashes, 0);
   };
+  std::uint64_t trial_forced = 0, trial_caught = 0, torn = 0, held = 0, unconfirmed = 0, reading_ms = 0;
+  std::uint64_t table_items = 0, table_refused = 0, table_changed = 0;
+  bool trial_ran = false;
+  for (const RunReport& r : runs) {
+    trial_ran = trial_ran || r.trial;
+    trial_forced += r.forced;
+    trial_caught += r.caught;
+    torn += r.torn;
+    held += r.held;
+    unconfirmed += r.unconfirmed;
+    reading_ms = std::max(reading_ms, r.reading_ms);
+    table_items = std::max(table_items, r.table_items);
+    table_refused += r.table_refused;
+    table_changed += r.changed;
+  }
   if (spike == "s0a") {
     // DESIGN §16.1: 20/20 launches per mode, else L1 with no crash; early (suspended) and late (the window, the title).
     modes = by_mode(*logs);
@@ -840,52 +1113,127 @@ int run_spike_report(int argc, char** argv) {
     if (both.status == Status::Fail) both.status = Status::NotMeasured;
     rules.push_back(both);
     if (logs->runs.empty()) rules.push_back(unmeasured("spike_log"));
-  } else if (spike == "s0b") {
-    // 0 faults; p99 ≤ 0.5 ms; over two hours of play.
-    if (stats.empty()) {
-      rules.push_back(unmeasured("recording"));
+    // Since 2026-11-22 (proposal 0005 §15): the ids of the build's table, each passing its checks in every run, and the
+    // image untouched where the table points (the checks made again once the start stopped agree), with no call into
+    // the game. Each run's report gives them; a run with no report counts against them, a layout with no table is
+    // not measured.
+    const auto tabled = static_cast<std::uint64_t>(
+        std::count_if(runs.begin(), runs.end(), [](const RunReport& r) { return r.table_items != 0; }));
+    if (tabled == 0) {
+      rules.push_back(unmeasured("table_checked"));
+      rules.push_back(unmeasured("table_unchanged"));
     } else {
-      std::uint64_t duration = 0, faults = 0, trips = 0, p99 = 0;
-      for (const Stats& s : stats) {
-        duration += s.snaps > 1 ? s.snap_last - s.snap_first : 0;
-        for (std::size_t g = 0; g < en::proto::kGroupCount; ++g) {
-          faults += s.faults[g];
-          trips += s.tripped[g] ? 1 : 0;
-        }
-        p99 = std::max(p99, s.p99_last);
+      const std::uint64_t expected = std::max<std::uint64_t>(tabled, logs->runs.size());
+      rules.push_back(at_least("table_checked", static_cast<std::uint64_t>(std::count_if(
+                                                    runs.begin(), runs.end(),
+                                                    [](const RunReport& r) {
+                                                      return r.table_items != 0 && r.table_refused == 0;
+                                                    })),
+                               expected));
+      rules.push_back(at_least("table_unchanged", static_cast<std::uint64_t>(std::count_if(
+                                                      runs.begin(), runs.end(),
+                                                      [](const RunReport& r) {
+                                                        return r.table_items != 0 && r.rechecked &&
+                                                               r.again_refused == 0 && r.changed == 0;
+                                                      })),
+                               expected));
+    }
+    if (runs.empty()) {
+      rules.push_back(unmeasured("no_call"));
+    } else {
+      std::uint64_t calls = 0;
+      for (const RunReport& r : runs) calls += r.getter_calls;
+      rules.push_back(at_most("no_call", calls, 0));
+    }
+  } else if (spike == "s0b") {
+    // Since 2026-11-22 (O101): the reader on EldenNet's own thread for 2 h; 0 faults confirmed (a fault counts when it
+    // comes twice running); p99 ≤ 0.5 ms. It needs a ready start: one that stopped short of its reading for want of
+    // something waits for it, and nothing below is measured.
+    if (any_ready) {
+      rules.push_back(Rule{"ready_start", Status::Pass, 1, 1, {}});
+    } else if (waiting) {
+      rules.push_back(unmeasured("ready_start"));
+    } else if (!runs.empty()) {
+      rules.push_back(Rule{"ready_start", Status::Fail, 0, 1, {}});
+    } else {
+      // Logs and recordings alone (no run's report): a recording whose reader sent DataReady had a ready start.
+      std::uint64_t ready = 0;
+      for (const Stats& st : stats) ready += st.data_ready;
+      rules.push_back(stats.empty() ? unmeasured("ready_start")
+                                    : at_least("ready_start", std::min<std::uint64_t>(ready, 1), 1));
+    }
+    if (waiting) {
+      for (const std::string_view rule : {"session_length", "faults", "no_trip", "task_p99_us"}) {
+        rules.push_back(unmeasured(rule));
       }
-      rules.push_back(at_least("session_length", duration / 1000, 7200));
+    } else if (!stats.empty()) {
+      std::uint64_t duration = 0, faults = 0, trips = 0, p99 = 0;
+      for (const Stats& st : stats) {
+        duration += st.snaps > 1 ? st.snap_last - st.snap_first : 0;
+        for (std::size_t g = 0; g < en::proto::kGroupCount; ++g) faults += st.faults[g];
+        trips += session_trips(st);
+        p99 = std::max(p99, st.p99_last);
+      }
+      rules.push_back(at_least("session_length", duration / 1000, c->session_s));
       rules.push_back(at_most("faults", faults, 0));
       rules.push_back(at_most("no_trip", trips, 0));
       rules.push_back(at_most("task_p99_us", p99, 500));
+    } else if (any_ready) {
+      // The runs' reports alone: the reader's own length, trips and p99; its confirmed faults are the recording's.
+      std::uint64_t trips = 0, p99 = 0;
+      for (const RunReport& r : runs) {
+        trips += r.tripped;
+        p99 = std::max(p99, r.p99_us);
+      }
+      rules.push_back(at_least("session_length", reading_ms / 1000, c->session_s));
+      rules.push_back(unmeasured("faults"));
+      rules.push_back(at_most("no_trip", trips, 0));
+      rules.push_back(at_most("task_p99_us", p99, 500));
+    } else {
+      rules.push_back(unmeasured("recording"));
     }
     rules.push_back(session_crash());
   } else if (spike == "s0c") {
-    // The gate closed in every session but a solo one of one's own; no connection beyond this PC; no online menu.
-    if (stats.empty()) {
-      rules.push_back(unmeasured("recording"));
-    } else {
+    // The gate closed in every session but a solo one of one's own; no connection beyond this PC; no online menu. The
+    // gate is read from the recordings' snapshots, which a start that stopped short of its reading has none of.
+    std::uint64_t snaps = 0;
+    for (const Stats& st : stats) snaps += st.snaps;
+    if (snaps != 0) {
       std::uint64_t violations = 0;
       for (const auto& r : recordings) violations += gate_violations(r);
       rules.push_back(at_most("gate_closed_unless_solo", violations, 0));
+    } else if (waiting) {
+      rules.push_back(unmeasured("gate_closed_unless_solo"));
+    } else {
+      rules.push_back(unmeasured(stats.empty() ? "recording" : "gate_closed_unless_solo"));
     }
     rules.push_back(logs->runs.empty() ? unmeasured("connections") : at_most("connections", connections, 0));
     rules.push_back(session_crash());
     rules.push_back(unmeasured("online_menu"));  // the owner's observation
   } else {
-    // 20/20 caught; breakers trip; every forced crash recorded by the watcher.
-    if (stats.empty()) {
+    // 20/20 caught; breakers trip; every forced crash recorded by the watcher. The faults caught are the forced ones of
+    // the start's trial (eldennet.dll's own page, by each copy primitive) and the reader's injected ones in the
+    // recordings; a breaker trips only on the reader's, so a start that stopped short of its reading waits for it.
+    std::uint64_t faults = 0, trips = 0;
+    for (const Stats& st : stats) {
+      for (std::size_t g = 0; g < en::proto::kGroupCount; ++g) faults += st.faults[g];
+      trips += session_trips(st);
+    }
+    for (const RunReport& r : runs) trips = std::max(trips, r.tripped);
+    if (stats.empty() && !trial_ran) {
       rules.push_back(unmeasured("recording"));
     } else {
-      std::uint64_t faults = 0, trips = 0;
-      for (const Stats& s : stats) {
-        for (std::size_t g = 0; g < en::proto::kGroupCount; ++g) {
-          faults += s.faults[g];
-          trips += s.tripped[g] ? 1 : 0;
-        }
-      }
-      rules.push_back(at_least("faults_caught", faults, c->need));
+      rules.push_back(at_least("faults_caught", faults + trial_caught, c->need));
+    }
+    const bool injected = std::any_of(runs.begin(), runs.end(), [](const RunReport& r) { return r.inject; });
+    if (trips != 0) {
       rules.push_back(at_least("breaker_tripped", trips, 1));
+    } else if (waiting || (!runs.empty() && !injected)) {
+      rules.push_back(unmeasured("breaker_tripped"));
+    } else if (!stats.empty() || any_ready) {
+      rules.push_back(at_least("breaker_tripped", trips, 1));
+    } else {
+      rules.push_back(unmeasured("breaker_tripped"));
     }
     rules.push_back(session_crash());
     if (crash_logs->runs.empty()) {
@@ -906,8 +1254,10 @@ int run_spike_report(int argc, char** argv) {
   report::Writer w(spike_vocabulary());
   w.word("spike", spike);
   w.word("verdict", verdict);
+  w.word("waits", waits);
   w.number("logs", logs->files);
   w.number("recordings", recordings.size());
+  w.number("run_reports", runs.size());
   w.begin_array("rules");
   for (const Rule& r : rules) write_rule(w, r);
   w.end_array();
@@ -935,9 +1285,22 @@ int run_spike_report(int argc, char** argv) {
     }
     w.end_array();
   }
+  if (!runs.empty()) {
+    w.number("table_items", table_items);
+    w.number("table_refused", table_refused);
+    w.number("table_changed", table_changed);
+  }
   if (spike != "s0a") {
     w.number("sessions", logs->runs.size());
     w.number("connections_max", connections);
+  }
+  if (spike == "s0b" && !runs.empty()) {
+    w.number("reading_ms", reading_ms);
+    w.begin_object("steady");
+    w.number("torn", torn);
+    w.number("held", held);
+    w.number("unconfirmed", unconfirmed);
+    w.end_object();
   }
   if (spike == "s0d") {
     w.number("crashes", static_cast<std::uint64_t>(crash_logs->runs.size()));
@@ -946,15 +1309,19 @@ int run_spike_report(int argc, char** argv) {
     w.number("filter_records", static_cast<std::uint64_t>(std::count_if(
                                    crash_logs->runs.begin(), crash_logs->runs.end(),
                                    [](const Run& r) { return r.crash_filter; })));
+    w.begin_object("trial");
+    w.number("forced", trial_forced);
+    w.number("caught", trial_caught);
+    w.end_object();
   }
   if (!stats.empty()) {
     // The gate's timeline over every recording (S0-C), and the first recording's numbers in full (S0-B's session; the
     // rules above cover every recording).
     std::uint64_t opened = 0, closed = 0, open_ms = 0;
-    for (const Stats& s : stats) {
-      opened += s.opened;
-      closed += s.closed;
-      open_ms += s.open_ms;
+    for (const Stats& st : stats) {
+      opened += st.opened;
+      closed += st.closed;
+      open_ms += st.open_ms;
     }
     w.begin_object("gate");
     w.number("opened", opened);
@@ -977,7 +1344,18 @@ int run_spike_report(int argc, char** argv) {
     w.end_object();
   }
   if (!write_out(c->out, w.finish(), "spike-report", false)) return 5;
-  std::printf("spike-report: %s verdict=%.*s rules=%zu\n", spike.c_str(), static_cast<int>(verdict.size()),
-              verdict.data(), rules.size());
+  if (waiting) {
+    // The owner's words: why the spike could not run whole, which is never counted against it.
+    const char* why = waits == "layout"       ? "the start's layout is not complete yet"
+                      : waits == "files"      ? "gal's files are missing or were refused"
+                      : waits == "build"      ? "the game's build is not one EldenNet knows"
+                      : waits == "anticheat"  ? "anti-cheat was running"
+                                              : "the game did not finish starting";
+    std::printf("spike-report: %s waits=%.*s: %s, so what needs EldenNet's reading was not measured; nothing is "
+                "counted against it\n",
+                spike.c_str(), static_cast<int>(waits.size()), waits.data(), why);
+  }
+  std::printf("spike-report: %s verdict=%.*s rules=%zu runs=%zu\n", spike.c_str(), static_cast<int>(verdict.size()),
+              verdict.data(), rules.size(), runs.size());
   return verdict == "pass" ? 0 : 1;
 }

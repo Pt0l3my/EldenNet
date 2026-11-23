@@ -15,8 +15,7 @@
 #include "en/launcher/graceui.hpp"
 #include "en/launcher/spikes.hpp"
 #include "en/launcher/steam.hpp"
-#include "en/gal/derive.hpp"
-#include "en/gal/probe_report.hpp"
+#include "en/gal/lodestar.hpp"
 #include "en/gal/report.hpp"
 #include "en/proto/ffi_guard.hpp"
 
@@ -212,30 +211,35 @@ Gate gate(const Ctx& c, const fs::path& exe) {
   return g;
 }
 
-// ---- R1's reports (--probe) ----
+// ---- The read-only round's files (--read) ----
 
-// After an R1 session: the two reports EldenNet wrote, checked by the lint they must pass before they leave the PC
-// (`eldennet-engine lint --report`, the same vocabularies), each told as a line, and the result to the owner.
-void check_r1_reports(const Paths& p) {
+// After a read-only round (--read): the report by the lint it must pass before it leaves the PC, and the draft table
+// by what such a table may hold, each told as a line, and the result to the owner.
+void check_read_reports(const Paths& p) {
   const fs::path folder = p.en / L"probe";
-  const gal::report::Vocabulary* kinds[] = {&gal::derive::vocabulary(), &gal::probe::vocabulary()};
+  const gal::report::Vocabulary* kinds[] = {&gal::lodestar::vocabulary()};
   bool missing = false;
   bool refused = false;
-  for (const char* name : {"r1-derive.json", "r1-probe.json"}) {
-    const auto text = read_text(folder / name, gal::report::kMaxReportBytes);
-    if (!text) {
-      missing = true;
-      say("r1 report=%s lint=missing", name);
-      continue;
-    }
+  if (const auto text = read_text(folder / "lodestar-found.json", gal::report::kMaxReportBytes)) {
     const auto result = gal::report::lint(*text, kinds);
     refused = refused || !result;
-    say("r1 report=%s lint=%s problems=%zu bytes=%zu", name, result ? "clean" : "refused",
+    say("read report=lodestar-found.json lint=%s problems=%zu bytes=%zu", result ? "clean" : "refused",
         result ? std::size_t{0} : result.error().size(), text->size());
+  } else {
+    missing = true;
+    say("read report=lodestar-found.json lint=missing");
   }
-  const R1Step step = missing ? R1Step::ReportsMissing : refused ? R1Step::ReportsRefused : R1Step::ReportsClean;
-  say("r1 step=%s", r1_word(step));
-  console_line(r1_text(step));
+  if (const auto text = read_text(folder / "lodestar-table.toml", gal::report::kMaxReportBytes)) {
+    const bool clean = table_text_clean(*text);
+    refused = refused || !clean;
+    say("read report=lodestar-table.toml lint=%s bytes=%zu", clean ? "clean" : "refused", text->size());
+  } else {
+    missing = true;
+    say("read report=lodestar-table.toml lint=missing");
+  }
+  const ReadStep step = missing ? ReadStep::ReportsMissing : refused ? ReadStep::ReportsRefused : ReadStep::ReportsClean;
+  say("read step=%s", read_word(step));
+  console_line(read_text(step), "EldenNet read: ");
 }
 
 // ---- One start, watched to its end ----
@@ -246,11 +250,13 @@ struct Run {
   bool start_vanilla = false;  // E10's "Start without EldenNet" was chosen
 };
 
-// An observer's run (S0-E, S4): its folder, spikes\<word>-<n>, made before the game starts, for GraceUI's observer's
-// report (spikes.hpp). The log names the word and the number only.
+// A run with a folder of its own (an observer's, S0-E and S4; an S0 run's): spikes\<word>-<n>, made before the game
+// starts, for GraceUI's observer's report or eldennet.dll's (spikes.hpp, s0.hpp). The log names the word and the
+// number only.
 struct SpikeFolder {
   std::optional<fs::path> path;
   DWORD error = 0;
+  std::uint32_t n = 0;
 };
 SpikeFolder make_spike_folder(const Ctx& c) {
   std::vector<std::string> names;
@@ -265,12 +271,12 @@ SpikeFolder make_spike_folder(const Ctx& c) {
   const bool made = fs::create_directory(folder, ec) && !ec;
   say("spike_dir spike=%s n=%s made=%d", w::to_string(c.o.spike), name.substr(name.rfind('-') + 1).c_str(),
       made ? 1 : 0);
-  if (!made) return SpikeFolder{std::nullopt, ec ? static_cast<DWORD>(ec.value()) : DWORD{ERROR_ALREADY_EXISTS}};
-  return SpikeFolder{folder, 0};
+  if (!made) return SpikeFolder{std::nullopt, ec ? static_cast<DWORD>(ec.value()) : DWORD{ERROR_ALREADY_EXISTS}, 0};
+  return SpikeFolder{folder, 0, static_cast<std::uint32_t>(std::stoul(name.substr(name.rfind('-') + 1)))};
 }
 
-Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::string& build, bool inject_dll,
-             AppidMethod method, RemoveAfter remove_after) {
+Run run_once(const Ctx& c, std::uint32_t run, std::uint32_t runs, const fs::path& exe, const std::string& build,
+             bool inject_dll, AppidMethod method, RemoveAfter remove_after) {
   Run out;
   out.result.run = run;
   const std::string started_stamp = local_stamp();
@@ -278,7 +284,8 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
   // eldennet.dll among the DLLs: every injecting start but s0e_alone, which loads the --also DLLs alone.
   const bool ours = inject_dll && c.o.spike != w::Spike::S0eAlone;
   GameEnvironment env;
-  if (inject_dll && w::observer_run(c.o.spike)) {
+  std::optional<fs::path> run_dir;  // a run with a folder of its own (spikes.hpp, s0.hpp)
+  if (inject_dll && run_folder(c.o.spike)) {
     const SpikeFolder folder = make_spike_folder(c);
     if (!folder.path) {
       out.result.outcome = RunOutcome::StartFailed;
@@ -286,6 +293,8 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
       return out;
     }
     env.spike_dir = folder.path->wstring();
+    run_dir = folder.path;
+    out.result.folder = folder.n;
   }
 
   // Starting without EAC (ARCH §4.5).
@@ -330,10 +339,11 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
   auto wb = WatchBlock::open(pid);
   if (!wb) say("watch_block ok=0 error=%lu", GetLastError());
   if (wb && inject_dll) {
-    // What EldenNet reads at its start, before anything is loaded: the spike, and R1 (--probe), which it answers.
+    // What EldenNet reads at its start, before anything is loaded: the spike, and the read-only round (--read), which
+    // it answers.
     wb->block().control.spike.store(static_cast<std::uint32_t>(c.o.spike), std::memory_order_release);
-    if (c.o.probe) {
-      wb->block().control.probe.store(static_cast<std::uint32_t>(w::ProbeRequest::R1), std::memory_order_release);
+    if (c.o.read) {
+      wb->block().control.probe.store(static_cast<std::uint32_t>(w::ProbeRequest::Read), std::memory_order_release);
     }
   }
 
@@ -399,17 +409,25 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
 
   WatchPlan plan;
   plan.console = c.o.console;
-  plan.probe = c.o.probe && inject_dll;
+  plan.read = c.o.read && inject_dll;
+  plan.read_pace_s = c.o.read_pace_s;
   plan.spike = c.o.spike;
   if (c.o.spike == w::Spike::S0a || c.o.spike == w::Spike::S0dCrash) plan.run_timeout_s = c.o.run_timeout_s;
   plan.crash_when_ready = c.o.spike == w::Spike::S0dCrash;
   plan.count_connections = c.o.spike == w::Spike::S0c;
+  if (run_dir) {
+    plan.run_dir = run_dir;
+    plan.run = run;
+    plan.runs = runs;
+    plan.spike_pace_s = c.o.spike_pace_s;
+    if (s0_run(c.o.spike) && ours) plan.s0_report = *run_dir / widen(kSpikeReportFile);
+  }
   plan.remove_appid = remove_after;
   plan.appid = created;
   plan.appid_value = c.game.appid;
   WatchResult res = watch_game(s.pi.hProcess, pid, *wb, plan);
   if (created && remove_after != RemoveAfter::Never) save_state(c.p, std::nullopt);
-  if (plan.probe) check_r1_reports(c.p);
+  if (plan.read) check_read_reports(c.p);
 
   SessionRecord& rec = res.record;
   rec.launcher_version = EN_LAUNCHER_VERSION;
@@ -438,6 +456,13 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
   r.crash_filter = rec.crash.has_value();
   r.run_ms = mono_ms() - t0;
   r.connections_max = rec.connections_max;
+  r.panel = res.panel_shown;
+  if (res.s0) {
+    // eldennet.dll's report of an S0 run (s0.hpp): what its start waited for, and S0-A's rule for its table.
+    r.report = true;
+    r.waits = res.s0->waits;
+    r.table_ok = table_passed(*res.s0);
+  }
   return out;
 }
 
@@ -493,15 +518,34 @@ int do_start(Ctx& c) {
   if (!proxies.empty()) tell("Other mods detected", "Other mods detected: " + proxy_list + ".");
   // GraceUI (ARCH §4.3; GraceUI D83, D88): Game\GraceUI\graceui.toml readable, every listed file matching its size and
   // SHA-256, the ABI major EldenNet speaks and a version at least its floor. What fails is told in E12, and the game
-  // starts all the same: EldenNet runs headless until GraceUI is installed again. A development run (R1's --probe, a
+  // starts all the same: EldenNet runs headless until GraceUI is installed again. A development run (--read, a
   // spike) is headless by design (O90), so it only logs the check.
   if (inject_dll) {
     const GraceReport gr = check_graceui(exe->parent_path() / L"GraceUI");
     say("preflight graceui=%s version=%u.%u.%u abi=%u.%u files=%zu checked=%zu", to_string(gr.result), gr.version[0],
         gr.version[1], gr.version[2], gr.abi_major, gr.abi_minor, gr.files, gr.checked);
-    if (gr.result != GraceCheck::Ok && !c.o.probe && c.o.spike == proto::watch::Spike::None) {
+    if (gr.result != GraceCheck::Ok && !c.o.read && c.o.spike == proto::watch::Spike::None) {
       tell_error(ErrorCode::E12, error_text(ErrorCode::E12, graceui_problem(gr)));
     }
+  }
+  // A test package's run (--expect-graceui, the package's own graceui.toml): the game's GraceUI folder must hold the
+  // GraceUI the package carries, or the run tests another one (the owner's request, 2026-11-23). E13 asks whether to
+  // start anyway; closing it stops here. Its words name versions and a relative file name, never a path.
+  if (c.o.expect_graceui) {
+    const auto want = read_graceui_manifest(path_from_utf8(*c.o.expect_graceui));
+    if (!want) {
+      say("usage error=\"--expect-graceui names no readable graceui.toml\"");
+      return kExitUsage;
+    }
+    const auto have = read_graceui_manifest(exe->parent_path() / L"GraceUI" / L"graceui.toml");
+    const std::string differs =
+        have ? graceui_differs(*want, *have) : std::string("the game's folder has no GraceUI, or it cannot be read");
+    say("expect_graceui match=%d want=%u.%u.%u have=%s", differs.empty() ? 1 : 0, want->version[0], want->version[1],
+        want->version[2],
+        have ? (std::to_string(have->version[0]) + "." + std::to_string(have->version[1]) + "." +
+                std::to_string(have->version[2])).c_str()
+             : "none");
+    if (!differs.empty() && !ask(ErrorCode::E13, error_text(ErrorCode::E13, differs))) return exit_code(ErrorCode::E13);
   }
   for (const auto& a : c.o.also) {
     std::error_code ec;
@@ -519,10 +563,12 @@ int do_start(Ctx& c) {
         back_up_saves(BackupSpec{c.p.saves, c.p.backups, elden_ring_save_files(), 10, local_stamp()});
     say("backup folders=%zu made=%zu unchanged=%zu empty=%zu removed=%zu problems=%zu", b.folders, b.made, b.unchanged,
         b.empty, b.removed, b.problems.size());
-    // R1 (--probe) never goes on without a backup: its one call into the game rests on one (O89).
-    if (!b.ok() && (c.o.probe || !ask(ErrorCode::E07, error_text(ErrorCode::E07, b.problems.front())))) {
-      if (c.o.probe) say("r1 backup=failed");
-      return c.o.probe ? fail(ErrorCode::E07, b.problems.front()) : exit_code(ErrorCode::E07);
+    // The read-only round (--read) never goes on without a backup: it calls nothing, but a development build in the
+    // game goes with a backup.
+    const bool development = c.o.read;
+    if (!b.ok() && (development || !ask(ErrorCode::E07, error_text(ErrorCode::E07, b.problems.front())))) {
+      if (development) say("read backup=failed");
+      return development ? fail(ErrorCode::E07, b.problems.front()) : exit_code(ErrorCode::E07);
     }
   }
 
@@ -534,10 +580,10 @@ int do_start(Ctx& c) {
                                     : std::string(w::to_string(c.o.spike)) + "-" + local_stamp() + ".jsonl";
   std::vector<RunResult> results;
   for (std::uint32_t run = 1; run <= runs; ++run) {
-    Run r = run_once(c, run, *exe, g.build, inject_dll, method, remove_after);
+    Run r = run_once(c, run, runs, *exe, g.build, inject_dll, method, remove_after);
     if (r.start_vanilla && c.o.spike == w::Spike::None) {
       say("start_without_eldennet=1");
-      r = run_once(c, run, *exe, g.build, false, method, remove_after);
+      r = run_once(c, run, runs, *exe, g.build, false, method, remove_after);
     }
     say("run n=%u outcome=%s end=%s exit_code=0x%08X record=%d crash_filter=%d run_ms=%llu", run,
         to_string(r.result.outcome), to_string(r.result.end), r.result.exit_code, r.result.record_kept ? 1 : 0,
@@ -551,6 +597,7 @@ int do_start(Ctx& c) {
   const bool ok = passed(c.o.spike, t);
   append_line(c.p.spikes / widen(spike_log), to_json(t, c.o.spike).dump());
   say("tally spike=%s %s passed=%d", w::to_string(c.o.spike), tally_line(t).c_str(), ok ? 1 : 0);
+  if (s0_run(c.o.spike)) console_line(s0_end_text(c.o.spike, t, ok), s0_who(c.o.spike));
   return ok ? kExitDone : kExitSpikeFailed;
 }
 

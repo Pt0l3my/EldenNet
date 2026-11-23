@@ -89,6 +89,8 @@ struct WorldState {
   Decoy::Actor* decoy = nullptr;
   float player_angle = 0.0f;
   float clock_s = 0.0f;
+  float world_s = 0.0f;  // seconds in the world
+  bool retitled = false; // the game went back to its title once (--retitle-at-s)
   bool online = false;
   WorldStats stats;
   FG::ClockTask clock_task;
@@ -170,6 +172,10 @@ FG::ActorParts* make_parts(std::int32_t max_hp, std::int32_t hp) {
   parts->motion->pos[3] = 1.0f;
   parts->react->recv_dmg_type = 0;
   parts->grip->throw_state = 0;
+  void* const more[11] = {fg_static_taskloom, fg_static_roster, fg_static_lobby, fg_static_marks,
+                          fg_static_gauges,   fg_static_menu,   fg_static_veil,  fg_static_sky,
+                          fg_static_eye,      fg_static_tables, fg_static_phrases};
+  for (std::size_t i = 0; i < 11; ++i) parts->more[i] = more[i];
   return parts;
 }
 
@@ -197,10 +203,14 @@ void set_flag(std::uint32_t id, bool on) {
   }
 }
 
+// --flag-set's flag: of the second group, in the holder's fourth block (byte 15 of it, bit 4).
+constexpr std::uint32_t kFlagLate = 7123;
+void set_late_flag() { set_flag(kFlagLate, true); }
+
 FG::MarkLedgerImp* make_flag_store() {
   WorldState& w = state();
   auto* marks = make<FG::MarkLedgerImp>();
-  auto* holder = static_cast<std::uint8_t*>(alloc_block(125 * 2));
+  auto* holder = static_cast<std::uint8_t*>(alloc_block(125 * 4));
   auto* own = static_cast<std::uint8_t*>(alloc_block(125));
   auto* head = make<FG::FlagNode>();
   auto* n0 = make<FG::FlagNode>();
@@ -209,14 +219,14 @@ FG::MarkLedgerImp* make_flag_store() {
   // SAFETY: the block's address kept as a number, as a mode-2 descriptor holds it.
   const std::uint64_t own_at = reinterpret_cast<std::uintptr_t>(own);
   *head = FG::FlagNode{n0, n7, n4321, 0, 0, 0};
-  *n7 = FG::FlagNode{n0, head, n4321, 7, 1, 125};
+  *n7 = FG::FlagNode{n0, head, n4321, 7, 1, 3};  // mode 1: the block's index in the holder (the fourth block)
   *n0 = FG::FlagNode{head, n7, head, 0, 1, 0};
   *n4321 = FG::FlagNode{head, n7, head, 4321, 2, own_at};
   marks->map_head = head;
   marks->map_count = 3;
   marks->holder = holder;
   w.flag_blocks[0] = holder;
-  w.flag_blocks[1] = holder + 125;
+  w.flag_blocks[1] = holder + 125 * 3;
   w.flag_blocks[2] = own;
   for (const std::uint32_t id : kFlagsAlways) set_flag(id, true);
   return marks;
@@ -374,9 +384,14 @@ void despawn() {
 
 void enter(Phase phase, std::uint64_t frame) {
   WorldState& w = state();
-  if (phase == Phase::Loading) despawn();
+  if (phase == Phase::Loading || (phase == Phase::Title && w.retitled)) despawn();  // back at the title: no world
   w.phase = phase;
   w.phase_frames = 0;
+  // --slot-by-state: the save's slot is known only in the world.
+  if (options().slot_by_state && fg_static_run_warden != nullptr) {
+    const std::int32_t slot = w.retitled ? 2 : static_cast<std::int32_t>(options().first_slot);
+    static_cast<FG::RunWardenImp*>(fg_static_run_warden)->f.save_slot = phase == Phase::World ? slot : -1;
+  }
   set_flag(kFlagWorld, phase == Phase::World);
   switch (phase) {
     case Phase::Title: set_screen(1); break;
@@ -446,7 +461,8 @@ void world_create_singletons() {
   fg_static_tables = make_table_vault();
   fg_static_phrases = make_phrase_book();
   // The decoys' statics hold objects of their own, so that each would resolve if its site were believed.
-  fg_static_duplicata_a = make<FG::Prop>();
+  // --day-book: a plain block in the first decoy's place, which the clock's task keeps the time in.
+  fg_static_duplicata_a = options().day_book ? alloc_block(0x40) : static_cast<void*>(make<FG::Prop>());
   fg_static_duplicata_b = make<FG::Prop>();
   fg_static_strayling = make<FG::Prop>();
 
@@ -467,12 +483,13 @@ void world_create_singletons() {
   ledger->f.ng_level = 0;
   (void)fg_save_ledger_swap(ledger);
   auto* warden = make<FG::RunWardenImp>();
-  warden->f.save_slot = 2;
+  warden->f.save_slot = options().slot_by_state ? -1 : 2;
   warden->f.talk_cam_param_id = -1;
   fg_static_run_warden = warden;
   auto* plot = make<FG::FieldPlotImp>();
   plot->f.place_id = 6100100;
   fg_static_field_plot = plot;
+  if (options().field_mirror) fg_field_plot_mirror = plot;
 
   WorldState& w = state();
   w.online = options().online;
@@ -498,7 +515,11 @@ void world_frame_begin(std::uint64_t frame) {
   if (w.phase == Phase::Boot) enter(Phase::Title, frame);
   switch (w.phase) {
     case Phase::Title:
-      if (!o.stay_title && w.phase_frames >= o.title_frames) enter(Phase::Loading, frame);
+      // The first title lasts --title-frames; the second (--retitle-at-s) --retitle-for-s seconds.
+      if (!o.stay_title &&
+          w.phase_frames >= (w.retitled ? std::uint64_t{o.retitle_for_s} * std::max<std::uint32_t>(o.fps, 1) : o.title_frames)) {
+        enter(Phase::Loading, frame);
+      }
       break;
     case Phase::Loading:
       if (auto* veil = get<FG::VeilKeeperImp>(fg_get_veil)) ++veil->load_counter;
@@ -506,7 +527,10 @@ void world_frame_begin(std::uint64_t frame) {
       break;
     case Phase::World:
       ++w.world_frames;
-      if (o.reload_every != 0 && w.world_frames % o.reload_every == 0) {
+      if (o.retitle_at_s != 0 && !w.retitled && w.world_s >= static_cast<float>(o.retitle_at_s)) {
+        w.retitled = true;
+        enter(Phase::Title, frame);
+      } else if (o.reload_every != 0 && w.world_frames % o.reload_every == 0) {
         enter(Phase::Loading, frame);
       } else if (o.move_every != 0 && w.world_frames % o.move_every == 0) {
         world_move_all();
@@ -536,6 +560,7 @@ void world_move_all() {
   move_static<FG::PhraseBookImp>(fg_static_phrases);
   move_static<FG::RunWardenImp>(fg_static_run_warden);
   move_static<FG::FieldPlotImp>(fg_static_field_plot);
+  if (options().field_mirror) fg_field_plot_mirror = fg_static_field_plot;
   if (auto* old = static_cast<FG::SaveLedgerImp*>(fg_static_save_ledger)) {
     auto* moved = make<FG::SaveLedgerImp>(*old);
     if (moved->f.hero != nullptr) moved->f.hero = relocate(moved->f.hero);
@@ -632,18 +657,42 @@ void FG::ClockTask::run(const FrameInfo* frame) {
     if (auto* ledger = static_cast<SaveLedgerImp*>(fg_static_save_ledger)) {
       ledger->f.play_time_ms += static_cast<std::uint32_t>(frame->dt * 1000.0f + 0.5f);
     }
-    w.clock_s += frame->dt * 60.0f;  // a game minute for each second
+    w.clock_s += frame->dt * static_cast<float>(fakegame::options().clock_rate);  // a game minute a second, unless asked
+    const float before = w.world_s;
+    w.world_s += frame->dt;
+    // --pass-time: time is let pass twice, five hours and then three. --flag-set: one flag is set, once.
+    if (fakegame::options().pass_time) {
+      if (before < 14.0f && w.world_s >= 14.0f) w.clock_s += 5.0f * 3600.0f;
+      if (before < 26.0f && w.world_s >= 26.0f) w.clock_s += 3.0f * 3600.0f;
+    }
+    if (fakegame::options().flag_set && before < 30.0f && w.world_s >= 30.0f) fakegame::set_late_flag();
+    // --hit-at-s, --heal-at-s: the player loses 200 of its health, and has it back.
+    const auto crossed = [&](std::uint32_t at) {
+      return at != 0 && before < static_cast<float>(at) && w.world_s >= static_cast<float>(at);
+    };
+    if (w.player != nullptr && crossed(fakegame::options().hit_at_s)) w.player->a.parts->vitals->hp -= 200;
+    if (w.player != nullptr && crossed(fakegame::options().heal_at_s)) w.player->a.parts->vitals->hp += 200;
   }
   if (auto* sky = static_cast<SkyClockImp*>(fg_get_sky())) {
     const auto total = static_cast<std::uint64_t>(w.clock_s) + 9 * 3600;
     sky->clock = ((total / 3600) % 24) << 32 | ((total / 60) % 60) << 16 | (total % 60);
+    sky->hours = static_cast<float>(total % 86400) / 3600.0f;
+    if (fakegame::options().day_book && fg_static_duplicata_a != nullptr) {
+      auto* book = static_cast<std::uint64_t*>(fg_static_duplicata_a);
+      book[2] = sky->clock;
+      book[3] = sky->clock;
+    }
   }
 }
 
 void FG::MotionTask::run(const FrameInfo* frame) {
   auto& w = fakegame::state();
   if (w.phase != Phase::World || w.player == nullptr) return;
-  w.player_angle += 0.05f * frame->dt;
+  // --walk-from-s, --walk-to-s: the player moves only between those seconds of the world.
+  const fakegame::Options& o = fakegame::options();
+  const bool walks = (o.walk_from_s == 0 && o.walk_to_s == 0) ||
+                     (w.world_s >= static_cast<float>(o.walk_from_s) && w.world_s < static_cast<float>(o.walk_to_s));
+  if (walks) w.player_angle += 0.05f * frame->dt;
   float* pp = w.player->a.parts->motion->pos;
   pp[0] = 100.0f + 20.0f * std::cos(w.player_angle);
   pp[1] = 12.0f;
@@ -664,7 +713,7 @@ void FG::SettleTask::run(const FrameInfo* frame) {
   auto& w = fakegame::state();
   auto* gauges = static_cast<GaugeBoardImp*>(fg_get_gauges());
   if (gauges == nullptr) return;
-  if (w.phase == Phase::World && !w.npcs.empty()) {
+  if (w.phase == Phase::World && !w.npcs.empty() && !fakegame::options().calm) {
     gauges->bars[0] = GaugeBar{w.npcs.back()->a.handle, 9100, static_cast<std::int32_t>(frame->frame % 500)};
     if (frame->frame % 120 == 0) w.npcs.front()->a.last_hit_by = w.player != nullptr ? w.player->a.handle : 0;
   } else {
@@ -676,7 +725,7 @@ void FG::MenuTask::run(const FrameInfo* frame) {
   auto& w = fakegame::state();
   if (auto* gauges = static_cast<GaugeBoardImp*>(fg_get_gauges())) gauges->hud_state = w.phase == Phase::World ? 3 : 0;
   if (auto* menu = static_cast<MenuDeskImp*>(fg_get_menu_popup_site()); menu != nullptr && menu->popup != nullptr) {
-    menu->popup->talk_id = w.phase == Phase::World && frame->frame % 600 < 60 ? 7100 : -1;
+    menu->popup->talk_id = w.phase == Phase::World && !fakegame::options().calm && frame->frame % 600 < 60 ? 7100 : -1;
   }
   (void)fg_run_warden_slot();
   (void)fg_field_plot_place();

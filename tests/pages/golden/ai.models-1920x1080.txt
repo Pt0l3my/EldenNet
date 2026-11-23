@@ -12,9 +12,11 @@ fill    gold            0, 225    3x40
 text    gold.hi        50, 233   51x25   glyphs 6 "Models"
 text    ink.mute       50, 273   76x25   glyphs 9 "Self-test"
 line    rule           30, 305  240x1   
-text    ink.mute       30, 315   64x30   glyphs 6 "System"
+text    ink.mute       30, 315  106x30   glyphs 10 "Characters"
 line    rule           30, 355  240x1   
-text    ink.mute       30, 365   85x30   glyphs 8 "Settings"
+text    ink.mute       30, 365   64x30   glyphs 6 "System"
+line    rule           30, 405  240x1   
+text    ink.mute       30, 415   85x30   glyphs 8 "Settings"
 fill    ground.well   340,  10  350x35   r3
 text    ink.faint     353,  15   51x25   glyphs 6 "Search"
 text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
@@ -312,4 +314,4 @@ text    gold         1835,3971    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 text    ink.faint     340,1045  304x25   glyphs 21 "← →  Choose    R  Reset    Esc  Back"
 stroke  gold.hi      1502, 414  356x44   r5 w3 clip1
-# 313 items, 11224 vertices, 24138 indices, 4 commands; check_draw_list: passes
+# 315 items, 11268 vertices, 24204 indices, 4 commands; check_draw_list: passes

@@ -292,6 +292,59 @@ TEST_CASE("backend: real faults trip an optional group's breaker (L3), and a str
   CHECK(copier.copies == copies);
 }
 
+TEST_CASE("backend: a manager's fields far into a large object are read by copies of their own") {
+  WorldOptions o;
+  o.far_roster = true;  // the roster is 0x12000 bytes, its fields 0x10000 bytes in; the layout says each is far
+  Running r(o);
+  r.start();
+  REQUIRE(r.task.status().state.load() == TaskState::Running);
+  const ClassLayout* roster = r.d.layout().find_class("characters");
+  REQUIRE(roster != nullptr);
+  CHECK(roster->copy_size == 0x8u);  // the first word alone, for the class's check
+  CHECK(roster->far_bytes == 40);    // a pointer, a vector's two, a pointer and a number, each at a multiple of 8
+  r.w.world();
+  r.run(2.0, 60);
+  const auto& s = r.io.last();
+  // The world and the session read as they do from a near roster: the main player, the near list, the player set.
+  CHECK(s.life.main_player);
+  REQUIRE(s.player.has_value());
+  Running plain;  // the same world with the roster's fields at its start
+  plain.start();
+  plain.w.world();
+  plain.run(2.0, 60);
+  CHECK(s.chars.size() == plain.io.last().chars.size());
+  CHECK(s.chars.size() >= r.w.npcs.size());
+  CHECK(state_of(r, Group::World) == GroupState::Ok);
+  CHECK(state_of(r, Group::Session) == GroupState::Ok);
+  CHECK(r.task.backend().book().breaker_total(Group::World) == 0);
+  // Back at the title the far pointer reads empty, as a near one does.
+  r.w.title();
+  r.run(0.5, 60);
+  CHECK_FALSE(r.io.last().life.main_player);
+  CHECK(r.io.last().chars.empty());
+}
+
+TEST_CASE("backend: a clock kept as runs of bits in one word reads by the layout's shift and width") {
+  WorldOptions o;
+  o.clock_bits = true;
+  Running r(o);
+  r.start();
+  r.w.world();
+  r.run(1.0, 60);
+  REQUIRE(r.io.last().clock.has_value());
+  CHECK(r.io.last().clock->h == 9);  // the word's other bits are all set: only the two runs are read
+  CHECK(r.io.last().clock->m == 30);
+  r.w.set_hour(17);
+  r.run(0.3, 60);
+  REQUIRE(r.io.last().clock.has_value());
+  CHECK(r.io.last().clock->h == 17);
+  CHECK(r.io.last().clock->m == 30);
+  r.w.set_hour(25);  // five bits hold it; a day does not
+  r.run(0.3, 60);
+  CHECK(r.task.backend().book().breaker_total(Group::Place) >= 1);
+  CHECK_FALSE(r.io.last().clock.has_value());
+}
+
 TEST_CASE("backend: per-tick plausibility: a camera that is no rotation, an hour past the day, a session not solo") {
   Running r;
   r.start();
@@ -414,4 +467,69 @@ TEST_CASE("backend: a replaced watch list goes back to the core, never freed on 
   CHECK_FALSE(first_weak.expired());  // the core holds it now, and frees it on its own thread
   r.io.retired[0].reset();
   CHECK(first_weak.expired());
+}
+
+TEST_CASE("backend: the flags group alone reads through a layout that places the flags and nothing else") {
+  // As the game's layout stands after step L6: the items' statics, the event flags' store and the tree's records;
+  // no other class. Discovery is not ready to start (the structural groups lack their fields), but the flags are
+  // there, and the backend reads them alone.
+  FakeWorld w;
+  w.world();
+  w.set_flag(5000005, true);
+  std::string layout;
+  bool keep = true;
+  for (std::size_t at = 0; at < w.layout.size();) {
+    const std::size_t end = std::min(w.layout.find('\n', at), w.layout.size() - 1) + 1;
+    const std::string_view line(w.layout.data() + at, end - at);
+    if (line.starts_with("[")) {
+      keep = !line.starts_with("[class.") || line.starts_with("[class.event_flags") ||
+             line.starts_with("[class.flag_node");
+    }
+    if (keep) layout.append(line);
+    at = end;
+  }
+  REQUIRE(layout.find("[class.event_flags]") != std::string::npos);
+  REQUIRE(layout.find("[class.characters]") == std::string::npos);
+  auto gated = gate_image(*w.sys, w.builds);
+  REQUIRE(gated.has_value());
+  DiscoveryOptions options;
+  options.frame = FrameProvider::OwnThread;
+  const auto d = discover(*w.sys, *gated, w.patterns, layout, options);
+  if (!d.has_value()) {
+    for (const auto& e : d.error()) MESSAGE(e.where << ": " << e.problem);
+  }
+  REQUIRE(d.has_value());
+  CHECK(d->has(Group::Flags));
+  CHECK_FALSE(d->has(Group::Player));
+  CHECK_FALSE(d->report().ready);
+  ErBackend backend(*w.sys, *d);
+  CHECK_FALSE(backend.inert());
+  const auto gt = en::proto::GameThread::issue();
+  (void)backend.first_tick(gt, false);
+  REQUIRE(backend.apply(gt, GameCommand{GameCommand::SetWatchFlags{3, watch({100, 1234001, 5000005, 777000})}})
+              .has_value());
+  en::proto::WorldSnapshot out;
+  const ErBackend::FlagsAlone done = backend.flags_alone(gt, out);
+  CHECK(done.read);
+  REQUIRE(done.known.has_value());
+  CHECK(*done.known);  // flag 100, set in every playthrough
+  REQUIRE(out.flags.has_value());
+  CHECK(out.flags->watch_version == 3);
+  CHECK(out.flags->valid[0]);
+  CHECK(out.flags->bits[0]);        // 100
+  CHECK(out.flags->valid[1]);
+  CHECK_FALSE(out.flags->bits[1]);  // 1234001: its block lies by its index in the holder
+  CHECK(out.flags->valid[2]);
+  CHECK(out.flags->bits[2]);        // 5000005, a block by address
+  CHECK_FALSE(out.flags->valid[3]); // 777000: no such group
+  CHECK(backend.book().live(Group::Flags));  // untested by phase A, and not tripped
+  // A flag set in the game shows at the next call.
+  w.set_flag(1234001, true);
+  (void)backend.flags_alone(gt, out);
+  REQUIRE(out.flags.has_value());
+  CHECK(out.flags->bits[1]);
+  // The snapshot itself reads no flags with such a layout: the groups its mode asks are tripped.
+  en::proto::WorldSnapshot whole;
+  (void)backend.snapshot(gt, whole);
+  CHECK_FALSE(whole.flags.has_value());
 }

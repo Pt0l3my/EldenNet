@@ -3,16 +3,84 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdio>
 #include <cstring>
 #include <nlohmann/json.hpp>
 #include <string_view>
+
+#include <windows.h>
 
 namespace fake {
 
 namespace {
 
 constexpr GraceUiConsumer kMe = 0x5EED;
+constexpr std::uint64_t kAtlas = 0xA7;  // the shared atlas's texture id, once baked
+constexpr std::uint32_t kNoticeFace = 1;
+constexpr std::uint32_t kFirstModFace = 16;
 Grace* g_fake = nullptr;
+
+// The fake's glyph tables: an invented face per id, ASCII and a little more, 10 px advances at its baked size.
+std::map<std::uint32_t, std::vector<GraceUiGlyph>>& tables() {
+  static std::map<std::uint32_t, std::vector<GraceUiGlyph>> t;
+  return t;
+}
+
+const std::vector<GraceUiGlyph>& glyphs_of(std::uint32_t face, float px) {
+  auto& t = tables();
+  auto it = t.find(face);
+  if (it != t.end()) return it->second;
+  std::vector<GraceUiGlyph> g;
+  std::vector<std::uint32_t> cps;
+  for (std::uint32_t c = 0x20; c < 0x7F; ++c) cps.push_back(c);
+  for (const std::uint32_t c : {0xE9u, 0x2014u, 0x2026u, 0xFFFDu}) cps.push_back(c);
+  for (const std::uint32_t c : cps) {
+    GraceUiGlyph x{};
+    x.code_point = c;
+    x.advance = px / 2.0f;
+    if (c != 0x20) {
+      x.x0 = 1;
+      x.y0 = 2;
+      x.x1 = px / 2.0f - 1;
+      x.y1 = px - 2;
+      x.u0 = 0.0f;
+      x.v0 = 0.0f;
+      x.u1 = 0.01f;
+      x.v1 = 0.01f;
+    }
+    g.push_back(x);
+  }
+  return t.emplace(face, std::move(g)).first->second;
+}
+
+void queue(Grace& g, const GraceUiEvent& e) {
+  g.events.push_back(e);
+  if (g.wake != nullptr) SetEvent(static_cast<HANDLE>(g.wake));
+}
+
+GraceUiEvent event_of(std::uint32_t kind) {
+  GraceUiEvent e{};
+  e.size = sizeof e;
+  e.kind = kind;
+  return e;
+}
+
+std::string key_words(std::uint32_t vk) {
+  if ((vk >= 0x41 && vk <= 0x5A) || (vk >= 0x30 && vk <= 0x39)) return std::string(1, static_cast<char>(vk));
+  if (vk >= 0x70 && vk <= 0x87) return "F" + std::to_string(vk - 0x6F);
+  if (vk == 0x09) return "Tab";
+  if (vk == 0x13) return "Pause";
+  return "Key " + std::to_string(vk);
+}
+
+void end_holder(Grace& g, std::uint32_t why) {
+  if (!g.holding) return;
+  g.holding = false;
+  g.holder_panel = 0;
+  GraceUiEvent e = event_of(GRACEUI_EVENT_INPUT_ENDED);
+  e.why = why;
+  queue(g, e);
+}
 
 std::string text_of(const char* p, std::uint64_t n) { return p == nullptr ? std::string() : std::string(p, n); }
 
@@ -39,6 +107,12 @@ GraceUiStatus connect(const GraceUiConnectRequest* request, GraceUiConnectAnswer
   answer->abi_minor = GRACEUI_ABI1_MINOR;
   answer->floor = g.connect_status == GRACEUI_TOO_OLD ? request->floor : 0;
   answer->consumer = g.connect_status == GRACEUI_OK || g.connect_status == GRACEUI_INACTIVE ? kMe : 0;
+  if (answer->size >= sizeof(GraceUiConnectAnswer)) {
+    answer->ui_scale = 1.25f;
+    answer->ui_scale_default = 1.25f;
+    answer->display_width = g.display_width;
+    answer->display_height = g.display_height;
+  }
   return g.connect_status;
 }
 
@@ -113,8 +187,47 @@ GraceUiStatus register_texture(GraceUiConsumer me, const GraceUiTextureDesc* t, 
   return GRACEUI_OK;
 }
 
-GraceUiStatus register_face(GraceUiConsumer, const GraceUiFaceDesc*, uint32_t*) { return GRACEUI_NOT_YET; }
-GraceUiStatus glyph_table(GraceUiConsumer, uint32_t, GraceUiGlyphTable*) { return GRACEUI_NOT_READY; }
+// A face before warm-up (D139): a file of some bytes (the fake reads no font), 6 to 128 px; too late after it.
+GraceUiStatus register_face(GraceUiConsumer me, const GraceUiFaceDesc* face, uint32_t* id) {
+  Grace& g = *g_fake;
+  if (const GraceUiStatus a = admitted(me); a != GRACEUI_OK) return a;
+  if (g.warmed) {
+    ++g.faces_too_late;
+    return GRACEUI_TOO_LATE;
+  }
+  if (face == nullptr || id == nullptr || face->data == nullptr || face->data_length < 4 || face->pixel_height < 6 ||
+      face->pixel_height > 128 || (face->flags & ~GRACEUI_FACE_SCALED) != 0) {
+    return GRACEUI_REFUSED;
+  }
+  if (g.faces.size() >= GRACEUI_FACES_PER_MOD) return GRACEUI_FULL;
+  g.faces.push_back(Face{face->pixel_height, face->flags, face->data_length});
+  *id = kFirstModFace + static_cast<std::uint32_t>(g.faces.size() - 1);
+  return GRACEUI_OK;
+}
+
+GraceUiStatus glyph_table(GraceUiConsumer me, uint32_t face, GraceUiGlyphTable* table) {
+  Grace& g = *g_fake;
+  if (const GraceUiStatus a = admitted(me); a != GRACEUI_OK) return a;
+  if (table == nullptr || table->size < sizeof(GraceUiGlyphTable)) return GRACEUI_REFUSED;
+  if (!g.warmed) return GRACEUI_NOT_READY;
+  float px = 15.0f;  // the notices' face
+  if (face != kNoticeFace) {
+    if (face < kFirstModFace || face - kFirstModFace >= g.faces.size()) return GRACEUI_REFUSED;
+    px = static_cast<float>(g.faces[face - kFirstModFace].pixel_height);  // baked at a content scale of 1
+  }
+  const std::vector<GraceUiGlyph>& glyphs = glyphs_of(face, px);
+  table->generation = 1;
+  table->face_id = face;
+  table->glyph_count = static_cast<std::uint32_t>(glyphs.size());
+  table->pixel_height = px;
+  table->ascent = px * 0.8f;
+  table->descent = -px * 0.2f;
+  table->line_gap = 0;
+  table->atlas = kAtlas;
+  table->glyphs = glyphs.data();
+  ++g.glyph_tables;
+  return GRACEUI_OK;
+}
 
 GraceUiStatus create_panel(GraceUiConsumer me, const GraceUiPanelDesc* desc, uint64_t* id) {
   Grace& g = *g_fake;
@@ -158,9 +271,10 @@ bool list_ok(const Grace& g, const Panel& p, const GraceUiDrawList& l, std::stri
           c.clip_x0 <= c.clip_x1 && c.clip_y0 <= c.clip_y1)) {
       return why = "clip", false;
     }
-    bool known = false;
+    bool known = g.warmed && c.texture == kAtlas;
     for (std::uint64_t t : g.textures) known = known || t == c.texture;
     if (!known) return why = "texture", false;
+    if (c.texture == kAtlas && l.atlas_generation != 1) return why = "generation", false;
   }
   return true;
 }
@@ -198,13 +312,44 @@ GraceUiStatus hide_panel(GraceUiConsumer me, uint64_t panel) {
   auto it = g.panels.find(panel);
   if (it == g.panels.end()) return GRACEUI_REFUSED;
   it->second.shown = false;
+  if (g.holding && g.holder_panel == panel) end_holder(g, GRACEUI_CLOSED_RELEASED);  // hiding it ends its holder
   return GRACEUI_OK;
 }
 
-GraceUiStatus request_input(GraceUiConsumer, const GraceUiInputRequest*, GraceUiInputAnswer*) {
-  return GRACEUI_REFUSED;  // en-overlay never asks for input in v0.1 (D142)
+// One holder at a time, answered at once (D77): the mod's own panel, shown, made to take input, on a layer that suits
+// the kind; the holder's events only with GRACEUI_INPUT_EVENTS (D176).
+GraceUiStatus request_input(GraceUiConsumer me, const GraceUiInputRequest* req, GraceUiInputAnswer* answer) {
+  Grace& g = *g_fake;
+  if (const GraceUiStatus a = admitted(me); a != GRACEUI_OK) return a;
+  ++g.requests;
+  if (req == nullptr || answer == nullptr || req->size < sizeof(GraceUiInputRequest)) return GRACEUI_REFUSED;
+  g.last_request = *req;
+  const auto it = g.panels.find(req->panel);
+  if (it == g.panels.end() || !it->second.shown || (it->second.desc.flags & GRACEUI_PANEL_TAKES_INPUT) == 0 ||
+      req->kind != GRACEUI_HOLDER_PANEL || it->second.desc.layer == GRACEUI_LAYER_MODAL ||
+      (req->flags & ~GRACEUI_INPUT_EVENTS) != 0) {
+    return GRACEUI_REFUSED;
+  }
+  answer->answer = g.holding ? GRACEUI_INPUT_REFUSED : g.input_answer;
+  if (answer->answer == GRACEUI_INPUT_REFUSED) {
+    answer->holder_kind = GRACEUI_HOLDER_MENU;
+    std::snprintf(answer->holder, sizeof answer->holder, "%s", g.holding ? "eldennet" : g.holder_name.c_str());
+  } else if (answer->answer == GRACEUI_INPUT_NOT_NOW) {
+    answer->why = g.not_now_why;
+  } else {
+    g.holding = true;
+    g.holder_panel = req->panel;
+  }
+  return GRACEUI_OK;
 }
-GraceUiStatus release_input(GraceUiConsumer) { return GRACEUI_OK; }
+
+GraceUiStatus release_input(GraceUiConsumer me) {
+  Grace& g = *g_fake;
+  if (me != kMe) return GRACEUI_NOT_CONNECTED;
+  if (g.holding) ++g.releases;
+  end_holder(g, GRACEUI_CLOSED_RELEASED);
+  return GRACEUI_OK;
+}
 
 GraceUiStatus register_hotkey(GraceUiConsumer me, const GraceUiHotkeyDesc* desc, uint32_t* id) {
   Grace& g = *g_fake;
@@ -212,14 +357,19 @@ GraceUiStatus register_hotkey(GraceUiConsumer me, const GraceUiHotkeyDesc* desc,
   if (desc == nullptr || desc->size < sizeof(GraceUiHotkeyDesc) || desc->modifiers != 0 || desc->key == 0x1B) {
     return GRACEUI_REFUSED;
   }
-  if (desc->pad_chord != 0) return GRACEUI_NOT_YET;
+  const bool chords = std::find(g.caps.begin(), g.caps.end(), "pad-chords") != g.caps.end();
+  if (desc->pad_chord != 0 && !chords) return GRACEUI_NOT_YET;  // a GraceUI before 0.2.14 (D204)
+  if (desc->pad_chord != 0 && ((desc->pad_chord >> 16) == 0 || (desc->pad_chord & 0xFFFFu) == 0 ||
+                               (desc->pad_chord >> 16) == (desc->pad_chord & 0xFFFFu))) {
+    return GRACEUI_REFUSED;  // two different buttons
+  }
   const std::string action = text_of(desc->action, desc->action_length);
   for (const Hotkey& h : g.hotkeys) {
     if (h.action == action) return GRACEUI_REFUSED;
   }
   if (g.hotkeys.size() >= GRACEUI_HOTKEYS_PER_MOD) return GRACEUI_FULL;
   const bool taken = std::find(g.taken_keys.begin(), g.taken_keys.end(), desc->key) != g.taken_keys.end();
-  g.hotkeys.push_back(Hotkey{action, text_of(desc->name, desc->name_length), desc->key, !taken});
+  g.hotkeys.push_back(Hotkey{action, text_of(desc->name, desc->name_length), desc->key, desc->pad_chord, !taken});
   *id = static_cast<uint32_t>(g.hotkeys.size());
   return taken ? GRACEUI_UNBOUND : GRACEUI_OK;  // registered either way, with its id (D164)
 }
@@ -295,8 +445,19 @@ GraceUiStatus publish(GraceUiConsumer me, const char* frame, uint64_t length) {
   if (!f.is_discarded() && f.is_object() && (f.value("t", "") == "state" || f.value("t", "") == "rows")) {
     const std::string shape = f.value("t", "") == "state" ? "state" : "stream";
     const nlohmann::json pages = nlohmann::json::parse(g.space_pages);
+    // A topic of its own, never a family itself; or a family's member, `<family>/<key>` (GraceUI 0.2.19, D215): the
+    // key of a-z, 0-9, '.', '_' and '-', the whole id at most 64 bytes, a state.
+    const std::string topic = f.value("topic", "");
+    const std::size_t slash = topic.find('/');
+    const std::string key = slash == std::string::npos ? std::string() : topic.substr(slash + 1);
+    const bool good_key = !key.empty() && topic.size() <= 64 && std::all_of(key.begin(), key.end(), [](char c) {
+      return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '.' || c == '_' || c == '-';
+    });
     for (const nlohmann::json& t : pages["topics"]) {
-      declared = declared || (t.value("id", "") == f.value("topic", "") && t.value("shape", "") == shape);
+      const bool family = t.value("family", false);
+      declared = declared || (!family && t.value("id", "") == topic && t.value("shape", "") == shape) ||
+                 (family && slash != std::string::npos && good_key && shape == "state" &&
+                  t.value("id", "") == topic.substr(0, slash));
     }
   }
   // GraceUI 0.2.5's (D183): the settings topic's schema and description, if sent, are the registered ones.
@@ -329,7 +490,48 @@ GraceUiStatus answer(GraceUiConsumer me, uint64_t reply, const char* frame, uint
   g.answers[reply] = text_of(frame, length);
   return GRACEUI_OK;
 }
-GraceUiStatus set_caret(GraceUiConsumer, const GraceUiCaret*) { return GRACEUI_OK; }
+// The caret, while its mod holds input and for the holding panel; one set otherwise is ignored (D176).
+GraceUiStatus set_caret(GraceUiConsumer me, const GraceUiCaret* caret) {
+  Grace& g = *g_fake;
+  if (const GraceUiStatus a = admitted(me); a != GRACEUI_OK) return a;
+  if (caret == nullptr || caret->size < sizeof(GraceUiCaret)) return GRACEUI_REFUSED;
+  if (!g.holding || caret->panel != g.holder_panel) {
+    ++g.carets_ignored;
+    return GRACEUI_OK;
+  }
+  g.carets.push_back(*caret);
+  return GRACEUI_OK;
+}
+
+GraceUiStatus describe_hotkey(GraceUiConsumer me, uint32_t id, GraceUiHotkeyBinding* b) {
+  Grace& g = *g_fake;
+  if (const GraceUiStatus a = admitted(me); a != GRACEUI_OK) return a;
+  if (b == nullptr || b->size < sizeof(GraceUiHotkeyBinding) || id == 0 || id > g.hotkeys.size()) {
+    return GRACEUI_REFUSED;
+  }
+  const Hotkey& h = g.hotkeys[id - 1];
+  b->bound = h.bound ? (h.key != 0 ? GRACEUI_HOTKEY_KEY_BOUND : 0u) | (h.chord != 0 ? GRACEUI_HOTKEY_CHORD_BOUND : 0u)
+                     : 0u;
+  b->key = h.key;
+  b->modifiers = 0;
+  b->pad_chord = h.chord;
+  std::snprintf(b->key_text, sizeof b->key_text, "%s", h.key != 0 ? key_words(h.key).c_str() : "");
+  std::snprintf(b->chord_text, sizeof b->chord_text, "%s", h.chord != 0 ? "D-pad Up, then View" : "");
+  return GRACEUI_OK;
+}
+
+GraceUiStatus wake_event(GraceUiConsumer me, void** event) {
+  Grace& g = *g_fake;
+  if (const GraceUiStatus a = admitted(me); a != GRACEUI_OK) return a;
+  if (event == nullptr) return GRACEUI_REFUSED;
+  ++g.wakes_asked;
+  if (g.wake == nullptr) g.wake = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+  SetEvent(static_cast<HANDLE>(g.wake));  // once when asked for: the first wait polls what may be there already
+  HANDLE mine = nullptr;
+  DuplicateHandle(GetCurrentProcess(), static_cast<HANDLE>(g.wake), GetCurrentProcess(), &mine, SYNCHRONIZE, FALSE, 0);
+  *event = mine;
+  return GRACEUI_OK;
+}
 
 }  // namespace
 
@@ -357,9 +559,13 @@ Grace::Grace() {
   table.set_world_state = &set_world_state;
   table.log = &log_line;
   table.set_caret = &set_caret;
+  table.describe_hotkey = &describe_hotkey;
+  table.wake_event = &wake_event;
+  tables().clear();
 }
 
 Grace::~Grace() {
+  if (wake != nullptr) CloseHandle(static_cast<HANDLE>(wake));
   if (g_fake == this) g_fake = nullptr;
 }
 
@@ -370,16 +576,78 @@ const GraceUiApi1* Grace::api() {
 }
 
 void Grace::press(const std::string& action, std::uint32_t count) {
+  if (holding) return;  // a hotkey fires only while no holder has input (D77)
   for (std::size_t i = 0; i < hotkeys.size(); ++i) {
     if (hotkeys[i].action == action) {
-      GraceUiEvent e{};
-      e.size = sizeof e;
-      e.kind = GRACEUI_EVENT_HOTKEY;
+      GraceUiEvent e = event_of(GRACEUI_EVENT_HOTKEY);
       e.hotkey_id = static_cast<std::uint32_t>(i + 1);
       e.count = count;
-      events.push_back(e);
+      queue(*this, e);
     }
   }
+}
+
+void Grace::warm_up() {
+  warmed = true;
+  if (display_width == 0) {
+    display_width = 1920;
+    display_height = 1080;
+  }
+  display();
+}
+
+void Grace::key(std::uint32_t vk, bool down, bool repeat) {
+  if (!holding) return;
+  GraceUiEvent e = event_of(GRACEUI_EVENT_KEY);
+  e.key = vk;
+  e.pressed = down ? 1 : 0;
+  e.repeat = repeat ? 1 : 0;
+  queue(*this, e);
+}
+
+void Grace::type(const std::string& utf8) {
+  if (!holding) return;
+  for (std::size_t i = 0; i < utf8.size();) {
+    const auto b = static_cast<unsigned char>(utf8[i]);
+    const std::size_t n = b < 0x80 ? 1 : (b & 0xE0) == 0xC0 ? 2 : (b & 0xF0) == 0xE0 ? 3 : 4;
+    std::uint32_t c = n == 1 ? b : n == 2 ? (b & 0x1Fu) : n == 3 ? (b & 0x0Fu) : (b & 0x07u);
+    for (std::size_t k = 1; k < n && i + k < utf8.size(); ++k) {
+      c = (c << 6) | (static_cast<unsigned char>(utf8[i + k]) & 0x3Fu);
+    }
+    GraceUiEvent e = event_of(GRACEUI_EVENT_CHARACTER);
+    e.code_point = c;
+    queue(*this, e);
+    i += n;
+  }
+}
+
+void Grace::pad(std::uint32_t button, bool down) {
+  if (!holding) return;
+  GraceUiEvent e = event_of(GRACEUI_EVENT_PAD);
+  e.button = button;
+  e.pressed = down ? 1 : 0;
+  queue(*this, e);
+}
+
+void Grace::end_input(std::uint32_t why) { end_holder(*this, why); }
+
+void Grace::rebind(const std::string& action, std::uint32_t key) {
+  for (std::size_t i = 0; i < hotkeys.size(); ++i) {
+    if (hotkeys[i].action == action) {
+      hotkeys[i].key = key;
+      hotkeys[i].bound = true;
+      GraceUiEvent e = event_of(GRACEUI_EVENT_HOTKEY_CHANGED);
+      e.hotkey_id = static_cast<std::uint32_t>(i + 1);
+      queue(*this, e);
+    }
+  }
+}
+
+bool Grace::woken() { return wake != nullptr && WaitForSingleObject(static_cast<HANDLE>(wake), 0) == WAIT_OBJECT_0; }
+
+const Panel* Grace::holder() const {
+  const auto it = panels.find(holder_panel);
+  return holding && it != panels.end() ? &it->second : nullptr;
 }
 
 void Grace::watch(const std::string& topic) {
@@ -427,7 +695,8 @@ void Grace::display() {
   e.ui_scale_default = 1.25f;
   e.scale = 1.25f;
   e.content_scale = 1.0f;
-  events.push_back(e);
+  e.faces_scale = faces.empty() ? 0.0f : 1.0f;
+  queue(*this, e);
 }
 
 std::uint64_t Grace::panel_of(const std::string&) const { return panels.size() == 1 ? panels.begin()->first : 0; }

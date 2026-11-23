@@ -1,0 +1,25 @@
+# The tracks owned by no persona (MEM §12.2, §12.4): Tanith's alone in v1. Original text, in our own words. A track has
+# no base step: with no step holding it has no active step and renders nothing. Both steps stay silent until S6
+# settles which of her block's two label sets the game reads (MEM §12.12 item 7); in v1 only Patches ties to the track.
+schema = 1
+
+[[track]]
+id    = "tanith"
+block = "tanith"
+note  = "The lady of the volcano manor. Offsets, and which label set the game reads, owed to S6."
+
+[[track.step]]
+id      = "hosting"
+when    = "flag('tanith.hosting')"
+spoiler = 1
+short   = "the manor's lady taking in guests"
+heard   = "The lady of the manor on the volcano takes in wanderers who will do her house's bloody work."
+lexicon = ["Tanith"]
+
+[[track.step]]
+id      = "vigil"
+when    = "flag('tanith.devouring')"
+spoiler = 3
+short   = "the lady's vigil beside her dead lord"
+heard   = "The lady of the manor has shut herself away with her dead lord."
+lexicon = ["Tanith"]

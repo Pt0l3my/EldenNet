@@ -31,8 +31,12 @@ enum class Form : std::uint8_t {
   BranchSetNear,   // the same with a 32-bit distance
   AddressArg1,     // the address of a RIP-relative object into the first argument's register; gives the object
   CallRelative,    // a relative call; gives its target
+  SkipOne,         // any one instruction that falls through and does not load the remembered register anew: the
+                   // compiler now and then puts one between a load and its test
+  CompareSlot,     // a 64-bit compare of a RIP-relative slot with zero, in memory: where the slot's value is not
+                   // needed in a register, the compiler tests it there; gives the slot. A branch_set step may follow
 };
-inline constexpr std::size_t kFormCount = 6;
+inline constexpr std::size_t kFormCount = 8;
 
 [[nodiscard]] const char* to_string(Form form) noexcept;  // "load_slot", "test_loaded", "branch_set_short", ...
 [[nodiscard]] std::optional<Form> form_of(std::string_view word) noexcept;
@@ -65,6 +69,26 @@ struct Matches {
 // The shape at `rva`, when its instructions stand there; nothing otherwise, or for a shape that is not valid.
 [[nodiscard]] std::optional<Hit> match_at(const ImageBytes& img, const SectionCopy& text, const Shape& shape,
                                           std::uint32_t rva);
+
+// Why a shape does not stand at a place: the first step whose instruction is not its form, and how it differs. The
+// finder uses it to say, in counts, why a site another method accepts is none of the shape's.
+enum class Differs : std::uint8_t {
+  Narrow,         // the form in all but its width: a load or a test that is not 64-bit
+  OtherRegister,  // a 64-bit test, but not of the register just loaded
+  Other,          // another instruction altogether
+  Undecodable,    // nothing decodes there, or the section ends
+};
+[[nodiscard]] const char* to_string(Differs differs) noexcept;  // "narrow", "other_register", "other", "undecodable"
+
+struct Mismatch {
+  std::uint8_t step = 0;
+  Differs differs = Differs::Other;
+  friend constexpr bool operator==(const Mismatch&, const Mismatch&) = default;
+};
+
+// The first mismatch of the shape at `rva`; nothing when the shape stands there, or is not valid.
+[[nodiscard]] std::optional<Mismatch> mismatch_at(const ImageBytes& img, const SectionCopy& text, const Shape& shape,
+                                                  std::uint32_t rva);
 
 // Every place of the section where the shape stands.
 [[nodiscard]] Matches find(const ImageBytes& img, const SectionCopy& text, const Shape& shape, std::size_t max);

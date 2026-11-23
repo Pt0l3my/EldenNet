@@ -2,6 +2,7 @@
 // shows them to EldenNet: a window, then global_hinstance, then the statics), and the frame loop, which runs every
 // registered task at a set rate, with hitches, stalls, moves, loading screens, faults and DLL loads on request.
 #include <algorithm>
+#include <atomic>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -70,7 +71,14 @@ void load_dlls(LoadMoment moment) {
   }
 }
 
+// The keys and characters that reach the game's own window procedure, past GraceUI's filter (its holder's, its
+// hotkeys' and its menu's never do): the conversation's cases count them for input leaks (GraceUI invariants 7, 8).
+std::atomic<std::uint32_t> g_game_keys{0};
+std::atomic<std::uint32_t> g_game_chars{0};
+
 LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
+  if (message == WM_KEYDOWN || message == WM_SYSKEYDOWN) g_game_keys.fetch_add(1, std::memory_order_relaxed);
+  if (message == WM_CHAR) g_game_chars.fetch_add(1, std::memory_order_relaxed);
   if (message == WM_CLOSE) {
     g_quit = true;
     DestroyWindow(window);
@@ -99,7 +107,7 @@ HWND make_window(HINSTANCE instance) {
 }
 
 // --press-pause-at: the player presses and releases Pause, as a key press reaches the system (the launcher's Mark is a
-// system hotkey, O90); with --press-pause-every, again every N frames after (a player pressing until it is taken).
+// system hotkey, O90).
 void press_pause() {
   INPUT in[2] = {};
   in[0].type = INPUT_KEYBOARD;
@@ -136,7 +144,8 @@ bool parse_keys(const std::wstring& list, std::vector<Options::KeyPress>& out) {
   static constexpr Named kKeys[] = {{L"f5", VK_F5, 0x3F},      {L"next", VK_NEXT, 0x51}, {L"prior", VK_PRIOR, 0x49},
                                     {L"up", VK_UP, 0x48},      {L"down", VK_DOWN, 0x50}, {L"left", VK_LEFT, 0x4B},
                                     {L"right", VK_RIGHT, 0x4D}, {L"return", VK_RETURN, 0x1C},
-                                    {L"escape", VK_ESCAPE, 0x01}};
+                                    {L"escape", VK_ESCAPE, 0x01}, {L"t", 0x54, 0x14},
+                                    {L"tab", VK_TAB, 0x0F},        {L"f11", VK_F11, 0x57}};
   std::size_t at = 0;
   while (at < list.size()) {
     const std::size_t end = std::min(list.find(L',', at), list.size());
@@ -235,6 +244,9 @@ struct Parser {
 
 }  // namespace
 
+std::uint32_t game_keys() noexcept { return g_game_keys.load(std::memory_order_relaxed); }
+std::uint32_t game_chars() noexcept { return g_game_chars.load(std::memory_order_relaxed); }
+
 bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
   Parser p{argc, argv, 1, {}, {}, false, error};
   for (; p.i < argc; ++p.i) {
@@ -255,6 +267,19 @@ bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
     else if (n == L"--no-window") o.window = false;
     else if (n == L"--boot-delay-ms") ok = p.number(o.boot_delay_ms);
     else if (n == L"--statics-delay-ms") ok = p.number(o.statics_delay_ms);
+    else if (n == L"--field-mirror") o.field_mirror = true;
+    else if (n == L"--pass-time") o.pass_time = true;
+    else if (n == L"--clock-rate") ok = p.number(o.clock_rate);
+    else if (n == L"--slot-by-state") o.slot_by_state = true;
+    else if (n == L"--first-slot") ok = p.number(o.first_slot);
+    else if (n == L"--walk-from-s") ok = p.number(o.walk_from_s);
+    else if (n == L"--walk-to-s") ok = p.number(o.walk_to_s);
+    else if (n == L"--hit-at-s") ok = p.number(o.hit_at_s);
+    else if (n == L"--heal-at-s") ok = p.number(o.heal_at_s);
+    else if (n == L"--retitle-at-s") ok = p.number(o.retitle_at_s);
+    else if (n == L"--retitle-for-s") ok = p.number(o.retitle_for_s);
+    else if (n == L"--day-book") o.day_book = true;
+    else if (n == L"--flag-set") o.flag_set = true;
     else if (n == L"--title-frames") ok = p.number(o.title_frames);
     else if (n == L"--load-frames") ok = p.number(o.load_frames);
     else if (n == L"--stay-title") o.stay_title = true;
@@ -322,26 +347,47 @@ bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
       ok = p.choice(o.selftest_swapped, names, values);
     } else if (n == L"--selftest-object-size") ok = p.number(o.selftest_object_size);
     else if (n == L"--selftest-group") ok = p.number(o.selftest_group);
-    else if (n == L"--table-gap") o.table_gap = true;
-    else if (n == L"--task-gate") o.task_gate = true;
-    else if (n == L"--task-queue") o.task_queue = true;
-    else if (n == L"--map-late") o.map_late = true;
     else if (n == L"--press-pause-at") ok = p.number(o.press_pause_at);
-    else if (n == L"--press-pause-every") ok = p.number(o.press_pause_every);
     else if (n == L"--status-file") ok = p.value(o.status_file);
     else if (n == L"--d3d12") o.d3d12 = true;
     else if (n == L"--grace-take-pause") o.grace_take_pause = true;
+    else if (n == L"--grace-lan") o.grace_lan = true;
     else if (n == L"--press-f11-at") ok = p.numbers(o.press_f11_at);
     else if (n == L"--press-keys") {
       std::wstring list;
       ok = p.value(list) && parse_keys(list, o.press_keys);
     }
+    else if (n == L"--calm") o.calm = true;
+    else if (n == L"--type-at") {
+      // F:TEXT,F:TEXT: invented words of the tests' own, of letters, digits, spaces and . ? ! ' only.
+      std::wstring list;
+      ok = p.value(list);
+      std::size_t at = 0;
+      while (ok && at < list.size()) {
+        const std::size_t end = std::min(list.find(L',', at), list.size());
+        const std::wstring item = list.substr(at, end - at);
+        const std::size_t colon = item.find(L':');
+        ok = colon != std::wstring::npos && colon != 0 && colon + 1 < item.size();
+        Options::Typed t;
+        for (std::size_t i = 0; ok && i < colon; ++i) {
+          ok = item[i] >= L'0' && item[i] <= L'9';
+          t.frame = t.frame * 10 + static_cast<std::uint64_t>(item[i] - L'0');
+        }
+        t.text = ok ? item.substr(colon + 1) : std::wstring();
+        for (const wchar_t c : t.text) {
+          ok = ok && ((c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z') || (c >= L'0' && c <= L'9') || c == L' ' ||
+                      c == L'.' || c == L'?' || c == L'!' || c == L'\'');
+        }
+        if (ok) o.type_at.push_back(std::move(t));
+        at = end + 1;
+      }
+    }
     else if (n == L"--grace-report") ok = p.numbers(o.grace_report_at);
     else if (n == L"--grace-probe") {
       std::vector<std::uint32_t> v;
       ok = p.numbers(v);
-      if (ok && v.size() != 7) {
-        error = "--grace-probe is x0,y0,x1,y1,r,g,b";
+      if (ok && v.size() != 7 && v.size() != 8) {
+        error = "--grace-probe is x0,y0,x1,y1,r,g,b or x0,y0,x1,y1,r,g,b,tolerance";
         ok = false;
       }
       if (ok && o.grace_probes.size() == Options::kProbes) {
@@ -352,6 +398,7 @@ bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
         Options::Probe probe;
         for (int k = 0; k < 4; ++k) probe.rect[k] = v[static_cast<std::size_t>(k)];
         for (int k = 0; k < 3; ++k) probe.colour[k] = v[static_cast<std::size_t>(4 + k)];
+        if (v.size() == 8) probe.tolerance = v[7];
         o.grace_probes.push_back(probe);
       }
     }
@@ -432,7 +479,8 @@ namespace {
 void print_usage() {
   static const char* const kUsage[] = {
       "usage: fakegame [options]   (README.md describes each)",
-      "  --frames N  --forever  --fps N  --no-window  --boot-delay-ms N  --statics-delay-ms N",
+      "  --frames N  --forever  --fps N  --no-window  --boot-delay-ms N  --statics-delay-ms N  --field-mirror  --pass-time  --flag-set  --clock-rate N  --day-book  --slot-by-state  --first-slot N  --retitle-at-s N  --retitle-for-s N",
+      "  --walk-from-s N  --walk-to-s N  --hit-at-s N  --heal-at-s N",
       "  --title-frames N  --load-frames N  --stay-title  --reload-every N  --actors N  --online  --online-at F",
       "  --hitch-every N  --hitch-ms M  --stall-at F  --stall-ms M  --move-every N  --move-mode poison|free|keep",
       "  --shift-groups N  --register normal|fault|ignore",
@@ -440,10 +488,10 @@ void print_usage() {
       "  --crash-at F  --crash-thread game|worker  --handled-every N  --handled-kind seh|cxx",
       "  --game-filter  --game-filter-at F  --game-filter-result execute|continue",
       "  --load [boot|window|ready|title|world:]PATH  --selftest-task  --selftest-abi published|swapped",
-      "  --selftest-object-size N  --selftest-group N  --table-gap  --task-gate  --task-queue  --map-late",
-      "  --press-pause-at F  --press-pause-every N  --status-file PATH  --exit-code N",
-      "  --d3d12  --press-f11-at F,F...  --grace-report F,F...  --grace-probe x0,y0,x1,y1,r,g,b (up to 3 times)",
-      "  --grace-take-pause  --press-keys F:f5|next|prior|up|down|left|right|return|escape,...",
+      "  --selftest-object-size N  --selftest-group N  --press-pause-at F  --status-file PATH  --exit-code N",
+      "  --d3d12  --press-f11-at F,F...  --grace-report F,F...  --grace-probe x0,y0,x1,y1,r,g,b[,tol] (up to 3 times)",
+      "  --grace-take-pause  --grace-lan  --press-keys F:f5|next|prior|up|down|left|right|return|escape|t|tab|f11,...",
+      "  --calm  --type-at F:TEXT,...",
       "  --describe  --verbose"};
   for (const char* line : kUsage) status("usage %s", line);
 }
@@ -466,6 +514,7 @@ int run(HINSTANCE instance) {
   report_spike_dir();
   load_dlls(LoadMoment::Boot);
   if (o.grace_take_pause) grace_take_pause();
+  if (o.grace_lan) grace_lan();
   if (o.selftest_task) selftest_start(g_game_thread);
   if (o.game_filter) install_game_filter();
   if (o.boot_delay_ms != 0) Sleep(o.boot_delay_ms);
@@ -519,9 +568,7 @@ int run(HINSTANCE instance) {
       ++hitches;
     }
     if (o.game_filter_at == frame) install_game_filter();
-    if (o.press_pause_at != 0 && frame >= o.press_pause_at &&
-        (frame == o.press_pause_at ||
-         (o.press_pause_every != 0 && (frame - o.press_pause_at) % o.press_pause_every == 0))) {
+    if (o.press_pause_at != 0 && frame == o.press_pause_at) {
       if (o.d3d12 && window != nullptr) {
         press_key_into(window, VK_PAUSE, 0x45);  // into the window GraceUI filters (EldenNet's Mark on its hotkey)
       } else {
@@ -533,6 +580,9 @@ int run(HINSTANCE instance) {
     }
     for (const Options::KeyPress& k : o.press_keys) {
       if (k.frame == frame && window != nullptr) press_key_into(window, k.vk, k.scan);
+    }
+    for (const Options::Typed& t : o.type_at) {
+      if (t.frame == frame && window != nullptr) type_into(window, t.text);
     }
     if (o.crash != Crash::None && frame == o.crash_at) {
       if (o.crash_on_worker) {

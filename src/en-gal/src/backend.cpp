@@ -63,7 +63,7 @@ ErBackend::ErBackend(SysLayer& sys, const Discovery& discovery, const BackendOpt
       b_(discovery.bound()),
       opts_(options),
       reader_(sys, options.budget),
-      scratch_(std::make_unique<Scratch>(std::min(discovery.layout().max_copy_size(), kMaxCopyBytes),
+      scratch_(std::make_unique<Scratch>(discovery.layout().max_copy_size(),  // far fields' bytes included
                                          list_bytes(discovery.bound()))),
       watch_order_(proto::kMaxWatchFlags, 0) {
   for (std::size_t g = 0; g < proto::kGroupCount; ++g) {
@@ -84,6 +84,15 @@ void ErBackend::trip(Group g, GroupWhy why) noexcept {
 
 void ErBackend::fault(Group g) noexcept {
   if (reader_.spent()) return;  // a spent budget abandons the snapshot: a soft fault, not the group's
+  if (opts_.steady && building_) {
+    // Steady reading: noted, and counted when the snapshot is done, if the group faulted in the one before too.
+    faulted_now_ = static_cast<std::uint16_t>(faulted_now_ | (1u << static_cast<unsigned>(g)));
+    return;
+  }
+  count_fault(g);
+}
+
+void ErBackend::count_fault(Group g) noexcept {
   if (book_.hard_fault(g, now_ms())) {
     push_lifecycle(proto::Lifecycle{proto::Lifecycle::GroupTripped{g}});
     if (proto::structural(g)) inert_ = true;
@@ -91,6 +100,21 @@ void ErBackend::fault(Group g) noexcept {
 }
 
 void ErBackend::soft(Group g) noexcept { ++soft_[static_cast<std::size_t>(g)]; }
+
+void ErBackend::remember(std::uint64_t address, std::uint64_t value) noexcept {
+  if (!opts_.steady || !building_ || word_count_ >= words_.size()) return;
+  words_[word_count_++] = Word{address, value};
+}
+
+// Reads every remembered word again: each static's instance, each object's table of methods, the near list's ends.
+// One that cannot be read now, or reads otherwise, means the structure changed while the snapshot was being read.
+bool ErBackend::structure_held(const GameThread& gt) {
+  for (std::size_t i = 0; i < word_count_ && i < words_.size(); ++i) {
+    const auto again = reader_.copy<std::uint64_t>(gt, Group::Session, words_[i].address);
+    if (!again || *again != words_[i].value) return false;
+  }
+  return true;
+}
 
 void ErBackend::push_lifecycle(const proto::Lifecycle& l) noexcept {
   if (life_count_ >= life_.size()) return;  // the core rebuilds what it lost from the snapshots (C2)
@@ -117,10 +141,18 @@ std::shared_ptr<const std::vector<std::uint32_t>> ErBackend::take_retired() noex
 
 std::optional<ObjView> ErBackend::object(const GameThread& gt, Group g, Cls c, std::uint64_t address, std::size_t slot,
                                          bool* mismatch, bool hard) {
-  const std::uint32_t size = b_.size_of(c);
-  if (size == 0 || address == 0) return std::nullopt;
+  const ClassLayout* layout = b_.cls(c);
+  const std::uint32_t size = b_.size_of(c);  // the copy, then the far fields' own bytes
+  if (layout == nullptr || size == 0 || address == 0) return std::nullopt;
   const std::span<std::byte> dst = scratch_->slot(slot, size);
-  if (dst.size() < size || !reader_.copy_into(gt, g, address, dst, 8)) {
+  const std::uint32_t copy = size - layout->far_bytes;
+  bool read = dst.size() >= size && (copy == 0 || reader_.copy_into(gt, g, address, dst.first(copy), 8).has_value());
+  // A far field (WHY§506) lies past the copy, in a large object: it is read where it is, by a copy of its own.
+  for (const FieldLayout& f : layout->fields) {
+    if (!read || !f.is_far) continue;
+    read = reader_.copy_into(gt, g, address + f.off, dst.subspan(f.far_at, f.size), 1).has_value();
+  }
+  if (!read) {
     if (hard) fault(g);
     return std::nullopt;
   }
@@ -133,6 +165,7 @@ std::optional<ObjView> ErBackend::object(const GameThread& gt, Group g, Cls c, s
       if (mismatch != nullptr) *mismatch = true;
       return std::nullopt;
     }
+    remember(address, vt);  // steady reading: the object is still of this class when the snapshot is done
   }
   return view;
 }
@@ -161,6 +194,7 @@ std::optional<ObjView> ErBackend::item_object(const GameThread& gt, Group g, Ite
     }
     inst_[i] = *inst;
     state = kStaticRead;
+    remember(*slot_addr, *inst);  // steady reading: the static still holds this instance when the snapshot is done
   }
   if (inst_[i] == 0) {
     state = kNull;  // null: not a fault (the title, a load), simply nothing to read
@@ -203,6 +237,17 @@ Expected<void, proto::ReadError> ErBackend::snapshot(const GameThread& gt, proto
   book_.begin_tick();
   tick_.fill(kUnread);
   read_statics(gt);
+  building_ = true;
+  word_count_ = 0;
+  faulted_now_ = 0;
+  // Steady reading's ends: the reading dropped, with nothing counted against any group.
+  const auto unsteady = [&](std::uint64_t& counter) -> Expected<void, proto::ReadError> {
+    ++counter;
+    building_ = false;
+    faulted_before_ = 0;  // the next reading is judged on its own
+    book_.fill(out.health);
+    return Unexpected{proto::ReadError::Unsteady};
+  };
   out.session = proto::Session{};
   out.life = proto::Life{};
   out.ui = proto::Ui{};
@@ -216,6 +261,27 @@ Expected<void, proto::ReadError> ErBackend::snapshot(const GameThread& gt, proto
   out.new_params.clear();
 
   read_lifecycle(gt, out);
+  if (opts_.steady && !reader_.spent()) {
+    // A change of the lifecycle is published at its second sighting running: the first reading that shows it is
+    // dropped, so that a pointer or a screen caught between two states starts no playthrough and ends none.
+    const LifeSeen seen{true, out.life.main_player, out.life.screen};
+    const auto same = [](const LifeSeen& a, const LifeSeen& b) {
+      return a.known == b.known && a.main_player == b.main_player && a.screen == b.screen;
+    };
+    if (!life_published_.known) {
+      life_published_ = seen;
+    } else if (!same(seen, life_published_)) {
+      if (same(seen, life_waiting_)) {
+        life_published_ = seen;
+        life_waiting_ = LifeSeen{};
+      } else {
+        life_waiting_ = seen;
+        return unsteady(steady_.held);
+      }
+    } else {
+      life_waiting_ = LifeSeen{};
+    }
+  }
   if (out.life.screen == proto::Screen::Loading) {
     mode_ = ReadMode::Loading;  // R11: the lifecycle subset only
   } else if (!out.life.main_player || out.life.screen == proto::Screen::Title) {
@@ -247,11 +313,27 @@ Expected<void, proto::ReadError> ErBackend::snapshot(const GameThread& gt, proto
     if (book_.live(Group::Place)) read_place(gt, out);
     if (flag_frame_due_ && book_.live(Group::Flags)) read_flags(gt, out);
     read_requests(gt, out);
-    if (phase_b_pending_ && !reader_.spent()) {
-      phase_b_pending_ = false;
-      phase_b(gt, out);
-      playthrough_ready(gt, out);
+  }
+  // Steady reading: the structure this snapshot rests on must still be what it was, before anything is concluded
+  // from it (a playthrough's start, phase B) or counted against a group.
+  if (opts_.steady && !reader_.spent() && !structure_held(gt)) return unsteady(steady_.torn);
+  if (mode_ == ReadMode::Full && phase_b_pending_ && !reader_.spent()) {
+    phase_b_pending_ = false;
+    phase_b(gt, out);
+    playthrough_ready(gt, out);
+  }
+  building_ = false;
+  if (opts_.steady && !reader_.spent()) {
+    for (std::size_t g = 0; g < proto::kGroupCount; ++g) {
+      const auto bit = static_cast<std::uint16_t>(1u << g);
+      if ((faulted_now_ & bit) == 0) continue;
+      if ((faulted_before_ & bit) != 0) {
+        count_fault(static_cast<Group>(g));  // twice running: the group's fault
+      } else {
+        ++steady_.unconfirmed;
+      }
     }
+    faulted_before_ = faulted_now_;
   }
   book_.fill(out.health);
   if (reader_.spent()) return Unexpected{proto::ReadError::BudgetSpent};
@@ -547,6 +629,11 @@ void ErBackend::read_world(const GameThread& gt, proto::WorldSnapshot& out) {
     return;
   }
   const auto count = static_cast<std::uint32_t>((*end - *begin) / stride);
+  // Steady reading: the list's two ends are still these when the snapshot is done.
+  if (vec != nullptr && instance(Item::Characters) != 0) {
+    remember(instance(Item::Characters) + vec->off, *begin);
+    remember(instance(Item::Characters) + vec->off + 8, *end);
+  }
   if (count == 0) return;
   const std::span<std::byte> list = scratch_->list().first(std::min<std::size_t>(std::size_t{count} * stride, scratch_->list().size()));
   if (list.size() != std::size_t{count} * stride || !reader_.copy_into(gt, Group::World, *begin, list, 8)) {
@@ -702,12 +789,16 @@ void ErBackend::read_place(const GameThread& gt, proto::WorldSnapshot& out) {
 
 // ---- Phase A and phase B (ARCH §6.7) ----
 
-GroupCheck ErBackend::first_tick(const GameThread& gt) {
+GroupCheck ErBackend::first_tick(const GameThread& gt, bool check_group) {
   sys_.note_own_stack();
   reader_.bind_thread();
   reader_.begin_tick();
   tick_.fill(kUnread);
   GroupCheck out;
+  if (!check_group) {  // a reader on a thread of our own is in no group of the game's
+    out.ok = true;
+    return out;
+  }
   const auto& task = d_.layout().task();
   const auto hub = item_object(gt, Group::Session, Item::TaskHub, false);  // counted nowhere: boot has no breaker
   if (!task || task->partial || !hub) return out;
@@ -838,6 +929,31 @@ PhaseA ErBackend::phase_a(const GameThread& gt) {
   if (waiting && !last_chance) return PhaseA::Running;
   phase_a_done_ = true;
   return PhaseA::Passed;
+}
+
+ErBackend::FlagsAlone ErBackend::flags_alone(const GameThread& gt, proto::WorldSnapshot& out) {
+  FlagsAlone done;
+  out.flags.reset();
+  if (inert_ || !book_.live(Group::Flags)) return done;
+  reader_.begin_tick();
+  book_.begin_tick();
+  tick_.fill(kUnread);
+  read_statics(gt);
+  read_flags(gt, out);
+  done.read = out.flags.has_value();
+  // The known flag, as phase B reads it: through the same tree, one byte of its block.
+  if (const auto flags = item_object(gt, Group::Flags, Item::EventFlags)) {
+    if (const auto block = flag_block(gt, *flags, kFlagKnownSet / kFlagDivisor)) {
+      std::array<std::byte, 1> byte{};
+      const std::uint32_t at = (kFlagKnownSet % kFlagDivisor) / 8;
+      if (reader_.copy_into(gt, Group::Flags, *block + at, byte)) {
+        done.known = ((static_cast<unsigned>(byte[0]) >> (7 - kFlagKnownSet % 8)) & 1u) != 0;
+      }
+    } else if (!reader_.spent()) {
+      done.known = false;  // no such group: its flags read false (ARCH §6.9)
+    }
+  }
+  return done;
 }
 
 void ErBackend::phase_b(const GameThread& gt, const proto::WorldSnapshot& out) {

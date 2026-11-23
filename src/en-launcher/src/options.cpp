@@ -3,6 +3,8 @@
 
 #include <string_view>
 
+#include "en/launcher/s0.hpp"
+
 namespace en::launcher {
 
 const char* to_string(InjectAt i) noexcept {
@@ -90,6 +92,8 @@ proto::Expected<Options, std::string> parse_options(const std::vector<std::strin
       if ((ok = need())) o.dll = v;
     } else if (arg == "--also") {
       if ((ok = need())) o.also.push_back(v);
+    } else if (arg == "--expect-graceui") {
+      if ((ok = need())) o.expect_graceui = v;
     } else if (arg == "--gal") {
       if ((ok = need())) o.gal = v;
     } else if (arg == "--steam") {
@@ -110,8 +114,22 @@ proto::Expected<Options, std::string> parse_options(const std::vector<std::strin
       if ((ok = flag())) set_action(Action::Help);
     } else if (arg == "--console") {
       if ((ok = flag())) o.console = true;
-    } else if (arg == "--probe") {
-      if ((ok = flag())) o.probe = true;
+    } else if (arg == "--read") {
+      if ((ok = flag())) o.read = true;
+    } else if (arg == "--read-pace-s") {
+      if ((ok = need())) {
+        if (const auto n = number(v, 1, 600))
+          o.read_pace_s = *n;
+        else
+          ok = proto::Unexpected{std::string("--read-pace-s is 1 to 600 seconds")};
+      }
+    } else if (arg == "--spike-pace-s") {
+      if ((ok = need())) {
+        if (const auto n = number(v, 1, 600))
+          o.spike_pace_s = *n;
+        else
+          ok = proto::Unexpected{std::string("--spike-pace-s is 1 to 600 seconds")};
+      }
     } else if (arg == "--no-dialogs") {
       if ((ok = flag())) o.no_dialogs = true;
     } else if (arg == "--yes") {
@@ -205,13 +223,20 @@ proto::Expected<Options, std::string> parse_options(const std::vector<std::strin
     return proto::Unexpected{std::string("--spike s0e_alone loads no eldennet.dll: not with --dll")};
   }
   if (o.yes && !o.no_dialogs) return proto::Unexpected{std::string("--yes goes with --no-dialogs")};
-  if (o.probe) {
-    // R1 (O89): the one call into the game rests on a save backup made first, EldenNet's own DLL and one plain start.
+  if (o.read) {
+    // The read-only round (Lodestar's L5): nothing is called, but it is a development run all the same: a save
+    // backup made first, EldenNet's own DLL and one plain start.
     if (o.action != Action::Start || o.no_backup || o.vanilla || o.spike != Spike::None) {
       return proto::Unexpected{
-          std::string("--probe goes with a start, and not with --no-backup, --vanilla-offline or --spike")};
+          std::string("--read goes with a start, and not with --no-backup, --vanilla-offline or --spike")};
     }
-    o.console = true;  // its Mark (Pause) and its plain lines
+    o.console = true;  // its plain lines
+  } else if (o.read_pace_s != 0) {
+    return proto::Unexpected{std::string("--read-pace-s goes with --read")};
+  }
+  if (o.spike_pace_s != 0 && !run_folder(o.spike)) {
+    return proto::Unexpected{std::string("--spike-pace-s goes with --spike s0a, s0b, s0c, s0d, s0d-crash, s0e, "
+                                         "s0e_alone or s4")};
   }
   return o;
 }
@@ -231,13 +256,19 @@ std::string usage_text() {
          "  --inject-at suspended|window|title   when to load the DLL (default suspended)\n"
          "  --title-wait S       with --inject-at title: seconds after the window (default 15)\n"
          "  --also PATH          load this DLL too, before EldenNet's, unchecked\n"
+         "  --expect-graceui PATH   a test package's graceui.toml: if the game's GraceUI is not that one, ask (E13)\n"
          "  --appid-method file|env   --remove-after window|exit|never   (else launcher.toml's)\n"
          "  --console            the development console: status lines, and the Mark on the Pause key\n"
-         "  --probe              the derivation's in-game round R1, with the probe build of eldennet.dll: the console,\n"
-         "                       one call into the game at the Mark (Pause, at the title, with no save loaded)\n"
-         "  --spike s0a|s0b|s0c|s0d|s0d-crash  [--runs N] [--run-timeout S]   the S0 spikes\n"
+         "  --read               the read-only round, with the probe build of eldennet.dll: the console; EldenNet\n"
+         "                       names the managers it reads and tries its reader, and calls nothing in the game;\n"
+         "                       a panel beside the game lists the tester's tasks, each with its timer, and the\n"
+         "                       Pause key confirms the task under way (--read-pace-s S: the tests' pace)\n"
+         "  --spike s0a|s0b|s0c|s0d|s0d-crash  [--runs N] [--run-timeout S]   the S0 spikes: each run's folder\n"
+         "                       spikes\\<word>-<n> holds EldenNet's report of it, and a panel beside the game lists\n"
+         "                       the tester's tasks (--spike-pace-s S: the tests' pace)\n"
          "  --spike s0e|s0e_alone|s4   GraceUI's observer's runs (S0-E, S4): EldenNet calls nothing into the game,\n"
-         "                       and s0e_alone loads only the --also DLLs; its report goes to spikes\\<word>-<n>\n"
+         "                       and s0e_alone loads only the --also DLLs; its report goes to spikes\\<word>-<n>;\n"
+         "                       the panel lists the run's steps too\n"
          "  --no-dialogs [--yes] lines instead of dialogs; questions answered no (or yes)\n"
          "  --no-steam-check     --gal DIR   --steam DIR   --appdata DIR\n"
          "exit codes: 0 done; 1 a spike's runs did not all pass; 2 usage; 11 to 21 the errors E01 to E11\n";

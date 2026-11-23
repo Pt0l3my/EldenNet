@@ -10,9 +10,8 @@
 # its helpers (WaitWindow). Part 12, en-overlay: graceui-sys's look for GraceUI (the Toolhelp module list,
 # GetModuleHandleExW, GetProcAddress, LoadLibraryExW on GraceUI\graceui.dll, and GetTickCount64 for its bound), and
 # ReadConsoleW, which the C runtime's scanf brings with Dear ImGui's core (its number parsing; no console is read).
-# Spike.6, the probe build: the DLL's own heap for its operator new (HeapCreate) and its walk for R1's whole-memory
-# search (HeapLock, HeapWalk, HeapUnlock; alloc_count.cpp). A function the build adds must be reviewed here before the
-# check passes.
+# Spike.6, the probe build: the DLL's own heap for its operator new (HeapCreate; alloc_count.cpp). A function the
+# build adds must be reviewed here before the check passes.
 # The AI pages (S11.4.a's second slice) link en-llm: its handle's threads (T7–T8) bring the C++ runtime's thread
 # support, whose functions are the SRW locks, condition variables, one-time initialisation, the thread pool's timers and
 # waits that its timed waits use, and the thread functions (ExitThread, FreeLibraryAndExitThread, GetExitCodeThread,
@@ -22,6 +21,10 @@
 # loaded by its full path, never imported) and DeleteFileW (secrets.toml's part file, made anew). And advapi32.dll, for
 # secrets.toml's access list (ARCH §11.5: this user alone): the process token's user and an ACL of one entry in a
 # security descriptor, nothing else of it.
+# The first conversation (S11.3) links en-prompt: its template library's file code, which en-prompt never calls (the DLL
+# renders templates from the content pack in memory), brings SetEndOfFile.
+# The first conversation (S11.3, part C): WaitForMultipleObjects, T6's wait on its own wake signal and GraceUI's wait
+# handle (ABI 1.5, D212) together.
 [advapi32.dll]
 AddAccessAllowedAce
 GetLengthSid
@@ -118,12 +121,9 @@ GetUserDefaultLCID
 HeapAlloc
 HeapCreate
 HeapFree
-HeapLock
 HeapQueryInformation
 HeapReAlloc
 HeapSize
-HeapUnlock
-HeapWalk
 InitOnceBeginInitialize
 InitOnceComplete
 InitOnceExecuteOnce
@@ -168,6 +168,7 @@ RtlUnwind
 RtlUnwindEx
 RtlVirtualUnwind
 SetConsoleCtrlHandler
+SetEndOfFile
 SetEnvironmentVariableA
 SetEnvironmentVariableW
 SetEvent
@@ -192,6 +193,7 @@ UnhandledExceptionFilter
 VirtualAlloc
 VirtualProtect
 VirtualQuery
+WaitForMultipleObjects
 WaitForSingleObject
 WaitForSingleObjectEx
 WaitForThreadpoolTimerCallbacks

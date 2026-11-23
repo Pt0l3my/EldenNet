@@ -1,0 +1,72 @@
+# A model that fails (DESIGN §11.1, §11.2; NPC §6.2): no answer in 20 s, then the provider's rate limit, then a reply.
+# Each failure shows the uncommitted "…" page and its toast. Our own scenario, invented data.
+schema = 1
+name = "lantern-no-answer"
+persona = "lantern_keeper"
+overrides = "overrides"
+mock = "lantern-no-answer.mock.toml"
+
+[world]
+param = 81100
+distance_m = 3.0
+bearing_deg = 0.0
+clock = [8, 0]
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Hello?"
+
+[[step]]
+do = "wait"
+ms = 21000
+
+[[step]]
+do = "expect"
+state = "open"
+failures = 1
+npc_lines = 0
+toast = "No answer: provider timed out"
+
+[[step]]
+do = "say"
+text = "Hello again?"
+
+[[step]]
+do = "wait"
+ms = 3000
+
+[[step]]
+do = "expect"
+failures = 2
+toast = "Provider rate limit, try again shortly"
+
+[[step]]
+do = "say"
+text = "Third time?"
+
+[[step]]
+do = "wait"
+ms = 6000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 3
+npc_lines = 1
+failures = 2
+
+[[step]]
+do = "move"
+distance_m = 14.0
+
+[[step]]
+do = "wait"
+ms = 2500
+
+[[step]]
+do = "expect"
+state = "closed"
+ended = "walked_away"

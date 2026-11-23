@@ -39,7 +39,9 @@ const char* start_words(pw::InitState s) noexcept {
     case pw::InitState::WaitEngine: return "Waiting for the game to finish starting";
     case pw::InitState::Discover: return "Finding what it reads in the game";
     case pw::InitState::Register: return "Joining the game's frame";
-    case pw::InitState::FirstTick: return "Checking its first reading";
+    case pw::InitState::Reader: return "Starting its reader";
+    case pw::InitState::FirstTick:
+    case pw::InitState::FirstReading: return "Checking its first reading";
     case pw::InitState::Ready: return "Started";
     case pw::InitState::Inert: return "Stopped: its first reading failed its checks";
     case pw::InitState::Banner: return "Stopped (Home's Problems say why)";
@@ -84,6 +86,8 @@ Lamp lamp_of(const SpaceFacts& f) noexcept {
     case Level::Starting: return {nullptr, "glint"};
     case Level::Inactive: return {"Inactive", "rot"};
     case Level::Observing: return f.dormant ? Lamp{"Dormant", "glint"} : Lamp{"Observing", "ember"};
+    case Level::SpeakingInPart: return f.dormant ? Lamp{"Dormant", "glint"} : Lamp{"Speaking, in part", "ember"};
+    case Level::Speaking: return f.dormant ? Lamp{"Dormant", "glint"} : Lamp{"Speaking", "moss"};
   }
   return {nullptr, "glint"};
 }
@@ -94,6 +98,10 @@ std::string reason_of(const SpaceFacts& f) {
     case Level::Inactive: return std::string(f.stop_text);
     case Level::Observing:
       return f.dormant ? dormant_words(f) : "EldenNet reads the game. NPCs speak from a later version.";
+    case Level::SpeakingInPart:
+      return f.dormant ? dormant_words(f)
+                       : "NPCs speak, but part of the game EldenNet reads has stopped: System › Status says which.";
+    case Level::Speaking: return f.dormant ? dormant_words(f) : "EldenNet reads the game, and NPCs speak.";
   }
   return {};
 }
@@ -237,7 +245,7 @@ json system_status_body(const SpaceFacts& f) {
   if (f.build_known) {
     items.push_back(item("Game build", build_of(f.build) + (f.build_supported ? ", supported" : ", not supported yet")));
   }
-  if (f.level == Level::Observing) {
+  if (f.level >= Level::Observing) {
     items.push_back(item("Offline and solo", f.gate_open ? "Confirmed" : dormant_words(f)));
   }
   if (f.have_health) {
@@ -580,6 +588,7 @@ std::string ai_cause(const SpaceFacts& f) {
     return "Model calls wait until EldenNet has confirmed that this session is offline and solo.";
   }
   if (f.level == Level::Starting) return "EldenNet is still starting.";
+  if (f.level >= Level::SpeakingInPart) return "Conversation is ready: NPCs answer when you speak to them.";
   return "EldenNet only observes in this version: NPCs speak from a later one. The self-test checks your provider "
          "meanwhile.";
 }
@@ -821,6 +830,14 @@ json space_state_body(const SpaceFacts& f) {
   return json{{"greyed", std::move(greyed)}};
 }
 
+// A watch's note for the DLL's log: a family's member (GraceUI D215, `profiles/persona.kale`) as its family and its key,
+// since the log takes words alone (no '/').
+SpaceNote note_of(SpaceNote::What what, const std::string& topic) {
+  const std::size_t slash = topic.find('/');
+  if (slash == std::string::npos) return SpaceNote{what, topic, {}, {}};
+  return SpaceNote{what, topic.substr(0, slash), topic.substr(slash + 1), {}};
+}
+
 // The rate of each state topic (GraceUI DESIGN §6.5): the least time between two publishes.
 std::uint64_t interval_of(std::string_view topic) noexcept {
   if (topic == "status") return 250;
@@ -954,14 +971,14 @@ void Space::watched(std::string_view sub_frame) {
   watched_.insert(topic);
   topics_[topic].fresh = true;
   if (topic == "logs") logs_sent_ = 0;  // a new watcher: the stream from its oldest row held (§22 item 3)
-  notes_.push_back(SpaceNote{SpaceNote::What::Watched, topic, {}, {}});
+  notes_.push_back(note_of(SpaceNote::What::Watched, topic));
 }
 
 void Space::unwatched(std::string_view unsub_frame) {
   const std::string topic = frame_topic(unsub_frame);
   if (topic.empty()) return;
   watched_.erase(topic);
-  notes_.push_back(SpaceNote{SpaceNote::What::Unwatched, topic, {}, {}});
+  notes_.push_back(note_of(SpaceNote::What::Unwatched, topic));
 }
 
 std::string Space::answer(const json& id, std::string_view error, std::string_view detail) const {
@@ -1483,7 +1500,7 @@ std::string Space::reset(const json& id, const json& args, const SpaceFacts& fac
   return answer(id, "", "");
 }
 
-std::string Space::command(std::string_view cmd_frame, const SpaceFacts& facts) {
+std::string Space::command(std::string_view cmd_frame, const SpaceFacts& facts, std::uint64_t reply) {
   json f = json::parse(cmd_frame, nullptr, false);
   const json id = !f.is_discarded() && f.is_object() && f.contains("id") ? f["id"] : json(0);
   const auto named = !f.is_discarded() && f.is_object() ? f.find("name") : f.end();
@@ -1503,6 +1520,13 @@ std::string Space::command(std::string_view cmd_frame, const SpaceFacts& facts) 
     if (name == "selftest.run" || name == "models.list" || name == "providers.add" || name == "providers.remove" ||
         name == "providers.key") {
       return ai_command(id, name, args, facts);
+    }
+    if (Characters::owns_command(name)) {  // the profile editor's (characters.hpp): answered now, or by the DLL later
+      notes_.back().key = args.is_object() && args.contains("target") && args["target"].is_string()
+                              ? args["target"].get<std::string>()
+                              : std::string();
+      return characters_.command(name, id.is_number_unsigned() ? id.get<std::uint64_t>() : 0, args, reply,
+                                 facts.characters, notes_.back().result);
     }
   } catch (const json::exception&) {
     // An argument of the wrong type, which `value` throws for: no change was made.
@@ -1634,6 +1658,13 @@ json Space::body(std::string_view topic, const SpaceFacts& facts) const {
   if (topic == "selftest") return selftest_body(facts);
   if (topic == "space.state") return space_state_body(facts);
   if (topic == kProviderChoices) return provider_choices_body(facts);
+  if (topic == kNamedList) return Characters::list_body(facts.characters);
+  if (topic.rfind(std::string(kNamedFamily) + "/", 0) == 0) {
+    return Characters::general_body(facts.characters, topic.substr(kNamedFamily.size() + 1));
+  }
+  if (topic.rfind(std::string(kProfilesFamily) + "/", 0) == 0) {
+    return Characters::document_body(facts.characters, topic.substr(kProfilesFamily.size() + 1));
+  }
   for (const Job& j : kJobs) {
     if (topic == j.fallback_topic) {
       return choices_body(facts, facts.ai != nullptr ? fallback_source(j.slot, *facts.ai) : std::string());
@@ -1666,6 +1697,22 @@ void Space::collect(const SpaceFacts& facts, std::uint64_t now_ms, std::vector<s
     t.last_ms = now_ms;
     ++t.rev;
     frames.push_back(R"({"v":1,"t":"state","space":"eldennet","topic":")" + std::string(topic) + R"(","rev":)" +
+                     std::to_string(t.rev) + R"(,"body":)" + t.last + "}");
+  }
+  // The Characters pages' topics (characters.hpp): the list and each family member watched, on change; a member whose
+  // row is gone has no body and is not published (absence is silent).
+  for (const std::string& topic : watched_) {
+    if (!Characters::owns_topic(topic)) continue;
+    json b = body(topic, facts);
+    if (topic != kNamedList && b.empty()) continue;
+    Topic& t = topics_[topic];
+    std::string text = text_of(b);
+    if (!t.fresh && text == t.last) continue;
+    t.fresh = false;
+    t.last = std::move(text);
+    t.last_ms = now_ms;
+    ++t.rev;
+    frames.push_back(R"({"v":1,"t":"state","space":"eldennet","topic":")" + topic + R"(","rev":)" +
                      std::to_string(t.rev) + R"(,"body":)" + t.last + "}");
   }
   if (watching("logs") && !rows_.empty()) {

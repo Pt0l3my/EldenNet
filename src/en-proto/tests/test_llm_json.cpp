@@ -51,6 +51,7 @@ ChatRequest sample_chat() {
   r.temperature = 0.375;
   r.json_schema = json{{"type", "object"}, {"properties", {{"answer", {{"type", "string"}}}}}};
   r.top_logprobs = 5;
+  r.stop = {"\nThe Wanderer:", "\nWanderer:"};
   return r;
 }
 
@@ -159,6 +160,8 @@ TEST_CASE("messages, chat requests and their results round-trip, every field inc
   CHECK(chat["purpose"] == "background");
   CHECK(chat["messages"][0]["parts"][0]["cache_break"] == true);
   CHECK(json(ChatRequest{})["max_tokens"].is_null());
+  CHECK(chat["stop"] == json::array({"\nThe Wanderer:", "\nWanderer:"}));
+  CHECK(json(ChatRequest{})["stop"] == json::array());
   CHECK(json(sample_result())["attempts"][0]["first_token_ms"] == -1);
   CHECK(json(sample_result())["total_ms"] == 1234);
 }
@@ -234,6 +237,15 @@ TEST_CASE("the handle's requests and events round-trip, with ids past 2^53") {
   CHECK(json(delta)["chat"].is_null());
 }
 
+TEST_CASE("the model client's health round-trips, and names no provider") {
+  round_trip(NetHealth{});
+  round_trip(NetHealth{true});
+  CHECK(json(NetHealth{true}) == json{{"dialogue", true}});
+  CHECK(json::object().get<NetHealth>() == NetHealth{});
+  CHECK(refusal<NetHealth>(json{{"dialogue", 1}}) == "NetHealth.dialogue: must be true or false");
+  CHECK(refusal<NetHealth>(json{{"provider", "invented-cloud"}}) == "NetHealth: has an unknown field \"provider\"");
+}
+
 TEST_CASE("a field left out keeps its default; defaults round-trip too") {
   round_trip(Part{});
   round_trip(Message{});
@@ -281,6 +293,8 @@ TEST_CASE("malformed JSON is refused, naming the path and the problem") {
   CHECK(refusal<ChatRequest>(json{{"purpose", "own"}}) ==
         "ChatRequest.purpose: must be one of reply, own_initiative, decision, background");
   CHECK(refusal<ChatRequest>(json{{"slot", nullptr}}) == "ChatRequest.slot: must be a string");
+  CHECK(refusal<ChatRequest>(json{{"stop", "\nThe Wanderer:"}}) == "ChatRequest.stop: must be an array");
+  CHECK(refusal<ChatRequest>(json{{"stop", {"a", 2}}}) == "ChatRequest.stop[1]: must be a string");
   CHECK(refusal<LlmEvent>(json{{"id", -1}}) == "LlmEvent.id: must be a whole number of 0 or more");
   CHECK(refusal<LlmEvent>(json{{"chat", {{"attempts", {json::object(), {{"error", "Teapot"}}}}}}}).rfind(
             "LlmEvent.chat.attempts[1].error: must be one of None, FirstTokenTimeout, ", 0) == 0);

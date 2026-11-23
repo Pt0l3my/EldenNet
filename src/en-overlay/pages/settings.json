@@ -1,7 +1,7 @@
 {
   "schema": {
     "number": 2,
-    "hash": "9b9d71e5248e1582"
+    "hash": "07d816300db22ca0"
   },
   "settings": [
     {
@@ -19,7 +19,8 @@
       "home": "settings.developer",
       "effect": "next_launch",
       "availability": "live",
-      "locked": false
+      "locked": false,
+      "sensitive": true
     },
     {
       "key": "debug.record_sessions",
@@ -35,7 +36,8 @@
       "home": "settings.developer",
       "effect": "next_launch",
       "availability": "live",
-      "locked": false
+      "locked": false,
+      "sensitive": true
     },
     {
       "key": "debug.log_level",

@@ -1,0 +1,229 @@
+EldenNet with GraceUI, the spikes S0-E and S4 (package @LABEL@)
+@UNDERLINE@
+
+This package runs two in-game spikes on your own PC, with GraceUI, EldenNet's menu and overlay. S0-E checks that
+GraceUI's overlay works beside EldenNet and beside the other overlays your PC runs, whichever of the two loads first and
+whether it is loaded early or late. S4 checks that nothing you type reaches the game while one of GraceUI's panels holds
+the controls. In each run a small observer of GraceUI's writes a report of numbers, which you send back to us. EldenNet
+makes no call into the game in any of these runs: it starts, shows its banner and goes no further. Nothing in this
+package is for playing with yet.
+
+Built from EldenNet at commit @COMMIT@ and from GraceUI @GRACE_VERSION@ at commit @GRACE_COMMIT@ (its test build),
+with clang-cl (Release). Never shared: a test build for you alone, labelled @LABEL@.
+
+
+How long it takes
+-----------------
+
+About 40 minutes for all six runs: about 4 minutes each for A5, A1, A2, A3 and A4, about 10 for B, and a few to set
+up and to send the files. Each run stands alone: you can stop after any of them and send what you have.
+
+
+What is in it
+-------------
+
+  eldennet-launcher.exe   EldenNet's launcher: backs up your saves, starts the game offline without Easy Anti-Cheat,
+                          loads the run's DLLs, and watches the game until it ends.
+  eldennet.dll            EldenNet in the game: the release build. In these runs it stops before its one call into
+                          the game and shows its banner instead.
+  gal\                    What R0c found, which EldenNet checks your game against as it starts: numbers and names
+                          of the design's own, nothing taken from the game.
+  GraceUI\                GraceUI @GRACE_VERSION@, its test build (the same code as a release, with read-only counters
+                          for the observer): graceui.dll, its version file graceui.toml, its fonts, its licence and its
+                          notices.
+  grace-spike.dll         GraceUI's observer: it shows the notice "GraceUI spike: recording. F9 opens the typing
+                          test." and writes the run's report, graceui-spike.jsonl.
+  run-A5.cmd, run-A1.cmd, run-A2.cmd, run-A3.cmd, run-A4.cmd, run-B.cmd
+                          One file for each run: it starts eldennet-launcher.exe from this folder with that run's
+                          options, and names nothing outside this folder (open one in Notepad to read it).
+  README-SPIKES.txt       This file.
+  SHA256SUMS              The SHA-256 of every other file in this package.
+  LICENSE.txt             EldenNet's licence (MIT).
+  THIRD_PARTY.md          What EldenNet is built with, and its credits.
+  THIRD-PARTY-NOTICES.txt The licences of the libraries inside EldenNet's programs. GraceUI's files carry their own:
+                          GraceUI\LICENSE.txt and GraceUI\NOTICE.txt.
+
+
+Before you start
+----------------
+
+  - Close the game, and start Steam.
+  - Unzip this package into a folder of its own, anywhere but the game's folder.
+  - Copy the GraceUI folder from this package into the game's own Game folder, beside eldenring.exe (in Steam:
+    right-click ELDEN RING, then Manage, then Browse local files, and open Game). Runs A3, A4 and B need it there: in
+    them EldenNet loads GraceUI itself, from the game's folder, where a GraceUI release will be installed. The game
+    never loads it by itself, and you can delete it again once you have finished. Replace any GraceUI folder an
+    earlier package left there: each package is built with its own GraceUI. If the one in the game's folder is not
+    this package's, every run says so before the game starts; close that message, copy the folder again, and start
+    the run again.
+  - Turn on EldenNet's F11 view, which is off unless its settings say otherwise; runs A1 to A4 use it. In PowerShell
+    (Windows Terminal's default), run these two lines:
+
+      New-Item -ItemType Directory -Force "$env:APPDATA\EldenNet\config"
+      Set-Content -Encoding ascii "$env:APPDATA\EldenNet\config\settings.toml" "schema = 2", "debug = { panel = true }"
+
+    If %APPDATA%\EldenNet\config\settings.toml exists already, run only the first line, open the file in Notepad, and
+    put panel = true into its debug line instead (for example debug = { panel = true }), keeping what else it holds.
+  - The launcher backs up your saves before it starts the game (in %APPDATA%\EldenNet\save-backups). If you want a
+    copy of your own as well, copy the folder %APPDATA%\EldenRing somewhere first.
+  - The game will run offline, without Easy Anti-Cheat. Use a save you are happy to play offline, and never take a save
+    played with mods into online play.
+  - Close every other program that draws over games: frame-rate counters, recording, streaming and chat overlays.
+    Some keep running after their window closes: look for them by the clock (the tray's hidden icons too) and in Task
+    Manager's list of processes, and end them there. Steam's own overlay may stay. Each run's files say which other
+    overlays were in the game, so tell us if one was left on.
+  - Set the game to windowed or borderless windowed mode first (in its graphics settings): a small panel of the
+    launcher's own, beside the game, lists each run's steps, and a full-screen game covers it. It sits at the top
+    right of the screen the game is on; drag it by its top line if it is in the way. It is a window of the launcher's,
+    not anything drawn in the game, and each run's files say that it was shown.
+  - Each run's file also opens a console window, where the launcher's messages appear, behind the game: press Alt+Tab
+    to look, and Alt+Tab back.
+  - You will press F5 (GraceUI's menu), F11 (EldenNet's view), F9 (the typing test, in run B), Pause (to say a step is
+    done) and, if the Steam overlay shows in this game, Shift+Tab. Keyboard and mouse are enough.
+  - Windows or your security software may warn about an unsigned program. Allow it only if the SHA-256 values match
+    (below); otherwise stop and tell us.
+
+
+The steps
+---------
+
+Run them in this order: A5, A1, A2, A3, A4 and B. For each run, double-click its file in this folder (or open a
+command prompt here and type its name, run-A1.cmd for the first; in PowerShell, put .\ in front: .\run-A1.cmd). The
+console window opens and the game starts. The first time, the launcher asks where eldenring.exe is if it cannot find it
+through Steam, and shows its notices. Do the run's steps in the game, as the panel lists them below: after each step of
+yours, press Pause (anywhere, while the game has the keyboard), and the panel moves on to the next; the moment is kept
+with the run's report. The panel's button does the same, but a click takes the pointer out of the game, so use Pause
+where you can. A waiting step counts down by itself, and the last, quitting from the game's own menu, has no button.
+Once the game has ended, the console says "Run A1 has ended" (or B, and so on): press a key to close it, and go on to
+the next run, or stop there.
+
+Runs A1 to A4: S0-E with EldenNet (about 4 minutes each)
+
+  Run   File         GraceUI loaded                          Injected
+  A1    run-A1.cmd   by the launcher, before EldenNet        early, as the game starts
+  A2    run-A2.cmd   by the launcher, before EldenNet        late, once the game's window shows
+  A3    run-A3.cmd   by EldenNet itself, after the window    early, as the game starts
+  A4    run-A4.cmd   by EldenNet itself, after the window    late, once the game's window shows
+
+In the game (the panel lists these steps; press Pause after each one of yours, as the panel says):
+
+  1. At the title screen, check that GraceUI's notice "GraceUI spike: recording" and EldenNet's banner ("Spike run:
+     EldenNet makes no call into the game") both show.
+  2. Load a save.
+  3. Press F5: GraceUI's menu opens, with GraceUI's own pointer (a gold-edged arrow). Look round it for a few seconds,
+     then press F5 again to close it.
+  4. Press F11: EldenNet's view opens. Press F11 again to close it.
+  5. If the Steam overlay shows in this game (Shift+Tab), open it and close it again, and note whether GraceUI's notice
+     is still drawn afterwards.
+  6. Play for two minutes, then quit from the game's own menu.
+
+Run A5: S0-E with GraceUI and its observer alone (about 4 minutes; run-A5.cmd)
+
+GraceUI and its observer only, injected early, with no EldenNet. The same steps as A1's, without F11: at the title
+screen only GraceUI's notice shows, as EldenNet is not loaded. This tells a fault of GraceUI's own from one that comes
+only with EldenNet beside it. If the game crashes in this run, send its files at once: the others will most likely
+crash the same way.
+
+Run B: S4, input (about 10 minutes; run-B.cmd)
+
+With EldenNet, injected early; EldenNet loads GraceUI. The panel lists these steps too: press Pause after each one of
+yours, once the typing test has closed for step 2 (it holds the keyboard while it is open).
+
+  1. Load a save and stand somewhere safe, away from enemies.
+  2. Press F9: the typing test opens in the middle of the screen and takes the keyboard, the mouse and the pad.
+  3. For 60 seconds, type anything (W, A, S and D among it, and some held down) and move the mouse about. What you
+     type shows in the test's own field, on screen only: the report counts it and never keeps it. The test closes by
+     itself after 60 seconds; holding Esc for a second stops it early.
+  4. Note whether the Tarnished moved or the camera turned at any time while the test was open.
+  5. Hold W so the Tarnished walks, press F5 while still holding it, let W go, then press F5 again: the Tarnished must
+     stand still once the menu is open, and must not start walking again when it closes.
+  6. If you have a pad: open GraceUI's menu with F5, then press B twice (the first goes back to the list on the left,
+     the second closes the menu): the Tarnished must not dodge or roll.
+  7. Once: in GraceUI's menu, on the Menu page, set Menu size to 1.50 (the left and right arrow keys change it), close
+     the menu and open it again. Then set it back to its default, 1.25 (R resets it): GraceUI keeps its settings from
+     one session to the next.
+  8. Quit from the game's own menu.
+
+If you have them, the Steam floating keyboard and Proton are rows of their own: tell us what happened.
+
+
+What to send back
+-----------------
+
+  %APPDATA%\EldenNet\spikes\                   the whole folder: required
+  %APPDATA%\EldenNet\logs\eldennet.log         helpful
+  %APPDATA%\EldenNet\logs\launcher.log         helpful
+  %APPDATA%\EldenNet\crashes\                  the newest file there, only if the game crashed
+
+(Type %APPDATA%\EldenNet into Explorer's address bar to open the folder.) The spikes folder holds one folder for each
+run, each with its graceui-spike.jsonl and GraceUI's own log (graceui-log.txt): s0e_alone-1 for A5, s0e-1 to s0e-4 for
+A1 to A4 and s4-1 for B when you ran them once each in order (each run takes the next free number), and the launcher's
+own short log of each, with the names of the game's modules (no folders) so that we know which other overlays ran.
+Tell us if you ran one twice or in another order.
+
+With them, your answers to:
+
+  - Did the Tarnished stay still and the camera stay put during the typing test (run B)? (yes or no)
+  - If the Steam overlay showed: was GraceUI still drawing after it closed? (yes or no)
+
+
+What it does
+------------
+
+  - Backs up your saves (it only copies them), checks that Steam is running and that the game is not, and checks that
+    your game is the build R0c read (2.7.2.0, worldwide). If the launcher says the build is not supported, stop and
+    tell us: the game has been updated since R0c.
+  - Starts the game offline without Easy Anti-Cheat, by writing the game's Steam app id into steam_appid.txt beside
+    the game while it starts, and removing it again (eldennet-launcher.exe --cleanup removes it if a crash left it).
+  - Before the game starts, makes the run's folder in %APPDATA%\EldenNet\spikes and tells the observer its name.
+  - Loads the run's DLLs into the game, in the order its file gives: GraceUI and its observer, and EldenNet (not in run
+    A5). In runs A3, A4 and B, EldenNet loads GraceUI from the game's folder itself.
+  - EldenNet reads the game's code and data as they are loaded, read-only and through guarded copies, to check that
+    your game is the build it knows, then stops before its reader starts and shows its banner, "Spike run: EldenNet
+    makes no call into the game". It makes no call into the game at any time.
+  - GraceUI puts itself between the game and Windows' own functions for drawing a frame and for reading the keyboard,
+    the mouse and the pad, draws its notices, menu and panels over the game, and keeps input from the game while one
+    of its panels holds it.
+  - Five times a second (as each run's file sets it) the observer writes a line of its report into the run's folder, and
+    GraceUI's own log lines beside it: numbers, fixed words and our own labels only; no path, no name, nothing of your
+    character or your PC, and of what you type only how many characters.
+  - Watches the game until it ends, and keeps a short record if it ends badly: the error's code, which module it was
+    in and the time, never a memory dump.
+
+
+What it never does
+------------------
+
+  - It never goes online, and the game cannot reach FromSoftware's servers without Easy Anti-Cheat.
+  - It never changes your saves or the game's files (steam_appid.txt aside, which it removes; the GraceUI folder in
+    the game's folder is the one you copied there). GraceUI keeps its own settings, such as Menu size, in its
+    folder's user\settings.json.
+  - It never calls into the game in these runs: EldenNet's banner says so. GraceUI and its observer never read
+    or write the game's memory and never call the game's code.
+  - It never keeps what you type: the typing test shows it on screen only, and the report counts it.
+  - It never runs anything else, reaches the internet, keeps keys or sends anything anywhere. You send the files
+    yourself.
+
+
+If the game crashes or freezes
+------------------------------
+
+  - Your saves were backed up before the game started: each backup is a folder in %APPDATA%\EldenNet\save-backups,
+    named by date and time, with a manifest of the files' sizes and hashes. The game's own save is not touched by
+    EldenNet; only if the game itself reports a damaged save, copy ER0000.sl2 (and ER0000.sl2.bak) from the newest
+    backup back into %APPDATA%\EldenRing\<the same number>\, with the game closed.
+  - If the game freezes, close it with Alt+F4, or end eldenring.exe in Task Manager.
+  - Send the files above, the newest crash record included, and say which run it was. The next start of the launcher
+    explains it once. You can go on with the next run.
+  - To play normally again, start the game from Steam as usual. Nothing of EldenNet or GraceUI stays loaded, and the
+    GraceUI folder in the game's folder does nothing unless EldenNet loads it.
+
+
+Check the files
+---------------
+
+In PowerShell, in this folder:
+
+  Get-FileHash -Algorithm SHA256 eldennet-launcher.exe, eldennet.dll, grace-spike.dll, GraceUI\graceui.dll
+
+Each value must equal its line in SHA256SUMS (letter case aside).

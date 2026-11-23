@@ -9,8 +9,8 @@
 // - EldenNet writes its status (the dev console shows it; a spike's run reads its outcome there) and, once, from its
 //   crash filter, the crash record: allocation-free, then it signals `Local\EldenNet.Crash.<pid>` and waits at most
 //   2 s for the watcher's `Local\EldenNet.CrashAck.<pid>`, while the watcher lists the game's modules.
-// - The launcher writes its requests (the spike under way; a crash on request in a probe build, for S0-D; R1 in a probe
-//   build, which EldenNet answers in the same field) and the
+// - The launcher writes its requests (the spike under way; a crash on request in a probe build, for S0-D; the
+//   read-only round in a probe build, which EldenNet answers in the same field) and the
 //   Marks: each press of the hotkey, stamped in mono milliseconds (QPC, the recording's clock), which EldenNet's
 //   recorder writes into the recording. Once EldenNet's own Mark is bound, a GraceUI hotkey on the same key (part 12),
 //   the launcher hands the ring over (`Marks::source`): one writer at a time, EldenNet's after the hand-over.
@@ -48,14 +48,17 @@ enum class InitState : std::uint32_t {
   ReadyScan,
   WaitEngine,
   Discover,
-  Register,
-  FirstTick,
-  Ready,   // DataReady sent: the task ticks and phase A passed
-  Inert,   // the first tick's checks failed, or no tick in 30 s
+  Register,   // the game's task: the call that registers it (not a v1 start, O101; R1, retired 2026-11-22, O106)
+  FirstTick,  // the game's task: its first call from the game (as Register: nothing enters it now)
+  Ready,   // DataReady sent: the reading runs and phase A passed
+  Inert,   // the first reading's checks failed, or none came in 30 s
   Banner,  // stopped at a banner (the status's `banner` says which)
   Exit,    // a second copy, or Off
+  // Appended (the numbers above never change): a start that reads on a thread of EldenNet's own (O101).
+  Reader,        // the reader thread is being started; nothing of the game is called
+  FirstReading,  // waiting for its first reading
 };
-inline constexpr std::uint32_t kInitStateCount = 16;
+inline constexpr std::uint32_t kInitStateCount = 18;
 [[nodiscard]] const char* to_string(InitState s) noexcept;  // "none", "pin", ..., "ready", "inert", "banner", "exit"
 // Where T1 stops: a spike's run ends there.
 [[nodiscard]] constexpr bool terminal(InitState s) noexcept {
@@ -76,13 +79,20 @@ inline constexpr std::uint32_t kSpikeCount = 9;
   return s == Spike::S0e || s == Spike::S0eAlone || s == Spike::S4;
 }
 
-// The launcher's --probe (O89's in-game round R1): asked by the launcher before it loads anything, answered by
-// EldenNet at Settings. Only a probe build of eldennet.dll accepts it; a release build, or EldenNet turned off in
-// settings.toml, refuses it and calls nothing. Since R1 spike.12 (WHY§296), `Absent`: accepted, and after the call the
-// probe's 2 s search found no copy of its task in the game's memory (the console then has the owner load the save).
-// Append only.
-enum class ProbeRequest : std::uint32_t { None, R1, Accepted, Refused, Absent };
-[[nodiscard]] const char* to_string(ProbeRequest p) noexcept;  // "none", "r1", "accepted", "refused", "absent"
+// The launcher's --read (Lodestar's read-only round, step L5): `Read` is asked by the launcher before it loads
+// anything, and answered by EldenNet at Settings. Only a probe build of eldennet.dll accepts it, and it calls nothing
+// of the game at all; a release build, or EldenNet turned off in settings.toml, refuses it.
+// Append only: the numbers never change, and a retired word keeps its number. Nothing writes or accepts a retired one.
+enum class ProbeRequest : std::uint32_t {
+  None,
+  RetiredR1,  // retired with R1, 2026-11-22 (O106)
+  Accepted,
+  Refused,
+  RetiredAbsent,  // retired with R1, 2026-11-22 (O106)
+  Read,
+};
+// "none", "retired", "accepted", "refused", "retired", "read"
+[[nodiscard]] const char* to_string(ProbeRequest p) noexcept;
 
 enum class CrashState : std::uint32_t { None, Writing, Written, Taken };
 
@@ -99,9 +109,10 @@ enum class MarkSource : std::uint32_t {
 inline constexpr std::uint32_t kMarkSourceCount = 4;
 [[nodiscard]] const char* to_string(MarkSource s) noexcept;  // "none", "launcher", "asked", "eldennet"
 
-// The thread that crashed, as EldenNet knows its threads.
-enum class ThreadKind : std::uint32_t { Unknown, Game, Init, Other };
-[[nodiscard]] const char* to_string(ThreadKind t) noexcept;  // "unknown", "game", "init", "other"
+// The thread that crashed, as EldenNet knows its threads. Game is the game's own thread as far as EldenNet knows it:
+// the thread of the game's window. Reader (appended) is EldenNet's own reading thread (O101).
+enum class ThreadKind : std::uint32_t { Unknown, Game, Init, Other, Reader };
+[[nodiscard]] const char* to_string(ThreadKind t) noexcept;  // "unknown", "game", "init", "other", "reader"
 
 // Status flags (Status::flags).
 inline constexpr std::uint32_t kFlagGateOpen = 1u << 0;
@@ -121,7 +132,7 @@ struct Control {
   std::atomic<std::uint32_t> spike;          // Spike
   std::atomic<std::uint32_t> crash_request;  // 1: crash now (s0d-crash; honoured by probe builds only)
   std::atomic<std::uint32_t> watcher_pid;    // the watcher's process id while it watches, else 0
-  std::atomic<std::uint32_t> probe;          // ProbeRequest: the launcher writes R1, EldenNet its answer
+  std::atomic<std::uint32_t> probe;          // ProbeRequest: the launcher writes Read, EldenNet its answer
 };
 
 // EldenNet's status, field by field (a reader may see one update half done; each field is whole).

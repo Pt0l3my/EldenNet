@@ -1,6 +1,7 @@
 // The command line, the texts, the watcher's records, the spikes' tally and the pre-flight's order.
 #include <doctest.h>
 
+#include <algorithm>
 #include <memory>
 #include <new>
 #include <string>
@@ -138,11 +139,11 @@ TEST_CASE("options: GraceUI's observer's runs (S0-E, S4): their words, and what 
         "--spike s0e_alone loads no eldennet.dll: not with --dll");
   CHECK(parse_error({"--dll", "C:\\dev\\eldennet.dll", "--spike", "s0e_alone"}) ==
         "--spike s0e_alone loads no eldennet.dll: not with --dll");
-  // R1's Mark never joins these runs, and each is one run.
+  // The read-only round never joins these runs, and each is one run.
   for (const char* word : {"s0e", "s0e_alone", "s4"}) {
     CAPTURE(word);
-    CHECK(parse_error({"--probe", "--spike", word}) ==
-          "--probe goes with a start, and not with --no-backup, --vanilla-offline or --spike");
+    CHECK(parse_error({"--read", "--spike", word}) ==
+          "--read goes with a start, and not with --no-backup, --vanilla-offline or --spike");
     CHECK(parse_error({"--spike", word, "--runs", "2"}) == "--runs goes with --spike s0a or s0d-crash");
     CHECK(parse_error({"--spike", word, "--vanilla-offline"}).find("injects nothing") != std::string::npos);
     CHECK(parse_error({"--spike", word, "--cleanup"}) == "--spike and game arguments go with a start");
@@ -164,58 +165,98 @@ TEST_CASE("the spikes' rule: an observer's run passes when it did not crash") {
   }
 }
 
-TEST_CASE("options: --probe (R1) brings the console, and keeps the backup, EldenNet's DLL and one plain start") {
-  const Options o = parse_ok({"--probe"});
-  CHECK(o.probe);
-  CHECK(o.console);
-  CHECK(o.action == Action::Start);
-  CHECK(parse_ok({"--probe", "--inject-at", "title", "--game", "C:\\G\\fake_game.exe"}).inject_at == InjectAt::Title);
-  const std::string refused = "--probe goes with a start, and not with --no-backup, --vanilla-offline or --spike";
-  CHECK(parse_error({"--probe", "--no-backup"}) == refused);
-  CHECK(parse_error({"--probe", "--vanilla-offline"}) == refused);
-  CHECK(parse_error({"--probe", "--spike", "s0b"}) == refused);
-  CHECK(parse_error({"--probe=1"}) == "--probe takes no value");
-  CHECK(parse_error({"--probe", "--backup-only"}) == refused);
-  CHECK_FALSE(parse_ok({}).probe);
-  CHECK(usage_text().find("--probe") != std::string::npos);
+TEST_CASE("options: --read brings the console, and keeps the backup, EldenNet's DLL and one plain start") {
+  const Options rd = parse_ok({"--read"});
+  CHECK(rd.read);
+  CHECK(rd.console);
+  CHECK(rd.action == Action::Start);
+  CHECK(parse_ok({"--read", "--inject-at", "title", "--game", "C:\\G\\fake_game.exe"}).inject_at == InjectAt::Title);
+  const std::string read_refused = "--read goes with a start, and not with --no-backup, --vanilla-offline or --spike";
+  CHECK(parse_error({"--read", "--no-backup"}) == read_refused);
+  CHECK(parse_error({"--read", "--vanilla-offline"}) == read_refused);
+  CHECK(parse_error({"--read", "--spike", "s0b"}) == read_refused);
+  CHECK(parse_error({"--read", "--backup-only"}) == read_refused);
+  CHECK(parse_error({"--read=1"}) == "--read takes no value");
+  CHECK_FALSE(parse_ok({}).read);
+  CHECK(usage_text().find("--read") != std::string::npos);
+  // The tests' pace for the round's tasks goes with --read only, and is 1 to 600 seconds.
+  CHECK(parse_ok({"--read", "--read-pace-s", "5"}).read_pace_s == 5);
+  CHECK(rd.read_pace_s == 0);
+  CHECK(parse_error({"--read-pace-s", "5"}) == "--read-pace-s goes with --read");
+  CHECK(parse_error({"--read", "--read-pace-s", "0"}) == "--read-pace-s is 1 to 600 seconds");
+  // --probe went with R1 (retired 2026-11-22, O106): an unknown option now, alone or beside --read.
+  CHECK(parse_error({"--probe"}) == "unknown option: --probe");
+  CHECK(parse_error({"--read", "--probe"}) == "unknown option: --probe");
+  CHECK(usage_text().find("--probe") == std::string::npos);
 }
 
-TEST_CASE("texts: R1's steps on the console follow EldenNet's answer and T1's state") {
-  using w::InitState;
-  using w::ProbeRequest;
-  CHECK_FALSE(r1_step(ProbeRequest::R1, InitState::None, false, 0).has_value());
-  CHECK_FALSE(r1_step(ProbeRequest::R1, InitState::Settings, false, 0).has_value());
-  CHECK(r1_step(ProbeRequest::R1, InitState::WaitWindow, false, 0) == R1Step::Refused);  // a DLL without --probe
-  CHECK(r1_step(ProbeRequest::Refused, InitState::Settings, false, 0) == R1Step::Refused);
-  CHECK_FALSE(r1_step(ProbeRequest::Accepted, InitState::WaitWindow, false, 0).has_value());
-  CHECK(r1_step(ProbeRequest::Accepted, InitState::Discover, false, 0) == R1Step::Reading);
-  CHECK(r1_step(ProbeRequest::Accepted, InitState::Register, false, 0) == R1Step::PressMark);
-  CHECK(r1_step(ProbeRequest::Accepted, InitState::FirstTick, true, 29999) == R1Step::Called);
-  CHECK(r1_step(ProbeRequest::Accepted, InitState::FirstTick, true, 30000) == R1Step::NoConfirmation);
-  CHECK(r1_step(ProbeRequest::Accepted, InitState::Ready, true, 0) == R1Step::Confirmed);
-  CHECK(r1_step(ProbeRequest::Accepted, InitState::Banner, false, 0) == R1Step::NotCalled);
-  CHECK(r1_step(ProbeRequest::Accepted, InitState::Banner, true, 0) == R1Step::CallFailed);
-  for (auto st = static_cast<int>(R1Step::Asked); st <= static_cast<int>(R1Step::ReportsMissing); ++st) {
-    const std::string t = r1_text(static_cast<R1Step>(st));
-    CHECK_FALSE(t.empty());
-    CHECK(std::string(r1_word(static_cast<R1Step>(st))).find(' ') == std::string::npos);
-    CHECK(t.find(":\\") == std::string::npos);  // no drive's path; %APPDATA% names the folder
+TEST_CASE("texts: the read-only round's steps follow EldenNet's answer, T1's state and the managers named") {
+  using en::proto::watch::InitState;
+  using en::proto::watch::ProbeRequest;
+  // No answer yet, T1 still early: nothing. No answer and T1 past Settings: a DLL that does not know --read.
+  CHECK_FALSE(read_step(ProbeRequest::Read, InitState::None, 0, 0, 0).has_value());
+  CHECK_FALSE(read_step(ProbeRequest::Read, InitState::Settings, 0, 0, 0).has_value());
+  CHECK(read_step(ProbeRequest::Read, InitState::WaitWindow, 0, 0, 0) == ReadStep::Refused);
+  CHECK(read_step(ProbeRequest::Refused, InitState::Settings, 0, 0, 0) == ReadStep::Refused);
+  CHECK_FALSE(read_step(ProbeRequest::Accepted, InitState::WaitWindow, 0, 0, 0).has_value());
+  CHECK(read_step(ProbeRequest::Accepted, InitState::Discover, 0, 0, 0) == ReadStep::Reading);
+  // The reader is up but no naming pass has reported yet: still reading.
+  CHECK(read_step(ProbeRequest::Accepted, InitState::Reader, 0, 0, 0) == ReadStep::Reading);
+  CHECK(read_step(ProbeRequest::Accepted, InitState::FirstReading, 7, 11, 1) == ReadStep::LoadSave);
+  CHECK(read_step(ProbeRequest::Accepted, InitState::Ready, 7, 11, 1) == ReadStep::LoadSave);
+  CHECK(read_step(ProbeRequest::Accepted, InitState::Ready, 0, 11, 3) == ReadStep::LoadSave);
+  CHECK(read_step(ProbeRequest::Accepted, InitState::Ready, 11, 11, 4) == ReadStep::Done);
+  CHECK(read_step(ProbeRequest::Accepted, InitState::Ready, 0, 0, 2) == ReadStep::LoadSave);  // nothing asked for: never done
+  CHECK(read_step(ProbeRequest::Accepted, InitState::Banner, 0, 0, 0) == ReadStep::Stopped);
+  CHECK(read_step(ProbeRequest::Accepted, InitState::Inert, 3, 11, 1) == ReadStep::Stopped);
+  // The words and the lines: each step has its own and the counts are said. Only the two lines that send the owner
+  // to the panel speak of its key; none says "press".
+  std::vector<std::string> words;
+  for (const ReadStep s : {ReadStep::Asked, ReadStep::Refused, ReadStep::Reading, ReadStep::LoadSave, ReadStep::Done,
+                           ReadStep::Stopped, ReadStep::ReportsClean, ReadStep::ReportsRefused,
+                           ReadStep::ReportsMissing}) {
+    words.emplace_back(read_word(s));
+    const std::string text = read_text(s, 7, 11);
+    CHECK_FALSE(text.empty());
+    CHECK((text.find("Pause") == std::string::npos) == (s != ReadStep::LoadSave));
+    CHECK(text.find("press ") == std::string::npos);
   }
-  CHECK(r1_text(R1Step::PressMark).find("press Pause") != std::string::npos);
-  CHECK(std::string(r1_word(R1Step::Confirmed)) == "task_confirmed");
-  // R1 spike.12 (WHY§296): EldenNet's answer Absent is an accepted R1 whose probe found no copy of our task: the same
-  // steps, and no confirmation then tells the owner to load the save, in place of "do not load a save".
-  CHECK(r1_step(ProbeRequest::Absent, InitState::FirstTick, true, 29999) == R1Step::Called);
-  CHECK(r1_step(ProbeRequest::Absent, InitState::FirstTick, true, 30000) == R1Step::NoConfirmation);
-  CHECK(r1_step(ProbeRequest::Absent, InitState::Ready, true, 0) == R1Step::Confirmed);
-  CHECK(std::string(w::to_string(ProbeRequest::Absent)) == "absent");
-  const std::string kept = r1_text(R1Step::NoConfirmation);
-  const std::string absent = r1_text(R1Step::NoConfirmation, true);
-  CHECK(kept.find("Do not load a save") != std::string::npos);
-  CHECK(absent.find("Do not load a save") == std::string::npos);
-  CHECK(absent.find("Our task is not in the game. Load your save now, stay in the world for two minutes, then quit "
-                    "the game as usual.") != std::string::npos);
-  CHECK(r1_text(R1Step::Confirmed, true) == r1_text(R1Step::Confirmed));  // only no confirmation has the variant
+  std::sort(words.begin(), words.end());
+  CHECK(std::adjacent_find(words.begin(), words.end()) == words.end());
+  CHECK(read_text(ReadStep::LoadSave, 7, 11).rfind("Now load your save. 7 of 11 managers", 0) == 0);
+  CHECK(read_text(ReadStep::Done, 11, 11).rfind("All 11 managers are named. If you have not loaded your save yet", 0) == 0);
+  CHECK(read_text(ReadStep::ReportsClean).find("lodestar-table.toml") != std::string::npos);
+}
+
+TEST_CASE("texts: the round's draft table is checked for what a table may hold") {
+  const std::string table =
+      "[provenance]\nmethod = \"own-derivation\"\ntool = \"0.1.0-lodestar.3\"\n"
+      "tool_sha256 = \"0000000000000000000000000000000000000000000000000000000000000000\"\nround = \"l5\"\n"
+      "date = \"2026-01-02\"\nleads = [\"gal/leads.toml\", \"gal/recipes.toml\"]\n\n[item.task_hub]\nid = 1005\n"
+      "kind = \"static\"\nrva = 0x125000\nfound_by = [\"accessor\", \"instance_class\"]\nwitnesses = [0x1015, 0x2A]\n"
+      "checks = [\"placement\", \"agree\", \"witness\", \"class\"]\nstatus = \"lead\"\n\n[item.character]\nid = 3001\n"
+      "kind = \"class\"\nvtables = [0x9000, 0x9100]\nfound_by = [\"class\"]\nchecks = [\"placement\"]\nstatus = \"lead\"\n";
+  CHECK(table_text_clean(table));
+  std::string crlf = table;
+  for (std::size_t at = 0; (at = crlf.find('\n', at)) != std::string::npos; at += 2) crlf.replace(at, 1, "\r\n");
+  CHECK(table_text_clean(crlf));
+  CHECK_FALSE(table_text_clean(""));
+  const auto with = [&](std::string_view from, std::string_view to) {
+    std::string text = table;
+    const std::size_t at = text.find(from);
+    REQUIRE(at != std::string::npos);
+    text.replace(at, from.size(), to);
+    return text;
+  };
+  CHECK_FALSE(table_text_clean(with("[item.task_hub]", "[item.TaskHub]")));          // a label of ours is lower-case
+  CHECK_FALSE(table_text_clean(with("[item.task_hub]", "[class.task_hub]")));        // no other table
+  CHECK_FALSE(table_text_clean(with("id = 1005", "name = 1005")));                   // no other key
+  CHECK_FALSE(table_text_clean(with("\"gal/leads.toml\"", "\"C:\\\\Users\\\\x\"")));  // no path of a PC
+  CHECK_FALSE(table_text_clean(with("\"gal/leads.toml\"", "\"/home/x/leads\"")));
+  CHECK_FALSE(table_text_clean(with("status = \"lead\"", "status = \"a lead; see notes\"")));  // no free text
+  CHECK_FALSE(table_text_clean(with("rva = 0x125000", "rva: 0x125000")));
+  CHECK_FALSE(table_text_clean(with("id = 1005", "# a comment")));
+  CHECK_FALSE(table_text_clean(std::string(300u << 10, 'a')));
 }
 
 TEST_CASE("texts: ARCH §4.7's wording, the ids and the exit codes") {

@@ -2,6 +2,7 @@
 // T11 writes them to logs\eldennet.log as `ELDENNET <event> key=value ... t=<ms>`, rotating it past 1 MiB (one older
 // file kept). Lines made before the logger starts (T1's Pin and Gate) wait in the ring, so a second copy, which never
 // starts it, never writes to the shared log (ARCH §3.2's Safety). When the ring is full a line is dropped and counted.
+#include <algorithm>
 #include <cinttypes>
 #include <cstdio>
 
@@ -31,6 +32,12 @@ struct AiWriteNode {
   AiWrite write;
 };
 constinit std::atomic<AiWriteNode*> g_ai_writes{nullptr};
+// The profile editor's writes (profiles.cpp): T6 the producer, T11 the consumer, eight at most waiting (C17); and what T11
+// made of each, back to T6.
+using ProfileRing = en::shell::SpscRing<ProfileWrite, 8>;
+using ProfileDoneRing = en::shell::SpscRing<ProfileWritten, 8>;
+constinit std::atomic<ProfileRing*> g_profile_writes{nullptr};
+constinit std::atomic<ProfileDoneRing*> g_profile_done{nullptr};
 constinit wchar_t g_ai_folder[MAX_PATH] = {};
 constinit bool g_probe_build = false;
 constinit std::atomic<int> g_level{static_cast<int>(en::shell::LogLevel::Info)};
@@ -107,6 +114,68 @@ void write_ai(const AiWrite& w) {
       ok ? en::shell::LogLevel::Info : en::shell::LogLevel::Warn);
 }
 
+template <class R>
+R* ring_of(std::atomic<R*>& slot) noexcept {
+  R* r = slot.load(std::memory_order_acquire);
+  if (r != nullptr) return r;
+  auto* made = new (std::nothrow) R();
+  if (made == nullptr) return nullptr;
+  if (!slot.compare_exchange_strong(r, made, std::memory_order_acq_rel)) {
+    delete made;
+    return r;
+  }
+  return made;
+}
+
+// A layer's path, checked again here: layers/persona-<slug>.toml under the overrides folder, nothing else.
+bool layer_rel(std::string_view rel) {
+  constexpr std::string_view prefix = "layers/persona-";
+  constexpr std::string_view suffix = ".toml";
+  if (rel.size() <= prefix.size() + suffix.size() || rel.size() > 64 || rel.substr(0, prefix.size()) != prefix ||
+      rel.substr(rel.size() - suffix.size()) != suffix) {
+    return false;
+  }
+  const std::string_view id = rel.substr(prefix.size(), rel.size() - prefix.size() - suffix.size());
+  return std::all_of(id.begin(), id.end(), [](char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'; });
+}
+
+// One of the profile editor's changes, made on the file as it is now (NPC §4.7's save path). The previous version stays
+// as <file>.bak; a removal leaves the file as the .bak; a read of the .bak gives its text, at most 8 KB.
+ProfileWritten write_profile(const ProfileWrite& w) {
+  ProfileWritten out;
+  out.token = w.token;
+  if (w.folder.empty() || !layer_rel(w.rel)) return out;
+  std::wstring rel(w.rel.begin(), w.rel.end());  // ASCII: checked above
+  for (wchar_t& c : rel) c = c == L'/' ? L'\\' : c;
+  const std::wstring file = w.folder + L"\\" + rel;
+  const std::wstring bak = file + L".bak";
+  switch (w.op) {
+    case ProfileWrite::Op::Write: {
+      const std::size_t cut = file.find_last_of(L'\\');
+      (void)make_dirs(file.substr(0, cut));
+      // The previous version, for restore: read and written again (no import of the DLL's own for a copy).
+      if (std::optional<std::string> previous = read_text(file, 8u << 10)) (void)write_text(bak, *previous);
+      out.ok = write_text(file, w.text);
+      break;
+    }
+    case ProfileWrite::Op::Remove:
+      out.ok = MoveFileExW(file.c_str(), bak.c_str(), MOVEFILE_REPLACE_EXISTING) != 0;
+      break;
+    case ProfileWrite::Op::ReadBak:
+      if (std::optional<std::string> text = read_text(bak, 8u << 10)) {
+        out.text = std::move(*text);
+        out.ok = true;
+      }
+      break;
+  }
+  log(en::shell::Line("profile_file").word("op", w.op == ProfileWrite::Op::Write    ? "write"
+                                                 : w.op == ProfileWrite::Op::Remove ? "remove"
+                                                                                    : "read_bak")
+          .flag("ok", out.ok).num("bytes", w.op == ProfileWrite::Op::ReadBak ? out.text.size() : w.text.size()),
+      out.ok ? en::shell::LogLevel::Info : en::shell::LogLevel::Warn);
+  return out;
+}
+
 HANDLE open_log() noexcept {
   HANDLE f = CreateFileW(g_file, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr, OPEN_ALWAYS,
                          FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -160,6 +229,17 @@ DWORD WINAPI writer_main(void*) noexcept {
           ordered = next;
         }
       }
+      if (ProfileRing* q = g_profile_writes.load(std::memory_order_acquire)) {
+        ProfileWrite w;
+        bool made = false;
+        while (q->try_pop(w)) {
+          ProfileWritten done = write_profile(w);
+          if (ProfileDoneRing* back = ring_of(g_profile_done)) made = back->try_push(done) || made;
+        }
+        if (made) {
+          if (Shell* sh = shell(); sh != nullptr && sh->wake != nullptr) SetEvent(sh->wake);  // T6 answers at once
+        }
+      }
       Sleep(50);
     }
   });
@@ -205,6 +285,18 @@ void post_ai_write(AiWrite write) noexcept {
     while (!g_ai_writes.compare_exchange_weak(node->next, node, std::memory_order_release, std::memory_order_relaxed)) {
     }
   });
+}
+
+bool post_profile_write(ProfileWrite& write) noexcept {
+  return en::proto::ffi_guard(en::proto::Component::DllMain, false, [&] {
+    ProfileRing* q = ring_of(g_profile_writes);
+    return q != nullptr && q->try_push(write);
+  });
+}
+
+bool take_profile_written(ProfileWritten& out) noexcept {
+  ProfileDoneRing* back = g_profile_done.load(std::memory_order_acquire);
+  return back != nullptr && back->try_pop(out);
 }
 
 std::uint64_t log_dropped() noexcept {

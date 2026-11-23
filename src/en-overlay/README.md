@@ -5,20 +5,24 @@ as GraceUI notices, EldenNet's claims as a world-state provider, its hotkeys (F1
 debug view, a panel drawn on Dear ImGui 1.93.0's core with no backend, and EldenNet's space: its pages in GraceUI's menu
 and browser view (PAGES; GraceUI's G20, D169). It began as the first in-game build's part 12 on GraceUI 0.1
 (`docs/eldennet-changes.md` §14 to §18 and §20, D131 to D156, D164 and D165); the pages' first slice (roadmap S11.4.a)
-moved it to GraceUI 0.2.5's ABI 1.2 (§19, §23, §24, §26 to §29, §33, §34 and §36). Later increments add EldenNet's own
-surfaces (subtitles, the chat box, the call-out box) as panels, and the rest of its pages.
+moved it to GraceUI 0.2.5's ABI 1.2 (§19, §23, §24, §26 to §29, §33, §34 and §36). The first conversation (S11.3, part
+C; WHY§364) adds EldenNet's own surfaces on GraceUI 0.2.20's ABI 1.5 (§31, §33, §47 to §50): the lower third, the chat
+box, the hint and the toasts. Later increments add the call-out box (v0.6) and the rest of its pages.
 
-It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at a9aac78, GraceUI
-0.2.12; its floor, 0.2.12): its look for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size
+It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 92fc19c, GraceUI
+0.2.25, ABI 1.5, protocol 1.8; its floor, 0.2.22, for the profile editor's families, slow commands, editor block and
+chosen row, on 0.2.17's wait handle): its look for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size
 (`graceui_sys.hpp`), and the headless Dear ImGui helper (`graceui_imgui.hpp`). It links no hook library and no Dear
 ImGui backend and hooks nothing (R12, GraceUI's invariant 16); it never links en-core or en-gal, so it can never reach
 the game's memory (ARCH §2.3, checked by `en_link_rule`); and nothing in it waits but the look, on T1 (R6).
 
 ## Two parts
 
-- **Portable, in every build** (tested on Linux with GCC and Clang too): `view.hpp`, the F11 view's lines, and
-  `world.hpp`, the world-state claims. Both are pure, on en-proto and `graceui.h`, which is plain C.
-- **The Windows builds** (MinGW-w64 and clang-cl): `overlay.hpp`, the connection, and Dear ImGui's core
+- **Portable, in every build** (tested on Linux with GCC and Clang too): `view.hpp`, the F11 view's lines,
+  `world.hpp`, the world-state claims, and `surfaces.hpp`, the conversation's surfaces laid out. All are pure, on
+  en-proto and `graceui.h`, which is plain C.
+- **The Windows builds** (MinGW-w64 and clang-cl): `overlay.hpp`, the connection, `chat.hpp`, the surfaces' calls
+  into GraceUI, and Dear ImGui's core
   (`en_imgui_core`), downloaded at configure time at GraceUI's own pin (the commit of tag v1.93.0, each file by its
   SHA-256) and compiled with GraceUI's `gu_imgui_core` definitions: no demo, debug tools, file, shell or Win32 functions.
   Its warnings are off as third-party code's, but for `en_dll_module`'s two rules, which Clang keeps as errors (the DLL
@@ -37,7 +41,7 @@ On T1, after WaitWindow (ARCH §3.2's Connect, and ConnectB on the banner path):
    GraceUI loaded before EldenNet is found by its name, and GraceUI installed in the game's folder but not yet loaded is
    loaded by EldenNet (and found by its name if a loader loads it later).
 2. **`Overlay::connect`** as `eldennet` (its id and its space's), display name `EldenNet`, its version, its GraceUI floor
-   (0.2.3, `en/proto/graceui_pin.hpp`) and the caps it uses: `notices world-state hotkeys`, and with the view
+   (0.2.22, `en/proto/graceui_pin.hpp`) and the caps it uses: `notices world-state hotkeys`, and with the view
    `panels textures`. The answers: `connected`; `notices_only` (inactive for the anti-cheat, with a handle: the banner
    through `notice` alone, D88); or a failed connect, `absent`, `too_old`, `duplicate_id`, `inactive` (the overlay
    could not start or turned itself off), `refused` or `not_yet`, which leave EldenNet headless (ARCH §10.3's "Overlay
@@ -69,6 +73,35 @@ From then on EldenNet's core thread (T6) alone calls the rest, once per wake (at
   list. `not_connected` or `inactive` from `poll` ends it: nothing more is called.
 
 The view takes no input (D142): F11 shows it and hides it.
+
+## The conversation's surfaces (`surfaces.hpp`, `chat.hpp`; NPC §5, §8.6, §10)
+
+- **Laid out, in every build** (`surfaces.hpp`, pure): en-proto's `UiModel` as draw lists in GraceUI's own form (D76:
+  Dear ImGui's vertex layout, 16-bit indices, a command per texture and clip, within ABI 1's bounds). The text is
+  GraceUI's faces only: each glyph's quad from a glyph table, emitted on the shared atlas's texture id and scaled from
+  the size GraceUI baked it at to the surface's size at the content scale (NPC §10.1's sizes at 1080 lines); solid
+  shapes on a 4 by 4 white texture of EldenNet's own. The lower third (a name line in gold, upper case, +0.08 em, and
+  two wrapped lines, with a shadow; the card's "…"), the box (its header "Speak to … — heard by: …", the history
+  strip's newest lines, a waiting line greyed, the input with its selection and caret, scrolled so the caret shows, or
+  the strip alone), and the hint ("[T] Speak — …", its key boxed in the words describe_hotkey gives, under the
+  marker's diamond, at (0.50 W, 0.68 H): no render feed yet). The fades are stepped at T6's pace (120 ms in, a 120 ms
+  cross-fade, 350 ms out), and a Speech page's first submitted frame, never transparent, is the one PageShown names
+  (WHY§364 (3)). Toasts are GraceUI notices under EldenNet's keys 3 and 4, each id posted once and let go when the
+  model no longer lists it. The box's input mapping: Enter and the pad's A send, Esc and the pad's B close, Tab skips,
+  the rest goes to the editor; the holder's end by its reason; the opening key's own character within 100 ms
+  swallowed (NPC §5.1).
+- **Through GraceUI, on T6** (`chat.hpp`, Windows): at connect, in the registration window, the white texture and two
+  GRACEUI_FACE_SCALED faces, GraceUI's own EB Garamond (30 px) and Noto Sans (18 px) as the DLL reads them from
+  GraceUI's folder (too late after warm-up: then GraceUI's notices' face); the hotkeys `talk` (T, with the pad chord
+  D-pad Up then View behind `has_cap("pad-chords")`) and `skip-page` (Tab), named "Talk" and "Skip the page";
+  `wake_event`'s handle behind `has_cap("wake")`. Then, from poll: the talk key opens (OpenChat), Tab skips, the
+  display's event sizes the three panels (made for it, at most one set per display), and a hotkey changed is described
+  again. `Overlay::show(model, now)`, after the core's step: each panel submitted at most every 100 ms (the box's
+  first frame at once), shown once it holds a list; the box's own panel shown, then `request_input` with
+  GRACEUI_INPUT_EVENTS for the keyboard, mouse and pad; granted, the holder's events go to the box's own headless Dear
+  ImGui (the line's text, caret and selection; NPC §8.5's 240 characters), the caret set for the IME; refused and not
+  now answered as Close with the holder's id or the reason; the model closing the box answered as Close{Shut} with the
+  draft; a fault releases input first.
 
 ## The F11 view (`view.hpp`)
 
@@ -128,7 +161,8 @@ game's own text entry is not read in v0.1.
 - **Projections only** (PAGES §3): each body is built from `SpaceFacts`, EldenNet's own enums (the DLL maps en-core's
   and en-gal's, a switch each), numbers and words, never game text, flags, stages, prompts, model text, paths or names.
   Absence is silent: a fact EldenNet lacks is left out. `status` is the top bar's lamp (`word`, `tone`, `reason`,
-  `page`; no lamp while EldenNet is starting) and Home's Status card (`items`); `errors` Home's Problems (`checks`: the
+  `page`; no lamp while EldenNet is starting; at L3 "Speaking, in part" in ember and at L4 "Speaking" in moss, each with
+  its reason, words for the owner's review, WHY§422, §442; Dormant over L2 to L4) and Home's Status card (`items`); `errors` Home's Problems (`checks`: the
   failed start in the banner's own words with its fix, a read group stopped, a refused settings file);
   `system.status` System › Status's Health (`items`), EldenNet's parts as lamps (`checks`: the start, reading the game,
   the core, a refused providers file with why in words and its line, the anti-cheat watch, the log, the recording
@@ -138,7 +172,8 @@ game's own text entry is not read in v0.1.
   held, from T1's first, scrubbed again of a SteamID64's shape, PV5). The AI pages' (`SpaceFacts::ai`, en-overlay's
   own `AiFacts`, which the DLL maps from en-llm): `ai.status` the cause every AI page leads with (PAGES §4.4:
   inactive, a refused providers file, no provider, no key or a refused one, no healthy model for Conversation, the
-  gate, or v0.1's observing; at L1 the banner's own words, O95); `providers` the providers' table (the base URL here
+  gate, or v0.1's observing; at L3 and L4 "Conversation is ready: NPCs answer when you speak to them."; at L1 the
+  banner's own words, O95); `providers` the providers' table (the base URL here
   alone, PV2; the key column is the row's secret, D194 and D197, its cells "set", "refused" (its last call refused
   for its key, or for want of one), "none" (no key's place and none asked for, or http:// on another computer) or "",
   never a key; a Remove on each row, D192) and the model list's checks, in words; `health` each provider's state (a
@@ -193,9 +228,46 @@ game's own text entry is not read in v0.1.
   new watch) and when its body changes, no oftener than its rate (`status`, `providers` and `selftest` 4 a second,
   `system.status` and `health` once a second, the rest on change); the logs stream from its oldest row held, in batches of 100, then each new row once a second.
 
+## The Characters pages and the profile editor (`characters.hpp`; PAGES §4.6.4, NPC §4.7; S7.2.b)
+
+On GraceUI 0.2.22's topic families, master list, slow commands, editor block and chosen row (D215 to D218), registered
+in `pages/space.toml` like every page (its 0.2 increment, where PAGES ships Named NPCs in 0.3: the owner wants profiles
+edited now) and served by the space, which owns a `Characters` for them:
+
+- **Characters › Named NPCs** (`characters.named`): the roster as the page's master list, `named.list` (a table, a row
+  per profile EldenNet voices: its key, `persona.<id>` as WHY§387 has it, its first-meeting name and its role); its
+  Profile tab holds the chosen row's general profile (the family `named`, a key-value list of `public.summary`,
+  `public.role`, the `subjects` and our labels for its way of speaking and its news temperament: SP1's fields alone) and
+  "Your notes", an editor block over the family `profiles`. The Allowances and Reactions tabs, and Met and Nearby, wait
+  for the allowances and the sightings store: absent until then (SP5).
+- **The editor's document** (`profiles/<key>`, D217): the four fields a layer may set (NPC §4.5): `instructions`
+  (prose, 35 words, 210 characters), `subjects` (a list of 8 at most, 10 words and 50 characters each), `register` (a
+  choice of NPC §3.3's five, by our labels) and `reply_words_max` (10 to 60), each nullable, null where the layer leaves
+  it to the shipped profile, with the shipped value beside it as its `reference`; its revision (the layer file's `rev`);
+  a state line (Not written yet, Saved, Saved with warnings, Updated since you wrote this, Not loaded, Newer file); the
+  draft's help naming the provider, or `draft_blocked` saying why it cannot run now. A newer file's fields are locked.
+- **Commands**: `profile.check`, `profile.save` {target, rev, doc}, `profile.reset` {target, all, confirm},
+  `profile.restore` {target}, and `profile.draft` {target, notes}, the space's one slow command (D216). Each is checked
+  at the space's entry point (a row's key, a whole revision, the doc's four fields of their kinds, a list item's text
+  taken from `{text, key}`, the notes within 400 characters and not blank, a reset confirmed and of a layer that exists,
+  a draft not blocked), then handed to the DLL as a `ProfileRequest` with GraceUI's reply handle (`Space::command`'s
+  third argument). The DLL answers through `Space::answer_profile` (messages {field, item, level, words}; a save's
+  `chosen` row; a draft's `{draft, notice}`), and the Overlay hands each answer to GraceUI once (`answer_later`, and
+  every step before it publishes, so a save's answer comes before its document's new revision).
+- **Published** like every state topic: the list and each watched member on change, nothing unwatched, and a member
+  whose row is gone not at all. A watch of a member is logged as its family and its key (the log takes words alone).
+- **Sensitive** (protocol 1.8, D221; S11.4.e): `providers.add`, `providers.remove` and `providers.key` are marked, and
+  the settings `debug.panel` and `debug.record_sessions`; GraceUI refuses them from a paired device before EldenNet
+  sees them. An older GraceUI reads past the marks (it has no devices to refuse).
+
 ## Tests
 
-`en_overlay_tests` (doctest): in every build, the view's lines (every section, the newest event and the newest change
+`en_overlay_tests` (doctest): in every build, the Characters pages (`test_characters.cpp`: the page data with its
+master, families, editor and marks, the bodies from invented characters, every refusal at the entry point, the
+requests handed over with their reply handles, the answers later, what is published when, and the spoiler golden: no
+string a projection does not publish reaches a body), the surfaces laid out (the panels' places, text decoded, upper-cased
+and wrapped, a page's, a card's, the box's and the hint's lists checked as GraceUI checks them, the caret and its
+scroll, the fades and PageShown, the toasts' keys, the input mapping and the swallowed character), the view's lines (every section, the newest event and the newest change
 first with their ages, each event's columns and its square's source, full lists within the view's lines and its panel,
 nothing but our words and numbers whatever the status holds, a long word cut), the newest ring (the last N, the newest
 last in its copy, every push counted), the world-state claims, and the space:
@@ -205,7 +277,7 @@ or note), what is published and when, the logs stream's batches and ring, the wo
 (no lamp while starting, the banner's own, absence silent, nothing personal), and in the Linux builds the five fixture
 states' `tests/pages/<state>/topics.json` (EN_UPDATE_FIXTURES=1 writes them anew). In the
 Windows builds, under Wine, the connection against a fake GraceUI of our own (`tests/fake_grace.hpp`; graceui-sys has no
-C mock): ABI 1.2's table, answering as GraceUI 0.2.5 answers and checking as it checks (connect's answers, notices
+C mock): ABI 1.5's table, answering as GraceUI 0.2.25 answers and checking as it checks (connect's answers, notices
 under keys, the registration window, hidden panels, hotkeys, poll's events by the event's size, the space's slots, and
 submit's draw-list checks: counts, bounds, ranges, indices, clip rectangles inside the panel, known textures, the
 stride). The cases: the space registered once for its views, or not without the cap or beside anti-cheat; watched
@@ -214,7 +286,11 @@ display's event and any later kind; connect's request; each
 failed connect headless; the banner replaced in place and withdrawn, the badge, a long text cut; the notice-only mode;
 the world-state claims sent on change, and none without the cap; the view (its atlas before any submit, a hidden panel,
 F11, a list before it shows, lists every step while open, hidden again, an even count of presses leaving it as it
-was); a view that cannot be made; the Mark's hotkey and its presses; F11 or Pause taken by another mod, registered
+was); a view that cannot be made; the surfaces (`test_chat.cpp`: what connect registers, faces too late after warm-up,
+older GraceUIs without the chord or the holder's events, the box opened with its input, typing with the swallowed
+character, the caret, Enter, the line's limit and a kept draft, Esc, danger, focus lost and the model's Shut keeping
+the draft, refused and not now, a page's PageShown and its fade at ten frames a second, Tab, toasts, the hint's key
+words and their change, a fault, and the wait handle); the Mark's hotkey and its presses; F11 or Pause taken by another mod, registered
 unbound with its id; GraceUI gone.
 
 CTest also runs `en_pages_build` (`tools/pages/build.py --check`), `en_pages_lint` (GraceUI's own page lint, from a

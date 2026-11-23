@@ -31,42 +31,43 @@ DataPiler's importer (O73).*
 
 ## The spike package
 
-Built by `tools/spikepkg/build.py` from a clang-cl Release tree with `EN_PROBE` on, labelled `0.1.0-spike.N` (the
-build's `EN_VERSION_LABEL`, shown by `eldennet-engine version`, the launcher's log and eldennet.dll's version
-resource), and never shipped to players. One folder in one zip, the same zip for the same inputs:
+*Since 2026-11-23 (the table-based start: O101, O102, O106; roadmap S10.1.b).* The S0 package is `build.py s0`
+(BUILD.md), labelled `0.1.0-s0.N`, from a clang-cl Release tree with `EN_PROBE` on, never shipped to players. One
+folder in one zip, `EldenNet-S0`, the same zip for the same inputs:
 
 | File | What it is |
 |---|---|
-| `eldennet-launcher.exe` | The launcher and crash watcher, with the dev console, the Mark, `--probe` and `--spike` |
-| `eldennet.dll` | The probe build (`EN_PROBE`; its version resource's SpecialBuild says `probe`) |
-| `eldennet-engine.exe` | The devkit's tool: `lint`, `spike-report`, `rec-stats`, `replay` |
-| `gal\` | The repository's gal/, which `lint --gal` passed: builds.toml, patterns.toml, layouts\, derivations\, leads.toml |
-| `README-<round>.txt` | The owner's steps in plain words: how long, what it does and never does, what to send back, a crash |
+| `eldennet-launcher.exe` | The launcher and crash watcher, with the dev console, the Mark, `--spike` and the tester's panel |
+| `eldennet.dll` | The probe build (`EN_PROBE`; its version resource's SpecialBuild says `probe`): it accepts the build's table while every entry is a lead, and forces S0-D's faults |
+| `eldennet-engine.exe` | The devkit's tool: `spike-report`, `lint` |
+| `vehprobe.dll` | Our own stand-in for a crash reporter's vectored handler (S0-D's first row beside one, O91) |
+| `gal\` | The repository's gal/, which `lint --gal` passed: builds.toml, ids.toml, recipes.toml, leads.toml, derivations\, layouts\ (the build's table); no patterns.toml (O102) |
+| `run-<run>.cmd` | One for each run: the launcher with the run's options, then `spike-report` over `%APPDATA%\EldenNet\spikes` and `recordings`, then a pause |
+| `README-SPIKES.txt` | The owner's steps in plain words: how long, what it does and never does, what to send back, a crash |
 | `LICENSE.txt`, `THIRD_PARTY.md`, `THIRD-PARTY-NOTICES.txt` | EldenNet's licence, its credits, and the libraries' licences |
 | `SHA256SUMS` | The SHA-256 of every other file |
 
-- **0.1.0-spike.1** is R1's (`build.py r1`, `README-R1.txt`): the derivation's in-game round (O89), with R0c's leads
-  in gal/. It runs `eldennet-launcher --probe` and nothing else.
-- **0.1.0-spike.2 and on** are the S0 packages (`build.py s0`, to be added once R1's review has filled gal/): the same
-  files, gal/ with R1's findings, `README-S0.txt` with the steps below, and `fakegame.exe` for the smoke run, which
-  `eldennet-launcher --selftest` will run as the harness's `launcher-eldennet-probe` case does (the plan's §1.2: the
-  fake game started, injected and watched on Windows before the game is).
+R1's package (`0.1.0-spike.1` to `.12`, `build.py r1`, `README-R1.txt`) went with R1 (O106). The smoke run with the
+fake game (`--selftest`) still waits.
 
-## Running the S0 spikes (the plan's §1.2)
+## Running the S0 spikes
 
-Each spike starts from the package's folder, with the game closed and Steam running; the save backup comes first.
-The settings below go in `%APPDATA%\EldenNet\config\settings.toml` (src/eldennet/README.md has the file). Each
-spike-report runs in the same folder, on the files in `%APPDATA%\EldenNet\spikes\` and `recordings\`.
+Each run starts from the package's folder with the game closed and Steam running; the save backup comes first, and no
+settings file is needed: an S0 session records whatever settings.toml says, and S0-D's faults are the probe build's
+own. The launcher's panel beside the game lists each run's tasks. Each run's file runs `spike-report` on what the runs
+so far left, and writes `report-<spike>.json` into the spikes folder; the owner sends that folder (the recordings stay
+on the PC).
 
-| Spike | The owner runs | Then | Time |
+| Spike | The run files | What runs while the table is incomplete (2026-11-23: `game_state` and 36 fields to place, WHY§459) | Time |
 |---|---|---|---|
-| Smoke | the test programs, then `eldennet-launcher --selftest` (spike.2 on) | its pass and fail counts | 10 min |
-| S0-A | `eldennet-launcher --spike s0a --runs 20` (early, the default), then `--spike s0a --runs 20 --inject-at title` (late); each run reaches the title and is closed. Third-party rows (O91): the same beside each mod, one log each | `eldennet-engine spike-report s0a --log <early> --log <late> --out s0a.json` | about 2 h, unattended |
-| S0-B | `debug = { record_sessions = true }`, then `eldennet-launcher --spike s0b`: two hours of normal play (open world, a dungeon, fights, deaths, fast travel, menus) | `spike-report s0b --recording <file> --log <s0b log> --out s0b.json`, and `rec-stats <file> --out s0b-stats.json` | 2 h |
-| S0-C | `record_sessions = true`; `eldennet-launcher --spike s0c` once with `--appid-method file`, once with `env`, noting the game's own online state; solo, then Seamless Co-op with a partner (O91) | `spike-report s0c --recording <each> --log <each> --out s0c.json`, and whether an online menu showed | 1 h |
-| S0-D | `record_sessions = true` and `probe = { fault_group = "camera", fault_every = 50 }`; `--spike s0d` alone, beside the Steam overlay, with `--also <a vectored-handler DLL>`, beside ERSC, once with `gal = { copy = "rpm" }`; then `--spike s0d-crash --runs 5` at the title | `spike-report s0d --recording <file> --log <s0d log> --log <s0d-crash log> --out s0d.json` | 1 h |
+| S0-A | `run-S0A-early.cmd` (`--spike s0a --runs 20`, early) and `run-S0A-late.cmd` (`--inject-at title`); each start is closed by the launcher | Whole: the start ends at the discovery banner (L1), the table's ids checked at the start and again | about 1 h, unattended |
+| S0-B | `run-S0B.cmd` (`--spike s0b`): two hours of normal play | Waits: the launcher says so at the title, and the owner quits | 2 h, a few minutes today |
+| S0-C | `run-S0C-file.cmd`, `run-S0C-env.cmd` (both appid methods); solo, then Seamless Co-op with a partner (O91) | The offline start and the connections; the gate waits | 20 min |
+| S0-D | `run-S0D.cmd`, `run-S0D-veh.cmd` (beside `vehprobe.dll`), then `run-S0D-crash.cmd` (five crashes on request) | The trial's 40 forced faults and the crashes; the breakers wait | 40 min |
 
 DESIGN §16.1's rules, as spike-report applies them (src/en-tools/README.md): S0-A 20 of 20 runs per load mode reach
-Ready or L1 and none crashes; S0-B no fault and no trip over two hours, the task's p99 at most 0.5 ms; S0-C the gate
-never left open in a session that is not one's own solo world, no connection beyond the PC, no online menu (the
-owner's); S0-D at least 20 forced faults caught, a breaker tripped, and every forced crash recorded by the watcher.
+Ready or L1 and none crashes, and every run's table passes its checks at the start and again, with no call; S0-B a ready
+start, no confirmed fault and no trip over two hours, the task's p99 at most 0.5 ms; S0-C the gate never left open in a
+session that is not one's own solo world, no connection beyond the PC, no online menu (the owner's); S0-D at least 20
+forced faults caught, a breaker tripped, and every forced crash recorded by the watcher. What waits for the layout is
+not measured, never failed.

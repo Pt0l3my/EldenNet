@@ -36,9 +36,9 @@ constexpr std::int64_t kSettingsSchema = 2;
 constexpr std::array<std::string_view, 8> kQuantLevels = {"int4", "fp4", "fp6", "int8", "fp8", "fp16", "bf16", "fp32"};
 
 // Fields the client writes itself; extra_body may not set them.
-constexpr std::array<std::string_view, 11> kClientFields = {
+constexpr std::array<std::string_view, 12> kClientFields = {
     "model", "messages", "stream", "stream_options", "max_tokens", "max_completion_tokens",
-    "temperature", "response_format", "logprobs", "top_logprobs", "n"};
+    "temperature", "response_format", "logprobs", "top_logprobs", "n", "stop"};
 
 struct Ctx {
   std::string file;

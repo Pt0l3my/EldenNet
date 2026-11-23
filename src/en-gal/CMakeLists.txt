@@ -1,18 +1,17 @@
 # en-gal: the game access layer (ARCH §6). Three libraries:
 # - en_gal, its offline part, which builds with every compiler: the PE32+ reader (pe), the byte patterns and their
 #   matcher (patterns), gal/builds.toml with the version gate (builds), the layouts (layout), and the derivation kit
-#   (x86, rtti, fd4, derive, report), with R1's probe report (probe_report: the launcher's --probe and en-tools' lint
-#   check R1's reports with its vocabulary). en-launcher and en-tools use it off game (ARCH §2.3). With an MSVC-like
+#   (x86, rtti, fd4, derive, report). en-launcher and en-tools use it off game (ARCH §2.3). With an MSVC-like
 #   compiler it also holds the guarded copy (reader.cpp: structured exception handling, __try/__except, ARCH §2.6),
 #   which the clang-cl build (cmake/clang-cl-xwin.cmake) adds and GCC's, Clang's and MinGW-w64's leave out.
 # - en_gal_game, the part that runs in the game process (part 4 of the first in-game build): GuardedReader, the
 #   groups and their breakers, discovery over the live image, ErBackend's reads, the task, all portable and tested on
 #   Linux over the tests' FakeSys; and, with an MSVC-like compiler, NativeSys (sys/), the platform seam in game.
-# - en_gal_game_probe, the same with the probe option (EN_PROBE, ARCH §2.5, §6.10: R1's invariant searches, slot
+# - en_gal_game_probe, the same with the probe option (EN_PROBE, ARCH §2.5, §6.10: the invariant searches, slot
 #   counts and fault injection). It is built for the tests and the test DLL, and when EN_PROBE is on; a release build
 #   links en_gal_game, and CI's `options` stage refuses EN_PROBE there (ARCH §12.1).
 # Every module the DLL links keeps en_dll_module's rules, and none knows the game.
-option(EN_PROBE "Build the probe option of en-gal (R1's in-game round; never in a release)" OFF)
+option(EN_PROBE "Build the probe option of en-gal (the read-only in-game round; never in a release)" OFF)
 
 set(EN_GAL_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/pe.cpp
@@ -34,7 +33,7 @@ set(EN_GAL_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/derive.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/derive_leads.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/derive_report.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_report.cpp)
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/lodestar.cpp)
 if(MSVC)
   list(APPEND EN_GAL_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/reader.cpp)
 else()
@@ -55,12 +54,11 @@ set(EN_GAL_GAME_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/backend.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/readers.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/task.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/lodestar_trial.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/lodestar_chars.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/lodestar_parts.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/probe.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_callee.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_memory.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_hub.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_sites.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_map.cpp)
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_memory.cpp)
 if(MSVC)
   # NativeSys, the platform seam in game (sys/): structured exception handling and Win32, clang-cl only.
   list(APPEND EN_GAL_GAME_SOURCES
@@ -101,18 +99,19 @@ if(EN_BUILD_TESTS)
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_resolve.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_shape.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_recipes.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_probe_report.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_lodestar.cpp
     # The in-game part, on FakeSys (part 4)
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/alloc_count.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/fake_sys.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/fake_world.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_guarded.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_discovery.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_discovery_table.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_lodestar_game.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_backend.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_task.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_probe.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_probe_request.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_probe_map.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_frame.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_probe.cpp)
   if(MSVC)
     list(APPEND EN_GAL_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_reader.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_native_sys.cpp)

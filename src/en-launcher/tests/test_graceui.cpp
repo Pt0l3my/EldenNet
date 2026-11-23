@@ -91,10 +91,10 @@ TEST_CASE("GraceUI's pre-flight: every listed file matches, the ABI and the floo
   f.put("graceui.dll", kDll);
   f.put("fonts/NotoSans-Regular.ttf", kFont);
   f.put("user/settings.toml", "not listed: GraceUI's own, at run time (D84)");
-  f.manifest("0.2.12", "[1, 2]", Folder::entry("graceui.dll", kDll) + Folder::entry("fonts/NotoSans-Regular.ttf", kFont));
+  f.manifest("0.2.22", "[1, 5]", Folder::entry("graceui.dll", kDll) + Folder::entry("fonts/NotoSans-Regular.ttf", kFont));
   const GraceReport r = check_graceui(f.grace);
   CHECK(r.result == GraceCheck::Ok);
-  CHECK(r.version == std::array<std::uint16_t, 3>{0, 2, 12});
+  CHECK(r.version == std::array<std::uint16_t, 3>{0, 2, 22});
   CHECK(r.abi_major == 1);
   CHECK(r.files == 2);
   CHECK(r.checked == 2);
@@ -118,7 +118,7 @@ TEST_CASE("GraceUI's pre-flight: each way it fails, named without a path") {
   SUBCASE("a file missing, of another size, or another hash") {
     Folder f;
     f.put("graceui.dll", kDll);
-    f.manifest("0.2.12", "[1, 2]", Folder::entry("graceui.dll", kDll) + Folder::entry("fonts/NotoSans-Regular.ttf", kFont));
+    f.manifest("0.2.22", "[1, 5]", Folder::entry("graceui.dll", kDll) + Folder::entry("fonts/NotoSans-Regular.ttf", kFont));
     GraceReport r = check_graceui(f.grace);
     CHECK(r.result == GraceCheck::FileMissing);
     CHECK(r.file == "fonts/NotoSans-Regular.ttf");
@@ -142,10 +142,10 @@ TEST_CASE("GraceUI's pre-flight: each way it fails, named without a path") {
     GraceReport r = check_graceui(f.grace);
     CHECK(r.result == GraceCheck::AbiMajor);
     CHECK(graceui_problem(r) == "this GraceUI speaks ABI 2, and EldenNet needs ABI 1");
-    f.manifest("0.2.11", "[1, 2]", Folder::entry("graceui.dll", kDll));
+    f.manifest("0.2.21", "[1, 5]", Folder::entry("graceui.dll", kDll));
     r = check_graceui(f.grace);
     CHECK(r.result == GraceCheck::TooOld);
-    CHECK(graceui_problem(r) == "this GraceUI is version 0.2.11, and EldenNet needs 0.2.12 or newer");
+    CHECK(graceui_problem(r) == "this GraceUI is version 0.2.21, and EldenNet needs 0.2.22 or newer");
   }
 }
 
@@ -183,8 +183,8 @@ TEST_CASE("graceui.toml: what it must hold, each refusal in fixed words") {
 }
 
 // graceui-manifest.toml (beside this file, compiled in by CMakeLists.txt) is what GraceUI's own writer,
-// tools/release/manifest.py at GraceUI a9aac78 (D165), wrote for an invented GraceUI folder of these three files:
-//   python3 -I tools/release/manifest.py write FOLDER --released 2026-11-21
+// tools/release/manifest.py at GraceUI 92fc19c (D165), wrote for an invented GraceUI folder of these three files:
+//   python3 -I tools/release/manifest.py write FOLDER --released 2026-11-23
 // Its form is the one every GraceUI build now lays out (`GraceUI/` beside `bin/`): a comment, `graceui`, `abi`,
 // `protocol`, `caps` (empty), `released`, a blank line, then `[files]` in the order of their names.
 namespace {
@@ -209,9 +209,9 @@ TEST_CASE("GraceUI's pre-flight: a graceui.toml written by GraceUI's own manifes
   REQUIRE(text.find("released = \"") != std::string::npos);
   auto m = read_graceui_toml(text);
   REQUIRE(m);
-  CHECK(m->version == std::array<std::uint16_t, 3>{0, 2, 12});  // GraceUI a9aac78's manifest.py, at EldenNet's floor
+  CHECK(m->version == std::array<std::uint16_t, 3>{0, 2, 25});  // GraceUI 92fc19c's manifest.py, above EldenNet's floor
   CHECK(m->abi_major == 1);
-  CHECK(m->abi_minor == 2);
+  CHECK(m->abi_minor == 5);
   REQUIRE(m->files.size() == 3);
   CHECK(m->files[0].name == "LICENSE.txt");
   CHECK(m->files[1].name == "NOTICE.txt");
@@ -253,4 +253,37 @@ TEST_CASE("E12: GraceUI's pre-flight, in E08's manner") {
   const std::string text = error_text(ErrorCode::E12, "graceui.dll does not match graceui.toml");
   CHECK(text.find("missing or damaged: graceui.dll does not match graceui.toml. The game starts") != std::string::npos);
   CHECK(error_action(ErrorCode::E12).empty());
+}
+
+TEST_CASE("E13: a test package's GraceUI against the game's, by graceui.toml") {
+  Folder pkg, game;
+  const std::string files = Folder::entry("graceui.dll", kDll) + Folder::entry("fonts/face.ttf", kFont);
+  pkg.manifest("0.2.27", "[1, 6]", files);
+  const auto want = read_graceui_manifest(pkg.grace / "graceui.toml");
+  REQUIRE(want);
+  CHECK(!read_graceui_manifest(game.grace / "graceui.toml"));  // no GraceUI in the game's folder
+  const auto have_of = [&](const std::string& version, const std::string& abi, const std::string& listed) {
+    game.manifest(version, abi, listed);
+    const auto have = read_graceui_manifest(game.grace / "graceui.toml");
+    REQUIRE(have);
+    return graceui_differs(*want, *have);
+  };
+  CHECK(have_of("0.2.27", "[1, 6]", files).empty());
+  CHECK(have_of("0.2.27", "[1, 6]", Folder::entry("fonts/face.ttf", kFont) + Folder::entry("graceui.dll", kDll))
+            .empty());  // the files' order is not compared
+  CHECK(have_of("0.2.24", "[1, 6]", files) == "the game's GraceUI is version 0.2.24, and this package carries 0.2.27");
+  CHECK(have_of("0.2.27", "[1, 5]", files) == "the game's GraceUI speaks ABI 1.5, and this package's 1.6");
+  const std::string changed = Folder::entry("graceui.dll", kDll + "x") + Folder::entry("fonts/face.ttf", kFont);
+  CHECK(have_of("0.2.27", "[1, 6]", changed) == "both are version 0.2.27, but their graceui.dll differ");
+  CHECK(have_of("0.2.27", "[1, 6]", Folder::entry("graceui.dll", kDll)) ==
+        "both are version 0.2.27, but the game's lacks fonts/face.ttf");
+  CHECK(have_of("0.2.27", "[1, 6]", files + Folder::entry("grace-standin.dll", kDll)) ==
+        "both are version 0.2.27, but the game's has grace-standin.dll besides");
+  // E13 names what differs and what to do, offers "Start anyway", and stops with its own exit code otherwise.
+  const std::string text =
+      error_text(ErrorCode::E13, "the game's GraceUI is version 0.2.24, and this package carries 0.2.27");
+  CHECK(text.find("not the one this test package carries: the game's GraceUI is version 0.2.24") != std::string::npos);
+  CHECK(text.find("copy the GraceUI folder from this package into the game's folder") != std::string::npos);
+  CHECK(error_action(ErrorCode::E13) == "Start anyway");
+  CHECK(exit_code(ErrorCode::E13) == 23);
 }

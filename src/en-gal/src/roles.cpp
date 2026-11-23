@@ -193,6 +193,7 @@ bool is_int(FieldType t) {
     case FieldType::U64:
     case FieldType::I32:
     case FieldType::Bool8:
+    case FieldType::Bits:
     case FieldType::Handle: return true;
     default: return false;
   }
@@ -284,7 +285,7 @@ Bound::Bound(const Layout& layout) noexcept {
 std::uint32_t Bound::size_of(Cls c) const noexcept {
   const ClassLayout* k = cls(c);
   if (k == nullptr) return 0;
-  return k->copy_size ? *k->copy_size : k->stride.value_or(0);
+  return k->buffer_size();  // the copy (or the stride, for an element class), and the far fields' own bytes
 }
 
 std::uint32_t Bound::stride_of(Cls c) const noexcept {

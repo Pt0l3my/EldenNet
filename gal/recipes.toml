@@ -18,7 +18,67 @@ section = ".text"
 steps = ["load_slot", "test_loaded", "branch_set_short", "address_arg1", "call_relative"]
 gives = { static = 0, class = 3, getter = 4 }
 path_suffix = "FD4Singleton.h"      # ARCH 6.2, the finder's step 2
-# expect_matches is left at its widest until the shape has been counted on the owner's own executable (step L3): the
-# withdrawn pattern had 7,151 hits there, of which 7,081 were accepted as accessors (R0c).
+# Counted on the owner's own executable of 2.7.2.0 WW on 2026-11-22 (docs/ops/probes/2026-11-22-l3.md): the shape
+# stands at 7,077 places, each accepted, reaching 217 statics through 217 class objects, one of each for the other.
+# The withdrawn pattern had 7,151 hits and accepted 7,081: the same 7,077 and 4 more, where the test is of another
+# register than the one just loaded, so the load there is of something else than the manager's slot. When a second
+# build is counted the range widens to hold both.
+expect_matches = [7077, 7077]
 builds = []
 provenance = { method = "own-derivation", leads = ["ARCH \u00A76.2", "ER01 \u00A74"], evidence = "docs/ops/probes/2026-11-16-r0c.md", date = "2026-11-21" }
+
+# The accessor's other shapes (leads, 2026-11-22; counted on 2.7.2.0 WW in the third read-only round the same day). The compiler does not write every
+# accessor the same way. R0c's own count of the places that load the accessor's path (docs/ops/probes/2026-11-16-r0c.md)
+# found, beside the shape above, 26 places with five other heads, 1,379 that follow a 64-bit load of a static and 676
+# that follow a compare of a RIP-relative quadword with zero, none of which the shape above stands at. And the second
+# in-game round (docs/ops/probes/2026-11-22-l5.md) found a manager's object behind slots that are none of the 217
+# statics. Each recipe below is one way the same accessor may be written; the finder counts each beside the accessor's
+# own (hits, accepted, the statics it reaches that are new) and the in-game round names over the new statics too. A
+# variant has no `expect_matches` until a round has counted it; none replaces the accessor's recipe, which discovery
+# reads. Their notes are derivations/<id>.md.
+# The count (docs/ops/probes/2026-11-22-l5.md, "The third round in game"): the four below stand at 1,279 places, every
+# one accepted, and reach 91 statics: 89 of the accessor's own 217, each with the same class object, and 2 new ones.
+# A fifth variant, accessor_gap_near (the gap with a 32-bit branch), stood nowhere and is withdrawn.
+[[recipe]]
+id = "accessor_near"
+kind = "accessor"
+section = ".text"
+steps = ["load_slot", "test_loaded", "branch_set_near", "address_arg1", "call_relative"]
+gives = { static = 0, class = 3, getter = 4 }
+path_suffix = "FD4Singleton.h"
+expect_matches = [2, 2]
+builds = []
+provenance = { method = "own-derivation", leads = ["ARCH \u00A76.2"], evidence = "docs/ops/probes/2026-11-16-r0c.md", date = "2026-11-22" }
+
+[[recipe]]
+id = "accessor_gap"
+kind = "accessor"
+section = ".text"
+steps = ["load_slot", "skip_one", "test_loaded", "branch_set_short", "address_arg1", "call_relative"]
+gives = { static = 0, class = 4, getter = 5 }
+path_suffix = "FD4Singleton.h"
+expect_matches = [675, 675]
+builds = []
+provenance = { method = "own-derivation", leads = ["ARCH \u00A76.2", "ER03"], evidence = "docs/ops/probes/2026-11-16-r0c.md", date = "2026-11-22" }
+
+[[recipe]]
+id = "accessor_compare"
+kind = "accessor"
+section = ".text"
+steps = ["compare_slot", "branch_set_short", "address_arg1", "call_relative"]
+gives = { static = 0, class = 2, getter = 3 }
+path_suffix = "FD4Singleton.h"
+expect_matches = [598, 598]
+builds = []
+provenance = { method = "own-derivation", leads = ["ARCH \u00A76.2"], evidence = "docs/ops/probes/2026-11-16-r0c.md", date = "2026-11-22" }
+
+[[recipe]]
+id = "accessor_compare_near"
+kind = "accessor"
+section = ".text"
+steps = ["compare_slot", "branch_set_near", "address_arg1", "call_relative"]
+gives = { static = 0, class = 2, getter = 3 }
+path_suffix = "FD4Singleton.h"
+expect_matches = [4, 4]
+builds = []
+provenance = { method = "own-derivation", leads = ["ARCH \u00A76.2"], evidence = "docs/ops/probes/2026-11-16-r0c.md", date = "2026-11-22" }

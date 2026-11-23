@@ -1,6 +1,5 @@
-// The whole-memory search (probe.hpp's search_memory; EN_PROBE only; WHY§227, WHY§235): after R1's call, every committed
-// and readable region of the process read through the crash-guarded copy for our task object's address, our fake
-// vtable's and its slots'. Numbers only: the report keeps counts, kinds and offsets, never a byte that was read.
+// The probe option's searches over the process's regions (probe.hpp; EN_PROBE only): which regions a search reads,
+// and the object scan. Numbers only: nothing keeps a byte that was read.
 #include "en/gal/probe.hpp"
 
 #if EN_PROBE
@@ -9,273 +8,6 @@
 #include <cstring>
 
 namespace en::gal::probe {
-
-namespace {
-
-constexpr std::size_t kMaxHits = 8;  // of each side and kind
-constexpr std::uint64_t kPage = 0x1000;
-constexpr std::size_t kMaxModules = 16;  // images whose headers are kept for their hits' sections
-constexpr std::uint64_t kMaxRegions = 1u << 22;  // regions walked at most (a process has thousands)
-constexpr std::uint32_t kScnCode = 0x20, kScnExecute = 0x2000'0000, kScnRead = 0x4000'0000, kScnWrite = 0x8000'0000;
-constexpr std::uint64_t kLow48 = 0xFFFF'FFFF'FFFFull;
-
-std::optional<std::uint32_t> le32(std::span<const std::byte> b, std::uint64_t at) noexcept {
-  if (at > b.size() || b.size() - at < 4) return std::nullopt;
-  std::uint32_t v = 0;
-  std::memcpy(&v, b.data() + at, 4);
-  return v;
-}
-std::optional<std::uint32_t> le16(std::span<const std::byte> b, std::uint64_t at) noexcept {
-  if (at > b.size() || b.size() - at < 2) return std::nullopt;
-  std::uint16_t v = 0;
-  std::memcpy(&v, b.data() + at, 2);
-  return v;
-}
-
-std::uint32_t distinct(const std::vector<std::uint8_t>& seen) noexcept {
-  return static_cast<std::uint32_t>(std::count(seen.begin(), seen.end(), std::uint8_t{1}));
-}
-
-class Search {
- public:
-  Search(SysLayer& sys, const MemorySearchSpec& spec) : sys_(sys), spec_(spec), buf_(kMaxCopyBytes) {
-    out_.own_known = spec.own_known;
-    skip_ = spec.skip;
-    const std::byte* p = buf_.data();
-    std::uint64_t at = 0;
-    std::memcpy(&at, &p, sizeof at);  // the buffer's own address, as a number: it is never read
-    skip_.push_back(AddressRange{at, at + buf_.size()});
-    for (std::vector<MemoryHit>& list : lists_) list.reserve(kMaxHits);
-    for (std::vector<MemoryHit>& list : tagged_) list.reserve(kMaxHits);
-    out_.request_searched = spec.request_vtable != 0;  // spike.11
-    out_.request_hits.reserve(kMaxRequestHits);
-    out_.request_at.reserve(kMaxRequestHits);
-    heads_.reserve(kMaxModules);
-    end_ = spec.target + std::max<std::uint64_t>(spec.object_bytes, 1);
-    for (std::size_t i = 0; i < spec.slots.size(); ++i) {
-      if (spec.slots[i] != 0) slots_.emplace_back(spec.slots[i], static_cast<std::uint32_t>(i));
-    }
-    std::sort(slots_.begin(), slots_.end());
-    game_slots_.assign(spec.slots.size(), 0);
-    own_slots_.assign(spec.slots.size(), 0);
-  }
-
-  MemorySearch run(const RegionQuery& query) {
-    const std::uint64_t start = sys_.now_us();
-    std::uint64_t at = kLowestAddress;
-    bool stop = false;
-    for (std::uint64_t n = 0; at < kAddressEnd && spec_.target != 0 && n < kMaxRegions; ++n) {
-      const std::optional<MemoryRegion> r = query(at);
-      if (!r || r->size == 0 || r->base + r->size <= at) break;
-      at = r->base + r->size;
-      if (!r->committed) continue;
-      ++out_.regions;
-      out_.committed_bytes += r->size;
-      if (!searchable(*r)) {
-        out_.unread_bytes += r->size;
-        continue;
-      }
-      if (stop) continue;  // past a cap: the regions are walked for the committed total, never read
-      bool any = false;
-      const std::uint64_t end = r->base + r->size;
-      for (std::uint64_t p = r->base; p < end;) {
-        if (out_.read_bytes >= spec_.max_bytes) {
-          out_.stopped = SearchStop::Bytes;
-        } else if (sys_.now_us() - start >= spec_.max_us) {
-          out_.stopped = SearchStop::Time;
-        }
-        if (out_.stopped != SearchStop::Done) {
-          stop = true;
-          break;
-        }
-        const std::uint64_t len = std::min<std::uint64_t>(kMaxCopyBytes, end - p);
-        any = chunk(p, len, *r) || any;
-        p += len;
-      }
-      if (any) ++out_.read_regions;
-    }
-    out_.ms = (sys_.now_us() - start) / 1000;
-    out_.slot_distinct = distinct(game_slots_);
-    out_.own_slot_distinct = distinct(own_slots_);
-    for (const std::vector<MemoryHit>& list : lists_) out_.hits.insert(out_.hits.end(), list.begin(), list.end());
-    for (const std::vector<MemoryHit>& list : tagged_) {
-      out_.tagged_hits.insert(out_.tagged_hits.end(), list.begin(), list.end());
-    }
-    return std::move(out_);
-  }
-
- private:
-  enum class Got : std::uint8_t { Read, Fault, Refused };
-
-  [[nodiscard]] bool kept_out(std::uint64_t at, std::uint64_t len) const noexcept {
-    return std::any_of(skip_.begin(), skip_.end(), [&](const AddressRange& r) { return r.overlaps(at, len); });
-  }
-
-  // One chunk: whole when no stack or kept-out range overlaps it and it copies; else page by page.
-  bool chunk(std::uint64_t at, std::uint64_t len, const MemoryRegion& r) {
-    if (!kept_out(at, len) && !sys_.stacks().overlaps(at, len)) {
-      const Got g = copy_scan(at, len, r);
-      if (g != Got::Fault) return g == Got::Read;
-    }
-    bool any = false;
-    for (std::uint64_t q = at; q < at + len; q += kPage) {
-      const std::uint64_t n = std::min(kPage, at + len - q);
-      if (kept_out(q, n)) {
-        out_.stack_bytes += n;
-        continue;
-      }
-      const Got g = copy_scan(q, n, r);
-      if (g == Got::Fault) ++out_.faults;
-      any = any || g == Got::Read;
-    }
-    return any;
-  }
-
-  Got copy_scan(std::uint64_t at, std::uint64_t len, const MemoryRegion& r) {
-    if (const auto why = implausible(at, len, 8, sys_.stacks())) {
-      (*why == FaultKind::Stack ? out_.stack_bytes : out_.unread_bytes) += len;
-      return Got::Refused;
-    }
-    const std::span<std::byte> dst(buf_.data(), static_cast<std::size_t>(len));
-    if (!sys_.copier().copy(at, dst).copied) return Got::Fault;
-    out_.read_bytes += len;
-    for (std::size_t o = 0; o + 8 <= dst.size(); o += 8) {
-      std::uint64_t w = 0;
-      std::memcpy(&w, dst.data() + o, 8);
-      if ((w >> 48) != 0) {  // spike.9: our object's or vtable's address under a high-bit tag
-        const std::uint64_t low = w & kLow48;
-        if (low == spec_.target) {
-          tagged(at + o, PointsTo::Object, w >> 48, dst, o, r);
-        } else if (low == spec_.vtable && spec_.vtable != 0) {
-          tagged(at + o, PointsTo::Vtable, w >> 48, dst, o, r);
-        }
-        continue;
-      }
-      if (w == spec_.request_vtable && w != 0) {  // spike.11: a request object of the game's
-        request(at + o, dst, o, r);
-      } else if (w >= spec_.target && w < end_) {
-        hit(at + o, PointsTo::Object, w - spec_.target, std::nullopt, dst, o, r);
-      } else if (w == spec_.vtable && w != 0) {
-        hit(at + o, PointsTo::Vtable, 0, std::nullopt, dst, o, r);
-      } else if (!slots_.empty() && w >= slots_.front().first && w <= slots_.back().first) {
-        const auto it = std::lower_bound(slots_.begin(), slots_.end(), std::pair<std::uint64_t, std::uint32_t>{w, 0});
-        if (it != slots_.end() && it->first == w) hit(at + o, PointsTo::Slot, 0, it->second, dst, o, r);
-      }
-    }
-    return Got::Read;
-  }
-
-  [[nodiscard]] bool own(const MemoryRegion& r) const noexcept {
-    if (r.allocation_base == 0) return false;
-    if (spec_.own_base != 0 && r.allocation_base == spec_.own_base) return true;
-    return std::find(spec_.own_bases.begin(), spec_.own_bases.end(), r.allocation_base) != spec_.own_bases.end();
-  }
-
-  void hit(std::uint64_t at, PointsTo what, std::uint64_t offset, std::optional<std::uint32_t> slot,
-           std::span<const std::byte> d, std::size_t o, const MemoryRegion& r) {
-    const bool mine = own(r);
-    switch (what) {
-      case PointsTo::Object:
-        ++(offset == 0 ? (mine ? out_.own_found : out_.found) : (mine ? out_.own_inside : out_.inside));
-        break;
-      case PointsTo::Vtable:
-        ++(mine ? out_.own_vtable_found : out_.vtable_found);
-        break;
-      case PointsTo::Slot:
-        ++(mine ? out_.own_slot_found : out_.slot_found);
-        if (slot) (mine ? own_slots_ : game_slots_)[*slot] = 1;
-        break;
-    }
-    std::vector<MemoryHit>& list = lists_[(mine ? 3u : 0u) + static_cast<std::size_t>(what)];
-    if (list.size() >= kMaxHits) return;
-    MemoryHit h = where(at, mine, d, o, r);
-    h.points_to = what;
-    h.slot = slot;
-    h.offset = offset;
-    list.push_back(h);
-  }
-
-  // Spike.11: a word equal to the request's vtable address: ours counted apart, the game's kept with its address.
-  void request(std::uint64_t at, std::span<const std::byte> d, std::size_t o, const MemoryRegion& r) {
-    const bool mine = own(r);
-    ++(mine ? out_.own_request_found : out_.request_found);
-    if (mine || out_.request_hits.size() >= kMaxRequestHits) return;
-    out_.request_hits.push_back(where(at, false, d, o, r));
-    out_.request_at.push_back(at);
-  }
-
-  // Spike.9: a word whose low 48 bits are our object's (or vtable's) address and whose high 16 bits are `tag`.
-  void tagged(std::uint64_t at, PointsTo what, std::uint64_t tag, std::span<const std::byte> d, std::size_t o,
-              const MemoryRegion& r) {
-    const bool mine = own(r);
-    if (what == PointsTo::Object) {
-      ++(mine ? out_.own_tagged_found : out_.tagged_found);
-    } else {
-      ++(mine ? out_.own_vtable_tagged_found : out_.vtable_tagged_found);
-    }
-    std::vector<MemoryHit>& list = tagged_[(mine ? 2u : 0u) + (what == PointsTo::Object ? 0u : 1u)];
-    if (list.size() >= kMaxHits) return;
-    MemoryHit h = where(at, mine, d, o, r);
-    h.points_to = what;
-    h.tag = static_cast<std::uint32_t>(tag);
-    list.push_back(h);
-  }
-
-  // Where a hit is: its region, its module and section in an image, and the group's index near it.
-  MemoryHit where(std::uint64_t at, bool mine, std::span<const std::byte> d, std::size_t o, const MemoryRegion& r) {
-    MemoryHit h;
-    h.own = mine;
-    h.region = r.kind;
-    h.protect = r.protect;
-    if (r.kind == RegionKind::Image) {
-      h.module = r.allocation_base == spec_.game_base ? ModuleKind::Game
-                 : spec_.own_base != 0 && r.allocation_base == spec_.own_base ? ModuleKind::Ours
-                                                                             : ModuleKind::Other;
-      const std::uint64_t rva = at - r.allocation_base;
-      h.section = section_of(r.allocation_base, rva);
-      if (h.module != ModuleKind::Other && rva <= 0xFFFF'FFFFull) h.rva = static_cast<std::uint32_t>(rva);
-    }
-    const std::size_t lo = o >= 64 ? o - 64 : 0, hi = std::min(d.size(), o + 72);
-    for (std::size_t k = lo; k + 4 <= hi; k += 4) {
-      std::uint32_t v = 0;
-      std::memcpy(&v, d.data() + k, 4);
-      if (v == spec_.group_index) ++h.near_group;
-    }
-    return h;
-  }
-
-  // An image's section kind at `rva`, from its first page, copied once per image (at most kMaxModules of them).
-  SectionKind section_of(std::uint64_t base, std::uint64_t rva) {
-    for (const Headers& h : heads_) {
-      if (h.base == base) return h.read ? section_kind(h.bytes, rva) : SectionKind::None;
-    }
-    if (heads_.size() >= kMaxModules) return SectionKind::None;
-    heads_.push_back(Headers{base, {}, false});
-    Headers& h = heads_.back();
-    h.read = !implausible(base, kPage, 8, sys_.stacks()) && sys_.copier().copy(base, h.bytes).copied;
-    return h.read ? section_kind(h.bytes, rva) : SectionKind::None;
-  }
-
-  struct Headers {
-    std::uint64_t base = 0;
-    std::array<std::byte, kPage> bytes{};
-    bool read = false;
-  };
-
-  SysLayer& sys_;
-  const MemorySearchSpec& spec_;
-  std::vector<std::byte> buf_;
-  std::vector<AddressRange> skip_;
-  std::uint64_t end_ = 0;
-  std::array<std::vector<MemoryHit>, 6> lists_;  // the game's, then ours: each our object's, our vtable's, a slot's
-  std::array<std::vector<MemoryHit>, 4> tagged_;  // spike.9: the game's, then ours: our object's tagged, our vtable's
-  std::vector<std::pair<std::uint64_t, std::uint32_t>> slots_;  // (address, index), by address
-  std::vector<std::uint8_t> game_slots_, own_slots_;            // which slots each side's words name
-  std::vector<Headers> heads_;
-  MemorySearch out_;
-};
-
-}  // namespace
 
 bool searchable(const MemoryRegion& r) noexcept {
   if (!r.committed || (r.protect & (kPageGuard | kPageNoCache | kPageWriteCombine)) != 0) return false;
@@ -288,38 +20,201 @@ bool searchable(const MemoryRegion& r) noexcept {
   }
 }
 
-SectionKind section_kind_of(std::uint32_t ch) noexcept {
-  if ((ch & (kScnExecute | kScnCode)) != 0) return SectionKind::Code;
-  if ((ch & kScnWrite) != 0) return SectionKind::Data;
-  if ((ch & kScnRead) != 0) return SectionKind::Rdata;
-  return SectionKind::Other;
+// ---- The object scan ----
+
+ObjectScan::ObjectScan(RegionQuery regions, std::vector<Target> targets, std::vector<std::uint32_t> primary,
+                       std::uint64_t base, std::uint64_t size, std::vector<std::uint64_t> own)
+    : regions_(std::move(regions)),
+      targets_(std::move(targets)),
+      primary_(std::move(primary)),
+      base_(base),
+      size_(size),
+      own_(std::move(own)) {
+  std::sort(targets_.begin(), targets_.end(), [](const Target& a, const Target& b) { return a.vtable < b.vtable; });
+  std::sort(primary_.begin(), primary_.end());
+  chunk_.assign(kChunk, std::byte{0});
+  back_.assign(kBack, std::byte{0});
+  if (targets_.empty() || !regions_) done_.store(true, std::memory_order_release);
 }
 
-SectionKind section_kind(std::span<const std::byte> h, std::uint64_t rva) noexcept {
-  if (h.size() < 0x40 || h[0] != std::byte{'M'} || h[1] != std::byte{'Z'}) return SectionKind::Other;
-  const auto nt = le32(h, 0x3C);
-  if (!nt || le32(h, *nt) != 0x0000'4550u) return SectionKind::Other;  // "PE\0\0"
-  const auto count = le16(h, std::uint64_t{*nt} + 6);
-  const auto optional = le16(h, std::uint64_t{*nt} + 20);
-  if (!count || !optional) return SectionKind::Other;
-  const std::uint64_t table = std::uint64_t{*nt} + 24 + *optional;
-  std::optional<std::uint32_t> first;
-  for (std::uint32_t i = 0; i < *count && i < 96; ++i) {
-    const std::uint64_t s = table + 40ull * i;
-    const auto vsize = le32(h, s + 8), va = le32(h, s + 12), raw = le32(h, s + 16), ch = le32(h, s + 36);
-    if (!vsize || !va || !raw || !ch) break;
-    first = first ? std::min(*first, *va) : *va;
-    const std::uint64_t span = *vsize != 0 ? *vsize : *raw;
-    if (rva < *va || rva - *va >= span) continue;
-    return section_kind_of(*ch);
+bool ObjectScan::ours(std::uint64_t allocation_base) const noexcept {
+  return std::find(own_.begin(), own_.end(), allocation_base) != own_.end();
+}
+
+bool ObjectScan::add(const Node& node) noexcept {
+  const std::size_t n = node_count_.load(std::memory_order_relaxed);
+  if (n >= kMaxNodes) return false;
+  nodes_[n] = node;
+  node_count_.store(n + 1, std::memory_order_release);  // a reader sees a node only once it is whole
+  return true;
+}
+
+std::optional<ObjectScan::Owner> ObjectScan::owner_of(std::uint64_t at, std::uint64_t floor,
+                                                      const proto::GameThread& gt, GuardedReader& reader) {
+  const std::uint64_t from = std::max(floor, at > kBack ? at - kBack : 0) & ~std::uint64_t{7};
+  if (from >= at) return std::nullopt;
+  const std::size_t len = static_cast<std::size_t>(at - from) & ~std::size_t{7};
+  if (len < 8) return std::nullopt;
+  if (!reader.copy_into(gt, proto::Group::Session, from, std::span<std::byte>(back_.data(), len), 8)) {
+    return std::nullopt;
   }
-  if (first && rva < *first) return SectionKind::Header;
-  return SectionKind::Other;
+  for (std::size_t k = len; k >= 8; k -= 8) {
+    std::uint64_t w = 0;
+    std::memcpy(&w, back_.data() + k - 8, 8);
+    const std::uint64_t d = w - base_;
+    if (w < base_ || d >= size_) continue;
+    if (std::binary_search(primary_.begin(), primary_.end(), static_cast<std::uint32_t>(d))) {
+      return Owner{from + k - 8, static_cast<std::uint32_t>(d)};
+    }
+  }
+  return std::nullopt;
 }
 
-MemorySearch search_memory(SysLayer& sys, const RegionQuery& query, const MemorySearchSpec& spec) {
-  Search s(sys, spec);
-  return s.run(query);
+void ObjectScan::look(std::span<const std::byte> chunk, std::uint64_t at, const proto::GameThread& gt,
+                      GuardedReader& reader) {
+  for (std::size_t k = 0; k + 8 <= chunk.size(); k += 8) {
+    std::uint64_t w = 0;
+    std::memcpy(&w, chunk.data() + k, 8);
+    if (sweep_ == 0) {
+      const std::uint64_t d = w - base_;
+      if (w < base_ || d >= size_) continue;
+      const auto it = std::lower_bound(targets_.begin(), targets_.end(), static_cast<std::uint32_t>(d),
+                                       [](const Target& t, std::uint32_t v) { return t.vtable < v; });
+      if (it == targets_.end() || it->vtable != d) continue;
+      if (node_count_.load(std::memory_order_relaxed) >= kMaxObjects) continue;
+      Node n;
+      n.lead = it->lead;
+      n.vtable = it->vtable;
+      n.address = at + k;
+      (void)add(n);
+      continue;
+    }
+    if (w < want_lo_ || w > want_hi_) continue;
+    for (std::size_t i = 0; i < want_count_; ++i) {
+      Want& want = want_[i];
+      if (w != want.address) continue;
+      Node& parent = nodes_[want.node];
+      if (parent.holders < 0xFFFFFFFFu) ++parent.holders;
+      if (want.kept >= kMaxPerParent) break;
+      const std::uint64_t holder = at + k;
+      Node n;
+      n.level = static_cast<std::uint8_t>(sweep_);
+      n.parent = want.node;
+      n.lead = parent.lead;
+      n.address = holder;
+      // The holder is no object's first word (it holds an address, not a table of methods): its object starts before.
+      if (const std::optional<Owner> owner = owner_of(holder, region_base_, gt, reader)) {
+        n.address = owner->address;
+        n.vtable = owner->vtable;
+        n.offset = static_cast<std::uint32_t>(holder - owner->address);
+      }
+      // One object that holds the address twice is one node.
+      bool known = false;
+      const std::size_t count = node_count_.load(std::memory_order_relaxed);
+      for (std::size_t j = 0; j < count; ++j) {
+        known = known || (nodes_[j].level == n.level && nodes_[j].parent == n.parent && nodes_[j].address == n.address);
+      }
+      if (!known && add(n)) ++want.kept;
+      break;
+    }
+  }
+}
+
+void ObjectScan::end_sweep(const proto::GameThread& gt, GuardedReader& reader) {
+  sweeps_.fetch_add(1, std::memory_order_acq_rel);
+  const std::size_t count = node_count_.load(std::memory_order_relaxed);
+  if (sweep_ == 1) {
+    // A level-0 node that nothing holds: the object it lies inside, if one starts within kBack before it.
+    for (std::size_t i = 0; i < count; ++i) {
+      const Node found = nodes_[i];
+      if (found.level != 0 || found.holders != 0) continue;
+      const std::optional<MemoryRegion> r = regions_(found.address);
+      if (!r || found.address < r->base) continue;
+      const std::optional<Owner> owner = owner_of(found.address, r->base, gt, reader);
+      if (!owner) continue;
+      Node n;
+      n.level = 1;
+      n.embedded = true;
+      n.parent = static_cast<std::uint16_t>(i);
+      n.lead = found.lead;
+      n.address = owner->address;
+      n.vtable = owner->vtable;
+      n.offset = static_cast<std::uint32_t>(found.address - owner->address);
+      (void)add(n);
+    }
+  }
+  // The next sweep looks for what holds the nodes of the level just found: objects only.
+  want_count_ = 0;
+  want_lo_ = ~std::uint64_t{0};
+  want_hi_ = 0;
+  const std::size_t now = node_count_.load(std::memory_order_relaxed);
+  for (std::size_t i = 0; i < now && sweep_ < kLevels; ++i) {
+    const Node& n = nodes_[i];
+    if (n.level != sweep_ || (n.level != 0 && n.vtable == 0)) continue;
+    want_[want_count_++] = Want{n.address, static_cast<std::uint16_t>(i), 0};
+    want_lo_ = std::min(want_lo_, n.address);
+    want_hi_ = std::max(want_hi_, n.address);
+  }
+  if (want_count_ == 0) {
+    done_.store(true, std::memory_order_release);
+    return;
+  }
+  ++sweep_;
+  cursor_ = kLowestAddress;
+  region_end_ = 0;
+  in_region_ = false;
+}
+
+bool ObjectScan::step(const proto::GameThread& gt, GuardedReader& reader, std::uint32_t chunks) {
+  if (done_.load(std::memory_order_relaxed)) return true;
+  std::uint32_t asked = 0;
+  for (std::uint32_t n = 0; n < chunks;) {
+    if (cursor_ >= region_end_) {
+      // The next region: one the scan may read, or one to pass over. A call asks for a bounded number.
+      if (++asked > 256) return false;
+      const std::optional<MemoryRegion> r = cursor_ < kAddressEnd ? regions_(cursor_) : std::nullopt;
+      if (!r || r->size == 0 || r->base + r->size <= cursor_ || r->base >= kAddressEnd) {
+        end_sweep(gt, reader);
+        if (done_.load(std::memory_order_relaxed)) return true;
+        continue;
+      }
+      const std::uint64_t end = r->base + r->size;
+      const bool image = r->base < base_ + size_ && end > base_;
+      const bool readable = searchable(*r) && r->kind == RegionKind::Private &&
+                            (r->protect & 0xFFu) == kPageReadWrite && !image && !ours(r->allocation_base);
+      if (!readable) {
+        cursor_ = end;
+        region_end_ = 0;
+        in_region_ = false;
+        continue;
+      }
+      // A region is counted once, though it is asked for again as the scan goes through it.
+      if (r->base != region_base_ || !in_region_) regions_read_.fetch_add(1, std::memory_order_relaxed);
+      in_region_ = true;
+      cursor_ = std::max(cursor_, r->base);
+      region_base_ = r->base;
+      // What was asked holds for the next kAskEvery bytes; then the region is asked for again, where the scan stands.
+      region_end_ = std::min<std::uint64_t>(end, cursor_ + kAskEvery);
+    }
+    const std::size_t len = static_cast<std::size_t>(std::min<std::uint64_t>(kChunk, region_end_ - cursor_)) &
+                            ~std::size_t{7};
+    if (len < 8) {
+      cursor_ = region_end_;
+      continue;
+    }
+    ++n;
+    const std::span<std::byte> piece(chunk_.data(), len);
+    if (!reader.copy_into(gt, proto::Group::Session, cursor_, piece, 8)) {
+      if (reader.spent()) return false;  // the same piece again at the next step
+      unreadable_.fetch_add(1, std::memory_order_relaxed);
+      cursor_ += len;
+      continue;
+    }
+    bytes_.fetch_add(len, std::memory_order_relaxed);
+    look(piece, cursor_, gt, reader);
+    cursor_ += len;
+  }
+  return false;
 }
 
 }  // namespace en::gal::probe

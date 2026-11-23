@@ -117,6 +117,11 @@ Copier& NativeSys::copier() noexcept {
   return impl_->seh;
 }
 
+Copier& NativeSys::copier_of(CopyKind kind) noexcept {
+  if (kind == CopyKind::Rpm) return impl_->rpm;
+  return impl_->seh;
+}
+
 void NativeSys::note_own_stack() noexcept {
   ULONG_PTR low = 0, high = 0;
   GetCurrentThreadStackLimits(&low, &high);
@@ -238,7 +243,7 @@ proto::Expected<std::uint64_t, SysError> NativeSys::register_task(std::uint64_t 
                                                                   const TaskShape& shape, TaskBody& body) noexcept {
   if (sys::registered()) return proto::Unexpected{SysError::Twice};
   if (shape.vtable_slots == 0 || shape.vtable_slots > kMaxTaskSlots ||
-      (!shape.every_slot && shape.run_slot >= shape.vtable_slots) || shape.object_size > kMaxCopyBytes) {
+      shape.run_slot >= shape.vtable_slots || shape.object_size > kMaxCopyBytes) {
     return proto::Unexpected{SysError::BadShape};
   }
   const std::uint64_t block = sys::make_task_object(shape, body);

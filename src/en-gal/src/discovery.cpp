@@ -1,5 +1,6 @@
-// Discovery in game (discovery.hpp; ARCH §3.2, §6.2): the gate, the AOB items, the FD4 singletons and the RTTI sets over
-// the mapped image, from gal/'s files. Portable: NativeSys shows it the game's image, FakeSys a test's.
+// Discovery in game (discovery.hpp; ARCH §3.2, §6.2): the gate, the build's table, then for what the table does not
+// hold the AOB items, the FD4 singletons and the RTTI sets over the mapped image, from gal/'s files. Portable: NativeSys
+// shows it the game's image, FakeSys a test's.
 #include "en/gal/discovery.hpp"
 
 #include <algorithm>
@@ -9,6 +10,7 @@
 #include "en/gal/image_bytes.hpp"
 #include "en/gal/patterns.hpp"
 #include "en/gal/recipes.hpp"
+#include "en/gal/resolve.hpp"
 #include "en/gal/rtti.hpp"
 
 namespace en::gal {
@@ -130,20 +132,38 @@ Expected<Discovery, SchemaErrors> discover(SysLayer& sys, const Gated& gated, st
     recipes = std::move(*parsed);
   }
   const RecipeSpec* accessor = recipes ? recipes->find(roles::kAccessorRecipeId) : nullptr;
-  std::vector<std::string_view> required = {roles::info(Item::RegisterTask).label};
-  if (accessor == nullptr) required.push_back(roles::kFd4IdiomId);  // the idiom, where no recipe replaces it
+  const bool own_thread = options.frame == FrameProvider::OwnThread;
+  // What the reading does not need on a thread of our own: the registration and the hub it would register with.
+  const auto needed = [&](Item i) { return !(own_thread && (i == Item::RegisterTask || i == Item::TaskHub)); };
+  std::optional<Catalogue> catalogue;
+  if (!options.ids.empty()) {
+    auto parsed = parse_ids(options.ids);
+    if (!parsed) return Unexpected{std::move(parsed.error())};
+    catalogue = std::move(*parsed);
+  }
+  const LayoutNeeds needs{{}, {}, {}, !own_thread, catalogue ? &*catalogue : nullptr};
+  auto layout = load_layout(gated.profile, layout_text, needs, options.mode);
+  if (!layout) return Unexpected{std::move(layout.error())};
+  // What the build's table holds is taken from it and never searched for, so it needs no pattern.
+  const auto tabled = [&](Item i) { return layout->find_item(roles::info(i).id) != nullptr; };
+  bool singletons_tabled = true;
+  for (const Item i : kAllItems) {
+    if (roles::info(i).kind == ItemKind::Singleton && needed(i) && !tabled(i)) singletons_tabled = false;
+  }
+  std::vector<std::string_view> required;
+  if (!own_thread && !tabled(Item::RegisterTask)) required.push_back(roles::info(Item::RegisterTask).label);
+  // The idiom, where no recipe replaces it and a singleton is still to be found.
+  if (accessor == nullptr && !singletons_tabled) required.push_back(roles::kFd4IdiomId);
   for (const Item i : kAllItems) {
     const roles::ItemInfo& info = roles::info(i);
-    if (info.kind != ItemKind::Static || !info.required) continue;
+    if (info.kind != ItemKind::Static || !info.required || tabled(i)) continue;
     const bool slotted = std::any_of(options.static_slots.begin(), options.static_slots.end(),
                                      [&](const auto& s) { return s.first == info.label; });
     if (!slotted) required.push_back(info.label);
   }
+  if (options.partial) required.clear();
   auto patterns = parse_patterns(patterns_text, required);
   if (!patterns) return Unexpected{std::move(patterns.error())};
-  const LayoutNeeds needs{{}, {}, {}, true};
-  auto layout = load_layout(gated.profile, layout_text, needs, options.mode);
-  if (!layout) return Unexpected{std::move(layout.error())};
 
   Discovery d(gated.image, gated.profile, std::make_unique<Layout>(std::move(*layout)));
   DiscoveryReport& r = d.report_;
@@ -151,6 +171,25 @@ Expected<Discovery, SchemaErrors> discover(SysLayer& sys, const Gated& gated, st
   d.base_ = sys.module_base();
   const std::uint64_t base = d.base_;
   for (ItemResult& item : r.items) item = ItemResult{ItemStatus::Missing, 0, 0, 0, false, "no pattern or site found"};
+
+  // ---- The build's table (proposal 0005 §7.1, §9.1): each id it holds is checked where the table puts it ----
+  // An id that fails is refused alone: no pass below looks for it, and its place is never handed out.
+  const Library library(d.layout(), d.image(), sys.image());
+  for (const Item i : kAllItems) {
+    const roles::ItemInfo& info = roles::info(i);
+    const ItemEntry* entry = d.layout().find_item(info.id);
+    if (entry == nullptr) continue;
+    ++r.table_items;
+    ItemResult& out = r.items[roles::index(i)];
+    const auto place = library.place(info.id, info.kind == ItemKind::Function ? IdKind::Function : IdKind::Static);
+    if (place) {
+      out = ItemResult{ItemStatus::Resolved, base + *place, *place, 0, false, ""};
+    } else {
+      out = ItemResult{ItemStatus::Refused, 0, 0, 0, false, to_string(place.error())};
+      ++r.table_refused;
+    }
+    out.from_table = true;
+  }
 
   // ---- The AOB items: one pass over each section ----
   const ScanReport scan = scan_patterns(d.image(), sys.image(), *patterns);
@@ -160,6 +199,7 @@ Expected<Discovery, SchemaErrors> discover(SysLayer& sys, const Gated& gated, st
     const auto item = item_named(p.id);
     if (!item) continue;  // the idiom, or a pattern of no item of ours
     ItemResult& out = r.items[roles::index(*item)];
+    if (out.from_table) continue;
     const ItemKind kind = roles::info(*item).kind;
     if (!p.resolved()) {
       const HitProblem problem = p.problem.value_or(HitProblem::Count);
@@ -183,7 +223,7 @@ Expected<Discovery, SchemaErrors> discover(SysLayer& sys, const Gated& gated, st
     const auto item = item_named(label);
     if (!item || roles::info(*item).kind != ItemKind::Static) continue;
     ItemResult& out = r.items[roles::index(*item)];
-    if (out.status == ItemStatus::Resolved) continue;
+    if (out.status == ItemStatus::Resolved || out.from_table) continue;
     if (slot_plausible(d.image(), rva)) {
       out = ItemResult{ItemStatus::Resolved, base + rva, rva, 0, true, ""};
     } else {
@@ -196,10 +236,13 @@ Expected<Discovery, SchemaErrors> discover(SysLayer& sys, const Gated& gated, st
   for (const SectionCopy& s : img.sections()) r.image_unreadable += s.unreadable;
 
   // ---- The FD4 singletons ----
-  // By the accessor's shape where recipes.toml gives one (no byte of the game), else by patterns.toml's idiom.
+  // By the accessor's shape where recipes.toml gives one (no byte of the game), else by patterns.toml's idiom; not at
+  // all when the table holds every one of them.
   const PatternSpec* idiom_spec = accessor == nullptr ? patterns->find(roles::kFd4IdiomId) : nullptr;
   const std::optional<fd4::Idiom> idiom = idiom_spec != nullptr ? fd4::idiom_from(*idiom_spec) : std::nullopt;
-  if (accessor != nullptr || idiom) {
+  if (singletons_tabled) {
+    // Nothing to find.
+  } else if (accessor != nullptr || idiom) {
     fd4::Config config;
     config.path_suffix = accessor != nullptr ? accessor->path_suffix : idiom_spec->path_suffix;
     if (accessor != nullptr) config.code = accessor->section;
@@ -218,8 +261,9 @@ Expected<Discovery, SchemaErrors> discover(SysLayer& sys, const Gated& gated, st
       if (site.refused) continue;
       ++r.fd4_accepted;
       std::optional<std::string> name = site.name;
-      if (!name_layout) {
-        // The init-only fallback: the getter, called once for this candidate, under SEH (ARCH §6.2 step 3).
+      if (!name_layout && !own_thread) {
+        // The init-only fallback: the getter, called once for this candidate, under SEH (ARCH §6.2 step 3). A start
+        // that reads on a thread of our own makes no call into the game (O101): a site without a name stays unnamed.
         ++r.getter_calls;
         const auto answer = sys.call_getter(base + site.getter, base + site.class_object);
         if (answer) name = name_at(img, base, *answer);
@@ -234,6 +278,7 @@ Expected<Discovery, SchemaErrors> discover(SysLayer& sys, const Gated& gated, st
     for (const Item i : kAllItems) {
       if (roles::info(i).kind != ItemKind::Singleton) continue;
       ItemResult& out = r.items[roles::index(i)];
+      if (out.from_table) continue;
       const ClassLayout* cls = d.bound().cls(*roles::class_of(i));
       if (cls == nullptr || cls->singleton.empty()) {
         out.why = "its layout class names no singleton";
@@ -251,16 +296,38 @@ Expected<Discovery, SchemaErrors> discover(SysLayer& sys, const Gated& gated, st
     }
   } else {
     for (const Item i : kAllItems) {
-      if (roles::info(i).kind == ItemKind::Singleton) r.items[roles::index(i)].why = "no accessor recipe and no fd4_idiom";
+      ItemResult& out = r.items[roles::index(i)];
+      if (roles::info(i).kind == ItemKind::Singleton && !out.from_table) out.why = "no accessor recipe and no fd4_idiom";
     }
   }
 
   // ---- The RTTI sets ----
+  // A class the table holds takes its tables of methods from it, checked; the others are walked for by their names.
   std::array<bool, roles::kClsCount> rtti_missing{};
+  std::array<bool, roles::kClsCount> class_tabled{};
   bool any_rtti = false;
   for (std::size_t c = 0; c < roles::kClsCount; ++c) {
     const ClassLayout* cls = d.bound().cls(static_cast<Cls>(c));
-    any_rtti = any_rtti || (cls != nullptr && !cls->rtti.empty());
+    if (cls == nullptr) continue;
+    const ItemEntry* entry = d.layout().find_item(roles::label(static_cast<Cls>(c)));
+    if (entry == nullptr || entry->kind != IdKind::Class) {
+      any_rtti = any_rtti || !cls->rtti.empty();
+      continue;
+    }
+    class_tabled[c] = true;
+    ++r.table_items;
+    const std::span<const std::uint32_t> tables = library.vtables(entry->id);
+    if (tables.empty()) {
+      rtti_missing[c] = true;
+      ++r.rtti_missing;
+      ++r.table_refused;
+      continue;
+    }
+    std::vector<std::uint64_t> vts;
+    vts.reserve(tables.size());
+    for (const std::uint32_t v : tables) vts.push_back(base + v);
+    d.sets_[c].assign(std::move(vts));
+    ++r.rtti_classes;
   }
   if (any_rtti) {
     const rtti::Walk walk = rtti::walk(img);
@@ -268,7 +335,7 @@ Expected<Discovery, SchemaErrors> discover(SysLayer& sys, const Gated& gated, st
     r.rtti_vtables = walk.vtables.size();
     for (std::size_t c = 0; c < roles::kClsCount; ++c) {
       const ClassLayout* cls = d.bound().cls(static_cast<Cls>(c));
-      if (cls == nullptr || cls->rtti.empty()) continue;
+      if (cls == nullptr || cls->rtti.empty() || class_tabled[c]) continue;
       const rtti::Found td = rtti::find_type_descriptor(img, cls->rtti);
       if (td.count != 1) {
         rtti_missing[c] = true;
@@ -328,16 +395,16 @@ Expected<Discovery, SchemaErrors> discover(SysLayer& sys, const Gated& gated, st
   // ---- Ready to register? ----
   r.ready = true;
   for (const Item i : kAllItems) {
-    if (roles::info(i).required && !item_ok(i)) {
+    if (roles::info(i).required && needed(i) && !item_ok(i)) {
       r.ready = false;
       r.failure = "a required item is missing";
     }
   }
-  if (r.ready && (!d.layout().task() || d.layout().task()->partial || d.bound().boot_gap())) {
+  if (r.ready && !own_thread && (!d.layout().task() || d.layout().task()->partial || d.bound().boot_gap())) {
     r.ready = false;
     r.failure = "the layout's task, or the task hub's group table, is incomplete";
   }
-  if (r.ready && rtti_missing[static_cast<std::size_t>(Cls::TaskHub)]) {
+  if (r.ready && !own_thread && rtti_missing[static_cast<std::size_t>(Cls::TaskHub)]) {
     r.ready = false;
     r.failure = "the task hub's RTTI is not in the image";
   }

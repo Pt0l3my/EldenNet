@@ -13,7 +13,8 @@
 //   under SEH, from T1; the task object and its fake vtable of guarded no-ops, with the run slot our trampoline
 //   (sys/trampoline.cpp), made once and never freed (R14);
 // - the clock (QPC, µs) and the thread's id;
-// - in a probe build, the regions of the process as VirtualQuery describes them (R1's whole-memory search).
+// - in a probe build, the regions of the process as VirtualQuery describes them (the read-only round's question of
+//   what is live at an address).
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -51,6 +52,9 @@ class NativeSys final : public SysLayer {
   bool forget_stale_stacks(std::uint64_t address, std::uint64_t len) noexcept override;
 
   [[nodiscard]] CopyKind copy_kind() const noexcept { return kind_; }
+  // One of the two copy primitives, whichever the settings chose: a reader that expects to meet unreadable memory
+  // (a search over stale pointers) asks for Rpm, which raises no exception in the process, whatever the address.
+  [[nodiscard]] Copier& copier_of(CopyKind kind) noexcept;
   // The copy primitive the settings chose (gal.copy): on T1, before the task is registered and reads anything.
   void set_copy_kind(CopyKind kind) noexcept { kind_ = kind; }
   // Walks the process's memory again for guard pages (the stacks of threads made since); answers how many ranges the
@@ -64,8 +68,8 @@ class NativeSys final : public SysLayer {
   // An address that faults when read, for the probe's fault injection: a page reserved with no access, never freed.
   [[nodiscard]] std::uint64_t no_access_page() noexcept;
 #if EN_PROBE
-  // R1's whole-memory search (WHY§227): the region holding `at`, as VirtualQuery describes it (nothing is read there),
-  // or nothing past user space.
+  // The region holding `at`, as VirtualQuery describes it (nothing is read there), or nothing past user space
+  // (WHY§227).
   [[nodiscard]] std::optional<probe::MemoryRegion> region_at(std::uint64_t at) const noexcept;
 #endif
 

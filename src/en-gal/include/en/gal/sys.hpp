@@ -22,6 +22,11 @@
 namespace en::gal {
 
 // The time a task invocation runs at (ARCH §6.4): a monotonic clock in microseconds, and the time since the last one.
+// The frame service (proposal 0005 §9.4; O101): where the reading runs. The game's own task calls the body every frame
+// (a later service: the call that adds it is not confirmed); a thread of EldenNet's own runs it at a fixed rate, with
+// no call into the game and nothing written to it, which is what v1 uses (O101 (b)).
+enum class FrameProvider : std::uint8_t { GameTask, OwnThread };
+
 struct FrameCtx {
   std::uint64_t qpc_now_us = 0;
   std::uint32_t dt_us = 0;
@@ -107,9 +112,6 @@ struct TaskShape {
   std::uint32_t object_size = 0;   // the zeroed bytes after the vtable pointer, which the game's hub owns
   std::uint32_t group_index = 0;   // the group our task joins
   RegisterAbi abi;                 // which register carries the task, the instance and the group
-  // R1 (the probe round, O89): the run slot is not known yet, so every slot counts its calls and runs the body; the
-  // slot counts then say which one the game calls every frame. `run_slot` is ignored.
-  bool every_slot = false;
 };
 
 inline constexpr std::uint32_t kMaxTaskSlots = 64;

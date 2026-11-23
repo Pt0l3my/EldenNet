@@ -46,7 +46,7 @@ TEST_CASE("overlay: connect as eldennet, with EldenNet's floor and the caps it u
   CHECK(r.outcome == Outcome::Connected);
   CHECK(g.id == "eldennet");
   CHECK(g.name == "EldenNet");
-  CHECK(g.floor == GRACEUI_VERSION_PACK(0, 2, 12));  // GraceUI 0.2.12: ABI 1.2, protocol 1.3, D199 to D202
+  CHECK(g.floor == GRACEUI_VERSION_PACK(0, 2, 22));  // GraceUI 0.2.22: the editor's chosen row (D218), on 1.5's wait
   CHECK(g.mod_version == GRACEUI_VERSION_PACK(0, 1, 0));
   CHECK(g.mod_caps == "notices world-state hotkeys");
   CHECK(std::string(r.view) == "off");
@@ -510,6 +510,46 @@ TEST_CASE("overlay: watched topics published, each command answered once at once
   s = o->step(status());
   CHECK(s.commands == 1);
   CHECK(parsed(g.answers[orphan])["error"] == "internal");
+}
+
+TEST_CASE("overlay: the profile editor's commands answered later, once each, with their reply handles (S7.2.b)") {
+  fake::Grace g;
+  Report r;
+  auto o = connect(g, with_space(), r);
+  REQUIRE(o != nullptr);
+  Space space;
+  CharacterFacts characters;
+  ProfileRow kale;
+  kale.key = "persona.test";
+  kale.name = "Invented";
+  characters.rows = {kale};
+  characters.draft_provider = "box";
+  SpaceFacts facts;
+  facts.characters = &characters;
+  g.watch("profiles/persona.test");
+  const std::uint64_t save = g.command("profile.save", R"({"target":"persona.test","rev":0,"doc":{}})");
+  const std::uint64_t draft = g.command("profile.draft", R"({"target":"persona.test","notes":"a test"})");
+  const std::uint64_t bad = g.command("profile.save", R"({"target":"persona.none","rev":0,"doc":{}})");
+  Overlay::Step s = o->step(status(), &space, &facts, 1000);
+  CHECK(s.commands == 3);
+  // The refusal at once; the two taken wait for the DLL, answered by nobody yet.
+  CHECK(g.answers.size() == 1);
+  CHECK(parsed(g.answers[bad])["error"] == "invalid_value");
+  CHECK(parsed(g.published_of("profiles/persona.test")[0])["body"]["rev"] == 0);
+  std::vector<ProfileRequest> taken = space.take_profile_requests();
+  REQUIRE(taken.size() == 2);
+  ProfileAnswer saved;
+  saved.chosen = "persona.test";
+  space.answer_profile(taken[0], saved);
+  CHECK(o->answer_later(space) == 1);  // the DLL's at once, not at the next step
+  CHECK(parsed(g.answers[save])["body"]["chosen"] == "persona.test");
+  ProfileAnswer drafted;
+  drafted.draft = {{"instructions", "Invented words."}};
+  space.answer_profile(taken[1], drafted);
+  s = o->step(status(), &space, &facts, 1100);  // or at the next step, before anything is published
+  CHECK(parsed(g.answers[draft])["body"]["draft"]["instructions"] == "Invented words.");
+  CHECK(g.answer_refused == 0);
+  CHECK(o->answer_later(space) == 0);  // each once
 }
 
 TEST_CASE("overlay: a space's event too large for the buffer is kept, never answered twice nor lost") {

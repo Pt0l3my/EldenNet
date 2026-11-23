@@ -29,12 +29,16 @@ struct Options {
   bool vanilla = false;             // --vanilla-offline: start offline without EAC, inject nothing
   // Development and tests.
   std::vector<std::string> also;  // --also DLL: injected before ours, unchecked (a stand-in for another mod)
+  // --expect-graceui PATH: a test package's own graceui.toml; the game's GraceUI must be that one, or E13 asks
+  std::optional<std::string> expect_graceui;
   InjectAt inject_at = InjectAt::Suspended;
   std::uint32_t title_wait_s = 15;          // --title-wait S
   std::optional<AppidMethod> appid_method;  // --appid-method file|env (else launcher.toml's)
   std::optional<RemoveAfter> remove_after;  // --remove-after window|exit|never
   bool console = false;                     // --console: the dev console, its status lines and the Mark on Pause (O90)
-  bool probe = false;                       // --probe: R1 in a probe build of eldennet.dll (O89); implies --console
+  bool read = false;                        // --read: the read-only round in a probe build (Lodestar's L5); --console too
+  std::uint32_t read_pace_s = 0;            // --read-pace-s S: the tests' pace for the round's tasks (tasks.hpp)
+  std::uint32_t spike_pace_s = 0;           // --spike-pace-s S: the tests' pace for an S0 run's tasks (s0.hpp)
   bool no_dialogs = false;                  // --no-dialogs: lines instead of dialogs; every question answered no
   bool yes = false;                         // --yes: with --no-dialogs, questions answered yes instead
   bool no_steam_check = false;              // --no-steam-check: the fake game needs no Steam

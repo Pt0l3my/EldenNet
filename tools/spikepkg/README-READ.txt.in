@@ -1,0 +1,335 @@
+EldenNet, the read-only round (package @LABEL@)
+@UNDERLINE@
+
+This package runs a read-only round of EldenNet's address library (Lodestar; EldenNet's decisions O100 to O102) on
+your own PC. The two offline runs you made read the game's executable file and found the 217 places where the game
+keeps its main objects (EldenNet calls them managers: one keeps the world's characters, another the time of day, and
+so on), without knowing which is which. This round starts the game with EldenNet loaded and reads, from
+the game as it runs, which of those places holds which of the eleven managers EldenNet needs. Then it tries, for a few
+minutes, the way EldenNet v1 will read the game: from a thread of its own, about ten times a second.
+
+This is the fourteenth such round. The thirteenth found where the game keeps your character and the characters near
+you (your character's place in the character manager, the list of those nearby, and the object that holds your
+character's parts). It did not settle where the game keeps which save is loaded: the place we had in mind read 4 for
+the first character of your list, and your save file, which you sent us, shows that this is not that character's
+slot. That one fact from your save file, which slot each character is in, is all we took from it: the last
+character of your list is in slot 6, your usual one in slot 2. It makes this round's search simple: it looks for the
+number that reads 6 when the last character of your list is loaded and 2 when your usual one is.
+
+So this round asks three things of you, all of which you have agreed to.
+
+First, two loads: the last character of your Load Game list, then your usual one. Nothing is changed on the other
+character except that the game saves it where it stands; the round ends on your usual one, so Continue on the title
+screen is that one's again.
+
+Second, with your usual character: stand still for a minute and a half (keyboard and mouse both left alone), walk
+for half a minute, stand still again.
+While you do, the round reads the parts of your character (about thirty small objects the game keeps for it: the
+first 4 KiB of each, about 130 KiB in all, once a second) and counts, for every number in them, when it changed. A
+number that changes only while you walk is part of your position.
+
+Third, one hit and one heal: let a weak enemy hit you once (or take a small fall), then drink a flask. A number
+that falls at the hit and rises at the heal is your health. This costs you a flask charge and a little risk; if you
+would rather not, press Pause at those two tasks without doing them, and the round says that it saw no hit. If your
+character dies at the hit, the run is not spoilt: press Pause, then at the heal press Pause again without healing;
+the round then says it saw no heal, and everything else still counts.
+
+Of your character's parts the round writes only where a number lies and how it behaved (stood still, moved, fell,
+rose), never the numbers themselves: not your health, not where you stand.
+
+The other reading is as before, at the same careful pace. At the title and at each of your first three
+confirmations: the first 8 KiB of every object the game's data points at (about 1,400 objects at the title, some
+4,000 in the world: up to 32 MiB a look, within what you agreed to in the twelfth round), for the save's slot. Once,
+when you stand in the world with your usual character: the character manager, its lists and your character's
+object, as in the thirteenth round (it took 17 to 39 seconds then, which is why the first standing task is long).
+And in the background, as since the seventh round: memory near the event flags' own object (about 24 MiB in all at
+most), the flags' reader, the clock, the play time. If the game stutters, quit it and tell us.
+
+It only reads. It calls nothing in the game, adds nothing to it and changes nothing in it. The panel is a window of
+the launcher's own, outside the game. Nothing in this package is for playing with yet.
+
+Built from EldenNet's engine branch at commit @COMMIT@ with clang-cl (Release). Never shared: a test build for you
+alone, labelled @LABEL@.
+
+
+How long it takes
+-----------------
+
+About 20 minutes: 5 to unzip and start, 2 at the title screen, then about 9 between the two characters, the
+standing and walking, and the hit and the heal, and a few to send the files. The panel keeps the time for you.
+
+
+What is in it
+-------------
+
+  read.cmd                Double-click this to start the round.
+  eldennet-launcher.exe   EldenNet's launcher: backs up your saves, starts the game offline without Easy Anti-Cheat,
+                          loads EldenNet, and watches the game until it ends.
+  eldennet.dll            EldenNet in the game: the probe build, which runs this round and nothing else.
+  eldennet-engine.exe     EldenNet's command-line tool, here to check the report (its lint command).
+  gal\                    What the round works from: the build's fingerprint (builds.toml), how a manager's place is
+                          recognised (recipes.toml, with its note in derivations\), EldenNet's own numbers and labels
+                          for the places it needs (ids.toml), and what to look for (leads.toml). Numbers and names of
+                          the design's own, nothing taken from the game.
+  README-READ.txt         This file.
+  SHA256SUMS              The SHA-256 of every other file in this package.
+  LICENSE.txt             EldenNet's licence (MIT).
+  THIRD_PARTY.md          What EldenNet is built with, and its credits.
+  THIRD-PARTY-NOTICES.txt The licences of the libraries inside the programs.
+
+
+Before you start
+----------------
+
+  - Close the game, and start Steam.
+  - Unzip this package into a folder of its own, anywhere but the game's folder.
+  - The launcher backs up your saves before it starts the game (in %APPDATA%\EldenNet\save-backups), and the round
+    does not run without that backup. If you want a copy of your own as well, copy the folder %APPDATA%\EldenRing
+    somewhere first.
+  - The game will run offline, without Easy Anti-Cheat. Use a save you are happy to play offline, and never take a save
+    played with mods into online play.
+  - Set the game to windowed or borderless windowed mode first (in its graphics settings): the panel is a window of
+    its own and a full-screen game covers it. It sits at the top right of the screen the game is on; drag it by its
+    top line if it is in the way.
+  - The launcher's messages also appear in a console window behind the game, as before.
+  - Windows or your security software may warn about an unsigned program. Allow it only if the SHA-256 values match
+    (below); otherwise stop and tell us.
+
+
+The steps
+---------
+
+1. Double-click read.cmd. (Or, in a command prompt in this folder: eldennet-launcher.exe --read)
+
+   The first time, the launcher asks where eldenring.exe is if it cannot find it through Steam, and shows its notices.
+
+2. The game starts. At the title screen, wait. The console says, in lines starting with "EldenNet read:", that it is
+   reading the game. This takes about a minute. Do not load a save until it tells you to.
+
+3. When the round is ready, the panel's first task turns grey. Do not load a save yet: the second task is to stay
+   at the title screen for half a minute more. From then on follow the panel. Its tasks, in order:
+
+     1. Wait at the title screen                  (the round does this one itself)
+     2. Stay at the title screen, 30 s            the round takes its first look; do not load a save yet
+     3. Load the last character in your list      Load Game, not Continue: the character at the bottom of the list;
+                                                  press Pause when you stand in the world
+     4. Stay in the world, 45 s                   anything will do
+     5. Quit to the title screen                  with the game's own menu, to the title screen, not out of the
+                                                  game; press Pause when the title screen shows
+     6. Stay at the title screen, 20 s            do not load a save until the time is up
+     7. Load your usual character                 Load Game: the character you test with; press Pause when you
+                                                  stand in the world, then let go of the controls
+     8. Stand still, 1 minute 30                  hands off the keyboard, and do not touch the mouse: do not move,
+                                                  turn the camera or open a menu
+     9. Walk about, 30 s                          keep walking, on foot: no riding, no fighting
+    10. Stand still again, 20 s                   hands off the keyboard, and do not touch the mouse
+    11. Take one hit                              let a weak enemy hit you once, or take a small fall; press Pause
+                                                  when you have lost some health; do not heal yet
+    12. Heal                                      drink a flask, or heal another way; press Pause when your health
+                                                  is back up
+    13. Stand still, 10 s
+    14. Quit the game
+
+   For tasks 8 to 10, a safe and quiet spot is best: somewhere nothing attacks you while you stand. While you
+   stand, leave the mouse alone too: turning the camera moves numbers as well. For task 11 any one hit will do; it
+   need not be near. If your character dies at the hit, press Pause, then at task 12 press Pause again without
+   healing: the round then says it saw no heal, and everything else still counts.
+
+   The waiting tasks count down and end by themselves. A task of yours waits until you press Pause (anywhere, while
+   the game has the keyboard) or click the panel's button, which says what it stands for. The last task has no
+   button: quitting the game ends it. The task under way is highlighted; done tasks are grey, with the time they
+   took.
+
+   Two things matter. Press Pause only once the game is really there (standing in the world; the title screen
+   showing; the hit taken; the health back), and during a waiting task do what it says until its time is up: that
+   is when the round looks.
+
+4. Quit the game as you usually do. The console then says whether the two files passed their check, and the launcher
+   ends.
+
+5. Send these files back to us:
+
+     %APPDATA%\EldenNet\probe\lodestar-found.json   required
+     %APPDATA%\EldenNet\probe\lodestar-table.toml   required
+     %APPDATA%\EldenNet\logs\eldennet.log           helpful
+     %APPDATA%\EldenNet\logs\launcher.log           helpful
+     %APPDATA%\EldenNet\crashes\                    the newest file there, only if the game crashed
+
+   (Type %APPDATA%\EldenNet into Explorer's address bar to open the folder.) You can check the report yourself:
+
+     eldennet-engine.exe lint --report "%APPDATA%\EldenNet\probe\lodestar-found.json"
+
+   It must say "lint: the report is clean". The launcher has checked it the same way already.
+
+If anything else happens (the console says the build is not supported, or that the round stopped, or the game closes),
+do not try again: send the two logs and tell us what the console said. That is a useful result too.
+
+
+What it does
+------------
+
+  - Backs up your saves (it only copies them), checks that Steam is running and that the game is not, and checks that
+    your game is the build the offline runs read (2.7.2.0, worldwide). If the launcher says the build is not
+    supported, stop: the game has been updated since, and the offline run must be made again first.
+  - Starts the game offline without Easy Anti-Cheat, by writing the game's Steam app id into steam_appid.txt beside
+    the game while it starts, and removing it again (eldennet-launcher.exe --cleanup removes it if a crash left it).
+  - Loads eldennet.dll into the game. In the game, EldenNet reads the game's code and data as they are loaded,
+    read-only and through guarded copies, and finds again the 217 places the offline runs found. It also looks
+    through the code for four other ways the same fetch of a manager is written (gal\recipes.toml lists them, each
+    with its note); the third round counted them: 1,279 more places, which lead to the same managers and to two
+    places more, which hold nothing EldenNet asks for.
+  - For each of those places it reads the address kept there and, where there is one, the first eight bytes of the
+    object at that address, once. Those eight bytes say what kind of object it is, and the game's own type
+    information, already read from its code, gives that kind a class. Where the class is one of the eleven EldenNet
+    asks for, the place is that manager's. For the world's clock, a kind whose name holds the expected one counts
+    too, marked as weaker until a later round confirms it. It does this again every ten seconds, for as long as any
+    of the eleven is still missing.
+  - From a thread of its own, about ten times a second, it reads each named manager's place and the first eight bytes
+    of its object again, and counts: how often the place was empty, how often the object was still of the same kind,
+    how often a read was refused, and how long a reading took. This is the way EldenNet v1 will read the game, tried
+    here on sixteen bytes a manager.
+  - The panel: a small window of the launcher's own (not of the game), always on top, that never takes the keyboard.
+    The launcher asks Windows for the Pause key while the round runs (a system hotkey, as in the earlier rounds:
+    Pause goes to the launcher and not to the game meanwhile) and gives it back at the end. When you confirm one of
+    the two marked tasks, the launcher writes the moment into the small block of memory it shares with EldenNet,
+    and the round reads it there.
+  - From the same thread, every two seconds, the watch: it follows the way to each named manager's object and
+    copies its first 512 bytes (fewer where the object is smaller). From one copy to the next it counts, for every
+    eight bytes, whether they changed and whether they rose, and now and then what they look like: nothing, a small
+    number, a kind of object, an address in the game's code or data, an address of memory in use, or something
+    else. It also counts, for every run of six bits, whether it behaves as a clock's minutes do (never 60 or more,
+    stepping forward and going round), for every run of five whether it behaves as hours (never 24 or more,
+    stepping by one), and for every four bytes whether, read as a fraction or as a whole number, they keep rising
+    at a steady pace; and when such hours or such a number jump instead (a rise far above the pace, or a fall), it
+    keeps the first three jumps: after how many seconds, and the number before and after. Beside the managers it
+    watches: the objects the event flags' first addresses lead to (eight at most) and the objects those lead to
+    (four each at most); the object where the play time is kept; 16,384 bytes of the object of the clock's kind and
+    of the manager that points at it; and, once your save is loaded and every three seconds (less often where
+    nothing ever changes), the object behind each of the other known places, for a clock only: where minutes go
+    round twice with hours beside them, the place is written into the table as the world's clock. It writes counts
+    and offsets, and for a number that jumped the number before and after each of its first three jumps (the
+    clock's own reading, if it is the clock): nothing else the memory held.
+  - From the same thread, the sweep: from each address the event flags' own object keeps (eight at most) it copies
+    up to 2 MiB of memory, and from each address one step further (32 at most) up to 256 KiB, a piece of 16,384
+    bytes at a time, and compares each piece with the copy before. Where one single bit of a byte has changed, in
+    eight bytes that otherwise keep still, it writes where (the offset from the address), which bit, whether it
+    went up or down, and after how many seconds: never what the memory holds. The bits that changed from 15 seconds
+    before one of your confirmations to a minute after it are kept under that confirmation. A pass through all of
+    it is followed by a rest, so that a pass starts every thirty seconds at most, and one starts at once when you
+    confirm. A stretch of which more than a thousand places change again and again is read no more.
+  - Once your save is loaded, from the same thread, three searches, each of which only reads:
+      - For a manager whose kind of object the game has but which none of those places holds: it goes through the
+        game's own data for another place that points at an object of that kind, reading the first eight bytes of
+        each object it finds a pointer to, three times at most. Where several places point at one and the same
+        object, the manager is named by the one the game's code refers to most.
+      - For the same managers: it copies the first 16,384 bytes of the object behind each of the places, and looks
+        there for an object of the missing kind, or for a pointer to one (eight bytes read behind each pointer).
+        What it finds, the watch then follows.
+      - For the play time: over the objects the game's data points at, it looks for a number that rises by the
+        clock while you play. The place it finds goes into the table, with the places in the game's code that refer
+        to it; the watch then follows the object, and this search ends.
+    The searches and the watch follow pointers that may no longer be good. So the round first asks Windows, for
+    every number in the game's data that could be an address, whether there is memory there that may be read
+    (VirtualQuery, which reads nothing), and keeps only those; 96 in 100 of them are no address at all. Before each
+    read it asks again, and leaves the memory alone if the answer has changed; then it copies with Windows' own
+    function for reading a program's memory (ReadProcessMemory, on the game itself), which answers "cannot be read"
+    without disturbing the game. Such a read takes about half a thousandth of a second on your PC, so the round
+    looks at its clock after every one: together they take 4 thousandths of a second of each step of EldenNet's own
+    thread, give or take one read; the game's own threads are never used. What they find is written as counts and
+    places, never as what the memory held.
+  - From the same thread, once, the tree: from the address the event flags' own object keeps where the seventh round
+    saw records of three addresses each, it reads one record of 64 bytes, then the records that one points at, and
+    so on, each once, 32,768 at most. For each of a record's sixteen numbers it counts over all records how many
+    different values it takes and how many are multiples of a block's size. Then, for each bit that changed around
+    one of your confirmations, it looks for the record that names that bit's block, and writes that record's
+    numbers (the group's number among them; an address is written as 0), and whether the way down the tree by
+    that number arrives at the same record. Nothing else of the records is written. Of the flags' own object it
+    reads the first 256 bytes once and writes only where in them the numbers 1,000 and 125 stand.
+  - EldenNet's own reader, from the same thread, every ten seconds: for the flag that is set in every playthrough
+    and for each flag the round has numbered from a bit you changed, it reads the flags' own object, goes down the
+    tree by the flag's group (up to sixteen or so records of 64 bytes), and reads the one byte that holds the
+    flag. It writes each such flag's number, whether it read as set, and whether that agrees with what the round
+    saw. Before that, once, it looks through the game's code as loaded for the places the table names and checks
+    them (the same reading as the round's first pass).
+  - From the same thread, the state search: at the title, and again at each of your first three confirmations, it reads
+    the first 8,192 bytes of the object behind every place of the game's data that points at memory in use (about
+    1,400 at the title; each object once a look). It keeps, for each object, which 32-bit numbers read -1 at the
+    first look; of those, which read 0 to 15 in the world; of those, which read -1 again at the title; and of
+    those, which read 0 to 15 in the world again. What is left is written: the place, the offset, the two small
+    numbers, and how many instructions of the game's code refer to the place. It names nothing any more (the
+    thirteenth round showed its one candidate is not the save's slot). While a look is under way the round's other
+    searches wait. For each look the round writes how long it took and whether your
+    next confirmation came before it was through; if one did, the search names no place by itself and says so.
+  - From the same thread, the pair search, at your first and third confirmations (the last character's world, and
+    your usual character's): it reads the first 8,192 bytes of the object behind every place of the game's data
+    that points at memory in use in the world (some 4,000). At the first it notes which 32-bit numbers and which
+    single bytes read 6; at the second, which of those read 2. What is left is written: the place and the offset,
+    and how many instructions of the game's code refer to the place. One 32-bit number alone that read 6 and then
+    2 is the save's slot, and the round names its place as the game's state.
+  - From the same thread, once, after your third confirmation, the character search: it reads the character
+    manager's object and what follows it in memory (up to 262,144 bytes), and the first 256 bytes behind each
+    address it finds there (8,192 different ones at most). By the first eight bytes behind an address it tells
+    whether an object of a character's kind lies there (the game's own type tables, already read, say which kinds
+    are characters and which is the player's). It writes: where in the manager a character's address stands and
+    whether it is the player's; where addresses stand side by side that bound a run of equal elements each holding
+    a character's address, with the element's size, how many there are, and whether a fraction stands beside the
+    address; and where an address stands of memory that holds your character's address. Then it reads your
+    character's object (16,384 bytes at most) and the first 4,096 bytes of the save data's, and writes for each
+    address in them the offset, the kind of object behind it as the place of its type table (a number) or none,
+    and how many addresses that object begins with. A look stops at 12,000 reads.
+  - From the same thread, after that, once a second until the game ends, the parts watch: it reads your character's
+    address from the character manager (8 bytes), the address of the holder of its parts from your character's
+    object (8 bytes), the holder's first 256 bytes (32 addresses), and the first 4,096 bytes behind each of those
+    addresses (less where memory ends sooner). It compares each 32-bit number with what it read a second before and
+    counts, by the task you are at, how often it changed, fell or rose. It writes: which parts there are (the place
+    of each one's type table, a number); which numbers changed in at least half of the walk's seconds and never
+    while you stood; and which numbers fell during the hit's task, having never changed before, how often they
+    rose during the heal's task, and whether a number beside them never changed and is at least as large. It never
+    writes what a number held.
+  - Every two seconds it writes lodestar-found.json into %APPDATA%\EldenNet\probe, and lodestar-table.toml when
+    another manager is named. If the report ever grows past its limit, it is written without the detail of the
+    watched object that has the most, then of the next, and says which were left out. They hold only numbers
+    (offsets, sizes, counts, and the jumps' numbers named above) and EldenNet's own labels: no names of the game's,
+    no text, no paths, nothing of your character or your PC.
+  - Watches the game until it ends, and keeps a short record if it ends badly: the error's code, which module it was
+    in and the time, never a memory dump.
+
+
+What it never does
+------------------
+
+  - It never calls anything in the game, never adds anything to the game's own lists, and never changes the game's
+    code or data. It reads them.
+  - It never goes online, and the game cannot reach FromSoftware's servers without Easy Anti-Cheat.
+  - It never changes your saves or the game's files (steam_appid.txt aside, which it removes).
+  - It never runs anything else, uses the network, keeps keys or sends anything anywhere. You send the files yourself.
+
+
+If the game crashes or freezes
+------------------------------
+
+  - Your saves were backed up before the game started: each backup is a folder in %APPDATA%\EldenNet\save-backups,
+    named by date and time, with a manifest of the files' sizes and hashes. The game's own save is not touched by
+    EldenNet; only if the game itself reports a damaged save, copy ER0000.sl2 (and ER0000.sl2.bak) from the newest
+    backup back into %APPDATA%\EldenRing\<the same number>\, with the game closed.
+  - If the game freezes, close it with Alt+F4, or end eldenring.exe in Task Manager.
+  - Send the files of step 5, the newest crash record included. The next start of the launcher explains it once.
+  - To play normally again, start the game from Steam as usual. Nothing of EldenNet stays loaded.
+
+
+Check the files
+---------------
+
+In PowerShell, in this folder:
+
+  Get-FileHash -Algorithm SHA256 eldennet-launcher.exe, eldennet.dll, eldennet-engine.exe
+
+Each value must equal its line in SHA256SUMS (letter case aside).
+
+
+Safe use, and what we condemn
+-----------------------------
+
+The devkit's own words, as "eldennet-engine.exe probe-exe --help" prints them:
+
+@DISCLOSURE@

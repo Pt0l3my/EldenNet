@@ -48,7 +48,7 @@ a dynamic initialiser or an exit-time destructor (ARCH §3.1, §1.7).
   assigned or made but by `GameThread::issue()`, and only moves; a CI grep keeps `issue` to the task's trampoline and
   the replay harness (and the tests of the token and of backends). `GameBackend` takes a `const GameThread&` for every
   call: `probe`, `snapshot`, `render_feed` and `apply`, which answer `Expected<void, ReadError>` (`Inert`, `Loading`,
-  `BudgetSpent`, `Faulted`, `Ended`) and `Expected<void, ApplyError>` (`Inert`, `Invalid`, `Unsupported`).
+  `BudgetSpent`, `Faulted`, `Ended`, `Unsteady`) and `Expected<void, ApplyError>` (`Inert`, `Invalid`, `Unsupported`).
 - **The model client's messages** (`llm.hpp`): what the core asks of en-llm and what comes back. The slots' names,
   roles, message parts and messages (with `system`, `user`, `assistant`, `joined`, `has_cache_break` and
   `normalise`), purposes, `ChatRequest`, the error classes, usage, token logprobs, attempts, `ChatResult`, decision
@@ -57,6 +57,17 @@ a dynamic initialiser or an exit-time destructor (ARCH §3.1, §1.7).
   rules fallback is data: `rule` is the key the caller's rules picked from the same state, and en-llm checks that it
   is one of the call's keys before anything is sent. en-llm keeps their names (`en::llm::ChatRequest` and the rest)
   with using-declarations, and keeps everything that acts on them.
+- **The conversation's surfaces** (`ui.hpp`, NPC §5, §6, §8.6, §8.7, §10; ARCH §1.3's C6 and C7): `UiModel`, what the
+  core publishes for the surfaces after each step (the lower third's page or speaker card, with its id, kind, surface,
+  name line, text, index and count, whether it is the last, and its hold; the chat box, open, closed or the history
+  strip alone, with the conversation's state, the partner's name as the game shows it, who hears, the history strip,
+  the draft it opens with and the input's limits; the talk hint and the marker's character; the toasts up now), and
+  `UiEvent`, what they send back: `OpenChat` (the talk key or the pad's chord), `Submit` (the player's line),
+  `PageShown` (a page's id and its first visible frame's time), `Close` (why, with the draft) and `Skip` (Tab, with the
+  page it skips). A model holds no model text that is not on display. The caps the surfaces keep (the line's 240 chars
+  and 720 bytes, a page's 116 chars and 180 bytes, a name's 48 bytes and a toast's 160) are constants beside them.
+- **The model client's health** (`llm.hpp`'s `NetHealth`): whether the dialogue slot has a model it can use now, as
+  the shell reads it from en-llm's handle, for the core's ladder (ARCH §6.8); it names no provider, model or key.
 - **The JSON caps** (`json.hpp`, ARCH §10.2): `parse_json(text)` parses a JSON text only once it is at most 256 KB
   and nested at most 32 deep, both checked before nlohmann/json sees it (`within_depth` counts brackets outside
   strings, without parsing), and never throws for what the text holds. `read_json<T>(text)` parses within the caps
@@ -77,6 +88,14 @@ LlmRequest.decision.options[0]: has an unknown field "txt"
 WorldSnapshot.chars: has more than 32 items
 WorldSnapshot.health.groups: has an unknown group "weather"
 the text is nested deeper than 32
+```
+
+The surfaces' messages (`ui_json.cpp`) follow them too, with words in snake_case (`"lower_third"`, `"talk_key"`), and
+each `UiModel` and `UiEvent` carries `"version"`, which must be there and be `kUiVersion` (1); a `UiEvent` holds
+exactly one of `"open_chat"`, `"submit"`, `"page_shown"`, `"close"` and `"skip"`:
+
+```json
+{"version": 1, "page_shown": {"page": {"conv": 3, "reply": 2, "index": 0}, "t_ms": 81234}}
 ```
 
 The game messages follow the same rules (`game_json.cpp`), and:
@@ -107,7 +126,8 @@ std::size_t on_body(char* data, std::size_t size, std::size_t n, void* user) noe
 
 `cmake --build <build> --target en_proto_tests`, then run `en_proto_tests` (under Wine for the Windows builds). A round
 trip for every type, through JSON values and through text, with every field away from its default, every container
-full and ids past 2^53; fields left out keep their defaults; malformed JSON refused with its path; each cap just under
+full and ids past 2^53 (the surfaces' messages with every event kind and their version, refused when missing or
+another); fields left out keep their defaults; malformed JSON refused with its path; each cap just under
 and just over; `Expected` through copies, moves and assignments between its two states with no object leaked, and
 with a value whose constructor is private; the fixed containers at and past their capacity, UTF-8 cut at whole
 characters, the flag sets' bits; a backend of the test's own driven through the interface with a token; and the guard:

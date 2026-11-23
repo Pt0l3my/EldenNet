@@ -4,7 +4,7 @@ The part of EldenNet's engine that reads the game (ARCH §6), C++20, MIT. Three 
 may link (`en_dll_module`):
 
 - `en_gal`, the offline part, which builds with every compiler: the PE reader, the patterns, `gal/`'s schemas, the
-  derivation kit that `eldennet-engine probe-exe` runs (part 3), R1's probe report, and, with clang-cl,
+  derivation kit that `eldennet-engine probe-exe` runs (part 3), and, with clang-cl,
   `GuardedReader`'s guarded copy. en-launcher and en-tools use it off game (ARCH §2.3).
 - `en_gal_game`, the part that runs in the game process (part 4): `GuardedReader`, the read groups and their breakers,
   discovery over the live image, `ErBackend`'s reads, the task; portable C++ over `SysLayer`, the platform seam, tested
@@ -77,7 +77,7 @@ value read from an image, no lock, and no raw address, `reinterpret_cast` or poi
   every copy size within 0x4000; every `to` and `elem` naming a class of the file; each enum table total over the
   range of the fields that use it; what the read groups need (`LayoutNeeds`: fields with their types, enum tables with
   the snapshot enum's names, params) present; and, in a release build, no entry left a `lead` (an entry with no
-  `status` is a lead). `max_copy_size()` sizes the scratch buffers (ARCH §6.5). A `[task]` that is a lead may hold
+  `status` is a lead). `max_copy_size()` sizes the scratch buffers (ARCH §6.5). A field may be `far = true` (WHY§506): its `off` may then lie past the class's `copy_size`, up to 0x100000 into its object, and the reader fetches it at the object's address plus `off` by a copy of its own size (at most 32 bytes: the whole numbers, f32, bool8, bit, bits, ptr, handle, vec3f, dlvector), kept past the class's copy in the object's buffer (`FieldLayout::at()`, `ClassLayout::buffer_size()`); a class whose fields are all far, and that has no rtti, may have `copy_size = 0`. 2.7.2.0's characters manager is such a class: its object is over 127 KiB. A `[task]` that is a lead may hold
   only its `group` (the derivation's offline round gives the group's index; `register_abi`, `vtable_slots`,
   `run_slot` and `object_size` are the in-game round's to find, left out rather than guessed): it is `partial`, and
   discovery is never ready with it, `install_task` refuses it and the first tick reads nothing (the real game's draft
@@ -196,7 +196,11 @@ of any game is in it, and every name it looks for comes from a leads file.
   slot into a register, which the shape remembers; gives the slot), `test_loaded` (a 64-bit test of that register with
   itself), `branch_set_short` and `branch_set_near` (a branch forward taken when the test found it set, with an 8-bit
   or a 32-bit distance), `address_arg1` (the address of a RIP-relative object into the first argument's register;
-  gives the object) and `call_relative` (gives its target). Each form is one instruction of the architecture's own
+  gives the object) and `call_relative` (gives its target); and, for the accessor's other shapes, `skip_one` (any one
+  instruction that falls through and does not load the remembered register anew: a call, a jump, a return, or a
+  load, an address or a widening move into that register is refused) and `compare_slot` (a 64-bit compare of a
+  RIP-relative slot with zero where it lies; gives the slot, leaves nothing in a register, and a branch form may
+  follow it). Each form is one instruction of the architecture's own
   encoding, with no prefix but REX.W where it is 64-bit, whatever registers and distances it uses; the steps'
   instructions follow one another. `match_at` answers the shape at one place, with what each step gives and where its
   branch goes; `find` looks at every offset of a section, as the pattern scan does, so a site is found also where a
@@ -208,17 +212,163 @@ of any game is in it, and every name it looks for comes from a leads file.
   every place, verdict and name the same: the test that let `gal/patterns.toml`'s idiom go (O102).
 - **`recipes.hpp`: `gal/recipes.toml`** (proposal 0005 §6; O102). `parse_recipes(text, required_ids)` reads the
   recipes, one kind so far: an `accessor`, with its `steps` (1 to 16 forms of the grammar; a test before any load is
-  refused), `gives` (which step gives the `static`, the `class` and the `getter`, each of the form that gives it), its
+  refused), `gives` (which step gives the `static`, the `class` and the `getter`, each of the form that gives it; the
+  static by a `load_slot` or a `compare_slot`), its
   `path_suffix`, and, as a pattern has, `section`, `expect_matches` (a range up to 65,536), `builds` and `provenance`
   (`own-derivation`). No key of a recipe can hold bytes. `RecipeSpec::accessor()` is what the finder takes. Discovery
   takes the file's text in `DiscoveryOptions::recipes`: with an `accessor` recipe (`roles::kAccessorRecipeId`) the FD4
   singletons are found by its shape and `patterns.toml` needs no `fd4_idiom`, nor is one read; a text that does not
   read is a refusal. On the tests' fake world discovery finds the same items, sites and names by either. The DLL and
   the test DLL read `recipes.toml` when the folder holds it, and a folder with it and no `patterns.toml` is read as
-  having no pattern. The repository's `gal/` holds the accessor recipe with its note, and no `patterns.toml` any more;
+  having no pattern. A file may hold more recipes of the accessor's kind under other ids (the accessor's other
+  shapes: `accessor_near`, `accessor_gap`, `accessor_compare`, `accessor_compare_near`, each a lead with its note
+  and its count on 2.7.2.0; a fifth stood nowhere there and was withdrawn): discovery reads `accessor` alone, and Lodestar's finder counts the others beside it.
+  The repository's `gal/` holds the accessor recipe with its note, and no `patterns.toml` any more;
   the pattern reader stays for the fake game's generated folder, and for the statics' and the function's patterns,
-  until discovery goes through the table (the proposal's L3 and L4). R1's check of the idiom byte for byte now finds
-  no idiom in the repository's `gal/` and refuses its call, which is what O101 asks: no call into the game.
+  until discovery goes through the table (the proposal's L3 and L4).
+- **`lodestar.hpp`: Lodestar's finder and its report** (proposal 0005 §6.2, §11; step L3). `lodestar::find(image,
+  source, file_size, leads, recipes, builds)` runs, on an executable read from its file, the recipes that need no
+  running game: the image's fingerprint and the gate's verdict against `builds.toml`; the accessor's shape (its hits
+  against the recipe's `expect_matches`, the sites accepted and refused by reason, and every static the accepted sites
+  load, each with its class object, its count of sites and up to 8 witnesses, the loads themselves, which the resolver
+  re-finds); the classes the leads name with their tables of methods; and the task groups' table (through the
+  derivation, as R0 ran it). While the shape is new it also cuts the withdrawn pattern again in memory, as the
+  derivation does, and counts the accepted sites the two share and those only one accepts; for the sites the pattern
+  alone accepts it says why the shape does not stand there (`shape::mismatch_at`: the first step that differs, and
+  whether it is the form in all but its width, a test of another register, or something else) and which statics only
+  those sites load; the pattern is never written. `complete` says the accessor has a recipe, its count within range, an accepted site, one class object
+  for each static and the reverse (`shared_class_objects`, `shared_statics`), and no site that the shape alone
+  accepts; a site the pattern alone accepts is reported with its reason and does not count against the run (on
+  2.7.2.0 there are 4, each a test of another register than the one loaded: the pattern took another load for the
+  manager's slot there). Every other recipe of the accessor's kind is a variant, run the same way and reported under
+  its id (`AccessorFound::variants`): its hits, the sites accepted and refused, the statics they reach, how many of
+  those the accessor's own sites reach too (`known`) and with the same class object (`agreeing`), and the statics
+  that are new, each with its class object, count of sites and witnesses; `all_statics` is the accessor's own and
+  then the variants' new ones, which the naming goes through. A variant never changes the accessor's own counts or
+  `complete`. `write_report` writes kind `lodestar`, schema 15, through the numbers-only writer: whole
+  numbers, booleans, fixed words and the leads' labels. Its vocabulary holds no key of the pattern type and no
+  fraction, which a test pins, so a report cannot carry a byte, a pattern, text, a name or an instruction.
+  **The in-game round (step L5; proposal 0005 §6.1's `instance_class`, O92)** adds, all read-only:
+  `Namer(image, source, leads, ids)`, which names the managers. It reads the image's type information once; then
+  `pass(live, accessor, read_word)`, as often as the round likes, reads for each static the accessor's sites load
+  the instance it holds as the game runs (8 bytes through `live`) and that instance's first word through the
+  caller's guarded read (one word, never at an address inside the image), and takes the word's class from what it
+  read at the start. A lead names the one static whose class has its name, or its name with Imp; where no static
+  does, the one whose class derives from such a class (`by_base`); and where the image has no class of the lead's
+  name at all, the one whose class has a name that holds the lead's (`by_related`, weaker and marked; the third
+  round of 2026-11-22 found the world's clock has only such a class); two that match the same way leave it ambiguous.
+  `name_instances(...)` is one pass of a namer made for the call. `lead_classes()`, offline too and in every
+  report, counts what the image holds under each lead's name: classes of that name and of that name with Imp, the
+  tables of methods of those and of every class deriving from them, and the places where a type's name of either
+  form stands at all, and the classes whose name holds the lead's and is neither (`related`: a manager that goes by
+  a longer name). So a reviewer can tell a manager that is not there from one under another name, or one with
+  no type information; the round of 2026-11-22 could not (`docs/ops/probes/2026-11-22-l5.md`). A lead's label is the catalogue's, or the one it had before (`was`, which `gal/ids.toml` records for
+  the managers and the two classes). `merge(held, later)` folds a later pass in: a manager the game makes only once
+  a save is loaded is null at the title; the counts and what each static held (`held`, every static's object by
+  its class, a number; `new_statics`; `others`) are the fullest pass's, since the last pass of a session is made as
+  the game closes; what was named stays named, with the pass that named it, and what the
+  searches found for a manager stays with it through every later pass (the second round of 2026-11-22 lost it
+  there). A pass goes through `all_statics`, marks a manager behind a variant's static (`variant`), and counts for
+  each lead the catalogue does not hold how many statics hold an object of its class (`others`: a lead on trial).
+  `set_by_search(held, id, result)` takes a slot search's result: the slots found name the manager when they hold
+  one object between them (one slot, or several that are copies of one address; the first by offset is taken), two
+  objects leave it ambiguous, and the search's own numbers (runs, candidates, checked, unreadable, the slots) are
+  kept either way; `set_in_data` records the objects of its class in the image's own data.
+  `references(image, source, section, rvas, max)` counts, for each slot, the instructions of the code whose
+  RIP-relative operand is the slot, and gives the first places (each found by reading on from its function's start,
+  as the resolver reads a witness); `set_search_refs` then makes the slot the code refers to most the manager's,
+  with those places as its sites and witnesses, so a manager no accessor loads has witnesses too. A pass also says
+  what each static only a variant reaches holds (`new_statics`: nothing, unread, unclassed, or classed with its
+  table of methods and whether a lead asks for it). The report's
+  `instances` object carries counts, numbers and the catalogue's labels: the classes' names never leave memory.
+  `draft_table(found, ids, provenance, image, source)` writes the findings as `[provenance]` and `[item.*]` entries
+  (managers, the leads' two classes, the groups' table), each checked first as a start will check it: an entry whose
+  placement fails is left out, a witness that refers elsewhere is dropped, `checks` lists what passed, and every
+  entry is a lead until its review.
+- **`lodestar_trial.hpp`: the reader's trial** (in the part that runs in the game: it holds a `GuardedReader`, whose
+  shape depends on the probe option). `Trial` is a task body for the frame service's own thread: about ten times a
+  second it reads each named manager's slot, its instance's first word, and the slot again, and counts what was
+  null, what still had the class it was named by, what had another, what faulted (caught) and what changed between
+  the two reads (`torn`, which judges nothing). Managers are added by the naming thread at any time; nothing is
+  removed. With `set_stage(id)` a reading made while that manager has an instance counts as one in the world
+  (`world_readings`, `stage_changes`), and each manager's empty readings are counted in stretches (`null_runs`,
+  `null_longest`) and by stage (`null_world`), so a report says when a manager was away, not only how often. `found()` gives the counts from any thread, with the readings' p50, p99 and longest, for the report's
+  `trial` object. `ClockSearch` looks, in the first bytes of the objects behind the statics no lead named, for a
+  field that behaves as a clock's minutes do with one beside it that behaves as hours. `MemberSearch` looks for a
+  lead's object that no slot of the data points at: it copies the first bytes of each static's object (0x4000 at
+  most, less where its memory ends sooner) and, for every 8-aligned word after the first, takes a table of methods
+  of a lead's class as an object lying there itself (`embedded`), and follows what could be a heap address by one
+  8-byte read; a hit is a static and an offset into its object, for the review and never a name. (It copied 0x800
+  bytes until the third round found nothing that near; now the reader's longest copy, 0x4000.) A pass goes
+  through every static once and the next starts 30 s later. Both read through the guarded reader and allocate
+  nothing on the reader's thread. `Watch` is step L6's first tool: a way leads to an object (a static's slot, an
+  offset added to the address it holds, and for a pointer kept there one more read); once a second each way is
+  followed and the object's first 0x200 bytes copied, and from one copy to the next every 8-byte word's halves are
+  counted for changes and rises, and now and then the word is looked at (nothing, a small number, a table of
+  methods, an address in the image, an address of live memory, something else). A way marked for a clock also has
+  every run of 6 bits watched for minutes and of 5 bits for hours (a clock packed into one word; the hours are also
+  judged alone, whatever the minutes' pace), and every 32-bit field read as a fraction or as a whole number for a
+  steady rise: a rise far above the field's pace, or a fall, is a jump, which is what a clock does when the player
+  lets time pass; a field's or a run's first three jumps are kept with their second and the number before and
+  after (`RiseHit`, `HourHit`, `JumpEvent`). Two ways of one label say how often they arrived at one object
+  (`same_address`). Apart from those jumps it keeps counts and offsets, never what a word held. A way may ask for a
+  longer span (to the reader's longest copy, 0x4000; past its first 0x200 bytes only words that changed are
+  written), a slower pace, and one step more (`deeper`: the object whose address is kept `via` bytes into the one
+  the way led to); and many may be `wide`: every static's object watched only for a clock, followed after the plain
+  ways (less often once it has proved still) and listed only where something was found. In the report a word's
+  counts of nothing are left out. `Sweep` goes through longer stretches (to 2 MiB a target, a piece of 0x4000 bytes
+  a call, a pass every 30 s at most) from the address a way leads to, compares each piece with its copy, and keeps,
+  page by page, the single bits that flipped in words and pages that otherwise kept still (`SweepFlip`: the place,
+  the bit, the direction, the second; nothing of what the memory holds): a flag set by something the player does.
+  `Sweep::mark` takes the moment the tester confirmed a task: the flips seen from 15 s before it to 60 s after are
+  kept under that mark (`MarkFlip`), and a pass starts at once; a target of which more than 1,024 words change again
+  and again is read no more (`retired`). A wide way is listed only where minutes went round twice with hours beside
+  them, and the round names that static the world's clock by the invariant recipe. `TreeRead` walks the tree beside
+  the flags once (records of 64 bytes reached by their first three words, 32,768 at most, nothing allocated while
+  stepping), counts each of a record's sixteen 32-bit fields over all records, finds the key by the tree's own order
+  (a left child's is smaller, a right child's greater), and joins a marked flip to the record that names its block
+  by the block's start, index or address (`TreeFound`, `TreeJoin`); `settle` tells addresses from numbers that look
+  like them before anything is counted, and an address is never written. `StateSearch` finds a static by what a
+  field of its object holds in two states of the game the tester moves it between: over the data's slots that point
+  at live memory, the first 0x2000 bytes of each object in four passes (asked for one by one, at the tester's
+  marks); a 32-bit field that reads -1, a number from 0 to 15, -1 and such a number again is a hit (`StateFound`),
+  with both numbers, and hits that are one field of one object seen through several slots are numbered alike
+  (`same_as`). The twelfth round hit 15 slots with the same save loaded twice, so the thirteenth has the tester load
+  two saves: the round names the game's state by the invariant recipe where one field in one slot alone read two
+  numbers, or, with one save, where one slot alone was hit. Each pass says how long it took and whether the next
+  was asked for before it was through. `CharSearch` (lodestar_chars.cpp, `CharFound`) is the second step of the
+  layout for a ready start, the pointers and lists by search and class: in looks asked for as the state search's
+  are, it reads the characters manager's object and what follows it (0x40000 bytes at most), follows each address
+  in it once (the first 0x100 bytes behind it; 8,192 at most) and tells by the first word whether an object of a
+  character class lies there (the two classes' tables of methods, the player's told apart). It reports the words
+  that hold a character's address, the pairs of neighbouring addresses that bound a run of elements holding
+  characters (the element's size, the address's place in it, and a fraction that never falls along the run: the
+  list by distance), the addresses of memory that holds the main player's address (the player set), and, for the
+  main player's object and the save data's, each address in it with its target's table of methods and how many
+  addresses the target begins with (a holder of parts: at least 8 of its first 16 words are addresses; how many of
+  those objects have a class is counted). It names nothing; no value of any object is reported, and nothing is
+  allocated on the stepping thread. The fourteenth round asks for its look only once the tester says the game is in
+  the world (a look asked for as the manager was first named saw it being filled). `PairSearch` (lodestar_parts.cpp,
+  `PairFound`) finds a field by two numbers it must read: the owner's save file gave the characters' slots, so the
+  save's slot is the 32-bit field (or the byte) that reads the first loaded character's slot in the first world and
+  the second's in the second, over the data's slots in use in the world, with no rule about the title and none about
+  the object staying; the round names the game's state where one 32-bit field alone did. `PartsWatch` (`PartsFound`)
+  is the third step, the moving numbers by invariant: once a second it reads the main player's address from the
+  manager, the holder's from the player's object, the holder's 32 words and 0x1000 bytes behind each, compares
+  every 32-bit field with the pass before and counts the changes by the phase the tester is in (standing, walking,
+  standing, a hit, a heal: the launcher's marks, the waits' ends among them). It reports the parts (each one's
+  table of methods), the fields that changed in at least half of the walk's passes and never while the tester stood
+  (a position), and the fields that fell in the hit's phase having never changed before, with how often they rose
+  in the heal's and whether a field beside them never changed and is at least as large (health and its maximum).
+  What a field held is never reported. `ErBackend::flags_alone`
+  and `DiscoveryOptions::partial` (backend.hpp, discovery.hpp) let one group of EldenNet's own reader be read before
+  the others' fields are placed.
+  The round watches each named manager, the objects the event flags' store's first addresses lead to and the
+  objects those lead to (and sweeps the stretches all of them start), each place the member search found a
+  pointer to an unnamed lead's object at with the object that holds it (0x4000 bytes of both for the world's
+  clock), the object whose field rose by the clock, and, as wide ways, the object behind every static. That field's slot is also a static found by what its object holds (`InvariantFound`:
+  proposal 0005's `invariant` recipe), which `draft_table` writes with the code's references as its witnesses. A
+  pass that names a manager the search named first takes the entry over (`merge`).
 - **`derive.hpp`: the derivation.** `parse_leads(text)` reads the leads file (what to look for: names and shapes, never
   bytes, under labels of its author's own); `derive(image, source, leads, options)` finds, from the file:
   - the fingerprint (the version resource, the region from FileVersion's fourth field, the product name compared with
@@ -229,20 +379,20 @@ of any game is in it, and every name it looks for comes from a leads file.
     the same place); the name layout (the offset in the class objects that points at an identifier in `.rdata` for
     the most of them); the singletons by the leads' names, the rest only counted. The idiom is `derived` when its
     sites all match, part 2's scan resolves it and a hit is accepted; without a name layout the singletons are
-    `depends` (R1 names them through the getter, ARCH §6.2 step 3);
+    `depends` (the in-game round names them, by their instances: O92);
   - the vtable sets and the task classes (their slots, how many functions each slot holds across them, and the one slot
     every class fills with its own: the run slot's candidate; `task_from_base` does the same for a base given by its
-    type descriptor, which R1's census finds in game);
+    type descriptor);
   - `register_task`: the direct calls after a load of the registration's instance, whose arguments a small register
     model follows back to the start of the block (the instance, a 64-bit argument, a 32-bit one), grouped by callee;
   - the task group's index: its name, as ASCII or UTF-16, in a table of entries holding pointers to names at a stride
     of 8 to 64 bytes (the stride with the longest run), cut where the code addresses an entry's start, with the name
     pointer's offset in the entry and an index field the entries may hold; or beside a small constant where the code
     loads it. A lone pointer (a table of one) is listed last and gives no index;
-  - each AOB static's class vtable, for R1's search, and how many type descriptors carry the class's own name in any
-    namespace; given R1's slot (`Options::static_slots`), a pattern at a reference to it. A static whose class has no
-    RTTI cannot be found offline: its slot is zeros in the file and nothing names it, so R1 finds it by what its
-    instance holds;
+  - each AOB static's class vtable, for the in-game search, and how many type descriptors carry the class's own name
+    in any namespace; given the slot found in game (`Options::static_slots`), a pattern at a reference to it. A static
+    whose class has no RTTI cannot be found offline: its slot is zeros in the file and nothing names it, so the in-game
+    round finds it by what its instance holds;
   - every pattern cut by `cut.hpp`'s rules: whole instructions, at entry + 5 or later inside a function of the exception
     directory that is no fragment, at most 64 bytes, the RIP-relative and other 32-bit displacements, the branches whose
     targets lie outside the pattern, the relocated bytes and the immediates that do not fit in a signed byte
@@ -252,7 +402,8 @@ of any game is in it, and every name it looks for comes from a leads file.
     each site's and each accepted hit's path load sits; R0's rule over the same hits; what the class objects hold in
     the file; and every executable section decoded through (instructions, bytes that do not decode, their runs and
     where they start, references to the paths);
-  - and the list of what R1 must confirm. `complete(result)` says whether everything R0 can derive was derived.
+  - and the list of what the in-game round must confirm. `complete(result)` says whether everything R0 can derive was
+    derived.
 - **`report.hpp`: the numbers-only writer and its lint.** A report is one JSON object whose keys all come from its
   kind's closed vocabulary, each with one type of value: whole numbers, booleans, fixed words, labels (`[a-z][a-z0-9_]*`),
   patterns of at most 64 bytes in canonical form, objects and arrays, and, for a key typed so, finite numbers that need
@@ -262,12 +413,6 @@ of any game is in it, and every name it looks for comes from a leads file.
   where, never what; `lint_lines` checks a JSON Lines file whose every line is one report of the first line's kind
   (eldennet.dll's recordings), each problem with its line. `derive::write_report` writes derive.json through it, under
   `derive::vocabulary()`; eldennet's en_shell holds the `recording` vocabulary.
-- **`probe_report.hpp`: R1's report** (kind `probe`, schema 1; O89). What the probe build of eldennet.dll finds in
-  game, beside the derivation it runs over the live image: the checks before its one call, the call, the slot counts,
-  the hub's census, the rising fields and the statics' slots. The DLL fills `probe::Findings`, and
-  `probe::write_report` writes it under `probe::vocabulary()`. It is here rather than in eldennet's en_shell, which
-  links en-core, so that the launcher lints R1's two reports after an R1 session (`--probe`) with en-gal's offline
-  part alone (ARCH §2.3).
 
 ```cpp
 #include "en/gal/derive.hpp"
@@ -373,82 +518,73 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   2 Hz and 16 characters within 25 m, and 60 s of fast builds end it. `TaskStatus` holds C13's histograms (each
   invocation and each build) and the counters, as atomics. `install_task` reads the hub's instance from its static
   through the image and makes the one registration.
+- **The frame service: a reader on a thread of our own** (proposal 0005 §9.4, §10; O101 (b); `task.hpp`,
+  `backend.hpp`, `sys.hpp`'s `FrameProvider`). v1 reads the game from a thread of EldenNet's own, with no call into
+  the game and nothing written to it; the game's own task stays a later service. `ReaderLoop(sys, body, tick_us)` is
+  that provider's loop: each `step()` runs the body once through `run_task` (the one place that issues the reading
+  thread's token), with the clock's time and the time since the last step, and answers how long to wait before the
+  next (the tick less what the step took, 1 ms at least). The DLL owns the thread; the tests step it on FakeSys.
+  `own_thread_options()` gives the task's settings for it (a snapshot about ten times a second, five while
+  throttled, and no group check at the first tick: such a reader is in no group of the game's), and
+  `own_thread_backend()` turns on **steady reading** (`BackendOptions::steady`), for a reader that is not in step
+  with the frame: (1) every static's instance, every object's table of methods and the near list's two ends are
+  remembered as the snapshot is read and read again when it is built, and one that changed drops the reading
+  (`ReadError::Unsteady`, counted as `torn`); (2) a change of the lifecycle (the main player there or not, the
+  screen) is published at its second sighting running, the first reading that shows it dropped (`held`), so a blip
+  of one reading is never published; (3) a group's hard fault counts toward its breaker only when the group faulted
+  in the reading before too (`unconfirmed` otherwise). A dropped reading counts against no group, and the next
+  snapshot carries `gap`. Phase B and a playthrough's start are concluded only from a reading whose structure held.
+  `DiscoveryOptions::frame = FrameProvider::OwnThread` makes discovery ask for no registration function, no task hub
+  and no `[task]` in the layout, and ready then means ready to read. `TaskStatus` carries `torn`, `held` and
+  `unconfirmed_faults`. With it the FD4 getter is never called either: a site without a name stays unnamed, so names
+  come from the name layout or from the build's table. eldennet.dll starts this way (`boot.cpp`: T2, the reader);
+  `install_task`, the game's task, is no part of a v1 start, and stays for the later task service (proposal 0005
+  §9.6); nothing of EldenNet's calls it now, only the tests and galtest.dll (R1, retired 2026-11-22, O106).
+- **Discovery through the build's table** (proposal 0005 §7.1, §9.1; `discovery.hpp`, `resolve.hpp`). A layout of
+  schema 2 that holds `[item.*]` entries is loaded against the catalogue (`DiscoveryOptions::ids`, gal/ids.toml's
+  text; refused without it), and `Library` checks each entry against the image as loaded (placement, witnesses).
+  Each role whose id the table holds takes its place from there, `ItemResult::from_table`, and no pattern, recipe,
+  slot or walk looks for it; an entry whose check fails is refused alone (`why` is the check's word, such as
+  `witness_elsewhere`), its place handed out to no one, and a required one stops the start. A class the table holds
+  gives its vtable set, to the entry. What the table does not hold yet is found as before, so the table can grow id
+  by id; with every static in it, a start scans for nothing. `DiscoveryReport::table_items` and `table_refused`
+  count them.
 - **`probe.hpp`: the probe option** (`EN_PROBE` only). `SlotSearch` finds a static's slot as the data slot whose
   instance has its class's vtable (candidates read on T1 from the image's writable data, `heap_slots`, checked on the
-  game thread within the tick's budget), for a layout class or for a vtable set of the caller's (R1, before any
-  discovery); `slots_holding` finds the data slots holding a value (R1's `global_hinstance`: the module's base);
-  `RisingSearch` copies each candidate's instance again a second or more after its last copy and keeps the 32-bit
-  fields that rose by the elapsed milliseconds (within a fifth), with how often each rose, stood still or changed
-  otherwise (a play time stands still at the title and while loading; a candidate that faults is not copied again), for
-  a static whose class has no RTTI; `Census` copies the task hub's instance and what it points at to a depth of three
-  (heap objects and the image's writable data; a copy that faults is made again at half its length, down to 16 bytes),
-  and counts the objects whose first 8 bytes are one of the image's vtables (the hub's own tasks, whose shared class is
-  the task's base); `vtable_offsets`, `meter_offsets`, `utf16_offsets` and `u32_offsets` search one copied object's
-  bytes by invariant and answer offsets only; `GuardedReader::inject` makes every n-th read of a group a real fault;
-  `SysLayer::slot_calls` counts the game's calls of each slot, and `TaskShape::every_slot` (R1, the run slot not yet
-  known) makes every slot count its calls and run the body for our own object; `SysLayer::task_object` gives our
-  object's address, so that R1 can see how much of it the hub wrote. Everything they need on the game thread is
-  allocated on T1. Spike.6 (WHY§227) adds two of T1's: `summarise_callee`, the registration's callee as its code reads
-  (decoded from its RVA within its function or up to its first return, at most 4 KiB, no call followed: its calls and
-  their forms, its branches before the first call, whether a path returns through no call, and each argument
-  register's stores, moves to callee-saved registers, compares and tests before the first call, followed through moves
-  between registers until an instruction it does not model), and `search_memory`, every committed and searchable
-  region (`searchable`: readable, not a guard page, no-access, uncached or write-combined) read through the copy
-  primitive in chunks of `kMaxCopyBytes`, page by page where one faults or a stack or a kept-out range overlaps it,
-  within a cap of bytes and of time, for the words equal to an address or pointing into the object there, the regions
-  whose allocation base the caller names as its own counted apart, and an image hit's section read from its headers by
-  its characteristics (`section_kind`). Both fill `probe_report.hpp`'s structures. NativeSys's `region_at` (probe
-  builds) is the VirtualQuery behind the search. Spike.7 (WHY§235) follows the task past the wrapper run 6 found:
-  `summarise_callee` knows what each register holds along the flow (where paths meet a register keeps only what both
-  agree on, and code no known path reaches holds nothing), maps the arguments into every call and tail jump (`pass`),
-  reads each branch's flag test before the first call (`guards`: the compare or test, past moves that set no flag, with
-  its operands' kinds: a register and the argument it holds, a memory operand's base and displacement, a RIP-relative
-  slot, an immediate), and takes an entry state, so that each callee of the wrapper is summarised with the wrapper's
-  arguments followed into it (`entry_at`); `search_memory` also counts the words equal to our fake vtable's address and
-  to its slots', reads up to 64 GiB (the time cap the bound) and walks past a cap for the committed total; and
-  `walk_hub`, `search_walk` and `diff_hub` (`probe_hub.cpp`) keep spike.5's walk of the hub's reachable memory, search
-  it, and compare two walks block by block by path, each changed word's old and new value by kind (zero, a small
-  integer, the group's index, our task, our vtable, our module, the game's image with its section and RVA, the heap,
-  other), a new pointer's block fresh or not, and, against an earlier diff, steady or not. Spike.8 (WHY§240) reads the
-  tail function run 7 found: `summarise_callee` also follows values loaded from memory (a RIP-relative slot, or
-  [base + index*scale + disp] with what base and index hold, at most 3 loads deep; a call's result stored to a
-  RIP-relative slot holds that slot's value, and an inner summary's rcx to r9 that hold no argument their entry
-  values), gives each guard operand's source, models a jump through memory or a register as a tail call site, ends a
-  function with no extent at its first jump out that no branch goes past, and gives each summary's first 64
-  instructions as forms (class and operand kinds, no bytes; `mark_sections` fills a RIP-relative slot's section);
-  `match_table` checks a wrapper and its tail function against run 7's shapes (the wrapper's rcx at its tail jump, or
-  past its null test where its paths disagree, `via_guard`) and `read_table` reads the singleton and
-  its entries through a caller's guarded reader, kinds and indices only (`classify_value`, the diff's own); and
-  `diff_hub` marks each changed word against a control diff's (`in_control`). `SysLayer::register_task` answers rax as
-  the call left it. Spike.9 (WHY§248) reads the group's own function run 8 found: with no extent a direct jump past the
-  decoded code is a tail jump, and `match_table` takes the tail function's direct jump with the entry in rcx
-  (`target`); given our task's argument, `summarise_callee` reports every load from the task or from the group's entry
-  (`EntryArg::entry`, set by `group_entry_at` and carried into callees by `entry_at(call, parent)`), or from a value
-  loaded from either, with what that value is then used for along the flow, and every store of the task or of a value
-  read from it, a followed value changed by add, or, xor, and, sub, a shift, a bit op or a lea staying followed
-  (Source's `modified`); `search_memory` counts words whose low 48 bits are our object's or vtable's address under a
-  non-zero tag, and `classify_value` names such a word `task_tagged` with its high bits; `read_table` can answer the
-  addresses it read for T1 (the walk's roots, the classes), never reported; `match_lead` names a class against the
-  leads' names as O92 does (derive's `innermost_class` gives the name). Spike.10 (WHY§289) reads the second
-  singleton's method run 9 found: `method_site` finds the group function's site that passes our task with rcx loaded
-  from a slot (a tail jump first), `method_entry_at` gives G's method its entry (`EntryArg::g`, `word`), `stub_jump`
-  knows a stub and `through_stub` carries the state through it (`zero` where it zeroes a register), and
-  `entry_at(call, parent)` carries G, the word and a zero into callees; `summarise_callee` lists the loads based on G
-  (`g_reads`) and the uses of the entry's word (`word_uses`), a use as an index is `index`, and with `starts` (the
-  exception directory's) a direct jump to a function's start goes past nothing; `task_argument` reads what a call site
-  passes as the task (the function decoded from its start onto the call, read back to the register's last write);
-  `diff_view` compares one of the array's views across the call; `read_table` answers every entry's address. Spike.11
-(WHY§293) reads the request run 10 found G's method building: with `SummaryOptions` (the exception directory's entries
-and, from `chained_entries`, the ones chained to a primary by UNW_FLAG_CHAININFO or by an entry pointing at another)
-`summarise_callee` decodes a function with an extent in parts where its code goes past it (`parts`: its chained
-entries, then the code its conditional branches reach past the extent in no entry, decoded linearly up to 4 KiB to a
-return, a trap, a jump out of the parts, another entry's start or a part), a jump into a part being no tail jump, and
-gives up to 128 forms then; a lea of rip or rsp makes an address (Source's `Address`, `Stack`), passed at calls, and the
-stores to the stack frame are kept for `request_shape`, which finds the request (its rdata vtable at [rsp + d], the task
-at +8, G's field as its manager, the entry's word, the zeroed register) and the function called with its address;
-`request_entry_at` carries the request, its task, manager and word into a callee, whose loads from the request and the
-manager are `request_reads` and `manager_reads`, a load of its task field the task; and `search_memory` counts the words
-equal to the request's vtable (`request_vtable`), the game's with their addresses for T1.
+  game thread within the tick's budget), for a layout class or for a vtable set of the caller's (before any
+  discovery), or over candidates the caller collected; it keeps the slots found with the object each held
+  (`found_objects`: two slots with one object are copies of one address) and how many there were in all.
+  `heap_slots` takes an optional question of what is live at a value (`LiveFn`: memory that may be read, none, or
+  memory that may not be read; on Windows the caller answers it with VirtualQuery, which reads nothing): only live
+  values are kept, and the rest are counted by the answer. Most 8-aligned values of a game's data that could be a
+  heap address are not one (in the second round of 2026-11-22 about 97 in 100 were refused when asked). `slots_holding` finds the data slots
+  holding a value (`global_hinstance`: the module's base);
+  `RisingSearch` copies each candidate's instance again a second or more after its last copy and counts, for every
+  32-bit field, the passes it rose in by the elapsed milliseconds (within a fifth), and from its first rise those it
+  stood still in or changed otherwise (a play time stands still at the title and while loading; a candidate that
+  faults is not copied again); its hits are the 32 fields that rose in the most passes, chosen again as each pass
+  ends (the best, not the first met), and a sweep that copied nothing is no pass; for
+  a static whose class has no RTTI; `ObjectScan` answers where an object is that nothing known points at: the
+  process's private, plainly writable memory (outside the image and the caller's own heap; never a stack) is gone
+  through once, 16 KiB at a time, for a word that is one of the targets' tables of methods (a node of level 0),
+  then up to three times more for words that hold the address of a node of the level before; each holder's object
+  is taken to start at the nearest word before it that is some class's primary table of methods (within 16 KiB, in
+  the same region), and a level-0 node that nothing holds is looked at the same way (`embedded`). It asks for each
+  region first and again after every mebibyte of it (`RegionQuery`; VirtualQuery in the round), so its reader need
+  not ask before each piece. (The fourth round of 2026-11-22 ran it: it found what it was for, read 19.75 GiB in 13
+  minutes without finishing, slowed the reader and made the game stutter; the round no longer starts it. Before it
+  is used again it must read only pages already in use, check its time after every piece and stop after one sweep.)
+  A node is a class, an offset and an address that is never reported; the caller
+  compares each node's address with the image's data, where a chain ends. Every node is a lead for a review: a
+  found object may be stale, and an owner a neighbour; `vtable_offsets`, `meter_offsets`, `utf16_offsets` and
+  `u32_offsets` search one copied object's bytes by invariant and answer offsets only; `searchable` says which regions
+  a search reads (readable, not a guard page, no-access, uncached or write-combined), and NativeSys's `region_at`
+  (probe builds) is the VirtualQuery behind a caller's question; `GuardedReader::inject` makes every n-th read of a
+  group a real fault; `SysLayer::slot_calls` counts the game's calls of each slot, and `SysLayer::task_object` gives our
+  object's address.
+  Everything they need on the game thread is allocated on T1. What R1 added on T1 around its one call into the game
+  (the hub census, the callee's summaries, the whole-memory search, the hub's walks and diffs, the table, the request
+  and the map, with `probe_report.hpp`'s report of them) went with it: R1, retired 2026-11-22, O106.
 
 ```cpp
 #include "en/gal/discovery.hpp"
@@ -496,8 +632,7 @@ group entries holding their index, statics without RTTI, and a trademark sign in
 the walk, the finder, the cutter's wildcards, the leads and their refusals, every derived fact against the program's own
 labels, the decoys refused, the statics' patterns from both layouts, and the report holding none of the program's names;
 the writer refusing what is outside its vocabulary and the lint refusing a path, a free string and a byte run longer
-than a pattern. `test_probe_report.cpp` writes every part of R1's report, which lints clean, and refuses a label that
-is not one, leaving no text. `tests/fakegame/` runs the Windows `eldennet-engine.exe` on `fakegame.exe` under Wine against what
+than a pattern. `tests/fakegame/` runs the Windows `eldennet-engine.exe` on `fakegame.exe` under Wine against what
 `fakegame --describe` says.
 
 The in-game part's tests (part 4) run in every build over `FakeSys` (`tests/fake_sys.hpp`: a process of byte regions,
@@ -515,60 +650,14 @@ layout's registers, 4 Hz at 30, 60 and 144 FPS and with 1 s hitches and 3 s stal
 most), the throttle in and out, the command cap, R3, and no allocation or free on the game thread after warm-up, with
 this test program's own counting operator new (`test_task.cpp`, `alloc_count.cpp`); and the probe's searches
 (`test_probe.cpp`: the slot searches, the heap slots and the module base's slot, the rising-counter search telling a
-play time from a still field, the hub census to a depth of three past a released object; the callee's summary on code
-of our own, hand-assembled: an argument kept in a callee-saved register and stored into another, a compare with a
-bound, a virtual call on an argument's object, a refusal path that returns through no call, a RIP-relative store, an
-immediate past the bound, an instruction it does not model, the 4 KiB bound and bytes that do not decode; and the
-whole-memory search over regions of the test's own: the game's copies in its image, heap and a mapped view, ours in our
-module, heap and task block, a guard page, an execute-only page and a stack never read, a page that faults, a range
-kept out, both caps, and its copies counted as the game's when our heap's regions are not known; spike.7's on code of
-our own: a wrapper's arguments mapped into two calls and a tail jump through the registers that keep them, a flag of
-the instance tested before a branch past both calls, an inner callee summarised with the wrapper's arguments (the task
-and its vtable kept in the hub, the group compared with a bound), two paths that disagree, a call reached only through
-a jump the summary cannot follow, a compare found past a move and a byte register's high half; the hub walked, searched
-and diffed over memory of the test's own (each kind of value, a fresh block, a block found again by another path, a
-path re-pointed, a block gone, the caps, and a later diff's steady words first); and the search for our vtable's and
-slots' copies, ours apart, with the committed total past a cap; spike.8's on code of our own: a wrapper of run 7's
-shape whose singleton, loaded from a global on one path and made and stored there on the other, reaches its tail jump
-on both, its guard's source and its forms; a tail function whose null test reads [entry rcx + group*8] and whose jump
-through the entry's vtable is a tail call through memory, the padding after it unreached, and the table's shapes
-matched (one level deeper too) or the first that failed named; a jump through a register loaded from a global, one
-through a RIP-relative slot, loads not followed (16-bit, a segment's, a fourth level) and a function with no extent
-ending at its jump out; the table's reads over memory of the test's own (the entries to the bound, the group's entry,
-its vtable and slot, no entry, no singleton yet, a hop and an array, the instance); and the control diff's words
-marked and ordered; spike.9's on code of our own: a tail function of run 8's shape whose direct jump past its decoded
-code is a tail call to the group's function, matched as the table's `target`; that function with the entry and the
-task followed in: its two task reads (one stored on the entry, one compared with a small immediate), its read of the
-entry's count, the task's store in the entry's list as a tagged pointer (an or by a register) and the entry carried
-into its call; a function reading the task's vtable and calling through its slot, a pointer read from the task and
-read from in turn, fields compared and tested in place, a lea into the task stored to a global and a bit set in the
-task stored through it; a diff word and the whole-memory search's words holding our address under a tag (ours apart,
-our vtable's too, none for a tagged pointer inside our object); spike.10's on code of our own: a group function of run
-9's shape (its site the tail jump, not the report's call), its stub (r9 zeroed, G and the word carried; one whose
-target follows it ends at its jump only with the starts) and a method of G's with its task reads, three reads of G,
-four uses of the word and its call carrying both; a call site's task as a load, a member, a result, a static and a
-stack slot with a branch landing on the call; a view's changed words with the threads' ids; a class's innermost name
-against the leads' names; the
-table's addresses for T1; and the report of all of it, lint-clean; spike.11's (`test_probe_request.cpp`) on code of our
-own: a method of G's of run 10's shape building its request on the stack (its five fields and roles, the function it
-calls with its address, no request where the vtable is not in rdata or the task not at +8), that function in two parts
-(an unlisted second part past its extent with branches back into the primary, a chained one instead, an entry chained to
-no one, and a jump out of the parts as a tail jump) with the request's task, word and manager followed and carried one
-level further; the chained entries of an image of our own; the search for the request's vtable; and the report of all
-of it, lint-clean; spike.12's (`test_probe_map.cpp`) on code and trees of our own: a now path's function of run 11's
-shape (its list walked with a word of 0, its map with any other) and the map's layout derived from its summary (the
-head, the root, the nil byte, the key from the word's compares, the match's call and the other branch's, the list's
-begin and end; the value 8 past the key where the summary knows nothing in rcx, else its load's), nothing derived
-without the request's manager field, the word's compares or the call; the match's call entered with the map's value,
-its load a value read; MSVC-shaped trees walked in order with the word present or its nearest keys, an empty map, and
-the walk's refusals (a cycle, a nil head, a node off the heap, a node's nil byte set, a head off the heap, no manager,
-4,097 nodes against 4,095 walked, a list out of order and none); and the map in the report, pretty and on one line,
-lint-clean). The vocabulary's check that every key is given once compares the names by a hash first (spike.12), so
+play time from a still field and keeping the fields that rose most, the object scan level by level, and which regions a
+search reads). The vocabulary's check that every key is given once compares the names by a hash first (spike.12), so
 that it stays within a compiler's constant-evaluation steps. The clang-cl build adds
 NativeSys's (`test_native_sys.cpp`): the module's image, both copy primitives, the stack table and a guard page left
 untouched, the rescan without the calling thread's stack and a range forgotten once its guard page is gone, the calls
-under SEH with the registration's answer kept, and the task object driven as a hub would drive it. In game, `tests/galtest/` is a DLL that the fake game loads, and the harness's `gal-*` cases check what
-it finds against `fakegame --describe` (`tests/fakegame/README.md`).
+under SEH with the registration's answer kept, the regions as VirtualQuery describes them, and the task object driven
+as a hub would drive it. In game, `tests/galtest/` is a DLL that the fake game loads, and the harness's `gal-*` cases
+check what it finds against `fakegame --describe` (`tests/fakegame/README.md`).
 
 The fuzz targets `en_fuzz_pe` (the reader and the scan over arbitrary images, in both layouts, with an unreadable page
 and small chunks), `en_fuzz_pattern` (the grammar, and the matcher against a plain search), `en_fuzz_galtoml` (the

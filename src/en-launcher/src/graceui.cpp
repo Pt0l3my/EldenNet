@@ -3,6 +3,7 @@
 
 #include <toml.hpp>
 
+#include <algorithm>
 #include <fstream>
 #include <optional>
 
@@ -208,6 +209,42 @@ GraceReport check_graceui(const std::filesystem::path& folder) {
   r.file.clear();
   r.result = GraceCheck::Ok;
   return r;
+}
+
+proto::Expected<GraceManifest, std::string> read_graceui_manifest(const std::filesystem::path& toml) {
+  const std::optional<std::string> text = read_file(toml, kGraceTomlMaxBytes);
+  if (!text) return Refusal{"graceui.toml could not be read"};
+  return read_graceui_toml(*text);
+}
+
+std::string graceui_differs(const GraceManifest& want, const GraceManifest& have) {
+  const auto version = [](const std::array<std::uint16_t, 3>& v) {
+    return std::to_string(v[0]) + "." + std::to_string(v[1]) + "." + std::to_string(v[2]);
+  };
+  if (have.version != want.version) {
+    return "the game's GraceUI is version " + version(have.version) + ", and this package carries " +
+           version(want.version);
+  }
+  if (have.abi_major != want.abi_major || have.abi_minor != want.abi_minor) {
+    return "the game's GraceUI speaks ABI " + std::to_string(have.abi_major) + "." + std::to_string(have.abi_minor) +
+           ", and this package's " + std::to_string(want.abi_major) + "." + std::to_string(want.abi_minor);
+  }
+  for (const GraceFile& w : want.files) {
+    const auto h =
+        std::find_if(have.files.begin(), have.files.end(), [&](const GraceFile& f) { return f.name == w.name; });
+    if (h == have.files.end()) return "both are version " + version(want.version) + ", but the game's lacks " + w.name;
+    if (h->size != w.size || h->sha256 != w.sha256) {
+      return "both are version " + version(want.version) + ", but their " + w.name + " differ";
+    }
+  }
+  for (const GraceFile& h : have.files) {
+    const auto w =
+        std::find_if(want.files.begin(), want.files.end(), [&](const GraceFile& f) { return f.name == h.name; });
+    if (w == want.files.end()) {
+      return "both are version " + version(want.version) + ", but the game's has " + h.name + " besides";
+    }
+  }
+  return {};
 }
 
 std::string graceui_problem(const GraceReport& r) {

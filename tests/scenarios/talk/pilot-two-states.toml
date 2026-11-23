@@ -1,0 +1,86 @@
+# The pilot at two states of the world (S11.3.c, d): Kalé asked for news twice, once on a fresh journey and once after
+# the red general's fall and the star. What he knows differs as his grounding says (MEM §12.5, §12.6): the first prompt
+# holds his road alone, the second the star as known and the castle's and the general's falls as heard, in his own tie
+# lines where he has one. The model is scripted, so its words show nothing of this: the prompt does. Our own scenario,
+# with invented data: this folder's pilot-overrides bind him to the fake game's invented row 81200 and verify the
+# catalogue's aliases by a ci: record, in the eval's realm only. Run: eldennet-engine eval <this file> --llm mock.
+schema = 1
+name = "pilot-two-states"
+persona = "kale"
+overrides = "pilot-overrides"
+mock = "pilot-two-states.mock.toml"
+
+[world]
+param = 81200
+distance_m = 2.5
+bearing_deg = 4.0
+clock = [18, 40]
+subtitles = true
+flags = "fresh"
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Evening. Any news on the road?"
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 1
+npc_lines = 1
+failures = 0
+prompt_has = ["Your own road: You keep shop in the ruined church by the grassland road"]
+prompt_lacks = ["In the land, you", "Tied to your road", "Something came down out of the sky", "red general"]
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "expect"
+state = "closed"
+ended = "closed"
+
+[[step]]
+note = "Some hours of play later: the castle's lord and the red general have fallen, and the star has come down."
+do = "flags"
+flags = "after_radahn"
+
+[[step]]
+do = "wait"
+ms = 5000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "I am back from the east. What is the talk now?"
+
+[[step]]
+do = "wait"
+ms = 14000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 2
+npc_lines = 2
+failures = 0
+prompt_has = [
+  "In the land, you know: Something came down out of the sky and shook the land. Nobody on the road can say what it means.",
+  "In the land, you have heard: Travellers off the castle road say its lord is dead and his soldiers are left without a master. The red general who held the eastern wastes has fallen at last.",
+]
+prompt_lacks = ["The great tree", "queen", "Tied to your road"]
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "expect"
+state = "closed"

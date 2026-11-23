@@ -7,12 +7,14 @@ text    ink.mute       30,  95   42x30   glyphs 4 "Home"
 line    rule           30, 135  240x1   
 text    ink.mute       30, 145   21x30   glyphs 2 "AI"
 line    rule           30, 185  240x1   
-text    ink.mute       30, 195   64x30   glyphs 6 "System"
+text    ink.mute       30, 195  106x30   glyphs 10 "Characters"
 line    rule           30, 235  240x1   
-text    ink.hi         30, 245   85x30   glyphs 8 "Settings"
-fill    tint.select     0, 285  300x40  
-fill    gold            0, 285    3x40  
-text    gold.hi        50, 293   76x25   glyphs 9 "Developer"
+text    ink.mute       30, 245   64x30   glyphs 6 "System"
+line    rule           30, 285  240x1   
+text    ink.hi         30, 295   85x30   glyphs 8 "Settings"
+fill    tint.select     0, 335  300x40  
+fill    gold            0, 335    3x40  
+text    gold.hi        50, 343   76x25   glyphs 9 "Developer"
 fill    ground.well   340,  10  350x35   r3
 text    ink.faint     353,  15   51x25   glyphs 6 "Search"
 text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
@@ -58,4 +60,4 @@ text    gold         1835, 606    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 text    ink.faint     340,1045  321x25   glyphs 24 "Enter  Toggle    R  Reset    Esc  Back"
 stroke  gold.hi      1802, 269   56x34   r5 w3 clip1
-# 59 items, 2820 vertices, 6678 indices, 4 commands; check_draw_list: passes
+# 61 items, 2864 vertices, 6744 indices, 4 commands; check_draw_list: passes

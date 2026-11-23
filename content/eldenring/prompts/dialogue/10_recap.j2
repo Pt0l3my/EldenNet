@@ -1,0 +1,9 @@
+{# Block 10, the recap (NPC §7.3): the Tarnished's newest lines since the persona last spoke, at most three, quoted.
+   At most 120 tokens. #}
+[ user ]
+{% if not empty(recap) %}
+Just said to you:
+{% for line in recap %}
+The Tarnished: {{ quote(line) }}
+{% endfor %}
+{% endif %}

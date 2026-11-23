@@ -23,6 +23,7 @@ const char* to_string(FieldType type) noexcept {
     case FieldType::F32: return "f32";
     case FieldType::Bool8: return "bool8";
     case FieldType::Bit: return "bit";
+    case FieldType::Bits: return "bits";
     case FieldType::Ptr: return "ptr";
     case FieldType::Handle: return "handle";
     case FieldType::Vec3f: return "vec3f";
@@ -145,7 +146,9 @@ bool Layout::has_leads() const noexcept {
 
 std::uint32_t Layout::max_copy_size() const noexcept {
   std::uint32_t most = 0;
-  for (const ClassLayout& c : classes_) most = std::max({most, c.copy_size.value_or(0), c.stride.value_or(0)});
+  for (const ClassLayout& c : classes_) {
+    most = std::max({most, c.copy_size.value_or(0) + c.far_bytes, c.stride.value_or(0) + c.far_bytes});
+  }
   for (const ParamLayout& p : params_) most = std::max(most, p.row_size);
   return most;
 }
@@ -159,13 +162,13 @@ constexpr std::array<std::string_view, 12> kGroupNames = {"session", "world", "c
                                                           "ui",      "place", "camera", "params", "status", "boot"};
 static_assert(kGroupNames.size() == proto::kGroupCount + 1, "proto::Group's names, in its order, then boot");
 
-// A type's name, and its size where the name alone fixes it (0 for utf16[n] and array).
+// A type's name, and its size where the name alone fixes it (0 for utf16[n], bits and array).
 struct TypeName {
   std::string_view name;
   FieldType type;
   std::uint32_t size;
 };
-constexpr std::array<TypeName, 15> kTypes = {{{"u8", FieldType::U8, 1},
+constexpr std::array<TypeName, 16> kTypes = {{{"u8", FieldType::U8, 1},
                                               {"u16", FieldType::U16, 2},
                                               {"u32", FieldType::U32, 4},
                                               {"u64", FieldType::U64, 8},
@@ -173,6 +176,7 @@ constexpr std::array<TypeName, 15> kTypes = {{{"u8", FieldType::U8, 1},
                                               {"f32", FieldType::F32, 4},
                                               {"bool8", FieldType::Bool8, 1},
                                               {"bit", FieldType::Bit, 1},
+                                              {"bits", FieldType::Bits, 0},
                                               {"ptr", FieldType::Ptr, 8},
                                               {"handle", FieldType::Handle, 8},
                                               {"vec3f", FieldType::Vec3f, 12},
@@ -205,14 +209,24 @@ std::optional<LayoutStatus> read_status(Table& t, Errors& errors) {
   return std::nullopt;
 }
 
-// One field: { off, ty, group?, range?, bit?, to?, enum?, elem?, len?, stride? }. `param` fields take off and ty only.
+// One field: { off, ty, far?, group?, range?, bit?, word?, shift?, width?, to?, enum?, elem?, len?, stride? }. `param`
+// fields take off and ty only. A far field's off may lie anywhere below kMaxFarOffset.
 std::optional<FieldLayout> read_field(const toml::table& t, std::string name, const std::string& path, Errors& errors,
                                       bool param) {
   Table f(t, path, errors);
   FieldLayout out;
   out.name = std::move(name);
   bool ok = true;
-  if (const auto off = f.integer("off", true, 0, kMaxCopySize - 1)) {
+  if (!param) {
+    if (const toml::node* flag = f.node("far", false)) {
+      if (flag->is_boolean()) {
+        out.is_far = flag->value<bool>().value_or(false);
+      } else {
+        errors.add(f.where("far"), "must be true or false");
+      }
+    }
+  }
+  if (const auto off = f.integer("off", true, 0, (out.is_far ? kMaxFarOffset : kMaxCopySize) - 1)) {
     out.off = static_cast<std::uint32_t>(*off);
   } else {
     ok = false;
@@ -236,7 +250,7 @@ std::optional<FieldLayout> read_field(const toml::table& t, std::string name, co
     const auto known = std::find_if(kTypes.begin(), kTypes.end(), [&](const TypeName& k) { return k.name == *ty; });
     if (known == kTypes.end()) {
       errors.add(f.where("ty"),
-                 "must be one of u8, u16, u32, u64, i32, f32, bool8, bit, ptr, handle, vec3f, mat4f, utf16[n], "
+                 "must be one of u8, u16, u32, u64, i32, f32, bool8, bit, bits, ptr, handle, vec3f, mat4f, utf16[n], "
                  "dlvector, dlmap, array");
       ok = false;
     } else {
@@ -244,7 +258,7 @@ std::optional<FieldLayout> read_field(const toml::table& t, std::string name, co
       out.size = known->size;
     }
   }
-  if (param && ok && (out.type == FieldType::Array || out.type == FieldType::Bit)) {
+  if (param && ok && (out.type == FieldType::Array || out.type == FieldType::Bit || out.type == FieldType::Bits)) {
     errors.add(f.where("ty"), "is not a type a param row's field may have");
     ok = false;
   }
@@ -265,8 +279,31 @@ std::optional<FieldLayout> read_field(const toml::table& t, std::string name, co
         out.group = static_cast<proto::Group>(*index);  // kGroupNames follows proto::Group's order, then boot
       }
     }
+    // A run of bits: the word's size in bytes (1, 2, 4 or 8), the run's lowest bit and its length, all within the word.
+    const bool bits = ok && out.type == FieldType::Bits;
+    const auto word = f.integer("word", bits, 1, 8);
+    const auto shift = f.integer("shift", bits, 0, 63);
+    const auto width = f.integer("width", bits, 1, 32);
+    if ((word || shift || width) && ok && !bits) errors.add(path, "has word, shift or width, which only bits fields take");
+    std::optional<std::pair<std::int64_t, std::int64_t>> bits_domain;
+    if (bits) {
+      if (!word || !shift || !width) {
+        ok = false;
+      } else if (*word != 1 && *word != 2 && *word != 4 && *word != 8) {
+        errors.add(f.where("word"), "must be 1, 2, 4 or 8");
+        ok = false;
+      } else if (*shift + *width > 8 * *word) {
+        errors.add(f.where("width"), "runs past the word");
+        ok = false;
+      } else {
+        out.size = static_cast<std::uint32_t>(*word);
+        out.shift = static_cast<std::uint8_t>(*shift);
+        out.width = static_cast<std::uint8_t>(*width);
+        bits_domain = std::pair<std::int64_t, std::int64_t>{0, (std::int64_t{1} << *width) - 1};
+      }
+    }
     if (const toml::node* range = f.node("range", false)) {
-      const auto domain = ok ? domain_of(out.type) : std::nullopt;
+      const auto domain = !ok ? std::nullopt : bits_domain ? bits_domain : domain_of(out.type);
       if (ok && !domain) {
         errors.add(f.where("range"), "applies only to whole-number fields");
       } else if (domain) {
@@ -283,7 +320,7 @@ std::optional<FieldLayout> read_field(const toml::table& t, std::string name, co
       out.to = *to;
     }
     if (const auto table = f.text("enum", false)) {
-      if (ok && !domain_of(out.type)) errors.add(f.where("enum"), "applies only to whole-number fields");
+      if (ok && !domain_of(out.type) && !bits_domain) errors.add(f.where("enum"), "applies only to whole-number fields");
       out.enum_table = *table;
     }
     const bool array = ok && out.type == FieldType::Array;
@@ -325,7 +362,20 @@ std::vector<FieldLayout> read_fields(const toml::table& t, const std::string& pa
     }
     std::optional<FieldLayout> field = read_field(*ft, std::string(key.str()), at, errors, param);
     if (!field) continue;
-    if (bound && std::uint64_t{field->off} + field->size > *bound) {
+    if (field->is_far) {
+      // Read by a copy of its own: a type of a few bytes, anywhere in the first MiB of its object.
+      const bool small = field->type != FieldType::Utf16 && field->type != FieldType::Mat4f &&
+                         field->type != FieldType::Array && field->type != FieldType::DlMap &&
+                         field->size != 0 && field->size <= kMaxFarBytes;
+      if (!small) {
+        errors.add(at + ".far",
+                   "applies only to the whole numbers, f32, bool8, bit, bits, ptr, handle, vec3f and dlvector");
+        continue;
+      }
+      if (std::uint64_t{field->off} + field->size > kMaxFarOffset) {
+        errors.add(at, "runs past the first MiB of its object");
+      }
+    } else if (bound && std::uint64_t{field->off} + field->size > *bound) {
       errors.add(at, "runs past the class's copy size");
     }
     fields.push_back(std::move(*field));
@@ -343,7 +393,7 @@ void read_class(const toml::table& t, std::string name, const std::string& path,
     }
     out.singleton = *singleton;
   }
-  if (const auto size = c.integer("copy_size", false, 1, kMaxCopySize))
+  if (const auto size = c.integer("copy_size", false, 0, kMaxCopySize))
     out.copy_size = static_cast<std::uint32_t>(*size);
   if (const auto stride = c.integer("stride", false, 1, kMaxCopySize)) out.stride = static_cast<std::uint32_t>(*stride);
   if (!c.has("copy_size") && !c.has("stride")) errors.add(path, "needs a copy_size or a stride");
@@ -355,6 +405,29 @@ void read_class(const toml::table& t, std::string name, const std::string& path,
   if (const toml::table* fields = c.table("fields", false)) {
     out.fields = read_fields(*fields, c.where("fields"), errors, bound, false);
   }
+  // The far fields' places in the reader's buffer: past the copy, each at a multiple of eight. They need a class
+  // that is copied by its size (not an element of a run), and a copy of nothing only where every field is far and
+  // no class is checked (the check reads the object's first word).
+  const bool any_far = std::any_of(out.fields.begin(), out.fields.end(), [](const FieldLayout& f) { return f.is_far; });
+  const bool all_far = !out.fields.empty() &&
+                       std::all_of(out.fields.begin(), out.fields.end(), [](const FieldLayout& f) { return f.is_far; });
+  if (any_far && !out.copy_size) {
+    errors.add(path, "has far fields, which need a copy_size (0 where every field is far)");
+  }
+  if (out.copy_size && *out.copy_size == 0) {
+    if (!all_far) errors.add(c.where("copy_size"), "may be 0 only where every field is far");
+    if (!out.rtti.empty()) {
+      errors.add(c.where("copy_size"), "must hold the object's first 8 bytes where the class has an rtti");
+    }
+  }
+  std::uint32_t next = (out.copy_size.value_or(0) + 7u) & ~7u;
+  for (FieldLayout& f : out.fields) {
+    if (!f.is_far) continue;
+    f.far_at = next;
+    next += (f.size + 7u) & ~7u;
+  }
+  out.far_bytes = next - out.copy_size.value_or(0);
+  if (!any_far) out.far_bytes = 0;
   c.done();
 }
 

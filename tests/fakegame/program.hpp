@@ -32,6 +32,22 @@ struct Options {
   bool window = true;
   std::uint32_t boot_delay_ms = 0;     // before the window
   std::uint32_t statics_delay_ms = 0;  // between the window and the statics
+  bool field_mirror = false;           // a second word of the data holds the FieldPlot's address (a copy of one address)
+  bool slot_by_state = false;          // the run warden's save slot reads -1 outside the world (as the game's does, by
+                                       // our notes) and 2 in it; without this it reads 2 always
+  std::uint32_t first_slot = 2;        // with slot_by_state: the slot it reads in the world before it goes back to its
+                                       // title (another save was loaded first); after that it reads 2
+  std::uint32_t retitle_at_s = 0;      // seconds into the world at which the game goes back to its title, once; 0 never
+  std::uint32_t retitle_for_s = 10;    // and how long it stays there before it loads the world again
+  // The parts watch's phases, in seconds of the world (they run on through a return to the title): the player moves
+  // only from walk_from_s to walk_to_s (always, where both are 0), loses health at hit_at_s and has it back at
+  // heal_at_s (never, where 0).
+  std::uint32_t walk_from_s = 0, walk_to_s = 0, hit_at_s = 0, heal_at_s = 0;
+  std::uint32_t clock_rate = 60;       // game seconds a second of real time in the world (a game minute a second)
+  bool day_book = false;               // the first decoy static holds a plain block that keeps the clock's packed word
+                                       // twice (0x10 and 0x18 bytes in): a clock behind a static no lead names
+  bool pass_time = false;              // the clock jumps twice in the world: five hours 14 s in, three hours 26 s in
+  bool flag_set = false;               // a flag of the store's second block is set 30 s into the world
   std::uint64_t title_frames = 30;
   std::uint64_t load_frames = 10;
   bool stay_title = false;
@@ -60,12 +76,7 @@ struct Options {
   bool selftest_swapped = false;
   std::uint32_t selftest_object_size = static_cast<std::uint32_t>(FG::kTaskFieldsSize);
   std::int32_t selftest_group = -1;  // -1: the stand-in group
-  bool table_gap = false;  // the registration's rack has no shelf for the stand-in group (R1 spike.8's second case)
-  bool task_gate = false;  // the hub runs only tasks of the game's kind: R1's never runs (R1 spike.9's second case)
-  bool task_queue = false;  // the ledger queues each request for a later frame (R1 spike.11's queued path)
-  bool map_late = false;  // the stand-in group's word joins the manager's map only with the world (R1 spike.12)
   std::uint64_t press_pause_at = 0;  // the player presses Pause (the launcher's Mark, O90) at this frame; 0 never
-  std::uint64_t press_pause_every = 0;  // and again every this many frames after it; 0 once
   // Part 12: GraceUI in the fake game (present.cpp). --d3d12 presents every frame on a Direct3D 12 swap chain, so that
   // GraceUI's overlay binds it and draws; --press-f11-at presses F11 at each frame listed, the window in front and
   // holding the focus (GraceUI's hotkey, D155); --grace-report reads graceui.dll's test exports at each frame listed
@@ -76,8 +87,12 @@ struct Options {
   // EldenNet's Mark, asked for later, registers unbound (GraceUI D164).
   // --press-keys F:KEY,F:KEY... presses one of GraceUI's menu keys at each frame listed, as --press-f11-at does F11
   // (f5, next, prior, up, down, left, right, return, escape): the player in GraceUI's menu (D167, D171).
+  // --grace-lan, with GraceUI loaded first (the launcher's --also): at boot, before any mod asks for GraceUI's server,
+  // the test build's network listener is put on 127.0.0.2 alone (GraceUI_Test_SetNetworkAddresses, G9), never a real
+  // address of the machine; each --grace-report then names the pairing sheet's code while one shows (`pairing=`).
   bool d3d12 = false;
   bool grace_take_pause = false;
+  bool grace_lan = false;
   std::vector<std::uint64_t> press_f11_at;
   struct KeyPress {
     std::uint64_t frame = 0;
@@ -85,10 +100,21 @@ struct Options {
     unsigned scan = 0;
   };
   std::vector<KeyPress> press_keys;
+  // The first conversation (S11.3, part C): --calm makes the world one a conversation may start in (no boss bar, no
+  // strike on the first character, no native talk's pop-up); --type-at F:TEXT,F:TEXT types each text at its frame
+  // into the window, a character at a time as Unicode key presses (an IME's or Steam's text arrives so), the window in
+  // front and holding the focus.
+  bool calm = false;
+  struct Typed {
+    std::uint64_t frame = 0;
+    std::wstring text;
+  };
+  std::vector<Typed> type_at;
   std::vector<std::uint64_t> grace_report_at;
   struct Probe {
     std::uint32_t rect[4] = {0, 0, 0, 0};  // x0, y0, x1, y1 in the back buffer's pixels
     std::uint32_t colour[3] = {0, 0, 0};
+    std::uint32_t tolerance = 3;  // each channel within this of the colour (an eighth value: text's ink, say)
   };
   static constexpr std::size_t kProbes = 3;
   std::vector<Probe> grace_probes;
@@ -106,10 +132,17 @@ bool present_start(HWND window);
 void present_frame();
 // F11 pressed and released into the window (SendInput, the virtual key and its scan code), the window in front.
 void press_key_into(HWND window, unsigned vk, unsigned scan);
+// The keys (WM_KEYDOWN, WM_SYSKEYDOWN) and characters (WM_CHAR) that reached the game's own window procedure.
+std::uint32_t game_keys() noexcept;
+std::uint32_t game_chars() noexcept;
+// --type-at: each character of `text` as a Unicode key press (KEYEVENTF_UNICODE), as press_key_into presses a key.
+void type_into(HWND window, const std::wstring& text);
 // What graceui.dll's test exports say (a test build of GraceUI's, GRACEUI_TEST_EXPORTS), as one status line.
 void grace_report(std::uint64_t frame);
 // --grace-take-pause: another mod's connection to GraceUI and its hotkey on Pause, with one status line.
 void grace_take_pause();
+// --grace-lan: GraceUI's network listener on 127.0.0.2 alone, with one status line.
+void grace_lan();
 
 // Parses the command line. On an error, writes the reason to `error` and answers false.
 bool parse_options(int argc, wchar_t** argv, Options& out, std::string& error);
@@ -130,8 +163,8 @@ void hub_create();                                // the hub singleton and its g
 // The program's own four tasks, the second made in `bench` (spike.10's call-site forms).
 void hub_register_builtins(FG::TaskUnit* const tasks[4], const std::uint32_t groups[4], FgTaskBench* bench);
 void hub_run_frame(std::uint64_t frame, float dt);
-// Spike.12 (WHY§296): the manager's map's words, at the title and those the world's first load adds (with --map-late
-// the stand-in group's among them), and the call that adds them (on the game thread, once).
+// Spike.12 (WHY§296): the manager's map's words, at the title and those the world's first load adds, and the call
+// that adds them (on the game thread, once).
 std::vector<std::uint32_t> map_title_words();
 std::vector<std::uint32_t> map_world_words();
 void hub_world_loaded();

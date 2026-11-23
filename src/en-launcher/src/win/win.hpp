@@ -19,7 +19,9 @@
 #include "en/launcher/config.hpp"
 #include "en/launcher/options.hpp"
 #include "en/launcher/record.hpp"
+#include "en/launcher/s0.hpp"
 #include "en/launcher/spikes.hpp"
+#include "en/launcher/tasks.hpp"
 #include "en/launcher/texts.hpp"
 #include "en/proto/watch.hpp"
 
@@ -45,9 +47,9 @@ void open_output(bool console);
 void open_log(const fs::path& logs_dir);
 void close_output();
 void say(const char* fmt, ...);
-// A plain sentence for the owner, on the console only (R1's steps, --probe): never in the log, which keeps to say()'s
-// numbers and words.
-void console_line(std::string_view text);
+// A plain sentence for the owner, on the console only (the read-only round's steps, --read), after who says it
+// ("EldenNet read: "): never in the log, which keeps to say()'s numbers and words.
+void console_line(std::string_view text, std::string_view who);
 
 // ---- The context of one launcher run (main.cpp) ----
 
@@ -125,13 +127,59 @@ class WatchBlock {
   bool created_ = false;
 };
 
+// The tester's panel (panel.cpp): a window of the launcher's own that lists a round's tasks, on top of the game's
+// window, never taking the keyboard. A click on its button posts kPanelConfirm to the thread that made it.
+inline constexpr UINT kPanelConfirm = WM_APP + 0x45;
+class TaskPanel {
+ public:
+  TaskPanel() = default;
+  ~TaskPanel();
+  TaskPanel(const TaskPanel&) = delete;
+  TaskPanel& operator=(const TaskPanel&) = delete;
+
+  // Makes the window at the top right of the monitor `beside` is on (the primary one for null). False: no window
+  // could be made; the tasks are still told on the console.
+  bool open(HWND beside);
+  [[nodiscard]] bool is_open() const noexcept { return hwnd_ != nullptr; }
+  // What it shows: painted again only when it changes. `key_works`: the Pause key confirms (else only the click).
+  void show(const std::vector<TaskRow>& rows, std::string_view footer, bool key_works);
+  void close();
+
+  // For the window's own procedure.
+  void paint(HDC dc);
+  [[nodiscard]] int header_height() const noexcept;
+  [[nodiscard]] bool in_button(int x, int y) const noexcept;
+
+ private:
+  int layout(HDC measure, HDC draw);
+
+  HWND hwnd_ = nullptr;
+  HFONT title_font_ = nullptr;
+  HFONT text_font_ = nullptr;
+  int dpi_ = 96;
+  std::vector<TaskRow> rows_;
+  std::wstring footer_;
+  std::string said_;
+  bool key_works_ = true;
+  RECT button_{0, 0, 0, 0};
+};
+
 // What the watch loop is asked to do beyond watching (a spike's run).
 struct WatchPlan {
   bool console = false;  // status lines and the Mark
-  bool probe = false;    // --probe: R1's steps in plain words (the block's probe request was written before loading)
+  bool read = false;     // --read: the read-only round's steps in plain words (the block's probe request was written
+                         // before loading), and the tester's panel with the round's tasks
+  std::uint32_t read_pace_s = 0;  // --read-pace-s: the tests' pace for the tasks (tasks.hpp); 0 none
   proto::watch::Spike spike = proto::watch::Spike::None;
+  // A run with a folder of its own (spikes.hpp): the folder, where the launcher says whether the panel was shown. An S0
+  // run (s0.hpp): eldennet.dll's report of it there, the S0 kind's tasks for this run of the launcher's runs; a run of
+  // GraceUI's observer: its tasks (observer_tasks.hpp); and the tests' pace for them (--spike-pace-s; 0 none).
+  std::optional<fs::path> run_dir;
+  std::optional<fs::path> s0_report;
+  std::uint32_t run = 1, runs = 1;
+  std::uint32_t spike_pace_s = 0;
   std::uint32_t run_timeout_s = 0;          // > 0: end the run once T1 stops, or at this limit
-  bool crash_when_ready = false;            // s0d-crash: ask for a crash once T1 is Ready
+  bool crash_when_ready = false;            // s0d-crash: ask for a crash once T1 has stopped (Ready, a banner, inert)
   bool count_connections = false;           // s0c
   std::optional<RemoveAfter> remove_appid;  // Window: remove our appid file once the window shows
   std::optional<AppidRecord> appid;
@@ -146,6 +194,8 @@ struct WatchResult {
   proto::watch::InitState last_init = proto::watch::InitState::None;
   std::uint64_t ms = 0;
   SessionRecord record;
+  std::optional<S0Facts> s0;  // an S0 run: eldennet.dll's report of it, as last written
+  bool panel_shown = false;   // the tester's panel was shown beside the game
 };
 
 // Watches the game until it ends (O71): the crash event, EldenNet's status, the Marks, the module lists.

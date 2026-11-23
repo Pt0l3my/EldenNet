@@ -1,0 +1,12 @@
+{# Block 4, the voice (NPC §7.3): the register's preset, then the persona's cadence, diction, deflection, openers,
+   tics and address, and its instructions last; part of cache B. At most 230 tokens. #}
+[ system ]
+Your voice:
+{{ render_template("prompts/registers/" + register) }}
+{% if not empty(persona.cadence) %}{{ persona.cadence }}{% endif %}
+{% if not empty(persona.diction) %}{{ persona.diction }}{% endif %}
+{% if not empty(persona.deflection) %}{{ persona.deflection }}{% endif %}
+{% if not empty(persona.openers) %}You may open a reply with one of these, and with one at most: {{ join(persona.openers, ", ") }}.{% endif %}
+{% if not empty(persona.tics) %}Sayings of your own, for now and then: {{ join(persona.tics, "; ") }}.{% endif %}
+{% if not empty(persona.address) %}You call the Tarnished {{ persona.address }}{% if not empty(persona.address_also) %}, or else {{ join(persona.address_also, " or ") }}{% endif %}.{% endif %}
+{% if not empty(persona.instructions) %}Also: {{ persona.instructions }}{% endif %}

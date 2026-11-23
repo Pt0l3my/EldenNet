@@ -53,6 +53,7 @@ void FakeMemory::put_utf16(std::uint64_t at, std::u16string_view text) {
 
 CopyOutcome FakeCopier::copy(std::uint64_t address, std::span<std::byte> dst) noexcept {
   ++copies;
+  if (before_copy) before_copy(address);
   if (mem_.read(address, dst)) return {true, 0};
   std::fill(dst.begin(), dst.end(), std::byte{0});
   return {false, 0xC0000005u};
@@ -78,8 +79,7 @@ proto::Expected<std::uint64_t, SysError> FakeSys::call_getter(std::uint64_t g, s
 proto::Expected<std::uint64_t, SysError> FakeSys::register_task(std::uint64_t function, std::uint64_t instance,
                                                                 const TaskShape& shape, TaskBody& body) noexcept {
   if (registration) return proto::Unexpected{SysError::Twice};
-  if (shape.vtable_slots == 0 || shape.vtable_slots > kMaxTaskSlots ||
-      (!shape.every_slot && shape.run_slot >= shape.vtable_slots)) {
+  if (shape.vtable_slots == 0 || shape.vtable_slots > kMaxTaskSlots || shape.run_slot >= shape.vtable_slots) {
     return proto::Unexpected{SysError::BadShape};
   }
   if (fault_register) return proto::Unexpected{SysError::Faulted};

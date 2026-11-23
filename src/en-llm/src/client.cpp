@@ -468,6 +468,7 @@ ErrorClass RequestRun::start(Pick pick, BodyMode mode, bool backup, std::string&
   in.temperature = temperature_;
   in.json_schema = a.used_schema ? &*request_.json_schema : nullptr;
   in.top_logprobs = a.used_logprobs ? request_.top_logprobs : 0;
+  in.stop = &request_.stop;  // build_chat_body sends them in a full body only
   in.mode = mode;
   in.minimal_effort = a.minimal_effort;
   const HttpRequest http = build_chat_request(*a.provider, build_chat_body(in));

@@ -1,12 +1,15 @@
 #pragma once
-// A fake GraceUI of our own for en-overlay's tests (the Windows builds): ABI 1.2's table, as graceui.h declares it at
-// GraceUI a9aac78, with the calls en-overlay makes answered as GraceUI 0.2.12 answers them (eldennet-changes §14 to §45)
+// A fake GraceUI of our own for en-overlay's tests (the Windows builds): ABI 1.5's table, as graceui.h declares it at
+// GraceUI 92fc19c, with the calls en-overlay makes answered as GraceUI 0.2.25 answers them (eldennet-changes §14 to §50)
 // and checked as GraceUI checks them: connect's answers, notices under keys (replaced in place, withdrawn by an empty
-// text, at most four), textures in the registration window, panels hidden until shown, hotkeys (a default another mod
-// took registers unbound, GRACEUI_UNBOUND with its id, D164), poll's events by the event's size (the display's only to
-// ABI 1.2's, D180) and submit's draw-list checks (counts, the bounds, every command's ranges and indices, clip
-// rectangles inside the panel, known texture ids, the command stride). graceui-sys has no C mock; this is what stands
-// in for one. One fake at a time (the table's functions are plain C pointers).
+// text, at most four), textures in the registration window, faces before warm-up and the glyph tables after it,
+// panels hidden until shown, hotkeys (a default another mod took registers unbound, GRACEUI_UNBOUND with its id, D164;
+// a pad chord, D204; describe_hotkey and a change, D210), input with a holder's events (one holder, its panel the mod's
+// own, shown and taking input; its events only while it holds; its end once, last; hotkeys silent while it holds; the
+// caret only while it holds; D77, D176), the wait handle (D212), poll's events by the event's size (the display's only
+// to ABI 1.2's, D180) and submit's draw-list checks (counts, the bounds, every command's ranges and indices, clip
+// rectangles inside the panel, known texture ids, the atlas's generation, the command stride). graceui-sys has no C
+// mock; this is what stands in for one. One fake at a time (the table's functions are plain C pointers).
 #include <cstdint>
 #include <deque>
 #include <map>
@@ -29,20 +32,34 @@ struct Hotkey {
   std::string action;
   std::string name;
   std::uint32_t key = 0;
+  std::uint32_t chord = 0;
   bool bound = true;
+};
+
+struct Face {
+  std::uint32_t pixel_height = 0;
+  std::uint32_t flags = 0;
+  std::uint64_t bytes = 0;
 };
 
 struct Grace {
   // How it answers.
   GraceUiStatus connect_status = GRACEUI_OK;
   std::uint32_t connect_reason = 0;
-  std::uint32_t version = GRACEUI_VERSION_PACK(0, 2, 8);
-  std::vector<std::string> caps = {"notices", "panels",  "textures",      "faces",  "input", "world-state",
-                                   "hotkeys", "pages",   "holder-events", "display"};
+  std::uint32_t version = GRACEUI_VERSION_PACK(0, 2, 25);
+  std::vector<std::string> caps = {"notices", "panels",        "textures", "faces",      "input",           "world-state",
+                                   "hotkeys", "pages",         "holder-events", "display", "pad-chords",
+                                   "hotkey-bindings", "wake"};
   std::uint32_t table_size = sizeof(GraceUiApi1);  // a shorter table: an older GraceUI (D74)
   bool refuse_textures = false;
   GraceUiStatus poll_status = GRACEUI_OK;  // GRACEUI_NOT_CONNECTED: the mod was disconnected
   std::vector<std::uint32_t> taken_keys;   // virtual keys another mod's hotkey holds: these register unbound
+  // request_input's answer: GRACEUI_INPUT_GRANTED, _REFUSED (by `holder_name`'s holder) or _NOT_NOW (`not_now_why`).
+  std::uint32_t input_answer = GRACEUI_INPUT_GRANTED;
+  std::string holder_name = "graceui";
+  std::uint32_t not_now_why = GRACEUI_NOT_NOW_DANGER;
+  std::uint32_t display_width = 0;  // connect's answer (ABI 1.2): 0 until the swap chain is bound
+  std::uint32_t display_height = 0;
 
   // What it saw.
   std::string id, name, mod_caps;
@@ -56,6 +73,20 @@ struct Grace {
   std::uint32_t texture_too_late = 0;
   std::map<std::uint64_t, Panel> panels;
   std::vector<Hotkey> hotkeys;
+  std::vector<Face> faces;
+  std::uint32_t faces_too_late = 0;
+  bool warmed = false;              // the atlas baked: faces too late, glyph tables ready
+  std::uint32_t glyph_tables = 0;   // glyph_table calls answered ok
+  // Input (D77, D176).
+  std::uint32_t requests = 0;
+  GraceUiInputRequest last_request{};
+  bool holding = false;
+  std::uint64_t holder_panel = 0;
+  std::uint32_t releases = 0;
+  std::vector<GraceUiCaret> carets;  // set while holding
+  std::uint32_t carets_ignored = 0;
+  void* wake = nullptr;              // the wait handle's event, once asked for
+  std::uint32_t wakes_asked = 0;
   std::deque<GraceUiEvent> events;
   std::uint64_t submits = 0;
   std::uint64_t refused_lists = 0;
@@ -85,8 +116,21 @@ struct Grace {
   Grace& operator=(const Grace&) = delete;
 
   const GraceUiApi1* api();  // the table, its size as `table_size` says
-  // A press of a hotkey (by its action), as poll gives it: bound or not, as if the player had bound it since.
+  // A press of a hotkey (by its action), as poll gives it: bound or not, as if the player had bound it since. Silent
+  // while a holder has input, as GraceUI's are (D77).
   void press(const std::string& action, std::uint32_t count = 1);
+  // The overlay's warm-up: the atlas baked (faces too late after it, glyph tables ready), then the display's event.
+  void warm_up();
+  // A holder's events, while it holds (D176): a key, the characters of `utf8`, a pad button, and its end.
+  void key(std::uint32_t vk, bool down, bool repeat = false);
+  void type(const std::string& utf8);
+  void pad(std::uint32_t button, bool down);
+  void end_input(std::uint32_t why);
+  // The player rebinds a hotkey on GraceUI's Hotkeys page (D210): its key, and the change's event.
+  void rebind(const std::string& action, std::uint32_t key);
+  // Whether the wait handle is set now (it is auto-reset: looking takes it).
+  bool woken();
+  const Panel* holder() const;
   // The display's event, as GraceUI 0.2.2 gives it after warm-up and after each change (D180).
   void display();
   // A view's sub, unsub and cmd, as poll gives them to the space; command answers the reply handle it gave.

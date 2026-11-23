@@ -17,8 +17,8 @@ It is built in two parts (the first in-game build, part 7):
 - `eldennet-launcher` (`src/win/`), the Windows builds' program: processes, injection, the watch block's mapping,
   the watch loop with the dev console and the Mark, the dialogs and the flow.
 
-It depends on en-gal's offline part (the PE reader, `builds.toml`'s gate and R1's report vocabularies, `derive.hpp`'s
-and `probe_report.hpp`'s; ARCH §2.3's dotted edge), and through it on en-proto, whose watch block (`watch.hpp`) it
+It depends on en-gal's offline part (the PE reader, `builds.toml`'s gate and the read-only round's report vocabulary,
+`lodestar.hpp`'s; ARCH §2.3's dotted edge), and through it on en-proto, whose watch block (`watch.hpp`) it
 shares with EldenNet in the game, and whose `ffi_guard` starts its entries (R3: `wWinMain` and its window-enumeration
 callback, component `Launcher`). Never on en-core or eldennet's en_shell: `en_link_rule` (`cmake/link_rules.cmake`)
 stops the configuration if `en_launcher_core` or `eldennet-launcher` reaches any target of the build but en-gal's
@@ -33,7 +33,8 @@ eldennet-launcher [options] [-- game arguments]
 development and tests:
   --inject-at suspended|window|title  --title-wait S  --also PATH
   --appid-method file|env  --remove-after window|exit|never
-  --console  --probe  --spike s0a|s0b|s0c|s0d|s0d-crash|s0e|s0e_alone|s4 [--runs N] [--run-timeout S]
+  --console  --read  --spike s0a|s0b|s0c|s0d|s0d-crash|s0e|s0e_alone|s4 [--runs N] [--run-timeout S]
+  [--spike-pace-s S]
   --no-dialogs [--yes]  --no-steam-check  --gal DIR  --steam DIR  --appdata DIR
 ```
 
@@ -71,7 +72,7 @@ loads a DLL that is not ours (a stand-in for another mod, such as the tests' `ve
    `graceui_pin.hpp`). The log says `preflight graceui=ok|no_folder|no_manifest|unreadable|
    file_missing|size_differs|hash_differs|abi_major|too_old version=… abi=… files=… checked=…`. What fails is told in
    **E12**, in E08's manner (what is missing or damaged, by its name inside GraceUI's folder, never a path, and what to
-   do), and the game starts all the same: EldenNet runs with nothing shown in game (ARCH §10.3). `--probe` and the
+   do), and the game starts all the same: EldenNet runs with nothing shown in game (ARCH §10.3). `--read` and the
    spikes, headless by design (O90), only log it. Installing the GraceUI release EldenNet carries waits until it carries
    one (GraceUI D53).
 7. **Save backups** (ARCH §4.4): each `%APPDATA%\EldenRing\<17 digits>\` folder's `ER0000.sl2` and `.bak`, to
@@ -121,15 +122,16 @@ Marks), on the console the launcher was started from or one of its own, and regi
 own clock) into the block's ring of 32, where EldenNet's recorder takes it into the recording, and kept in the
 session's record.
 
-**The console never holds up the watch** (WHY§290, since spike.10). R1 run 9's launcher wrote each line to the console
-before its log, under one lock, from the watch loop; a classic console window whose text is selected (a click inside
-it, QuickEdit) suspends its output, and the loop stopped there with its status lines, R1's 30 s step, the lint and the
-crash watcher. Now every line goes to `launcher.log` first, then into a bounded queue (`LineQueue`, 256 lines) that one
-thread of its own writes to the console (or the standard output a test reads); a line that finds the queue full is
-dropped, never waited on, the first drop noted in the log (`console dropped=1 queue_full=1`) and the totals at the end
-(`console lines=… dropped=… drained=…`, after waiting a second at most for the console). QuickEdit is off for the
-launcher's console while it runs, the console's mode restored at the end. For the tests only, `ELDENNET_TEST_CONSOLE`
-blocks the writer after N lines (`block_after=N`), slows it (`slow_ms=N`) or shortens the queue (`queue=N`).
+**The console never holds up the watch** (WHY§290, since spike.10). An earlier launcher wrote each line to the console
+before its log, under one lock, from the watch loop; a classic console window whose text is selected (a click inside it,
+QuickEdit) suspends its output, and the loop stopped there with its status lines, the round's steps, the lint and the
+crash watcher (R1's run 9). Now every line goes to `launcher.log` first, then into a bounded queue (`LineQueue`, 256
+lines) that one thread of its own writes to the console (or the standard output a test reads); a line that finds the
+queue full is dropped, never waited on, the first drop noted in the log (`console dropped=1 queue_full=1`) and the
+totals at the end (`console lines=… dropped=… drained=…`, after waiting a second at most for the console). QuickEdit is
+off for the launcher's console while it runs, the console's mode restored at the end. For the tests only,
+`ELDENNET_TEST_CONSOLE` blocks the writer after N lines (`block_after=N`), slows it (`slow_ms=N`) or shortens the queue
+(`queue=N`).
 
 **GraceUI's Mark** (part 12) is EldenNet's own: a GraceUI hotkey on the same key, Pause, which EldenNet registers when
 the console holds Pause. EldenNet then asks for the ring (the block's `marks.source`, en-proto's `MarkSource`); the
@@ -138,49 +140,81 @@ launcher lets its key go, takes the presses already queued as its last, and hand
 ring, and the launcher reads each from the ring into the session's record (`mark n=… mono_ms=… source=eldennet`). One
 writer at a time, and the owner presses Pause either way. EldenNet asks only once its hotkey is bound: when another
 mod's GraceUI hotkey took Pause first, EldenNet's registers unbound (GraceUI D164) and never asks. Then, as without
-GraceUI, nothing asks, and the launcher's Pause stays the Mark, as R1's `--probe` uses it.
+GraceUI, nothing asks, and the launcher's Pause stays the Mark.
 
-## R1 with --probe (O89, the owner's in-game round)
+## The read-only round with --read (Lodestar's step L5, the owner's in-game round)
 
-`--probe` runs the derivation's in-game round with the probe build of eldennet.dll (src/eldennet/README.md): it brings
-`--console` (the Mark), and goes with a start only, never with `--no-backup`, `--vanilla-offline` or `--spike`. The
-save backup is made first, and with `--probe` a failed one ends the launcher (E07, with no "continue without a
-backup"). Before it loads anything the launcher writes R1 into the watch block's `control.probe`, and EldenNet answers
-there: accepted, or refused (not a probe build, or turned off), when it stops and calls nothing. Since R1 spike.12
-(WHY§296) it may answer `absent` later, after the call: accepted, and its 2 s search found no copy of its task in the
-game's memory.
-
-The console then tells each step once, in plain words (`EldenNet R1: …`, on the console only), beside the log's
-`r1 step=<word>` (`texts.hpp`'s `R1Step`): `asked` (stay at the title, load no save), `reading` (the live derivation
-and its checks), `press_mark` (the checks passed: press Pause at the title with no save loaded), `called`,
-`task_confirmed` (the game runs our task: load the save and play), or `refused`, `not_called` (a check failed),
-`call_failed`, `no_confirmation` (30 s after the call: quit, loading no save; with `absent`, logged as
-`r1 step=no_confirmation absent=1` and told again if that answer comes after the step, the owner loads the save and
-stays two minutes in the world, so that R1 reads the manager's map there too). When the game ends, the launcher lints
-both reports in `%APPDATA%\EldenNet\probe\` with the vocabularies `eldennet-engine lint --report` uses
-(`r1 report=<name> lint=clean|refused|missing`) and says `reports_clean`, `reports_refused` or `reports_missing`.
+`--read` asks a probe build of eldennet.dll for the read-only round (src/eldennet/README.md), in which EldenNet names
+the managers it reads and tries its reader, and calls nothing in the game. It brings `--console`, and goes with a start
+only, never with `--no-backup`, `--vanilla-offline` or `--spike`. The save backup is made first, and with `--read` a
+failed one ends the launcher (E07, with no "continue without a backup"). Before it loads anything the launcher writes
+the request into the watch block's `control.probe` (`read`), and EldenNet answers there: accepted, or refused (not a
+probe build, or turned off), when it stops. With `--read` the launcher also shows the tester's panel (the owner's
+request, 2026-11-22; `tasks.hpp`, `win/panel.cpp`): a window of its own at the top right of the game's screen,
+always on top and never taking the keyboard, that lists the round's tasks in order, each with its timer, the done
+ones greyed. A waiting task ends when its time is up; a task of the tester's ends at the Pause key (the launcher's
+system hotkey) or a click on the panel's button, which speaks for the task it belongs to (each such task has its
+own word for it); the round's own first task ends when EldenNet says to load the save; the last task (quit the
+game) has no button and ends with the watch. The confirmation of a marked task stamps a Mark into the watch block, which the round reads
+(`--read-pace-s S`, for the tests: every wait lasts S seconds and the tester's tasks confirm themselves). Each task
+is also told on the console and logged (`task n=… of=… by=key|click|time|round mark=…`). (`--probe`, which asked for R1, the round with one
+call into the game, went with it: retired 2026-11-22, O106; it is an unknown option now, and its two words in the block
+keep their numbers, unused.) The console tells each step once (`EldenNet read: …`), beside the log's `read step=<word>
+named=<n> of=<m>` (`texts.hpp`'s `ReadStep`, from EldenNet's answer, T1's state and the status's items, which in this
+round are the managers named, asked for and the naming passes): `asked`, `reading` (the game's image, at the title),
+`load_save` (a first pass is done and a manager is still unnamed: "Now load your save."), `done` (every manager named:
+load the save if it is not loaded yet, and stay about ten minutes in the world), or `refused` and `stopped`. When the
+game ends, the launcher checks the two files in `%APPDATA%\EldenNet\probe\`: `lodestar-found.json` by the lint and the
+`lodestar` vocabulary, and `lodestar-table.toml` by `table_text_clean` (only `[provenance]`, `[item.<label>]` and known
+keys with numbers, our labels and fixed words: no path, no text), each as `read report=<name>
+lint=clean|refused|missing`, and says `reports_clean`, `reports_refused` or `reports_missing`.
 
 ## The S0 spikes (DESIGN §16.1, the plan's §1.2)
 
 `--spike` tells EldenNet the spike (in the block) and keeps a numbers-only log in `%APPDATA%\EldenNet\spikes\`: a JSON
 line per run and the tally.
 
+Since 2026-11-23 (the table-based start, DESIGN §16.1; roadmap S10.1.b; `s0.hpp`) every S0 run has a folder of its own
+too, `spikes\<word>-<n>`, named in the game's environment as below, where eldennet.dll writes its report of the run,
+`eldennet-spike.json` (numbers and fixed words: how T1's start ended and what it waited for, the build's table checked
+at the start and again, S0-D's forced faults, the reader's counts). Once T1 has stopped the launcher reads it
+(`s0 report=read state=… waits=… table=… refused=… changed=…`), tells the owner in plain words what the start did
+(`EldenNet S0-B: …`) and, when it stopped short of its reading for want of something, why ("The start's layout is not
+complete yet: S0-B waits for it."): that is never counted against a spike. The run's line in the spike log keeps its
+folder, whether the report was read, what it waited for and whether its table passed. The tester's panel (above, as
+`--read` has it) lists the S0 kind's own tasks for the run (`s0_tasks`; Lodestar's `read_tasks` stays the read
+round's): S0-B's two hours are a Wait counted down, which the owner may cut short by quitting; when S0-B's start waits,
+its list ends at quitting the game. `--spike-pace-s S` (tests) paces them.
+
 - `s0a --runs N`: each run starts and injects (as `--inject-at` says), waits for T1 to stop (Ready, a banner, inert)
   or `--run-timeout` (180 s), then closes the game (`WM_CLOSE`, then after 10 s `TerminateProcess` with "ENLC").
-  It passes when every run reached Ready or L1 and none crashed.
-- `s0d-crash --runs N`: at Ready it asks EldenNet for a crash (a probe build's) and waits for it; it passes when every
-  run's crash was recorded.
+  It passes when every run reached Ready or L1, none crashed, and every run whose report holds a table had it pass
+  its checks at the start and again.
+- `s0d-crash --runs N`: once T1 has stopped where T6 runs (Ready, or a banner or inert when the start stopped short of
+  its reading) it asks EldenNet for a crash (a probe build's) and waits for it; it passes when every run's crash was
+  recorded.
 - `s0b`, `s0c`, `s0d`: one watched session; `s0c` counts the game's TCP connections to anything but this PC every 2 s
   (the most at once; no address is kept). They pass when the session did not crash.
+- At the end, the tally in plain words (`s0_end_text`); `eldennet-engine spike-report` gives the spike's verdict
+  (src/en-tools/README.md).
 - `s0e`, `s0e_alone`, `s4`: the runs of GraceUI's observer (S0-E's present-hook half and S4, input; roadmap S10.1.g,
   S11.1.a), whose measurements are GraceUI's (grace-spike.dll's report): one watched session each, passing when it
-  did not crash. Before the game starts the launcher makes the run's folder, `spikes\<word>-<n>` (n one more than the
+  did not crash. Since 2026-11-23 (the owner's request) the panel lists each run's steps too (`observer_tasks.hpp`:
+  A1 to A4, A0 with no Round task since it loads no eldennet.dll, and B), every task of the tester's a Mark.
+
+In a spike's run the panel's confirmations go on after the Mark's hand-over: once EldenNet's own Mark (GraceUI's hotkey
+on Pause) holds the ring, the launcher has no key, so each new Mark in the ring confirms the task under way (`task …
+by=mark`) and the launcher stamps none; a press already queued at the hand-over confirms as a press does. (The read
+round keeps its own way.) Whether the panel was shown, a window always on top of the game's that can change how frames
+reach the screen, is in the run's line (`panel`), the session's record and the run's folder, `launcher-run.json`
+(`panel`, the tasks and how many were done, the Marks), so that a spike's frame counts are read knowing it. The panel
+cannot show over a game in exclusive full screen: each README asks for windowed or borderless windowed. Before the game starts the launcher makes the run's folder, `spikes\<word>-<n>` (n one more than the
   word's highest there, from 1; `--appdata` moves it with everything else; the name is the word and the number,
   nothing else), and names it in the game's environment as `ELDENNET_SPIKE_DIR`, where the observer writes its report
   (`spike_dir spike=<word> n=<n> made=1`, never the path). With `s0e` and `s4` eldennet.dll stops at Register and
   makes no call into the game (src/eldennet/README.md); `s0e_alone` loads no eldennet.dll at all, only the `--also`
-  DLLs (`started … eldennet=0`; no `--dll` with it). `--probe` goes with none of them, so R1's Mark is never in such a
-  run.
+  DLLs (`started … eldennet=0`; no `--dll` with it). `--read` goes with none of them, so the read-only round is never
+  in such a run.
 
 In every other start `ELDENNET_SPIKE_DIR` is not set: one the launcher's own environment holds is left out of the
 game's. The game's environment is always made by the launcher (`spikes.hpp`'s `game_environment`: the launcher's own,
@@ -210,10 +244,10 @@ manifests that name a path, a missing executable, no list; `--game` as a file or
 folders (the manifest's hashes, no duplicate, a changed or vanished file, two in one second, the rotation of 3 over 6,
 folders that are no backup left alone, nothing under the saves touched, a backup folder that cannot be made); the
 appid file (created, used, someone else's, removal only of ours and only while it holds the id) and the state file's
-round trip; `launcher.toml`; the command line and its refusals (`--probe`'s and `s0e_alone`'s among them); the spike
+round trip; `launcher.toml`; the command line and its refusals (`--read`'s and `s0e_alone`'s among them); the spike
 folder's name and the game's environment (the variable set in an observer's run, dropped otherwise, any case of its
 name); the console's queue (a writer that blocks never holds up the lines' side or the drain past its time, a slow one
-takes every line in order, the drops counted) and its test hook; R1's steps on the console
+takes every line in order, the drops counted) and its test hook; the read-only round's steps on the console
 from EldenNet's answer and T1's state; the texts and exit codes; records, their JSON and the
 next start's explanation; the spikes' tally and rules; the pre-flight's order; the gate and the DLL check on invented
 images (en-gal's FakeImage); SHA-256 against NIST's examples (whole, in pieces, every length around the padding's
@@ -230,8 +264,8 @@ the title (Ready, the dev console's status, en-core's lifecycle and gate in game
 seen in the block), a crash on the game thread recorded through EldenNet's filter, a game that replaces the filter, a
 stand-in crash reporter loaded with `--also`, the S0-A, S0-D crash and S0-C loops, and the watcher started by
 EldenNet under another loader, and a crash while the console is blocked (`launcher-crash-console`); and with
-eldennet.dll, R1 as the owner runs it (`--probe`), the same with the console blocked (`launcher-eldennet-probe-console`:
-the status lines, the 30 s step, the lint and the end in launcher.log) and `--probe` refused by the release DLL; the runs of GraceUI's observer (`launcher-eldennet-spike-s0e`, `-s4`, `-s0e-alone`: the folder, the
+eldennet.dll, the read-only round as the owner runs it (`--read`) and `--read` refused by the release DLL; the runs
+of GraceUI's observer (`launcher-eldennet-spike-s0e`, `-s4`, `-s0e-alone`: the folder, the
 variable, no call into the game); and, with the GraceUI folder of a test build of GraceUI installed beside the fake
 game, the pre-flight passing on GraceUI's own `graceui.toml`, the Mark handed over to GraceUI's hotkey
 (`fakegame.launcher-eldennet-graceui`), the launcher keeping Pause when another mod holds it in GraceUI

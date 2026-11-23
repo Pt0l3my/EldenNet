@@ -1,0 +1,112 @@
+EldenNet, Lodestar's finding run (package @LABEL@)
+@UNDERLINE@
+
+This package runs the offline finder of Lodestar, EldenNet's own address library, on your own PC (EldenNet's decisions
+O100 to O102; proposal 0005, step L3). It reads the game's executable file, and only the file: the game stays closed
+and is not started. It writes one small file of numbers, lodestar-found.json, into this folder, and that file is what
+comes back to us.
+
+Built from EldenNet's engine branch at commit @COMMIT@ with clang-cl (Release). Never shared: a test build for you
+alone, labelled @LABEL@.
+
+
+What the run is for
+-------------------
+
+Four things, each a count or a list of numbers. The fourth is the reason for this run (22 November):
+
+  1. The managers' accessors. Until 21 November EldenNet looked for them with a short byte pattern cut from the
+     game's code. That pattern is withdrawn (O102: nothing of the game in EldenNet's files), and a description of our
+     own, a "shape", replaces it. On our own test programs the two find exactly the same places. This run counts the
+     shape on the real game and says whether it accepts the same places there too (R0c's run accepted 7,081).
+  2. The managers' slots. For every slot the accessors load, the run lists where it is and up to eight places in the
+     code that use it. EldenNet will check those places every time the game starts.
+  3. The character classes and the task groups' table, as R0c found them, in the new report.
+  4. For each of the eleven managers EldenNet asks for (the game's main objects: one keeps the world's characters,
+     another the time of day, and so on): whether the game's own type information holds a class under the name we
+     look for, and how many. The read-only round in the game named eight of the eleven and could not say why the
+     other three were missing. These counts tell us: a manager with no such class cannot be found by its class at
+     all, and one whose class goes by another name needs its name corrected. Only the counts are written, never a
+     name.
+
+
+How long it takes
+-----------------
+
+About 5 minutes: 2 to unzip and find the game's file, 1 or 2 for the run, 1 to send the file.
+
+
+What is in it
+-------------
+
+  find.cmd                The run: drop the game's executable file onto it.
+  eldennet-engine.exe     EldenNet's command-line tool, which does the reading (its lodestar command) and checks the
+                          report (its lint command).
+  gal\                    What to look for: the shape (recipes.toml, with its note in derivations\), the names of the
+                          design's own (leads.toml), the build EldenNet knows (builds.toml) and Lodestar's catalogue
+                          of ids (ids.toml). Our own words and numbers; no byte, text or name taken from the game.
+  README-FIND.txt         This file.
+  SHA256SUMS              The SHA-256 of every other file in this package.
+  LICENSE.txt             EldenNet's licence (MIT).
+  THIRD_PARTY.md          What EldenNet is built with, and its credits.
+  THIRD-PARTY-NOTICES.txt The licences of the libraries inside the program.
+
+
+Before you start
+----------------
+
+  - Close the game.
+  - Unzip this package into a folder of its own, not inside the game's folder.
+  - If you like, check the files: in PowerShell, in this folder, `Get-FileHash -Algorithm SHA256 *` gives each file's
+    SHA-256, to compare with SHA256SUMS.
+
+
+The steps
+---------
+
+  1. In Explorer, open the game's install folder and its Game folder, where eldenring.exe is. Do not copy, move or
+     change it.
+  2. Open this package's folder in a second window.
+  3. Drag eldenring.exe onto find.cmd and let go.
+  4. A console window opens. After a minute or two it shows one line that starts "lodestar: report written", then
+     "lint: the report is clean". Press a key to close it.
+  5. Send back, in Lodestar's chat: the file lodestar-found.json from this folder, and the line that starts
+     "lodestar: report written".
+
+The line ends with "(complete)" or "(to read first)". Both are results worth sending: "to read first" means the
+count was outside what the recipe expects, the shape accepted a place the old pattern did not, or one class object
+went with two slots, and that is what we need to see.
+
+
+What comes back, and what does not
+----------------------------------
+
+lodestar-found.json holds whole numbers, true and false, a few fixed words (such as "derived" or "within") and labels
+of EldenNet's own (such as "chr_ins"). You can open it in Notepad. It holds no byte of the game, no pattern, no text,
+no name read from the game, no code, and no path, user name or machine name of your PC. The tool checks this before it
+writes the file, and refuses to write one that breaks it.
+
+The run does not start the game, does not change any file of the game, does not go online, and reads no running
+program's memory. The only file it writes is lodestar-found.json, in this folder.
+
+
+If something goes wrong
+-----------------------
+
+The console's last lines give the tool's exit code:
+
+  0   written, complete.
+  1   written, to read first: send the file all the same.
+  2   find.cmd was started without a file dropped on it, or with more than one.
+  3   the file dropped is not the game's executable, or cannot be read. Is the game closed?
+  4   a file of gal\ is missing or was changed: unzip the package again.
+  5   the report was refused by its own check: a defect of ours. Send the console's lines.
+  6   lodestar-found.json could not be written: is this folder writable?
+
+Send the console's lines in any of these cases. They name no path of your PC.
+
+
+Safe use
+--------
+
+@DISCLOSURE@
