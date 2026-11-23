@@ -501,6 +501,15 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 476 | 2026-11-23 | The "you, now" line and the behaviour switches, as far as v0.2 goes | DECIDED | #engine #conversation |
 | 477 | 2026-11-23 | The pilot's smaller choices: the catalogue's sources, clears left out, fixtures by pack | DECIDED | #engine #content |
 | 478 | 2026-11-23 | windows.h defines near and far as nothing: en-core's public names avoid both | FACT | #engine #build |
+| 479 | 2026-11-23 | An S0 run's facts reach the launcher and spike-report through a report in the run's folder, not the watch block | DECIDED | #engine #spikes #launcher |
+| 480 | 2026-11-23 | A discovery refused only for a required static with no way to be found is a layout not complete yet | DECIDED | #engine #boot #gal |
+| 481 | 2026-11-23 | S0-A's "untouched image": the table's checks made again once the start has stopped | METHOD | #engine #spikes #lodestar |
+| 482 | 2026-11-23 | Under Wine ReadProcessMemory on our own process copies a reserved no-access page | FACT | #gal #wine #spikes |
+| 483 | 2026-11-23 | A group never on shows Tripped in every snapshot; S0-B's no_trip counts the session's own trips | FACT | #gal #spikes #tools |
+| 484 | 2026-11-23 | A start stopped at Discover has no crash filter of ours; S0-D's crashes there rest on the watcher alone | FACT | #engine #spikes |
+| 485 | 2026-11-23 | The panel's confirmations go on after the Mark's hand-over | METHOD | #launcher #spikes #graceui |
+| 486 | 2026-11-23 | The probe DLL's p99 on the fake game under Wine sits near S0-B's 0.5 ms | FACT | #gal #spikes #wine |
+| 487 | 2026-11-23 | The S0 package's README is README-SPIKES; the s0e-s4 kind's template moves aside | DECIDED | #spikes #tools |
 
 ## Entries
 
@@ -7484,3 +7493,96 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 
 - A field named `near` in an en-core header broke clang-cl's DLL build: the DLL includes windows.h first, which defines
   `near` and `far` as nothing. It is `near_certainty` now (engine 9dc4691).
+
+### 479. An S0 run's facts reach the launcher and spike-report through a report in the run's folder, not the watch block
+
+`2026-11-23` · DECIDED · `#engine` `#spikes` `#launcher` · refs: DESIGN§16.1, ARCH§4.14, S10.1.b, engine wip/s12-s0 57fbe42 to 7f66a3b
+
+- S0-A's table checks, S0-B's steady counts and what a stopped start waits for are not in the watch block, whose
+  layout the brief keeps (an append-only field only after asking). So every S0 run gets a folder of its own, as the
+  observer's runs do (`spikes\<word>-<n>`, named in ELDENNET_SPIKE_DIR), and eldennet.dll writes
+  `eldennet-spike.json` there (kind `spike_run`, en_shell's spikerun.hpp): T1 before it publishes its terminal state,
+  T6 every 10 s after. The DLL accepts the variable only as its own `<data>\spikes\<word>-<n>`.
+- The launcher reads a few words and numbers of it (never logging anything but plain words); spike-report reads the
+  spikes folder whole and joins each recording to its run by the game's process id in the recording's name.
+- Rejected: an appended block field (asked for first by the brief), parsing eldennet.log (another process's file),
+  a recording line of a new kind (DataPiler's schema, and S0-A records nothing).
+
+### 480. A discovery refused only for a required static with no way to be found is a layout not complete yet
+
+`2026-11-23` · DECIDED · `#engine` `#boot` `#gal` · refs: WHY§459, WHY§460, S10.1.b, S10.1.m, engine wip/s12-s0 57fbe42 to 7f66a3b
+
+- On the real game today the start never reaches discovery's retries: with no patterns.toml and game_state neither in
+  the table nor found by a recipe, `parse_patterns` refuses ("lacks the required pattern game_state") and the refusal
+  is permanent. boot.cpp now tells this refusal (every problem a missing required pattern) from one of gal's files:
+  the banner's detail is `layout`, and an S0 run's report says `waits = layout`. The start stops at once, so an S0-A
+  run on the real game takes seconds of EldenNet's own, not 30.
+- In an S0 run alone, T1 then makes one `partial` discovery pass (en-gal's option for a pass that refuses nothing for
+  such a static) to check the build's table as a start would, so that S0-A checks the table's ids on today's real
+  game; the start stops at the banner regardless. A normal start is unchanged.
+
+### 481. S0-A's "untouched image": the table's checks made again once the start has stopped
+
+`2026-11-23` · METHOD · `#engine` `#spikes` `#lodestar` · refs: proposal 0005 §7.1, §12, DESIGN§16.1, engine wip/s12-s0 57fbe42 to 7f66a3b
+
+- At its terminal state T1 builds en-gal's `Library` again over the image as loaded and compares it with what
+  discovery took from the table: each id's place, each class's tables of methods, the witnesses that still refer to
+  their ids. `table_unchanged` passes when nothing was refused or moved. It shows that nothing of ours (and nothing of
+  anyone's) changed the game's code where the table points between discovery and the end of the start; that
+  EldenNet patches and hooks nothing rests on its imports (dll_checks) and on `getter_calls` staying 0 (`no_call`).
+
+### 482. Under Wine ReadProcessMemory on our own process copies a reserved no-access page
+
+`2026-11-23` · FACT · `#gal` `#wine` `#spikes` · refs: S10.1.b, engine wip/s12-s0 57fbe42 to 7f66a3b
+
+- S0-D's trial copied a page reserved with PAGE_NOACCESS twenty times by each primitive: the SEH copy faulted and was
+  caught each time, ReadProcessMemory succeeded each time under Wine 9.0 (zeros), where Windows refuses it. The trial's
+  RPM copies read the null page instead, as the probe build's injection already did for that copy. LIKELY the same
+  on Windows either way; the owner's run shows it.
+
+### 483. A group never on shows Tripped in every snapshot; S0-B's no_trip counts the session's own trips
+
+`2026-11-23` · FACT · `#gal` `#spikes` `#tools` · refs: DESIGN§16.1, engine wip/s12-s0 57fbe42 to 7f66a3b
+
+- On the fake game with a whole table, the `status` group (not discovered) read `Tripped` in every recorded snapshot,
+  and spike-report's no_trip failed with no trip in the session. It now counts a group only if it was in the first
+  DataReady's caps (every group with no DataReady). On the real game, where most optional groups are off at first,
+  the old count would have failed S0-B for every one of them.
+
+### 484. A start stopped at Discover has no crash filter of ours; S0-D's crashes there rest on the watcher alone
+
+`2026-11-23` · FACT · `#engine` `#spikes` · refs: ARCH§3.2, O71, engine wip/s12-s0 57fbe42 to 7f66a3b
+
+- The crash filter goes in after WaitEngine (or the window, on the banner path). A start that stops at the discovery
+  banner, as on the real game today, never installs it, so S0-D's crashes on request there are recorded by the watcher
+  from the exit code and the module list, with no crash record of EldenNet's (filter_records 0). S0-D's rule asks for
+  the watcher's record only, so it passes; whether a stopped start should install the filter is left to the design.
+
+### 485. The panel's confirmations go on after the Mark's hand-over
+
+`2026-11-23` · METHOD · `#launcher` `#spikes` `#graceui` · refs: WHY§444, ARCH§4.14, S10.1.g, engine wip/s12-s0 57fbe42 to 7f66a3b
+
+- Once EldenNet's own Mark (GraceUI's hotkey on Pause) holds the ring, the launcher has no key: in a spike's run (S0,
+  and the observer's runs, which now show the panel too) each new Mark in the ring confirms the task under way
+  (`task … by=mark`), and the launcher stamps none; a press queued at the hand-over confirms as a press does. The
+  read round keeps its own way. Shown under Wine with GraceUI 0.2.22's test build
+  (`launcher-eldennet-graceui-spike-s0e`). Whether the panel was shown goes into the run's line, the session's
+  record and the run's `launcher-run.json`, so that the observer's frame counts are read knowing a topmost window was
+  over the game.
+
+### 486. The probe DLL's p99 on the fake game under Wine sits near S0-B's 0.5 ms
+
+`2026-11-23` · FACT · `#gal` `#spikes` `#wine` · refs: WHY§320, DESIGN§16.1, engine wip/s12-s0 57fbe42 to 7f66a3b
+
+- With the build's table and the probe DLL, the reader's C13 p99 on the fake game under Wine on this shared 4-core
+  machine was 511 to 895 µs across runs (WHY§320 saw under 0.2 ms for the own-thread reader alone). The fake game's
+  S0-B case allows either status for task_p99_us; the owner's PC decides the rule.
+
+### 487. The S0 package's README is README-SPIKES; the s0e-s4 kind's template moves aside
+
+`2026-11-23` · DECIDED · `#spikes` `#tools` · refs: S10.1.b, S10.1.g, engine wip/s12-s0 57fbe42 to 7f66a3b
+
+- The brief named README-SPIKES.txt.in for the S0 kind, which was the s0e-s4 kind's template: it is now
+  `README-S0E-S4.txt.in`, still packed as README-SPIKES.txt in EldenNet-Spikes, and the S0 kind's template is
+  `README-SPIKES.txt.in`. The S0 package needs no settings.toml: S0 sessions record by the spike, and S0-D's faults
+  are the probe build's own (the trial, and the first optional group read where settings.toml names none).
