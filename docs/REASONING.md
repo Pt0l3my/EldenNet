@@ -573,6 +573,11 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 548 | 2026-11-23 | A test aid that perturbs timing must be switchable where other tests measure it | METHOD | #graceui #tests |
 | 549 | 2026-11-23 | spikes.5: S0-E passed in all five runs, A1 among them, beside the Steam overlay and another overlay; S4 passed all it could measure | FACT | #spike #graceui #engine |
 | 550 | 2026-11-23 | Every quit's crash code comes from the same place in the game's own teardown, and a read round without GraceUI has one too | FACT | #crash #graceui #lodestar |
+| 551 | 2026-11-23 | The save's slot is confirmed in game where the executable's study put it | FACT | #lodestar #l6 #gal |
+| 552 | 2026-11-23 | Health is the 32-bit field 0x138 of part 0 of the player's holder of parts, its maximum at 0x13C | LIKELY | #lodestar #l6 |
+| 553 | 2026-11-23 | A read round that skips the connection keeps GraceUI out of the process, and the launcher's panel keeps Pause | FACT | #lodestar #graceui |
+| 554 | 2026-11-23 | The quit's crash code without GraceUI in the process: ten of ten sessions since the first spike run, the ten before clean | FACT | #lodestar #crash |
+| 555 | 2026-11-23 | Wine's heap warnings miss a write past a block's end; the registry's GlobalFlag validates the heap on every call | METHOD | #lodestar #tests |
 
 ## Entries
 
@@ -7356,6 +7361,9 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - The clock's runs of bits: a field type of a word with a shift and a width, in en-gal's layout, by Lodestar. The play
   time's place becomes a field of `save_data` by Lodestar.
 
+- Later (2026-11-23, WHY§551): the save's slot confirmed in game, 2,752 bytes into the object behind 64,424,360;
+  game_state enters the table in the sixteenth round, by the game's own type information.
+
 ### 461. No second Esc after the chat box closes: Esc and the pad act on the box only while it is open
 
 `2026-11-23` · DECIDED · `#engine` `#conversation` `#graceui` `#input` · refs: GraceUI:G39, NPC§5.7, NPC§5.6, S11.4.d, WHY§437
@@ -8296,6 +8304,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   (10). It is not there at the title and is none of the accessor's statics, which is why no round found it. A lead
   until the fifteenth round's pair search shows a 32-bit hit 2,752 bytes into the object behind that static.
 
+- Later (2026-11-23, WHY§551): confirmed in game by the fifteenth round's pair search.
+
 ### 544. The main player's word 0x1E508 is read through the characters manager's static by 412 instructions
 
 `2026-11-23` · LIKELY · `#lodestar` `#gal` · refs: the same, WHY§502, WHY§538
@@ -8363,3 +8373,47 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   clean. So GraceUI alone does not explain it. Next: a control run with nothing injected (the launcher's
   --vanilla-offline), Lodestar placing what game+0x254e298 frees from the owner's executable, and spikes.6's heap
   guard.
+
+### 551. The save's slot is confirmed in game where the executable's study put it
+
+`2026-11-23` · FACT · `#lodestar` `#l6` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md ("The fifteenth round in game"), WHY§543, WHY§460
+
+- The pair search (6 in the first world, 2 in the second; 3,647 and 3,023 objects read) hit the 32-bit field 2,752
+  bytes into the object behind the slot 64,424,360, the place the offline study gave; 345 places in the code refer to
+  the slot. Four more fields hold the same number behind other slots, so with 17 hits the round's one-hit rule did not
+  name game_state: it enters the table in the sixteenth round, by the game's own type information (WHY§545's ruling).
+  The state search's own candidate read 3 then 2: not the slot.
+
+### 552. Health is the 32-bit field 0x138 of part 0 of the player's holder of parts, its maximum at 0x13C
+
+`2026-11-23` · LIKELY · `#lodestar` `#l6` · refs: the same
+
+- The parts watch (110 passes over 30 parts): 0x138 of part 0 fell once at the one hit and rose once at the one
+  heal, with a never-lower neighbour at 0x13C. Leads for vitals.hp and vitals.max_hp until our own reader reads them.
+  Position: 117 fields changed in every walking pass and no standing one, most of them floats in part 13 (three in a
+  row at 0x70) and part 4 (from 0x130): candidates only.
+
+### 553. A read round that skips the connection keeps GraceUI out of the process, and the launcher's panel keeps Pause
+
+`2026-11-23` · FACT · `#lodestar` `#graceui` · refs: the same, WHY§536, WHY§537
+
+- Round 15: connect skipped, the launcher's "read graceui=installed used=0", eight marks stamped by the launcher's
+  tasks, each at its task.
+
+### 554. The quit's crash code without GraceUI in the process: ten of ten sessions since the first spike run, the ten before clean
+
+`2026-11-23` · FACT · `#lodestar` `#crash` · refs: the same, WHY§550
+
+- Round 15 ended with 0xC0000374 at the quit with GraceUI installed and not loaded. The launcher's log on the owner's
+  PC: up to lodestar.17, 27 of 29 sessions clean, the last ten in a row; since the first spike run of 2026-11-23, ten
+  of ten ended with a crash code, with or without EldenNet, with or without GraceUI. The sanitisers and a
+  heap-validated run of the fake game found nothing in the round's code. What the spike runs leave on the PC
+  (settings.toml with debug.panel, the GraceUI folder, the spikes folders) acts on nothing in a read round, which never
+  connects to GraceUI. Open: a run with nothing injected is the control.
+
+### 555. Wine's heap warnings miss a write past a block's end; the registry's GlobalFlag validates the heap on every call
+
+`2026-11-23` · METHOD · `#lodestar` `#tests` · refs: the same
+
+- GlobalFlag 0xF0, in a throwaway copy of the prefix, validates the heap on every call and catches it. A deliberate
+  overrun proves the check before a clean result is believed.

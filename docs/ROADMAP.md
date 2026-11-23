@@ -1201,6 +1201,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     read round never connects to GraceUI, and the main player by the layout's word. Awaiting the owner's run.
     game_state: leads from the owner's executable the same day (O111; WHY§543): its static 0x3D709A8, the save's slot
     at 0xAC0; the fifteenth round's pair search is to show them in game.
+    The fifteenth round reviewed the same day (WHY§551 to §554): the save's slot confirmed in game where the
+    executable's study put it (game_state's static, field 0xAC0); health found by the parts watch (part 0 of the holder,
+    0x138, maximum 0x13C); position candidates. game_state enters the table in the sixteenth round, by the game's own
+    type information. Open: the game's exit code at the quit (0xC0000374 without GraceUI in the process); a control
+    run with nothing injected and two short runs asked of the owner to tell the PC from the code.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
