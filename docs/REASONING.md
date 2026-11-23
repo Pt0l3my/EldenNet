@@ -469,6 +469,10 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 444 | 2026-11-22 | The tester's panel is a window of the launcher's own, not GraceUI's overlay, since a read-only round hooks nothing | DECIDED | #lodestar #launcher |
 | 445 | 2026-11-22 | The tester's confirmations are Marks in the watch block's ring, with no new field | METHOD | #lodestar |
 | 446 | 2026-11-23 | The first conversation verified whole on four toolchains, the talk case with the real speech under Wine | FACT | #engine #conversation |
+| 447 | 2026-11-23 | world_clock is in the build's table by the invariant recipe, an eighth session | FACT | #lodestar #l6 |
+| 448 | 2026-11-23 | Bits are set in the flags' stretch where the owner does something the game remembers | FACT | #lodestar #l6 |
+| 449 | 2026-11-23 | The report may carry the numbers of a flags' tree record joined to a bit the owner set | DECIDED | #lodestar #probe |
+| 450 | 2026-11-23 | The tester's panel ran on the owner's PC over the game, with Pause as its key | FACT | #launcher |
 
 ## Entries
 
@@ -6427,6 +6431,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - The reader: 9,834 readings in 986 s, 9.97 a second; 4 µs at the median, 7 at the 99th percentile, 89 the longest; no
   fault. Ten managers where they were, a seventh session. The graded fallback worked: 13 objects lost their words one at
   a time and said so, and the report was written to the end.
+- *Later, 2026-11-23 (the eighth round, WHY§447):* world_clock is in the build's table by the invariant recipe. The second
+  static's object keeps the same words in other memory.
 
 ### 395. The flags' blocks are likely the plain data behind the store's address 40 bytes in, and their tree behind 56
 
@@ -6438,6 +6444,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - Not yet checked against a flag the owner sets: the sweep's list (24 flips a target, the quietest pages first) was
   filled by the first comparison, half a minute in, so what the owner did later is among the 852 flips counted but not
   listed.
+- *Later, 2026-11-23 (the eighth round, WHY§448):* bits are set in that stretch where the owner does something the game
+  remembers, and nothing else flipped there around the marks: the first candidate for the blocks holds so far.
 
 ### 396. A list of what changed must be told when to look: the tester marks a task done
 
@@ -7037,3 +7045,49 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   - The talk key reached the box's first submitted frame in 1 ms, against NPC §5.1's 50 ms.
   - The input-leak case passed. The release DLL refused the Eval realm (`accepted=0`), and the log held no chat text.
 - O108's change (engine a7f8509, after this check) passed GCC's 34/34 and 7/7.
+
+### 447. world_clock is in the build's table by the invariant recipe, an eighth session
+
+`2026-11-23` · FACT · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§394, WHY§359
+
+- The eighth read-only round (package 0.1.0-lodestar.11, the owner's run, 10.7 minutes) named it by what its object
+  holds. It is static 64422792, the word 8 bytes in: the minute from bit 39, the hour from bit 34. The minutes stepped 141
+  times and went round four times, the hours stepped four times, and nothing else changed. 113 instructions refer to the
+  static.
+- The build's table has 15 entries (engine a6cdf26). save_data was named again by the mended rule, rising in 12 passes of
+  12. The reader: 6,190 readings in 620 s, 9.98 a second, no fault. Ten managers were where they were, an eighth
+  session.
+- A second static's object (64422928) keeps the same words 216 and 232 bytes in, in other memory.
+
+### 448. Bits are set in the flags' stretch where the owner does something the game remembers
+
+`2026-11-23` · FACT · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§395, WHY§396
+
+- Behind the store's address 40 bytes in, all set around the owner's two marks. Around the first: byte 3,288 (bit 1)
+  and byte 1,453,189 (bit 0). Around the second: byte 2,928 (bit 0), byte 1,453,199 (bit 5) and byte 1,453,751 (bit 6).
+  Nothing else flipped there around the marks.
+- The report was at the writer's limit again, since stretches the sweep had given up still listed their flips; mended in
+  the ninth round.
+
+### 449. The report may carry the numbers of a flags' tree record joined to a bit the owner set
+
+`2026-11-23` · DECIDED · `#lodestar` `#probe` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§390, WHY§448
+
+- Without them a block cannot be given its group. The ninth round (engine 99b3de1, package 0.1.0-lodestar.12) reads
+  the tree beside the flags once: the object 56 bytes into the store, records of 64 bytes reached by their first three
+  words, at most 32,768, one record a read within the searches' share. It counts each of a record's sixteen 32-bit
+  fields over all records, finds the key by the tree's order, and joins each flip around a mark to the record that names
+  its block.
+- A joined record is written as its sixteen numbers, the group's number among them, an address written as 0, for at most
+  48 records. This is the second place the report carries numbers the memory held, after the clock's jumps (WHY§390).
+  Engine agrees, on that bound.
+
+### 450. The tester's panel ran on the owner's PC over the game, with Pause as its key
+
+`2026-11-23` · FACT · `#launcher` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§444, S10.1.l
+
+- The game ran windowed. Seven tasks were done in order, the tester's three by Pause, and both Marks were taken by the
+  round.
+- The owner asked for one change: "make the blue button with instructions be aware of the task, because for example it
+  tells the user to press pause or click here, when the task is about to quit the game." In the ninth round the button
+  speaks for its task, and the last task has none (engine 99b3de1).

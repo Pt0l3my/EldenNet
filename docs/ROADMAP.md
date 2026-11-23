@@ -1076,6 +1076,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     L6's fourth round built the same day (engine 9ba4556, Lodestar's 3030114; WHY§444, §445): the tester's panel and
     its marks for the sweep, the clock written by what its object holds, the play time judged by what it does.
     Package 0.1.0-lodestar.11, for the owner's run.
+    L6's fourth round reviewed the same day (WHY§447, §448): world_clock in the table (15 leads), flags seen set at
+    the owner's marks. The fifth built (engine be13ea4, Lodestar's 99b3de1; WHY§449): the tree beside the flags read
+    once and joined to the marked flips. Package 0.1.0-lodestar.12, for the owner's run.
 - l A tester's panel for the owner's rounds: each task in order, with a timer and a mark when done (the owner's request) [done]
   - needs: k
   - refs: WHY§398, WHY§396, WHY§444, WHY§445
@@ -1084,6 +1087,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     when to look. Built the same day with the eighth round (engine 3030114): the launcher's task panel, with --read,
     the tasks in order, timers, Pause or a click to confirm; the confirmations are Marks in the watch block's ring
     (WHY§444, §445). GraceUI's overlay is not cleared for the real game yet (S10.1.g, S11.1.a).
+    Proved on the owner's PC in the eighth round (WHY§450); the owner's one change, a button that speaks for its task and
+    none for the last, is in the ninth.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
