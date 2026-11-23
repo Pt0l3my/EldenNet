@@ -529,6 +529,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 504 | 2026-11-23 | game_state's candidate is a number of the character: 4 for the list's first, 2 for the third | FACT | #lodestar #l6 |
 | 505 | 2026-11-23 | A search of a manager's object is asked for only once the game is in the state it is to see | METHOD | #lodestar |
 | 506 | 2026-11-23 | Fields past a class's 0x4000 copy are far fields, each read by its own small copy | DECIDED | #engine #gal #lodestar |
+| 507 | 2026-11-23 | game_state's candidate is not the save's slot: the owner's save file gives the slots | FACT | #lodestar #l6 |
+| 508 | 2026-11-23 | Ground truth first, then the search | METHOD | #lodestar |
 
 ## Entries
 
@@ -7424,6 +7426,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   character, then the usual one.
 - *Later (2026-11-23, WHY§504):* the candidate read 4 and 2 for two characters: a number of the character, which
   fits the slot if the list runs last slot first; a third load is to settle it.
+- *Later (2026-11-23, WHY§507):* the candidate is ruled out by the owner's save file: it is not the slot.
 
 ### 470. A search by what an object holds in each state takes its candidates in each state and lists its near misses
 
@@ -7626,6 +7629,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   review of the files.
 - *Later (2026-11-23, WHY§504):* with two characters seven fields in 25 slots read two numbers, so that rule alone
   names nothing; a field that changed for the same character between sessions is ruled out.
+- *Later (2026-11-23, WHY§507):* the candidate it found is not the slot; the next search seeks the slot's known numbers.
 
 ### 489. The pointers and lists are sought by class from the characters manager's own object
 
@@ -7809,6 +7813,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - Seven fields in 25 slots read two numbers, so "one field in one slot that reads two numbers" names nothing by itself;
   a field that changed for the same character between sessions is ruled out by that (one read 1 twice before and 4
   now).
+- *Later (2026-11-23, WHY§507):* corrected by the owner's save file: the list runs in slot order, so the candidate is
+  not the slot, and the guess that the list runs last slot first is rejected.
 
 ### 505. A search of a manager's object is asked for only once the game is in the state it is to see
 
@@ -7831,3 +7837,23 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   fields are all far may have `copy_size = 0`. Each far read counts against the tick's reads as any other copy.
 - Lodestar makes both sides, the layout's schema and lint (en-gal's layout.cpp) and ErBackend's groups reading far
   fields, with tests on the fake world; Engine reviews, merges and adds ARCH §6.3's dated note.
+
+### 507. game_state's candidate is not the save's slot: the owner's save file gives the slots
+
+`2026-11-23` · FACT · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§469, WHY§488, WHY§504, S10.1.m
+
+- The owner sent the save file, unasked, and said the usual character is the newest of the five. Lodestar read one fact
+  from it offline, in a folder of its own with a script kept elsewhere, and kept nothing (its copy deleted; no name
+  recorded): the characters stand in slots 0, 1, 2, 5 and 6, and the game's list runs in slot order.
+- So the candidate (static 64543992, 0x470), which read 4 for slot 0's character and 2 for slot 2's, is some number of
+  the character, not the slot. No hit of the state search read 0 and then 2: as a 32-bit number that reads -1 at the
+  title, the slot is in none of the 1,399 objects the search could follow.
+- Rejected with it: that the game lists its slots last first (WHY§504).
+
+### 508. Ground truth first, then the search
+
+`2026-11-23` · METHOD · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§507
+
+- With the characters' slots known from the owner's own save file (one fact read offline, nothing kept), the slot's
+  field is sought by the numbers it must read in two worlds (6 for the last of the list, 2 for the usual one), over the
+  data's slots in use in the world, not by a lead about what it reads at the title.

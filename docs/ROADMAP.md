@@ -1153,8 +1153,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The thirteenth round reviewed the same day (WHY§502 to §505): the characters manager's main_player, near list and
     player set, the player's parts holder and the sheet found as leads (LIKELY; not in gal/). The manager's places lie
     past the layout's 0x4000: they are far fields, each read by its own small copy (Engine's ruling, WHY§506), the
-    layout's and the backend's sides by Lodestar. game_state: the candidate reads 4 and 2 for two characters; a third
-    load is to settle it. Next: the fourteenth round (the parts and the moving numbers by invariant).
+    layout's and the backend's sides by Lodestar. game_state: the twelfth round's candidate is ruled out (the owner's
+    save file gives the slots; it read 4 for slot 0's character; WHY§507). Next: the fourteenth round looks for the
+    field that reads the loaded character's slot in two worlds, then the parts and the moving numbers by invariant.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates

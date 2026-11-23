@@ -2070,6 +2070,15 @@ about me, no privacy issue, no safety issue is being added/uploaded. game time, 
 keeps to the stricter rule all the same: its report and logs hold offsets, sizes, counts and the places of type
 tables, no name and no value of any object.
 
+*Note, 2026-11-23 (the fourteenth round; WHY§507, §508).* Put to the owner by Lodestar, three answers: the parts'
+reading ("the parts of your own character (about 30 small objects the game keeps for it: health, movement and so on),
+the first 4 KiB of each, about 130 KiB in all, read once a second while you are in the world. It writes only where a
+number lies and how it behaved (stood still, moved, fell, rose), never the numbers themselves. May the round do it?"):
+"Yes, read it (Recommended)"; one hit and one heal in the world: "Yes, one hit and one heal"; loading the last character
+of the list once: "Yes, I will load the last one". The state search reads within what the owner agreed to for the
+twelfth round (the first 8 KiB of the objects behind the data's slots, now those in use in the world). The owner also
+sent Lodestar the save file, unasked; one fact was read from it offline and nothing of it kept (WHY§507).
+
 ## O106
 
 **Retire R1** · *2026-11-22 · Decided by the owner, as recommended*
