@@ -562,6 +562,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 537 | 2026-11-23 | A read round is free of GraceUI by construction, and the panel's confirmations reach the round whoever holds the Pause key | METHOD | #lodestar #engine |
 | 538 | 2026-11-23 | Objects of the player's class are several in a world: the main player is the object at characters.main_player | FACT | #lodestar #gal |
 | 539 | 2026-11-23 | The quit's crash codes look like a damaged heap found at the quit, not damage done there | LIKELY | #graceui #crash |
+| 540 | 2026-11-23 | ABI 1.6 grows GraceUiEvent: EldenNet's poll is asked at the larger size, and nothing else changes | FACT | #engine #graceui |
+| 541 | 2026-11-23 | A free port for every GraceUI case, from one environment of its own | METHOD | #engine #tests #graceui |
+| 542 | 2026-11-23 | grace-dev 0.2.31's dump: only the two Named NPCs goldens change | FACT | #engine #pages #graceui |
 
 ## Entries
 
@@ -8237,3 +8240,33 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   run, perhaps with a third program's hook beside it. What would place it: spikes.5's recorder at 0xC0000374, the
   faulting frames by module and offset, a page-heap run, and a heap guard on GraceUI's own allocations in its test
   build (asked of Grace for spikes.6 the same day).
+
+### 540. ABI 1.6 grows GraceUiEvent: EldenNet's poll is asked at the larger size, and nothing else changes
+
+`2026-11-23` · FACT · `#engine` `#graceui` · refs: GraceUI's D226, de8b596 (graceui.h), graceui.h's rules (D73), src/en-overlay/tests/fake_grace.cpp (poll), engine wip/s12-pin, merged at 4bfccf9
+
+- graceui.h at 386d1ba appends `file`, `file_capacity` and `file_length` to GraceUiEvent (ABI 1.6), so
+  `sizeof(GraceUiEvent)`, which graceui-sys's poll sets as the event's size, grows with the re-vendor. GraceUI reads
+  and writes the smaller of the two sizes (D73), so the floor (0.2.22, ABI 1.5) still answers; the space names no file
+  command, so GraceUI never writes a file into EldenNet's event (its `file` stays null). The table itself has no new
+  slot. The fake GraceUI compares against the header's size and so needs no change while EldenNet polls only at 16
+  bytes or the header's size; one test comment ("ABI 1.2's size") was corrected to ABI 1.6's.
+
+### 541. A free port for every GraceUI case, from one environment of its own
+
+`2026-11-23` · METHOD · `#engine` `#tests` `#graceui` · refs: GraceUI's D234, WHY§526, WHY§535, tests/fakegame/harness.py (GRACE_ENV, install_editor), engine wip/s12-pin, merged at 4bfccf9
+
+- `GRACE_ENV = dict(EN_ENV, GRACEUI_TEST_PORT="free")`, used by the eleven cases that need GraceUI's test build and by
+  the spikes package's six runs, which carry one; EN_ENV itself is left alone, since most of its cases load no GraceUI.
+  The editor's case no longer writes `dashboard.port` (only `dashboard.lan`). Every case already read the port from the
+  fake game's report, so nothing else assumed 8642. A GraceUI older than 0.2.31 ignores the variable.
+
+### 542. grace-dev 0.2.31's dump: only the two Named NPCs goldens change
+
+`2026-11-23` · FACT · `#engine` `#pages` `#graceui` · refs: WHY§524, GraceUI's 6a50f1d (D234), tests/pages/golden, engine wip/s12-pin, merged at 4bfccf9
+
+- Regenerated with grace-dev at 386d1ba: `characters.named` and `characters.named.world` now draw the chosen row's
+  general profile (five rows) and the editor block in place of the two "Nothing to show yet." lines (62 to 124 items);
+  the world state's Draft is greyed with "Drafts wait until EldenNet may use the network.", as its fixture says.
+  `characters.named.starting` and the other twelve goldens are byte for byte the same, and the fixtures needed no
+  rewrite.

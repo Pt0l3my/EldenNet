@@ -1587,12 +1587,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     GRACEUI_TEST_PORT (free or a port) serves a test build's browser view off 8642 with the settings unchanged, and
     `--dump` gives a page's topics until none is new. 258 checks in GraceUI's full harness. EldenNet's side is
     S11.2.as.
-- as EldenNet's GraceUI cases on a free port, and Named NPCs' goldens with a master's detail (GraceUI's docs/eldennet-changes.md §64) [next]
+- as EldenNet's GraceUI cases on a free port, and Named NPCs' goldens with a master's detail (GraceUI's docs/eldennet-changes.md §64) [done]
   - needs: ar
-  - refs: GraceUI:D234, WHY§535, WHY§524
+  - refs: GraceUI:D234, WHY§535, WHY§524, WHY§540, WHY§541, WHY§542
   - gives: the cases set GRACEUI_TEST_PORT=free and read the port from GraceUI_Test_GetServer; the editor's case stops
     writing a port into GraceUI's settings.json; the goldens regenerated with 0.2.31's grace-dev; graceui-sys's pin
-    moved when the vendored files change.
+    moved when the vendored files change. Done on 2026-11-23 (engine wip/s12-pin bad88ac and 0f537ed, merged at
+    4bfccf9): graceui-sys at GraceUI 386d1ba (0.2.31, ABI 1.6, protocol 1.9; EldenNet uses neither's uploads; floor
+    0.2.22), GRACE_ENV for the GraceUI cases, the editor's settings with no port, and only the two Named NPCs goldens
+    changed, to the chosen row's detail. GCC 39 of 39 with the pages' lint and preview, eval 8 of 8; clang-cl's nine
+    unit programs and 18 GraceUI and spike cases under Wine, every server on a free port.
 
 ### S11.3 EldenNet v0.2
 
@@ -1792,14 +1796,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     and GraceUI's lint refuses an undeclared one: `providers.add`, `providers.remove` and `providers.key`, and the
     settings `debug.panel` and `debug.record_sessions`; the editor's save is left unmarked (WHY§523). The fake game's
     case pairs a device on 127.0.0.2 and checks it refused (WHY§525). By the owner's O112 (b) the editor's save, reset
-    and restore join them: notes are saved on the PC alone. To build after S11.2.as.
-- f A start stopped at discovery names what failed, and Home's build row says supported only once the game is read [next]
+    and restore join them: notes are saved on the PC alone. Built the same day (engine d37d35a); the editor's case
+    checks a save and a reset from the paired device refused.
+- f A start stopped at discovery names what failed, and Home's build row says supported only once the game is read [done]
   - refs: WHY§530, WHY§529, PAGES§4.5, O114
   - gives: on the owner's PC the banner said "game build 2.7.2.0 not supported yet (reason: gal_files)" while Home
     said "2.7.2.0, supported" (2026-11-23). The words decided by the owner the same day (O114 (a)): "EldenNet inactive:
     its files for game build X are incomplete. Reinstall EldenNet, or look for an update." or "...it cannot read game
     build X yet. Look for an update of EldenNet."; the row "X, recognised, not readable yet" until the game is read.
-    To build after S11.2.as.
+    Built the same day (engine d37d35a): the banner by the stop's detail, the Home and System › Status rows by whether
+    the reader runs (the Status check waiting while the start is under way, failing once it stopped).
 ### S11.5 v0.2's exit checks
 
 - needs: S11.1, S11.3, S11.4
