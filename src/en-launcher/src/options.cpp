@@ -232,8 +232,9 @@ proto::Expected<Options, std::string> parse_options(const std::vector<std::strin
   } else if (o.read_pace_s != 0) {
     return proto::Unexpected{std::string("--read-pace-s goes with --read")};
   }
-  if (o.spike_pace_s != 0 && !s0_run(o.spike)) {
-    return proto::Unexpected{std::string("--spike-pace-s goes with --spike s0a, s0b, s0c, s0d or s0d-crash")};
+  if (o.spike_pace_s != 0 && !run_folder(o.spike)) {
+    return proto::Unexpected{std::string("--spike-pace-s goes with --spike s0a, s0b, s0c, s0d, s0d-crash, s0e, "
+                                         "s0e_alone or s4")};
   }
   return o;
 }
@@ -263,7 +264,8 @@ std::string usage_text() {
          "                       spikes\\<word>-<n> holds EldenNet's report of it, and a panel beside the game lists\n"
          "                       the tester's tasks (--spike-pace-s S: the tests' pace)\n"
          "  --spike s0e|s0e_alone|s4   GraceUI's observer's runs (S0-E, S4): EldenNet calls nothing into the game,\n"
-         "                       and s0e_alone loads only the --also DLLs; its report goes to spikes\\<word>-<n>\n"
+         "                       and s0e_alone loads only the --also DLLs; its report goes to spikes\\<word>-<n>;\n"
+         "                       the panel lists the run's steps too\n"
          "  --no-dialogs [--yes] lines instead of dialogs; questions answered no (or yes)\n"
          "  --no-steam-check     --gal DIR   --steam DIR   --appdata DIR\n"
          "exit codes: 0 done; 1 a spike's runs did not all pass; 2 usage; 11 to 21 the errors E01 to E11\n";

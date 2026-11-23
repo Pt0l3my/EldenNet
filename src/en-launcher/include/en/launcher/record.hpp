@@ -69,6 +69,7 @@ struct SessionRecord {
   std::uint64_t modules_age_ms = 0;   // how long before the end they were listed
   std::vector<std::uint64_t> marks;   // the Marks' mono ms
   std::uint32_t connections_max = 0;  // s0c: the game's non-loopback connections, the most at once (no addresses)
+  bool panel = false;                 // the tester's panel, a window on top of the game's, was shown in the session
   bool explained = false;             // shown at a later start
 };
 
@@ -104,6 +105,7 @@ struct RunResult {
   bool crash_filter = false;  // EldenNet's crash filter wrote its record
   std::uint64_t run_ms = 0;
   std::uint32_t connections_max = 0;
+  bool panel = false;  // the tester's panel was shown beside the game (a window on top of it: frame counts read so)
   // An S0 run (s0.hpp): its folder's number (spikes\<word>-<n>; 0 for none), whether eldennet.dll's report of the run
   // was read there, what the start waited for when it stopped short of its reading, and whether the build's table
   // passed S0-A's rule (true where there was no report or no table).

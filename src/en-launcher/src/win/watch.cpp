@@ -7,6 +7,7 @@
 #include <fstream>
 
 #include "en/launcher/appid.hpp"
+#include "en/launcher/observer_tasks.hpp"
 #include "en/launcher/s0.hpp"
 #include "win.hpp"
 
@@ -133,11 +134,16 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
     console_line(read_text(step, named, of), "EldenNet read: ");
   };
   if (plan.read) read_tell(ReadStep::Asked, 0, 0);
-  // The tester's tasks (--read, and an S0 run's, s0.hpp): the list, its panel beside the game, and a line for each task
-  // as it is done. The Pause key (or a click on the panel's button) confirms the task under way; a marked task's
-  // confirmation stamps a Mark, which the round reads and an S0 run's recording keeps.
+  // The tester's tasks (--read; an S0 run's, s0.hpp; a run of GraceUI's observer, observer_tasks.hpp): the list, its
+  // panel beside the game, and a line for each task as it is done. The Pause key (or a click on the panel's button)
+  // confirms the task under way; a marked task's confirmation stamps a Mark, which the round reads and a spike's files
+  // keep. Once the ring is EldenNet's (its own Mark on Pause, a GraceUI hotkey), the launcher has no key: in a spike's
+  // run each new Mark in the ring confirms the task under way instead, and the launcher stamps none.
   const bool s0 = s0_run(plan.spike) && plan.s0_report.has_value();
-  const std::string who = plan.read ? std::string("EldenNet read: ") : s0_who(plan.spike);
+  const bool observer = w::observer_run(plan.spike) && plan.run_dir.has_value();
+  const std::string who = plan.read ? std::string("EldenNet read: ")
+                          : s0      ? s0_who(plan.spike)
+                                    : observer_who(plan.spike);
   std::optional<TaskList> tasks;
   TaskPanel panel;
   bool panel_placed = false;
@@ -161,10 +167,11 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
     tasks->start(mono_ms());
     const bool opened = panel.open(nullptr);
     say("tasks count=%zu panel=%d pace_s=%u", tasks->size(), opened ? 1 : 0, plan.read_pace_s);
-  } else if (s0) {
-    // The S0 kind's own list (s0.hpp); Lodestar's read round keeps its list.
-    console_line(s0_begin_text(plan.spike, plan.run, plan.runs), who);
-    tasks.emplace(s0_tasks(plan.spike, plan.run, plan.runs));
+  } else if (s0 || observer) {
+    // The S0 kind's own list (s0.hpp), or the observer's runs' (observer_tasks.hpp); Lodestar's read round keeps its
+    // list.
+    if (s0) console_line(s0_begin_text(plan.spike, plan.run, plan.runs), who);
+    tasks.emplace(s0 ? s0_tasks(plan.spike, plan.run, plan.runs) : observer_tasks(plan.spike));
     tasks->set_pace(plan.spike_pace_s);
     tasks->start(mono_ms());
     const bool opened = panel.open(nullptr);
@@ -172,6 +179,7 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
         w::to_string(plan.spike), plan.run, plan.runs);
     tell_task(mono_ms());
   }
+  r.panel_shown = panel.is_open();
   bool s0_stopped = false;  // T1's start has stopped, and eldennet.dll's report of it was looked for
   const auto take_modules = [&](bool at_crash) {
     auto list = list_modules(pid);
@@ -227,7 +235,7 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
         if (const HWND game = main_window(pid)) {
           panel_placed = true;
           panel.close();
-          (void)panel.open(game);
+          r.panel_shown = panel.open(game) || r.panel_shown;
         }
       }
       panel.show(tasks->rows(now), panel_footer, hotkey);
@@ -240,7 +248,18 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
         UnregisterHotKey(nullptr, kMarkHotkey);
         hotkey = false;
         while (PeekMessageW(&msg, nullptr, WM_HOTKEY, WM_HOTKEY, PM_REMOVE)) {
-          if (msg.wParam == kMarkHotkey) own_mark(now);
+          if (msg.wParam != kMarkHotkey) continue;
+          if (tasks && !plan.read) {
+            // A spike's tasks: the press confirms the task under way, as any press of the key does.
+            const TaskList::Change c = tasks->confirm(now);
+            if (c.changed) {
+              task_done(c, "key", now);
+            } else {
+              say("task key=1 confirmed=0 current=%zu", tasks->current() + 1);
+            }
+          } else {
+            own_mark(now);
+          }
         }
       }
       w::launcher_hands_over(b.marks);
@@ -253,6 +272,15 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
         const std::uint64_t at = b.marks.mono_ms[(marks_seen - 1) % w::kMarkRing].load(std::memory_order_relaxed);
         r.record.marks.push_back(at);
         say("mark n=%u mono_ms=%llu source=eldennet", marks_seen, static_cast<unsigned long long>(at));
+        if (tasks && !plan.read) {
+          // The owner's Pause, now EldenNet's Mark: it confirms the task under way (the ring already holds the Mark).
+          const TaskList::Change c = tasks->confirm(now);
+          if (c.changed) {
+            task_done(c, "mark", now);
+          } else {
+            say("task mark=%u confirmed=0 current=%zu", marks_seen, tasks->current() + 1);
+          }
+        }
       }
     }
     if (!window_seen && main_window(pid) != nullptr) {
@@ -357,6 +385,18 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
   if (tasks) {
     task_done(tasks->end(end), "end", end);  // the last task is the game's end itself
     say("tasks done=%zu of=%zu finished=%d", tasks->current(), tasks->size(), tasks->finished() ? 1 : 0);
+  }
+  r.record.panel = r.panel_shown;
+  if (plan.run_dir) {
+    // The run's folder says whether the panel was shown, a window always on top of the game's, so that the spike's
+    // frame counts are read knowing it; and how far the tasks went. Numbers and words only.
+    const nlohmann::json j{{"launcher_run", 1},
+                           {"spike", w::to_string(plan.spike)},
+                           {"panel", r.panel_shown},
+                           {"tasks", tasks ? tasks->size() : 0},
+                           {"tasks_done", tasks ? tasks->current() : 0},
+                           {"marks", r.record.marks.size()}};
+    std::ofstream(*plan.run_dir / L"launcher-run.json", std::ios::binary | std::ios::trunc) << j.dump(1) << "\n";
   }
   if (s0) {
     // The report as T6 last wrote it, with the reader's counts (every 10 s), in place of T1's.

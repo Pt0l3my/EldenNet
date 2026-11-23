@@ -415,11 +415,12 @@ Run run_once(const Ctx& c, std::uint32_t run, std::uint32_t runs, const fs::path
   if (c.o.spike == w::Spike::S0a || c.o.spike == w::Spike::S0dCrash) plan.run_timeout_s = c.o.run_timeout_s;
   plan.crash_when_ready = c.o.spike == w::Spike::S0dCrash;
   plan.count_connections = c.o.spike == w::Spike::S0c;
-  if (run_dir && s0_run(c.o.spike) && ours) {
-    plan.s0_report = *run_dir / widen(kSpikeReportFile);
+  if (run_dir) {
+    plan.run_dir = run_dir;
     plan.run = run;
     plan.runs = runs;
     plan.spike_pace_s = c.o.spike_pace_s;
+    if (s0_run(c.o.spike) && ours) plan.s0_report = *run_dir / widen(kSpikeReportFile);
   }
   plan.remove_appid = remove_after;
   plan.appid = created;
@@ -455,6 +456,7 @@ Run run_once(const Ctx& c, std::uint32_t run, std::uint32_t runs, const fs::path
   r.crash_filter = rec.crash.has_value();
   r.run_ms = mono_ms() - t0;
   r.connections_max = rec.connections_max;
+  r.panel = res.panel_shown;
   if (res.s0) {
     // eldennet.dll's report of an S0 run (s0.hpp): what its start waited for, and S0-A's rule for its table.
     r.report = true;

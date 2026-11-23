@@ -126,6 +126,7 @@ nlohmann::json to_json(const SessionRecord& r) {
                    {"modules_age_ms", r.modules_age_ms},
                    {"marks", r.marks},
                    {"connections_max", r.connections_max},
+                   {"panel", r.panel},
                    {"explained", r.explained}};
   if (r.crash) {
     j["crash"] = nlohmann::json{
@@ -276,7 +277,8 @@ nlohmann::json to_json(const RunResult& r, w::Spike spike) {
                         {"record_kept", r.record_kept},
                         {"crash_filter", r.crash_filter},
                         {"run_ms", r.run_ms},
-                        {"connections_max", r.connections_max}};
+                        {"connections_max", r.connections_max},
+                        {"panel", r.panel}};
   if (r.folder != 0) {
     // An S0 run's or an observer's folder, spikes\<word>-<folder>; for an S0 run, what eldennet.dll's report said.
     j["folder"] = r.folder;

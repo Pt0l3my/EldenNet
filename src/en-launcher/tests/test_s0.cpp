@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "en/launcher/observer_tasks.hpp"
 #include "en/launcher/options.hpp"
 #include "en/launcher/record.hpp"
 #include "en/launcher/s0.hpp"
@@ -184,8 +185,46 @@ TEST_CASE("s0: --spike-pace-s, the tests' pace for an S0 run's tasks, goes with 
   CHECK(ok->spike_pace_s == 3);
   CHECK(parse_options({"--spike", "s0a", "--runs", "2", "--spike-pace-s", "1"}).has_value());
   CHECK_FALSE(parse_options({"--spike-pace-s", "3"}).has_value());
-  CHECK_FALSE(parse_options({"--spike", "s0e", "--spike-pace-s", "3"}).has_value());
+  CHECK(parse_options({"--spike", "s0e", "--spike-pace-s", "3"}).has_value());  // the observer's runs too
+  CHECK_FALSE(parse_options({"--read", "--spike-pace-s", "3"}).has_value());
   CHECK_FALSE(parse_options({"--spike", "s0b", "--spike-pace-s", "0"}).has_value());
   CHECK_FALSE(parse_options({"--spike", "s0b", "--spike-pace-s", "601"}).has_value());
   CHECK(usage_text().find("--spike-pace-s") != std::string::npos);
+}
+
+TEST_CASE("s0: the observer's runs' tasks (A1 to A4, A0, B), each of the tester's stamping a Mark") {
+  for (const w::Spike s : {w::Spike::S0e, w::Spike::S0eAlone, w::Spike::S4}) {
+    const auto t = observer_tasks(s);
+    REQUIRE(t.size() >= 5);
+    // No eldennet.dll in A0, and nothing of EldenNet's ends a task anywhere here: no Round task at all.
+    for (const Task& x : t) {
+      CHECK(x.kind != TaskKind::Round);
+      if (x.kind == TaskKind::Do) {
+        CHECK(x.mark);
+        CHECK(holds(x.detail, "press Pause"));
+        CHECK_FALSE(x.button.empty());
+      }
+    }
+    CHECK(t.front().kind == TaskKind::Do);
+    CHECK(t.back().kind == TaskKind::End);
+    CHECK_FALSE(observer_who(s).empty());
+  }
+  const auto a = observer_tasks(w::Spike::S0e);
+  const auto a0 = observer_tasks(w::Spike::S0eAlone);
+  const auto b = observer_tasks(w::Spike::S4);
+  const auto any = [](const std::vector<Task>& t, const char* part) {
+    for (const Task& x : t) {
+      if (holds(x.detail, part)) return true;
+    }
+    return false;
+  };
+  CHECK(any(a, "F5"));
+  CHECK(any(a, "F11"));
+  CHECK_FALSE(any(a0, "F11"));  // A0: EldenNet is not loaded
+  CHECK(holds(a0.front().detail, "no banner"));
+  CHECK(any(b, "F9"));
+  CHECK(any(b, "1.50"));
+  CHECK(any(b, "Without a pad"));
+  CHECK(observer_tasks(w::Spike::S0a).empty());
+  CHECK(observer_tasks(w::Spike::None).empty());
 }

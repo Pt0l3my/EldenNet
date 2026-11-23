@@ -24,6 +24,7 @@ set(EN_LAUNCHER_CORE_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/record.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/spikes.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/s0.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/observer_tasks.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/exe.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/lines.cpp)
 add_library(en_launcher_core STATIC ${EN_LAUNCHER_CORE_SOURCES})
