@@ -540,6 +540,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 515 | 2026-11-23 | A spike run's own record lists the game's modules by name | DECIDED | #launcher #spike |
 | 516 | 2026-11-23 | A step set as the code passes, read by an observer that writes at each change, places a fall without a debugger | METHOD | #graceui #spike |
 | 517 | 2026-11-23 | Run A5 reached the title without the stand-in; the tester's panel moves below GraceUI's notices | FACT | #spike #graceui #launcher |
+| 518 | 2026-11-23 | The stand-in for another overlay caused the owner's crashes; no run loads it any more | DECIDED | #spike #graceui |
 
 ## Entries
 
@@ -7965,3 +7966,16 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   stand-in's part in the chain is now the first suspect. The rest of the run and A1 are to confirm it.
 - The owner saw the launcher's task panel cover GraceUI's notice at the game's top right. The panel now opens 72 px
   (at 96 dpi) below the work area's top, under two of GraceUI's one-line notices (engine b1f7900; Lodestar told).
+
+### 518. The stand-in for another overlay caused the owner's crashes; no run loads it any more
+
+`2026-11-23` · DECIDED · `#spike` `#graceui` · refs: WHY§509, WHY§517, GraceUI:D231, S10.1.g
+
+- (LIKELY, Grace's reading) The stand-in finds Present's vtable slot through a short-lived swap chain of its own and
+  writes its function there. Under Wine that slot is DXGI's shared table; on a real PC an overlay that hooks by vtable
+  (the graphics driver's capture overlay was loaded in every run) can give a swap chain its own copy, freed with it, so
+  the write lands in freed memory and a later call goes through what is left: address 0. A fault of our test tool, not
+  of a shipped part; GraceUI 0.2.28's fault recorder (D231) could confirm it, but it is off GraceUI's path now.
+- (DECIDED) The owner's PC has real overlays, which is what S0-E asks about, and A5 has shown GraceUI living beside
+  them. So the s0e-s4 package's runs (A5, A1 to A4, B) load no stand-in and the package no longer ships it; A0 (GraceUI,
+  the observer and the stand-in) goes (engine 5dd8ce1). The harness keeps the stand-in for its own cases.
