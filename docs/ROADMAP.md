@@ -1525,6 +1525,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     through the real ABI under Wine (246 checks in the full harness, each build whole); an independent review found no
     way past the ticket and five gaps, fixed before release (D229). EldenNet declares plugins.install as a file command
     and reads its file through ABI 1.6 (S17.1.e; GraceUI's docs/eldennet-changes.md §61).
+- an The first frames' step and GraceUI's log beside the spike report, for A1's crashes (GraceUI 0.2.27, test build) [done]
+  - refs: GraceUI:D230, GraceUI:D220, GraceUI:D175, WHY§509, WHY§516
+  - gives: built on 2026-11-23 (GraceUI feat/foundations 7022e43). Each state line carries frame_step (1 to 11, GraceUI's
+    first frames from a Present through its detour to the game's Present returning after its first frame), with a line
+    at each change; report.py names the step when nothing was drawn; graceui-log.txt beside the report holds GraceUI's
+    own log, never in the report. Both spike scenarios check it (248 checks in the full harness). The next package's
+    runs place A1's fall within GraceUI's first frames (GraceUI's docs/eldennet-changes.md §62).
 
 ### S11.3 EldenNet v0.2
 

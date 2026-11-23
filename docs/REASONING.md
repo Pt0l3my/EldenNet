@@ -537,6 +537,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 512 | 2026-11-23 | G28's upload route: the ticket in a header, spent on its first match; the size before a byte, the hash on a worker | FACT | #graceui #security |
 | 513 | 2026-11-23 | A browser hashes only in a secure context, so uploads stay on this PC | FACT | #graceui |
 | 514 | 2026-11-23 | A count cap needs a byte cap when items vary that much, and every path to a command carries the same rule | METHOD | #graceui #security |
+| 515 | 2026-11-23 | A spike run's own record lists the game's modules by name | DECIDED | #launcher #spike |
+| 516 | 2026-11-23 | A step set as the code passes, read by an observer that writes at each change, places a fall without a debugger | METHOD | #graceui #spike |
 
 ## Entries
 
@@ -7931,3 +7933,20 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   path to a command the first guarded; an event held past the answer its view already had. All fixed before release.
 - Accepted and recorded in D229, not built: the upload ticket is a bearer token on loopback, so a local program holding
   both the session's cookie and the ticket could use it; it travels only on that session's WebSocket and dies with it.
+
+### 515. A spike run's own record lists the game's modules by name
+
+`2026-11-23` · DECIDED · `#launcher` `#spike` · refs: WHY§509, WHY§511, S10.1.g
+
+- Grace asked, after A1's crashes, to know whether the frame-time overlay's hooks were in the chain in a run that does
+  not crash too. So launcher-run.json, in each spike run's folder, now lists the game's modules as last listed, by name
+  alone and with no path, as a crash record keeps them (engine 7b8c987). The panel cases check the list.
+
+### 516. A step set as the code passes, read by an observer that writes at each change, places a fall without a debugger
+
+`2026-11-23` · METHOD · `#graceui` `#spike` · refs: GraceUI:D230, GraceUI:D220, WHY§509
+
+- A1 fell four times between two state lines five seconds apart, with nothing to place it: the watcher's record had no
+  faulting address. A step the code sets as it passes (D220 for the init, D230 for the first frames), read by an
+  observer that writes at each change, places a fall within 50 ms; and Windows' own Application Error events (event
+  1000), already on the player's PC, name the faulting module and offset for runs already done (asked of the owner).
