@@ -77,6 +77,21 @@ The watch block's states for this start, `reader` and `first_reading`, were appe
 and `first_tick` keep their numbers there for the game's task, which nothing enters now (R1, retired 2026-11-22,
 O106).
 
+**An S0 run** (the launcher's `--spike s0a`, `s0b`, `s0c`, `s0d` or `s0d-crash`; DESIGN §16.1 on the table-based start,
+roadmap S10.1.b; `spike.cpp`, en_shell's `spikerun.hpp`) is this start, run as far as gal/'s layout allows, with a
+report beside it: at Safety the run's folder (`ELDENNET_SPIKE_DIR`, accepted only as the launcher's
+`<data>\spikes\<word>-<n>`), after Discover its counts and the build's table as checked, before Reader (S0-D, a probe
+build) the trial, 20 guarded copies forced to fault by each copy primitive (the SEH copy at a page of our own with no
+access, ReadProcessMemory at the null page), and the group the reader's faults go into (settings.toml's probe table
+where it names one, else the first optional group this start reads, every read of it from 2 s into the world); at the
+terminal state, before T1 says so, the table checked again over the image as it is then (`spike_stopped … rechecked=…
+changed=…`) and `eldennet-spike.json` written, which T6 writes again every 10 s with the reader's counts (snapshots,
+torn, held, unconfirmed, the faults by kind, the groups tripped, the p99). A start that stops short of its reading
+says why (`waits`: layout, files, build, anticheat, not_started). The S0 sessions (`s0b`, `s0c`, `s0d`) record
+whatever settings.toml says. A discovery refused only for a required static that has no place in the table and no way
+to be found, as the real game's `game_state` today (WHY§459), stops at the banner with the detail `layout`, and an S0
+run then checks the table with one pass that refuses nothing for such a static (en-gal's `partial`).
+
 A probe build with `probe = { round = "read" }`, or asked by the launcher's `--read`, runs the read-only round after
 Connect instead (below), but never in a run of GraceUI's observer: there settings.toml's round is set aside
 (`probe round=read skipped=1 why=spike`) and the start stops at Reader, and the launcher refuses `--read` with those
@@ -285,8 +300,9 @@ no task of ours.
 `en_shell_tests` (doctest; Linux with GCC and Clang, and the Windows builds under Wine): settings (the defaults, what
 v0.1 reads, the later tables, each refusal without its value, the size cap, the probe table only in a probe build), the
 log lines (scrubbing a path and a name, a cut line), the rings (order and capacity, C1's newest and gap, C1 under two
-threads, the log's ring from four threads), the safety checks' names, and every kind of recording line linting clean
-alone and as a file with no name, text or param value in it.
+threads, the log's ring from four threads), the safety checks' names, every kind of recording line linting clean
+alone and as a file with no name, text or param value in it, and an S0 run's report, ready or waiting, linting clean
+with its words.
 
 In the clang-cl build, `eldennet_dll_checks` (`tests/dll_checks.py`) runs ARCH §12.1's greps on `src/eldennet`
 (DllMain's body is the load contract's and calls nothing else; no detach branch; every `WINAPI`, `CALLBACK` and
