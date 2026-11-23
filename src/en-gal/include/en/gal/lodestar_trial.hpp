@@ -526,6 +526,7 @@ class CharSearch {
     std::uint32_t manager_slot = 0;                 // the characters manager's static
     std::uint32_t save_slot = 0;                    // the save data's static; 0 for none
     std::uint32_t main_player_word = 0;             // in the manager's object; 0 where it is not known
+    std::uint32_t list_word = 0;                    // where the build's layout puts a list's bounds there; 0: nowhere
     std::vector<std::uint32_t> character_vtables;   // of the character's class and every class deriving from it
     std::vector<std::uint32_t> player_vtables;      // of the player's class and every class deriving from it
     const ByteSource* image = nullptr;              // the image as loaded: the slots are read from it
@@ -544,6 +545,9 @@ class CharSearch {
   // looks begun after this take the main player from there. Without it the first object of the player's class in
   // the manager's words is taken, which is wrong where the world holds several (the fourteenth round met eight).
   void set_main_player_word(std::uint32_t offset) noexcept;
+  // Where in the manager's object the build's layout puts a list (the first of its two addresses): looks begun
+  // after this judge the run there first, whatever else the manager's words offer, and list it as `expected`.
+  void set_list_word(std::uint32_t offset) noexcept;
   [[nodiscard]] std::uint32_t asked() const noexcept { return asked_.load(std::memory_order_acquire); }
   [[nodiscard]] std::uint32_t passes() const noexcept { return done_.load(std::memory_order_acquire); }
   [[nodiscard]] bool due() const noexcept { return done_.load(std::memory_order_relaxed) < asked(); }
@@ -562,6 +566,7 @@ class CharSearch {
   std::array<std::atomic<std::uint32_t>, kPasses> mark_{};
   std::atomic<std::uint32_t> save_slot_{0};
   std::atomic<std::uint32_t> main_player_word_{0};
+  std::atomic<std::uint32_t> list_word_{0};
 };
 
 // The pair search (lodestar.hpp's PairFound): two looks, asked for when the tester says the game is in the first

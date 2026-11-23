@@ -245,7 +245,7 @@ of any game is in it, and every name it looks for comes from a leads file.
   those the accessor's own sites reach too (`known`) and with the same class object (`agreeing`), and the statics
   that are new, each with its class object, count of sites and witnesses; `all_statics` is the accessor's own and
   then the variants' new ones, which the naming goes through. A variant never changes the accessor's own counts or
-  `complete`. `write_report` writes kind `lodestar`, schema 15, through the numbers-only writer: whole
+  `complete`. `write_report` writes kind `lodestar`, schema 16, through the numbers-only writer: whole
   numbers, booleans, fixed words and the leads' labels. Its vocabulary holds no key of the pattern type and no
   fraction, which a test pins, so a report cannot carry a byte, a pattern, text, a name or an instruction.
   **The in-game round (step L5; proposal 0005 §6.1's `instance_class`, O92)** adds, all read-only:
@@ -348,18 +348,25 @@ of any game is in it, and every name it looks for comes from a leads file.
   addresses the target begins with (a holder of parts: at least 8 of its first 16 words are addresses; how many of
   those objects have a class is counted). It names nothing; no value of any object is reported, and nothing is
   allocated on the stepping thread. The fourteenth round asks for its look only once the tester says the game is in
-  the world (a look asked for as the manager was first named saw it being filled). `PairSearch` (lodestar_parts.cpp,
+  the world (a look asked for as the manager was first named saw it being filled). Since the sixteenth round the
+  run at the place the build's layout gives for a list (`set_list_word`) is judged first and listed as `expected`,
+  and a word inside a run of rising addresses is tried last (the fifteenth round's 64 candidates went to such
+  runs). `PairSearch` (lodestar_parts.cpp,
   `PairFound`) finds a field by two numbers it must read: the owner's save file gave the characters' slots, so the
   save's slot is the 32-bit field (or the byte) that reads the first loaded character's slot in the first world and
   the second's in the second, over the data's slots in use in the world, with no rule about the title and none about
-  the object staying; the round names the game's state where one 32-bit field alone did. `PartsWatch` (`PartsFound`)
+  the object staying; the round names the game's state where one 32-bit field alone did, or where one such field
+  alone lies in an object of the class the leads' `[statics]` give for it (`Namer::static_lead_class`: the class's
+  innermost name against the image's type information; the fifteenth round had 17 fields). `PartsWatch` (`PartsFound`)
   is the third step, the moving numbers by invariant: once a second it reads the main player's address from the
   manager, the holder's from the player's object, the holder's 32 words and 0x1000 bytes behind each, compares
   every 32-bit field with the pass before and counts the changes by the phase the tester is in (standing, walking,
   standing, a hit, a heal: the launcher's marks, the waits' ends among them). It reports the parts (each one's
   table of methods), the fields that changed in at least half of the walk's passes and never while the tester stood
-  (a position), and the fields that fell in the hit's phase having never changed before, with how often they rose
-  in the heal's and whether a field beside them never changed and is at least as large (health and its maximum).
+  (a position; with the class of how far each ranged in the walk read as a fraction, those that ranged like a
+  place listed first), and the fields that fell in the hit's phase having never changed before, with how often they rose
+  in the heal's and whether a field beside them never changed and is at least as large (health and its maximum;
+  the one that fell once and rose once under such a bound is listed first, across the parts).
   What a field held is never reported. `ErBackend::flags_alone`
   and `DiscoveryOptions::partial` (backend.hpp, discovery.hpp) let one group of EldenNet's own reader be read before
   the others' fields are placed.

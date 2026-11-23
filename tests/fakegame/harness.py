@@ -2385,7 +2385,7 @@ def check_read(result, by_flag=False, events=False, marks=False):
     with open(table) as f:
         draft = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 15, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
+    need(d["report"] == "lodestar" and d["schema"] == 16, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
          failures)
     # Numbers and the catalogue's labels: no name of the fake game's, in either file.
     for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["SaveLedger", "FG::", "Imp", "task_loom", "Fg_"]:
@@ -2726,6 +2726,11 @@ def read_state_gal(gal):
         text = f.read()
     changed = text.replace('game_state = "RunWarden"\n', "")
     assert changed != text, "the leads' game_state line was not found"
+    # What the leads do hold for it: the class of its instance, under [statics], as the game's leads do. No static of
+    # the accessor's holds it, so the class names nothing by itself; it tells the pair search's hits apart.
+    lead = 'run_warden = { rtti = "FG::RunWardenImp" }'
+    assert lead in changed, "the leads' run_warden line was not found"
+    changed = changed.replace(lead, 'game_state = { rtti = "FG::RunWardenImp" }')
     with open(path, "w") as f:
         f.write(changed)
 
@@ -2741,8 +2746,8 @@ def check_read_state(result, first=6):
     failures += any_line(result, "LAUNCHER", "task", n=5, of=14, by="time", mark=1)
     failures += any_line(result, "LAUNCHER", "task", n=7, of=14, by="time", mark=1)
     failures += want(result, "ELDENNET", "read", stage="state_done", slots=1, differ=1, title_clean=1, named=0, names=0)
-    failures += want(result, "ELDENNET", "read", stage="pair_done", word_hits=1, overrun=0, names=1, offset=0x14,
-                     sites=(1, 1e6))
+    failures += want(result, "ELDENNET", "read", stage="pair_done", word_hits=3, overrun=0, names=1, leads=1,
+                     lead_hits=1, offset=0x14, sites=(1, 1e6))
     folder = os.path.join(result.paths["appdata"], "EldenNet", "probe")
     report, table = os.path.join(folder, "lodestar-found.json"), os.path.join(folder, "lodestar-table.toml")
     if not (os.path.exists(report) and os.path.exists(table)):
@@ -2767,10 +2772,17 @@ def check_read_state(result, first=6):
     words = [x for x in pair["pair_hits"] if x["width"] == 4]
     need(pair.get("first") == first and pair.get("second") == 2 and pair.get("asked") == 2 and
          pair.get("passes") == 2 and pair.get("overrun") is False and pair.get("candidates", 0) >= 4 and
-         pair.get("objects_first", 0) >= 4 and pair.get("word_hits") == 1 and len(words) == 1 and
-         words[0]["offset"] == 0x14 and words[0]["sites"] >= 1 and
-         state["state_hits"] and words[0]["rva"] == state["state_hits"][0]["rva"],
-         "the pair search: %s" % {k: v for k, v in pair.items() if k != "pair_hits"} + " %s" % words, failures)
+         pair.get("objects_first", 0) >= 4 and pair.get("word_hits") == 3 and len(words) == 3 and
+         pair.get("leads") == 1, "the pair search: %s" % {k: v for k, v in pair.items() if k != "pair_hits"} +
+         " %s" % words, failures)
+    # Three fields read both numbers (--slot-copy: the field plot's copy, behind its two slots); the one in an object
+    # of the class the leads give for the game's state is the save's slot.
+    copies = [x for x in words if not x["lead"]]
+    words = [x for x in words if x["lead"]]
+    need(len(words) == 1 and words[0]["offset"] == 0x14 and words[0]["sites"] >= 1 and
+         state["state_hits"] and words[0]["rva"] == state["state_hits"][0]["rva"] and
+         len(copies) == 2 and all(x["offset"] == 0x0C for x in copies) and copies[0]["rva"] != copies[1]["rva"],
+         "the pair search's hits, the lead's and the copies: %s %s" % (words, copies), failures)
     games = [v for v in d.get("invariants") or [] if v["label"] == "game_state"]
     need(len(games) == 1 and games[0]["id"] == 1003 and games[0]["offset"] == 0x14 and
          words and games[0]["rva"] == words[0]["rva"] and games[0]["sites"] >= 1 and
@@ -2820,6 +2832,7 @@ def check_read_chars(result):
              len(near) == 1 and near[0]["stride"] == 0x10 and near[0]["chr_at"] == 0 and
              near[0]["characters"] >= 1 and near[0]["characters"] == near[0]["elements"] and
              not near[0]["has_player"] and near[0]["has_fraction"] and near[0]["fraction_at"] == 8 and
+             near[0]["expected"] and l["lists"][0] is near[0] and
              [s for s in l["sets"] if s["offset"] == 0x30 and s["chr_at"] == 0] and
              l["player_bytes"] >= 0x70 and len(holder) == 1 and holder[0]["classed"] == 11,
              "the look in the world: pointers %s lists %s sets %s members %s" %
@@ -2837,19 +2850,19 @@ def check_read_chars(result):
     moves = {(m["part"], m["offset"]): m for m in parts["moves"]}
     need((2, 0x20) in moves and (2, 0x28) in moves and (2, 0x24) not in moves and moves[(2, 0x20)]["fraction"] and
          moves[(2, 0x20)]["changed"][0] == 0 and moves[(2, 0x20)]["changed"][2] == 0 and
-         moves[(2, 0x20)]["changed"][1] >= 3,
+         moves[(2, 0x20)]["changed"][1] >= 3 and moves[(2, 0x20)]["span"] >= 1,
          "the position by its moving in the walk alone: %s" % parts["moves"][:8], failures)
     falls = [x for x in parts["falls"] if x["part"] == 0 and x["offset"] == 4]
     need(len(falls) == 1 and falls[0]["fell"] >= 1 and falls[0]["rose"] >= 1 and falls[0]["has_max"] and
-         falls[0]["max_at"] == 0, "the health by the hit and the heal: %s" % parts["falls"][:8], failures)
+         falls[0]["max_at"] == 0 and parts["falls"][0] is falls[0], "the health by the hit and the heal: %s" % parts["falls"][:8], failures)
     failures += check_lines(("ELDENNET", "init", {"state": "ready"}), ("LAUNCHER", "end", {"kind": "clean"}))(result)
     return failures + ready_no_call(result) + en_log_is_clean(result)
 
 
 case("launcher-eldennet-read-state", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
                                               "--read", "--read-pace-s", "8"] +
-     game("--field-mirror", "--slot-by-state", "--first-slot", "6", "--title-frames", "720", "--retitle-at-s", "15",
-          "--retitle-for-s", "16", frames=3900),
+     game("--field-mirror", "--slot-by-state", "--slot-copy", "--first-slot", "6", "--title-frames", "720",
+          "--retitle-at-s", "15", "--retitle-for-s", "16", frames=3900),
      program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
      prepare=install_eldennet(None, probe=True, gal_change=read_state_gal, then=with_saves),
      check=check_read_state,

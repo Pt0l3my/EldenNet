@@ -2359,6 +2359,8 @@ TEST_CASE("in game: the parts watch tells a position by its moving while the tes
   w.mem.put<float>(body + 0x20, 100.0f);
   w.mem.put<float>(body + 0x24, 5.0f);
   w.mem.put<float>(body + 0x28, 200.0f);
+  w.mem.put<float>(body + 0x2C, 0.5f);          // a direction: it moves in the walk, within 2
+  w.mem.put<std::int32_t>(body + 0x50, 50);     // a number of the earlier part that falls at the hit and stays
   w.mem.put<std::int32_t>(vitals + 0x0, 1200);
   w.mem.put<std::int32_t>(vitals + 0x4, 1100);
   lodestar::PartsWatch::Options o;
@@ -2381,6 +2383,7 @@ TEST_CASE("in game: the parts watch tells a position by its moving while the tes
       x += 1.5f;
       w.mem.put<float>(body + 0x20, x);
       w.mem.put<float>(body + 0x28, 2.0f * x);
+      w.mem.put<float>(body + 0x2C, timer % 2 == 0 ? 0.5f : -0.5f);
     }
     for (int steps = 0; steps < 200; ++steps) {
       reader.begin_tick();
@@ -2399,6 +2402,7 @@ TEST_CASE("in game: the parts watch tells a position by its moving while the tes
   watch.mark(now);  // the hit's phase
   pass(false);
   w.mem.put<std::int32_t>(vitals + 0x4, 900);
+  w.mem.put<std::int32_t>(body + 0x50, 40);
   pass(false);
   pass(false);
   watch.mark(now);  // the heal's
@@ -2427,18 +2431,25 @@ TEST_CASE("in game: the parts watch tells a position by its moving while the tes
   CHECK(found.parts[1].index == 1);
   CHECK(found.parts[1].vtable == 0);
   CHECK(found.parts[1].bytes == 0x40);
-  CHECK(found.moves_total == 2);
-  REQUIRE(found.moves.size() == 2);   // the timer changed while standing too: no move; the middle fraction never moved
+  CHECK(found.moves_total == 3);
+  REQUIRE(found.moves.size() == 3);   // the timer changed while standing too: no move; the middle fraction never moved
   CHECK(found.moves[0].part == 0);
   CHECK(found.moves[0].offset == 0x20);
   CHECK(found.moves[0].fraction);
+  CHECK(found.moves[0].span == 3);    // it ranged over metres: a place
+  CHECK(found.moves[1].span == 3);
+  CHECK(found.moves[2].offset == 0x2C);
+  CHECK(found.moves[2].span == 1);    // within 2: a direction, listed after the places
   REQUIRE(found.moves[0].changed.size() == 6);
   CHECK(found.moves[0].changed[0] == 0);
   CHECK(found.moves[0].changed[1] == 7);
   CHECK(found.moves[0].changed[2] == 0);
   CHECK(found.moves[1].offset == 0x28);
-  CHECK(found.falls_total == 1);
-  REQUIRE(found.falls.size() == 1);
+  CHECK(found.falls_total == 2);
+  REQUIRE(found.falls.size() == 2);   // the one that fell once and rose once under a bound comes first, whatever its part
+  CHECK(found.falls[1].part == 0);
+  CHECK(found.falls[1].offset == 0x50);
+  CHECK(found.falls[1].rose == 0);
   CHECK(found.falls[0].part == 1);
   CHECK(found.falls[0].offset == 0x4);
   CHECK(found.falls[0].fell == 1);
@@ -2459,7 +2470,122 @@ TEST_CASE("in game: the parts watch tells a position by its moving while the tes
   CHECK(report::lint(*text, known).has_value());
   CHECK(text->find("\"moves\": [") != std::string::npos);
   CHECK(text->find("\"has_max\": true") != std::string::npos);
+  CHECK(text->find("\"span\": 3") != std::string::npos);
   CHECK(text->find("1100") == std::string::npos);  // what a number held is never written
+}
+
+TEST_CASE("in game: a lead of the leads' statics names a class by its innermost name, for an object no accessor reaches") {
+  // The game's state: no static of the accessor's holds it and the design gives only a name. The namer answers
+  // whether a table of methods is that class's, from the image's type information; the name is kept nowhere.
+  FakeWorld w;
+  auto gated = gate_image(*w.sys, w.builds);
+  REQUIRE(gated.has_value());
+  auto ids = parse_ids(kRepositoryIdsToml);
+  REQUIRE(ids.has_value());
+  const auto rva = [&](std::uint64_t at) { return static_cast<std::uint32_t>(at - w.base); };
+  std::string text = kLeads;
+  text += "game_state = { rtti = \"Hud\" }\nfield_area = { rtti = \"Elsewhere::Veil\" }\n"
+          "save_data = { rtti = \"W::NoSuchClass\" }\nglobal_hinstance = { module = true }\n";
+  const auto leads = derive::parse_leads(text);
+  REQUIRE(leads.has_value());
+  const lodestar::Namer namer(gated->image, w.sys->image(), *leads, *ids);
+  // By the innermost name, whatever namespace the lead or the class gives.
+  CHECK(namer.static_lead_tables("game_state") == 1);
+  CHECK(namer.static_lead_class("game_state", rva(w.vtable("hud"))) == 1);
+  CHECK(namer.static_lead_class("game_state", rva(w.vtable("veil"))) == 0);
+  CHECK(namer.static_lead_class("game_state", 0) == 0);
+  CHECK(namer.static_lead_class("field_area", rva(w.vtable("veil"))) == 1);
+  // A lead whose class the image does not hold answers for nothing; so does a label the leads do not hold, and the
+  // module's lead, which names no class.
+  CHECK(namer.static_lead_tables("save_data") == 0);
+  CHECK(namer.static_lead_class("save_data", rva(w.vtable("hud"))) == 0);
+  CHECK(namer.static_lead_tables("camera") == 0);
+  CHECK(namer.static_lead_class("camera", rva(w.vtable("eye"))) == 0);
+  CHECK(namer.static_lead_tables("global_hinstance") == 0);
+}
+
+TEST_CASE("in game: a long run of rising addresses does not use up the lists' candidates, and the layout's list comes first") {
+  // The fifteenth round's manager: runs of neighbouring addresses, each pair of which looks like a run's bounds,
+  // filled every candidate before the lists' own places were reached. Here 200 rising addresses stand before two
+  // lists; the pairs inside the run are tried last, and the list at the place the layout gives is judged first.
+  FakeWorld w;
+  w.world();
+  const auto rva = [&](std::uint64_t at) { return static_cast<std::uint32_t>(at - w.base); };
+  std::vector<std::uint64_t> chars;
+  for (int i = 0; i < 12; ++i) {
+    chars.push_back(w.mem.alloc(0x100));
+    w.set_vtable(chars.back(), i == 0 ? "hero" : "npc");
+  }
+  const std::uint64_t manager = w.mem.alloc(0x2000);
+  w.mem.put<std::uint64_t>(w.at("st_characters"), manager);
+  w.mem.put<std::uint64_t>(manager + 0x10, chars[0]);
+  std::uint64_t last = 0;
+  for (std::uint32_t i = 0; i < 200; ++i) {
+    const std::uint64_t block = w.mem.alloc(0x40);
+    REQUIRE(block > last);
+    REQUIRE((last == 0 || block - last <= lodestar::CharSearch::kListSpan));
+    last = block;
+    w.mem.put<std::uint64_t>(manager + 0x100 + 8 * i, block);
+  }
+  const auto list = [&](std::uint32_t at, std::uint32_t elements) {
+    const std::uint64_t run = w.mem.alloc(0x400);
+    for (std::uint32_t k = 0; k < elements; ++k) {
+      w.mem.put<std::uint64_t>(run + k * 16, chars[1 + k % 11]);
+      w.mem.put<float>(run + k * 16 + 8, 1.0f + static_cast<float>((k * 7) % 5));
+    }
+    w.mem.put<std::uint64_t>(manager + at, run);
+    w.mem.put<std::uint64_t>(manager + at + 8, run + elements * 16);
+    w.mem.put<std::uint64_t>(manager + at + 16, run + 0x400);
+  };
+  list(0x1000, 9);
+  list(0x1800, 6);
+  const auto run = [&](std::uint32_t list_word) {
+    lodestar::CharSearch::Options o;
+    o.base = w.base;
+    o.image_size = w.sys->image().size();
+    o.manager_slot = rva(w.at("st_characters"));
+    o.main_player_word = 0x10;
+    o.list_word = list_word;
+    o.character_vtables = {rva(w.vtable("chr")), rva(w.vtable("hero")), rva(w.vtable("npc")), rva(w.vtable("beast"))};
+    o.player_vtables = {rva(w.vtable("hero"))};
+    o.image = &w.sys->image();
+    lodestar::CharSearch search(std::move(o));
+    GuardedReader reader(*w.sys);
+    const auto gt = en::proto::GameThread::issue();
+    search.ask(3);
+    bool through = false;
+    for (int steps = 0; steps < 100'000 && !through; ++steps) {
+      reader.begin_tick();
+      through = search.step(gt, reader, static_cast<std::uint64_t>(steps) * 1000);
+    }
+    REQUIRE(through);
+    lodestar::CharFound found = search.found();
+    REQUIRE(found.looks.size() == 1);
+    return found.looks[0].lists;
+  };
+  // Without the layout's word: both lists are found behind the run, neither marked.
+  const std::vector<lodestar::CharList> plain = run(0);
+  REQUIRE(plain.size() == 2);
+  CHECK(plain[0].offset == 0x1000);
+  CHECK(plain[0].stride == 16);
+  CHECK(plain[0].elements == 9);
+  CHECK(plain[0].characters == 9);
+  CHECK(plain[0].has_fraction);
+  CHECK_FALSE(plain[0].expected);
+  CHECK(plain[1].offset == 0x1800);
+  // With it: that list first, and marked.
+  const std::vector<lodestar::CharList> given = run(0x1800);
+  REQUIRE(given.size() == 2);
+  CHECK(given[0].offset == 0x1800);
+  CHECK(given[0].expected);
+  CHECK(given[0].elements == 6);
+  CHECK(given[1].offset == 0x1000);
+  CHECK_FALSE(given[1].expected);
+  // A word of the layout's that holds no bounds now is no candidate.
+  w.mem.put<std::uint64_t>(manager + 0x1808, 0);
+  const std::vector<lodestar::CharList> gone = run(0x1800);
+  REQUIRE(gone.size() == 1);
+  CHECK(gone[0].offset == 0x1000);
 }
 
 TEST_CASE("in game: the round's searches at the game's sizes keep within their buffers (a large manager, full parts)") {

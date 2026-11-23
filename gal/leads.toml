@@ -57,3 +57,9 @@ game_data_man = { rtti = "CS::GameDataMan" }  # ARCH §6.3, gal/patterns.toml's 
 # find, its static cannot be found offline, and R1 finds its slot by what the instance holds (its rising-counter
 # search), then the next offline round's --static game_data_man=<rva> cuts its pattern. The lead stays as ARCH §6.3
 # gives it until then. R0c's results are in gal/builds.toml, gal/recipes.toml and gal/layouts/2.7.2.0-ww.toml.
+# The game's state (2026-11-23, for the sixteenth read-only round): ARCH §6.1 calls the static GameMan and no design
+# document gives the class of its instance, so the lead is that name itself, tried as the innermost name of the class
+# of the object behind the slot, in whatever namespace. No static of the accessor's holds the object: the round's pair
+# search finds the fields that read two saves' slots, and the one in an object of this class names the slot. The label
+# is the catalogue's (game_state, 1003). A lead until a round's report shows it.
+game_state = { rtti = "GameMan" }

@@ -251,6 +251,8 @@ struct Namer::State {
   std::vector<Lead> leads;
   std::map<std::uint32_t, bool> vtables;                   // every table of methods of the walk: is it a class's primary one?
   std::multimap<std::uint32_t, Accepts> accepts;           // by table of methods: the leads its class answers
+  // By a [statics] lead's label: the primary tables of methods of the classes of its name (1) or its name with Imp (2).
+  std::map<std::string, std::map<std::uint32_t, int>, std::less<>> static_leads;
   std::vector<LeadClasses> classes;
 };
 
@@ -342,9 +344,38 @@ Namer::Namer(const ImageInfo& image, const ByteSource& source, const derive::Lea
     }
     st.classes.push_back(std::move(c));
   }
+  for (const derive::StaticLead& lead : leads.statics) {
+    if (lead.rtti.empty()) continue;
+    const std::size_t cut = lead.rtti.rfind("::");
+    const std::string inner = cut == std::string::npos ? lead.rtti : lead.rtti.substr(cut + 2);
+    const std::string imp = inner + "Imp";
+    std::map<std::uint32_t, int>& tables = st.static_leads[lead.label];
+    for (const rtti::Vtable& v : walk.vtables) {
+      const rtti::Locator& loc = walk.locators[v.locator];
+      if (loc.offset != 0) continue;
+      const std::string& n = name(loc.type_descriptor);
+      if (n == inner) {
+        tables[v.rva] = 1;
+      } else if (n == imp) {
+        tables[v.rva] = 2;
+      }
+    }
+  }
 }
 
 Namer::~Namer() = default;
+
+int Namer::static_lead_class(std::string_view label, std::uint32_t vtable) const {
+  const auto lead = state_->static_leads.find(label);
+  if (lead == state_->static_leads.end()) return 0;
+  const auto table = lead->second.find(vtable);
+  return table == lead->second.end() ? 0 : table->second;
+}
+
+std::uint32_t Namer::static_lead_tables(std::string_view label) const {
+  const auto lead = state_->static_leads.find(label);
+  return lead == state_->static_leads.end() ? 0 : static_cast<std::uint32_t>(lead->second.size());
+}
 
 const std::vector<LeadClasses>& Namer::lead_classes() const noexcept { return state_->classes; }
 
@@ -812,7 +843,7 @@ bool complete(const Found& found) {
   return !a.pattern || a.only_shape == 0;
 }
 
-// ---- The report: schema 15, kind `lodestar`. No key takes a pattern, and there is no free string. ----
+// ---- The report: schema 16, kind `lodestar`. No key takes a pattern, and there is no free string. ----
 
 namespace {
 
@@ -917,7 +948,7 @@ constexpr auto kKeys = std::to_array<Key>({
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 15, kKeys};
+constexpr report::Vocabulary kVocabulary{"lodestar", 16, kKeys};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -1615,6 +1646,7 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
         w.number("distance_at", c.distance_at);
         w.boolean("has_fraction", c.has_fraction);
         w.number("fraction_at", c.fraction_at);
+        w.boolean("expected", c.expected);
         w.end_object();
       }
       w.end_array();
@@ -1663,6 +1695,7 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     w.number("bytes_first", f.bytes_first);
     w.number("word_hits", f.word_hits);
     w.number("byte_hits", f.byte_hits);
+    w.number("leads", f.leads);
     w.begin_array("pair_hits");
     for (const PairHit& h : f.hits) {
       w.begin_object();
@@ -1670,6 +1703,7 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.number("offset", h.offset);
       w.number("width", h.width);
       w.number("sites", h.sites);
+      w.boolean("lead", h.lead);
       w.end_object();
     }
     w.end_array();
@@ -1704,6 +1738,7 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.number("part", m.part);
       w.number("offset", m.offset);
       w.boolean("fraction", m.fraction);
+      w.number("span", m.span);
       w.begin_array("changed");
       for (const std::uint32_t v : m.changed) w.number(v);
       w.end_array();

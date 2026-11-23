@@ -391,6 +391,11 @@ void enter(Phase phase, std::uint64_t frame) {
   if (options().slot_by_state && fg_static_run_warden != nullptr) {
     const std::int32_t slot = w.retitled ? 2 : static_cast<std::int32_t>(options().first_slot);
     static_cast<FG::RunWardenImp*>(fg_static_run_warden)->f.save_slot = phase == Phase::World ? slot : -1;
+    // --slot-copy: another object, of another class, holds the same number in the world.
+    if (options().slot_copy && fg_static_field_plot != nullptr) {
+      static_cast<FG::FieldPlotImp*>(fg_static_field_plot)->f.spare[1] =
+          phase == Phase::World ? static_cast<std::uint32_t>(slot) : 0u;
+    }
   }
   set_flag(kFlagWorld, phase == Phase::World);
   switch (phase) {
