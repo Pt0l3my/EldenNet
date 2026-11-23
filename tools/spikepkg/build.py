@@ -24,7 +24,7 @@ EldenNet-S0/. Nothing in it calls into the game.
 `s0e-s4` is GraceUI's in-game spikes S0-E and S4 with EldenNet (GraceUI D175; EldenNet's side WHY§249 to §251): the
 clang-cl Release tree's eldennet-launcher.exe and release eldennet.dll (EN_PROBE off, a 0.1.0-spikes.N label), gal/,
 GraceUI's test build (`--graceui`, a clang-cl Release tree of GraceUI with GRACEUI_TEST_EXPORTS: its GraceUI folder as
-the build laid it out, every file checked against its graceui.toml, and its grace-spike.dll and grace-standin.dll),
+the build laid it out, every file checked against its graceui.toml, and its grace-spike.dll),
 one .cmd file for each run (RUNS) and README-SPIKES.txt (from README-S0E-S4.txt.in), in one folder, EldenNet-Spikes/.
 
 `find` is Lodestar's offline finding run (proposal 0005, step L3; O100 to O102): the clang-cl Release tree's
@@ -129,7 +129,7 @@ def spikes_notices(build):
            "Sean Barrett (taken under the MIT licence, of their choice of it or the public domain), and the ProggyClean",
            "and ProggyForever fonts (MIT licence); GraceUI\\NOTICE.txt names each copyright. The static Microsoft C",
            "runtime (/MT) is linked into each program as well; THIRD_PARTY.md lists every component.", "",
-           "GraceUI's files in this package (the GraceUI folder, grace-spike.dll and grace-standin.dll) are GraceUI's,",
+           "GraceUI's files in this package (the GraceUI folder and grace-spike.dll) are GraceUI's,",
            "under its own MIT licence, GraceUI\\LICENSE.txt, with the notices of everything they hold (Dear ImGui with",
            "two of its backends, MinHook, and the fonts under the SIL Open Font License) in GraceUI\\NOTICE.txt and",
            "GraceUI\\fonts.", ""]
@@ -197,28 +197,30 @@ def gal_files():
 # options, which name nothing but the package's own files. --console gives the launcher's lines to the run's console
 # window (the launcher is a Windows program, which writes to no console without it).
 RUNS = [
+    # Every run names the package's own graceui.toml (--expect-graceui): if the game's GraceUI folder is not the one the
+    # package carries, the launcher asks before the start (E13; the owner's request of 2026-11-23, WHY§528).
+    # Since 2026-11-23 (WHY§518) no run loads GraceUI's stand-in for another overlay: on the owner's PC it fell beside
+    # the real overlays there, which are what S0-E asks about; A0 (GraceUI, the observer and the stand-in) went with it.
     ("A1", "S0-E with EldenNet: GraceUI loaded by the launcher before EldenNet, injected early",
-     ["--console", "--spike", "s0e", "--inject-at", "suspended", "--also", "GraceUI\\graceui.dll",
-      "--also", "grace-spike.dll", "--also", "grace-standin.dll"]),
+     ["--console", "--expect-graceui", "GraceUI\\graceui.toml", "--spike", "s0e", "--inject-at", "suspended",
+      "--also", "GraceUI\\graceui.dll", "--also", "grace-spike.dll"]),
     ("A2", "S0-E with EldenNet: GraceUI loaded by the launcher before EldenNet, injected late",
-     ["--console", "--spike", "s0e", "--inject-at", "window", "--also", "GraceUI\\graceui.dll",
-      "--also", "grace-spike.dll", "--also", "grace-standin.dll"]),
+     ["--console", "--expect-graceui", "GraceUI\\graceui.toml", "--spike", "s0e", "--inject-at", "window",
+      "--also", "GraceUI\\graceui.dll", "--also", "grace-spike.dll"]),
     ("A3", "S0-E with EldenNet: GraceUI loaded by EldenNet itself after the window, injected early",
-     ["--console", "--spike", "s0e", "--inject-at", "suspended", "--also", "grace-standin.dll",
+     ["--console", "--expect-graceui", "GraceUI\\graceui.toml", "--spike", "s0e", "--inject-at", "suspended",
       "--also", "grace-spike.dll"]),
     ("A4", "S0-E with EldenNet: GraceUI loaded by EldenNet itself after the window, injected late",
-     ["--console", "--spike", "s0e", "--inject-at", "window", "--also", "grace-standin.dll",
+     ["--console", "--expect-graceui", "GraceUI\\graceui.toml", "--spike", "s0e", "--inject-at", "window",
       "--also", "grace-spike.dll"]),
-    ("A0", "S0-E with GraceUI alone: GraceUI, the observer and the stand-in, no EldenNet, injected early",
-     ["--console", "--spike", "s0e_alone", "--inject-at", "suspended", "--also", "GraceUI\\graceui.dll",
-      "--also", "grace-spike.dll", "--also", "grace-standin.dll"]),
     ("B", "S4, input: with EldenNet, injected early; EldenNet loads GraceUI",
-     ["--console", "--spike", "s4", "--inject-at", "suspended", "--also", "grace-spike.dll"]),
-    # A5 (2026-11-23, WHY§511): GraceUI and its observer alone, with no stand-in and no EldenNet, injected early: it
-    # tells GraceUI's own hook from the chain the stand-in and other programs' overlays make with it (WHY§509).
-    ("A5", "S0-E with GraceUI and its observer alone: no stand-in, no EldenNet, injected early",
-     ["--console", "--spike", "s0e_alone", "--inject-at", "suspended", "--also", "GraceUI\\graceui.dll",
+     ["--console", "--expect-graceui", "GraceUI\\graceui.toml", "--spike", "s4", "--inject-at", "suspended",
       "--also", "grace-spike.dll"]),
+    # A5 (2026-11-23, WHY§511): GraceUI and its observer alone, with no EldenNet, injected early: it tells a fault of
+    # GraceUI's own from one that comes only with EldenNet beside it.
+    ("A5", "S0-E with GraceUI and its observer alone: no EldenNet, injected early",
+     ["--console", "--expect-graceui", "GraceUI\\graceui.toml", "--spike", "s0e_alone", "--inject-at", "suspended",
+      "--also", "GraceUI\\graceui.dll", "--also", "grace-spike.dll"]),
 ]
 
 
@@ -281,7 +283,7 @@ def graceui_files(tree):
     dll = dict(files)["GraceUI/graceui.dll"]
     if b"GraceUI_Test_GetState" not in dll:
         fail("GraceUI\\graceui.dll is not a test build (no GraceUI_Test_GetState): the observer reads its counters")
-    for name in ("grace-spike.dll", "grace-standin.dll"):
+    for name in ("grace-spike.dll",):
         with open(os.path.join(tree, "bin", name), "rb") as f:
             files.append((name, f.read()))
     version = manifest.get("graceui", "")

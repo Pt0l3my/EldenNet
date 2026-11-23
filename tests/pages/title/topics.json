@@ -447,6 +447,242 @@
       "time": "0:00:06"
     }
   ],
+  "named.list": {
+    "columns": [
+      {
+        "id": "name",
+        "label": "Name"
+      },
+      {
+        "id": "role",
+        "label": "What they do"
+      }
+    ],
+    "rows": [
+      {
+        "id": "persona.ferryman",
+        "name": "Old Bram",
+        "role": "a ferryman on the grey river"
+      },
+      {
+        "id": "persona.weaver",
+        "name": "Ysolde",
+        "role": "a weaver of fishing nets"
+      }
+    ]
+  },
+  "named/persona.ferryman": {
+    "items": [
+      {
+        "label": "Who they appear to be",
+        "value": "A stooped man in an oilskin coat who poles a flat boat across the river for a coin."
+      },
+      {
+        "label": "What they do",
+        "value": "a ferryman on the grey river"
+      },
+      {
+        "label": "What they like to talk about",
+        "value": "the river's moods; coins and what they buy; the weather over the water"
+      },
+      {
+        "label": "How they speak",
+        "value": "Everyday, with old idiom"
+      },
+      {
+        "label": "News",
+        "value": "Speaks of news that touches them or you"
+      }
+    ]
+  },
+  "named/persona.weaver": {
+    "items": [
+      {
+        "label": "Who they appear to be",
+        "value": "A quick-handed woman mending nets on a jetty, who looks up only when a stranger stops."
+      },
+      {
+        "label": "What they do",
+        "value": "a weaver of fishing nets"
+      },
+      {
+        "label": "What they like to talk about",
+        "value": "knots and the hands that tie them; the catch this season"
+      },
+      {
+        "label": "How they speak",
+        "value": "Formal and measured"
+      }
+    ]
+  },
+  "profiles/persona.ferryman": {
+    "draft_help": "Sends your rough notes, and your notes here when you revise, to cloud-one. Nothing of the game goes with them.",
+    "fields": [
+      {
+        "help": "One paragraph in your own words: how they speak and carry themselves. It joins the end of their voice in every conversation.",
+        "id": "instructions",
+        "kind": "prose",
+        "label": "Your notes on how they speak",
+        "max_chars": 210,
+        "max_words": 35,
+        "nullable": true,
+        "value": null
+      },
+      {
+        "help": "Short phrases, not sentences or questions. Yours take the place of the shipped list.",
+        "id": "subjects",
+        "kind": "list",
+        "label": "What they like to talk about",
+        "max_chars": 50,
+        "max_items": 8,
+        "max_words": 10,
+        "nullable": true,
+        "reference": [
+          "the river's moods",
+          "coins and what they buy",
+          "the weather over the water"
+        ],
+        "reference_label": "As shipped",
+        "value": null
+      },
+      {
+        "choices": [
+          {
+            "label": "Old and stately",
+            "value": "archaic-regal"
+          },
+          {
+            "label": "Formal and measured",
+            "value": "formal"
+          },
+          {
+            "label": "Everyday, with old idiom",
+            "value": "colloquial"
+          },
+          {
+            "label": "Broken, in fragments",
+            "value": "broken"
+          },
+          {
+            "label": "Chanting, in refrains",
+            "value": "chant"
+          }
+        ],
+        "help": "The manner of their speech. Left unset, they keep their own.",
+        "id": "register",
+        "kind": "choice",
+        "label": "How they speak",
+        "nullable": true,
+        "reference": "Everyday, with old idiom",
+        "reference_label": "As shipped",
+        "value": null
+      },
+      {
+        "help": "The most words a reply of theirs may have.",
+        "id": "reply_words_max",
+        "kind": "number",
+        "label": "Longest reply, in words",
+        "max": 60,
+        "min": 10,
+        "nullable": true,
+        "reference": "30",
+        "reference_label": "As shipped",
+        "value": null
+      }
+    ],
+    "rev": 0,
+    "state": {
+      "line": "Your notes go in a file of your own; EldenNet's own profile is never changed.",
+      "tone": "glint",
+      "word": "Not written yet"
+    },
+    "target": "persona.ferryman"
+  },
+  "profiles/persona.weaver": {
+    "draft_help": "Sends your rough notes, and your notes here when you revise, to cloud-one. Nothing of the game goes with them.",
+    "fields": [
+      {
+        "help": "One paragraph in your own words: how they speak and carry themselves. It joins the end of their voice in every conversation.",
+        "id": "instructions",
+        "kind": "prose",
+        "label": "Your notes on how they speak",
+        "max_chars": 210,
+        "max_words": 35,
+        "nullable": true,
+        "value": "Counts under her breath while she works, and loses count when someone interrupts."
+      },
+      {
+        "help": "Short phrases, not sentences or questions. Yours take the place of the shipped list.",
+        "id": "subjects",
+        "kind": "list",
+        "label": "What they like to talk about",
+        "max_chars": 50,
+        "max_items": 8,
+        "max_words": 10,
+        "nullable": true,
+        "reference": [
+          "knots and the hands that tie them",
+          "the catch this season"
+        ],
+        "reference_label": "As shipped",
+        "value": [
+          "knots and the hands that tie them",
+          "old songs of the jetty"
+        ]
+      },
+      {
+        "choices": [
+          {
+            "label": "Old and stately",
+            "value": "archaic-regal"
+          },
+          {
+            "label": "Formal and measured",
+            "value": "formal"
+          },
+          {
+            "label": "Everyday, with old idiom",
+            "value": "colloquial"
+          },
+          {
+            "label": "Broken, in fragments",
+            "value": "broken"
+          },
+          {
+            "label": "Chanting, in refrains",
+            "value": "chant"
+          }
+        ],
+        "help": "The manner of their speech. Left unset, they keep their own.",
+        "id": "register",
+        "kind": "choice",
+        "label": "How they speak",
+        "nullable": true,
+        "reference": "Formal and measured",
+        "reference_label": "As shipped",
+        "value": null
+      },
+      {
+        "help": "The most words a reply of theirs may have.",
+        "id": "reply_words_max",
+        "kind": "number",
+        "label": "Longest reply, in words",
+        "max": 60,
+        "min": 10,
+        "nullable": true,
+        "reference": "40",
+        "reference_label": "As shipped",
+        "value": null
+      }
+    ],
+    "rev": 3,
+    "state": {
+      "line": "Your notes are used from their next line. Check shows the warnings.",
+      "tone": "ember",
+      "word": "Saved, with warnings"
+    },
+    "target": "persona.weaver"
+  },
   "providers": {
     "checks": [
       {

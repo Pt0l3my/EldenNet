@@ -287,6 +287,7 @@ DWORD WINAPI core_main(void* param) noexcept {
         if (en::shell::edit_behaviour(b, e)) behaviour(b, "pages");
       }
       s.behaviour_edits.clear();
+      profiles_tick(s, *core);  // the profile editor's writes answered, and the content loaded again after one
       // What the player did goes to the core in the same wake, and the newest model to the surfaces; what they raise
       // (PageShown, Close) goes to the core at once, and the model is drawn again (a few rounds at most).
       for (int round = 0; round < 4; ++round) {

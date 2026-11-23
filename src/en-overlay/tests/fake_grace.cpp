@@ -445,8 +445,19 @@ GraceUiStatus publish(GraceUiConsumer me, const char* frame, uint64_t length) {
   if (!f.is_discarded() && f.is_object() && (f.value("t", "") == "state" || f.value("t", "") == "rows")) {
     const std::string shape = f.value("t", "") == "state" ? "state" : "stream";
     const nlohmann::json pages = nlohmann::json::parse(g.space_pages);
+    // A topic of its own, never a family itself; or a family's member, `<family>/<key>` (GraceUI 0.2.19, D215): the
+    // key of a-z, 0-9, '.', '_' and '-', the whole id at most 64 bytes, a state.
+    const std::string topic = f.value("topic", "");
+    const std::size_t slash = topic.find('/');
+    const std::string key = slash == std::string::npos ? std::string() : topic.substr(slash + 1);
+    const bool good_key = !key.empty() && topic.size() <= 64 && std::all_of(key.begin(), key.end(), [](char c) {
+      return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '.' || c == '_' || c == '-';
+    });
     for (const nlohmann::json& t : pages["topics"]) {
-      declared = declared || (t.value("id", "") == f.value("topic", "") && t.value("shape", "") == shape);
+      const bool family = t.value("family", false);
+      declared = declared || (!family && t.value("id", "") == topic && t.value("shape", "") == shape) ||
+                 (family && slash != std::string::npos && good_key && shape == "state" &&
+                  t.value("id", "") == topic.substr(0, slash));
     }
   }
   // GraceUI 0.2.5's (D183): the settings topic's schema and description, if sent, are the registered ones.

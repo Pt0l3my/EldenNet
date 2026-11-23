@@ -12,9 +12,11 @@ fill    tint.select     0, 265  300x40
 fill    gold            0, 265    3x40  
 text    gold.hi        50, 273   76x25   glyphs 9 "Self-test"
 line    rule           30, 305  240x1   
-text    ink.mute       30, 315   64x30   glyphs 6 "System"
+text    ink.mute       30, 315  106x30   glyphs 10 "Characters"
 line    rule           30, 355  240x1   
-text    ink.mute       30, 365   85x30   glyphs 8 "Settings"
+text    ink.mute       30, 365   64x30   glyphs 6 "System"
+line    rule           30, 405  240x1   
+text    ink.mute       30, 415   85x30   glyphs 8 "Settings"
 fill    ground.well   340,  10  350x35   r3
 text    ink.faint     353,  15   51x25   glyphs 6 "Search"
 text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
@@ -67,4 +69,4 @@ text    gold         1835,1136    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 text    ink.faint     340,1045  253x25   glyphs 22 "Not available now    Esc  Back"
 stroke  gold.hi      1715,  86  168x46   r5 w3 clip1
-# 68 items, 3144 vertices, 6846 indices, 4 commands; check_draw_list: passes
+# 70 items, 3188 vertices, 6912 indices, 4 commands; check_draw_list: passes

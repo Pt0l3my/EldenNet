@@ -351,6 +351,7 @@ bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
     else if (n == L"--status-file") ok = p.value(o.status_file);
     else if (n == L"--d3d12") o.d3d12 = true;
     else if (n == L"--grace-take-pause") o.grace_take_pause = true;
+    else if (n == L"--grace-lan") o.grace_lan = true;
     else if (n == L"--press-f11-at") ok = p.numbers(o.press_f11_at);
     else if (n == L"--press-keys") {
       std::wstring list;
@@ -489,7 +490,7 @@ void print_usage() {
       "  --load [boot|window|ready|title|world:]PATH  --selftest-task  --selftest-abi published|swapped",
       "  --selftest-object-size N  --selftest-group N  --press-pause-at F  --status-file PATH  --exit-code N",
       "  --d3d12  --press-f11-at F,F...  --grace-report F,F...  --grace-probe x0,y0,x1,y1,r,g,b[,tol] (up to 3 times)",
-      "  --grace-take-pause  --press-keys F:f5|next|prior|up|down|left|right|return|escape|t|tab|f11,...",
+      "  --grace-take-pause  --grace-lan  --press-keys F:f5|next|prior|up|down|left|right|return|escape|t|tab|f11,...",
       "  --calm  --type-at F:TEXT,...",
       "  --describe  --verbose"};
   for (const char* line : kUsage) status("usage %s", line);
@@ -513,6 +514,7 @@ int run(HINSTANCE instance) {
   report_spike_dir();
   load_dlls(LoadMoment::Boot);
   if (o.grace_take_pause) grace_take_pause();
+  if (o.grace_lan) grace_lan();
   if (o.selftest_task) selftest_start(g_game_thread);
   if (o.game_filter) install_game_filter();
   if (o.boot_delay_ms != 0) Sleep(o.boot_delay_ms);

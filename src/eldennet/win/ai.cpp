@@ -615,6 +615,12 @@ void ai_pump(Shell& s, bool allowed, std::vector<en::proto::LlmEvent>& conversat
     for (llm::LlmEvent& e : events) {
       if (st->selftest && st->selftest->take(e)) continue;
       if (st->listing && st->listing->take(e)) continue;
+      // The profile editor's drafts (their ids from kDraftRequests, below the conversation's): to its glue.
+      if (e.id >= kDraftRequests && e.id < en::core::kConversationRequests) {
+        if (e.kind == en::proto::EventKind::Ended) st->live.erase(e.id);
+        profiles_llm_event(s, std::move(e));
+        continue;
+      }
       // The conversation's (its ids from kConversationRequests): to the core, as they came (C10).
       if (e.id >= en::core::kConversationRequests) {
         if (e.kind == en::proto::EventKind::Ended) st->live.erase(e.id);
@@ -662,6 +668,20 @@ void ai_cancel(Shell& s, en::proto::RequestId id) noexcept {
     if (st == nullptr || !st->service) return;
     const bool live = st->service->cancel(id);
     log(Line("llm").word("what", "cancel").flag("live", live).num("id", id), LogLevel::Debug);
+  });
+}
+
+std::string ai_slot_provider(Shell& s, std::string_view slot) noexcept {
+  return en::proto::ffi_guard(en::proto::Component::DllMain, std::string(), [&] {
+    AiState* st = state(s);
+    if (st == nullptr || !st->config || !st->files->transport) return std::string();
+    const llm::Config& cfg = *st->config;
+    const llm::SlotConfig* sc = &cfg.slot(slot);
+    if (sc->models.empty()) {
+      const auto lender = cfg.borrowed.find(slot);
+      sc = &cfg.slot(lender != cfg.borrowed.end() ? std::string_view(lender->second) : llm::kDialogue);
+    }
+    return sc->models.empty() ? std::string() : sc->models.front().provider;
   });
 }
 

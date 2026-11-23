@@ -7,6 +7,8 @@
 #include <string>
 #include <utility>
 
+#include "wording.hpp"
+
 namespace en::core {
 
 namespace {
@@ -21,30 +23,10 @@ const ContentFile* other(const ContentPack& pack, std::string_view path) {
   return nullptr;
 }
 
-// NPC §3.3's effect adjectives: a warning in the persona's voice, public and personality fields (PL5).
-constexpr std::array<std::string_view, 19> kEffectWords = {
-    "cryptic", "enigmatic", "mysterious", "riddling", "terse",     "clipped", "curt",  "blunt", "laconic", "gruff",
-    "sardonic", "sarcastic", "snarky",    "witty",    "quirky",    "sassy",   "edgy",  "brooding", "ominous"};
-// PL4's imperative words: a subject or a stir is a noun phrase, never an instruction (W7's list).
-constexpr std::array<std::string_view, 7> kImperatives = {"tell", "mention", "say", "ask", "remind", "must", "should"};
-
-// Whether a lint entry's words occur in order in the text's words (an entry's last word may be a prefix).
-bool matches(const LexiconEntry& e, const std::vector<std::string>& words) {
-  if (e.words.empty() || e.words.size() > words.size()) return false;
-  for (std::size_t i = 0; i + e.words.size() <= words.size(); ++i) {
-    bool all = true;
-    for (std::size_t j = 0; j < e.words.size() && all; ++j) {
-      const bool last = j + 1 == e.words.size();
-      all = (last && e.prefix) ? words[i + j].rfind(e.words[j], 0) == 0 : words[i + j] == e.words[j];
-    }
-    if (all) return true;
-  }
-  return false;
-}
-
-bool has_quote(std::string_view s) {
-  return s.find('"') != std::string_view::npos || s.find("\xE2\x80\x9C") != std::string_view::npos;  // " or “
-}
+using wording::has_quote;
+using wording::kEffectWords;
+using wording::kImperatives;
+using wording::matches;
 
 // A record's text at a dotted path: a string, or each string of a list.
 std::vector<std::string> texts_at(const nlohmann::json& record, std::string_view path) {
@@ -148,7 +130,8 @@ void lint_identity_blocks(const ContentPack& pack, const DialoguePrompt& prompt,
     // Shipped content and test personas are held to the cap; the player's own records are warned of.
     const bool strict = p.origin == ContentOrigin::Shipped || (row != nullptr && row->test_only);
     for (std::size_t i = 0; i < p.stages.size(); ++i) {
-      const nlohmann::json record = p.resolved(i);
+      // The shipped record alone: a layer of the player's is measured with its own words by apply_layers (profile.hpp).
+      const nlohmann::json record = p.resolved(i, false);
       DialogueContext c;
       c.persona = p.id;
       c.record = &record;

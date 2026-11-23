@@ -1,5 +1,5 @@
 #pragma once
-// What the launcher says to the player (ARCH §4.7, §4.8): the errors E01 to E12 in their original wording, the
+// What the launcher says to the player (ARCH §4.7, §4.8): the errors E01 to E12 in their original wording, and E13; the
 // first-screen notices, and the explanation of a crash recorded in the last session (O71). Each error has an exit
 // code of its own, 10 + its number, for scripts and the tests.
 #include <cstdint>
@@ -13,14 +13,17 @@
 namespace en::launcher {
 
 // E12 (part 12): GraceUI's pre-flight (ARCH §4.3), told in E08's manner, and the game starts all the same.
-enum class ErrorCode : std::uint8_t { E01 = 1, E02, E03, E04, E05, E06, E07, E08, E09, E10, E11, E12 };
+// E13 (2026-11-23, the owner's request): a test package's run (--expect-graceui) finds the game's GraceUI is not
+// the one the package carries; the tester starts anyway, or closes and copies the package's GraceUI folder first.
+enum class ErrorCode : std::uint8_t { E01 = 1, E02, E03, E04, E05, E06, E07, E08, E09, E10, E11, E12, E13 };
 
 [[nodiscard]] constexpr int exit_code(ErrorCode e) noexcept { return 10 + static_cast<int>(e); }
 [[nodiscard]] std::string error_id(ErrorCode e);  // "E01"
 // The error's text, its %s and %u filled from `s` and `code` where it has them.
 [[nodiscard]] std::string error_text(ErrorCode e, std::string_view s = {}, std::uint32_t code = 0);
 // The buttons an error offers besides closing: E01's "Open eldenring.exe…", E05's "Launch anyway (EldenNet stays
-// inactive)", E07's "Continue without a backup", E10's "Start without EldenNet". Empty for the others.
+// inactive)", E07's "Continue without a backup", E10's "Start without EldenNet", E13's "Start anyway". Empty for the
+// others.
 [[nodiscard]] std::string error_action(ErrorCode e);
 
 // The first-screen notices (ARCH §4.8), shown on the first run and whenever their version changes. The dashboard's

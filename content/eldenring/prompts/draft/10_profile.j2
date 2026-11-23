@@ -1,0 +1,10 @@
+{# The "draft with AI" helper (NPC §4.7): the player's rough notes made into a layer's fields, only on the player's click
+   in the profile editor, shown beside the fields and written only when the player saves. It reads the notes, the kind of
+   profile in our own words, the fields with their lengths and, when revising, the player's own current text: never a
+   name the player did not type, the game's text or a shipped profile's private fields, stages or knowledge. Ours. #}
+[ system ]
+You help a writer turn rough notes into a short character profile for a dark-fantasy story. Use only what the notes and the writer's current text say: every name, place and event in your answer comes from them. Write plain English within the lengths given. Return JSON only.
+[ user ]
+Kind: {{ kind_phrase }}. Fields and lengths: {{ field_spec }}
+The writer's notes: {{ quote(notes) }}
+{% if not empty(current_json) %}The writer's current text, to improve: {{ current_json }}{% endif %}

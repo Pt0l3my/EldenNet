@@ -44,7 +44,7 @@ T1 then runs, each state logged and written to the watch block for the launcher'
 8. **Connect** (`overlay.cpp`, en-overlay): GraceUI found by graceui-sys's look (its module name, an export scan, then
    `GraceUI\graceui.dll` in the game's folder, which it loads), again every 250 ms for at most 30 s, but at once when no
    copy is installed there and none is loaded (graceui-sys's own rule, `GRACEUI_SYS_STOP_IF_ABSENT`, GraceUI D164); then
-   `connect` as `eldennet`, with its floor (GraceUI 0.2.17) and the caps it uses, and, connected, the F11 view, the
+   `connect` as `eldennet`, with its floor (GraceUI 0.2.22) and the caps it uses, and, connected, the F11 view, the
    Mark's hotkey and, on the main path, the conversation's surfaces with GraceUI's own fonts read from its folder
    (below; `surfaces state=… faces=… talk=… chord=… wake=…`). One log line, `connect ok=… outcome=… how=… looks=… installed=… graceui=… view=… mark=…
    mark_bound=… world=…` (`view=unbound` when F11 was taken first, with a line `view hotkey=unbound` beside it); a
@@ -199,6 +199,23 @@ After each wake, once T1 has published the connection:
   The log holds the conversation by kinds and numbers alone: `chat what=open_key|opened|submit|page_shown|close|skip`
   (`opened`: the talk key's poll and the box's first submit, `ms` between), `commit kind=… conv=… reply=… page=…
   chars=…`, `llm what=submit|cancel … id=…`; never the chat's or the model's text.
+- **The profile editor** (`profiles.cpp`, `logger.cpp`, `ai.cpp`; S7.2.b, NPC §4.7): once the content loads, T6 keeps
+  the files it was loaded from and the realm, and works out Characters › Named NPCs' rows from the loaded personas (a
+  test persona only in the tests' realm), each with the player's own layer file as it stands (read with en-core's
+  `read_layer` and checked with `check_layer`: saved, with warnings, refused, a newer file, or the shipped profile
+  changed since). The editor's commands, as the space hands them over: a check runs en-core's `check_layer` over the
+  kept files with the doc's layer in place and is answered at once; a save on a revision that is not the file's is a
+  `conflict`; one the check refuses is `invalid_value` with its messages; otherwise T11 writes it (C17's eight at most
+  waiting, else `busy`) beside the file and renames it over it, the previous kept as `<file>.bak`, and the save is
+  answered when it is written, naming the same row (D218). A reset moves the file to the `.bak`; a restore reads the
+  `.bak`, checks it and writes it at the next revision. After a write the content is loaded again once no
+  conversation is open, so the next line takes it. A draft, on the player's click only, one at a time, 20 a session,
+  while the gate allows the network and the draft slot (or the dialogue slot it borrows) has a model, goes to en-llm's
+  handle on the `draft` slot as the player's own request (ids from `kDraftRequests`); its reply is read by en-core's
+  `read_draft` with the pack's lexicon and answered as proposals, and a draft whose page every view has left is
+  cancelled. A save that takes a draft's proposal marks the layer `drafted = "assisted"` (PL12). The log holds
+  `profile what=check|save|reset|restore|draft target=… rev=… result=…`, `profile_file op=… ok=… bytes=…` and
+  `content_load why=profile …`: never the player's text, notes or the draft.
 - GraceUI gone (`poll` answers not connected or inactive): `overlay lost=1`, and nothing more is called.
 
 ## The watch block and the crash filter (O71, O90)

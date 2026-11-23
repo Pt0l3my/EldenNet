@@ -29,6 +29,8 @@ struct Options {
   bool vanilla = false;             // --vanilla-offline: start offline without EAC, inject nothing
   // Development and tests.
   std::vector<std::string> also;  // --also DLL: injected before ours, unchecked (a stand-in for another mod)
+  // --expect-graceui PATH: a test package's own graceui.toml; the game's GraceUI must be that one, or E13 asks
+  std::optional<std::string> expect_graceui;
   InjectAt inject_at = InjectAt::Suspended;
   std::uint32_t title_wait_s = 15;          // --title-wait S
   std::optional<AppidMethod> appid_method;  // --appid-method file|env (else launcher.toml's)

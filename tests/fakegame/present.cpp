@@ -333,6 +333,16 @@ void grace_take_pause() {
   status("grace_other found=1 connect=%u hotkey=%u id=%u", connected, hotkey, id);
 }
 
+void grace_lan() {
+  // Only the GraceUI already loaded (the launcher's --also), as grace_take_pause: its server starts once a mod registers
+  // pages, after this, and takes these addresses then.
+  HMODULE grace = GetModuleHandleW(L"graceui.dll");
+  const auto set = export_of<void (*)(const uint8_t*, uint32_t)>(grace, "GraceUI_Test_SetNetworkAddresses");
+  static constexpr uint8_t kHome[4] = {127, 0, 0, 2};
+  if (set != nullptr) set(kHome, 1);
+  status("grace_lan found=%d set=%d", grace != nullptr ? 1 : 0, set != nullptr ? 1 : 0);
+}
+
 void grace_report(std::uint64_t frame) {
   HMODULE grace = GetModuleHandleW(L"graceui.dll");
   const auto get_state = export_of<uint32_t (*)(GraceUiTestState*)>(grace, "GraceUI_Test_GetState");
@@ -415,6 +425,13 @@ void grace_report(std::uint64_t frame) {
     }
     std::snprintf(shows_part, sizeof shows_part, " shows=%s", bits.c_str());
   }
+  // The pairing sheet's code while one shows (G9; GraceUI 0.2.25's GraceUI_Test_GetPairingCode): six digits.
+  const auto pairing_code = export_of<uint32_t (*)(char*, uint32_t)>(grace, "GraceUI_Test_GetPairingCode");
+  char pairing_part[24] = "";
+  char code[16] = "";
+  if (pairing_code != nullptr && pairing_code(code, sizeof code) == 6) {
+    std::snprintf(pairing_part, sizeof pairing_part, " pairing=%s", code);
+  }
   char tail[240] = "";
   const Options& o = options();
   std::size_t at = 0;
@@ -432,14 +449,14 @@ void grace_report(std::uint64_t frame) {
   status("grace frame=%llu found=1 host=%u notice_only=%u consumers=%u eldennet=%d caps=%s notices=%u banner=%s "
          "banner_tone=%u badge=%s panels=%u shown=%u submitted=%llu refused=%llu panel_frames=%llu textures=%u "
          "world=0x%X providers=%u window_filter=%u presents=%llu holder=%u holder_kind=%u closes=%u close_reason=%u"
-         " game_keys=%u game_chars=%u%s%s%s%s",
+         " game_keys=%u game_chars=%u%s%s%s%s%s",
          static_cast<unsigned long long>(frame), st.host, st.notice_only, st.consumers, owner != 0 ? 1 : 0,
          caps.c_str(), st.notices, banner.c_str(), banner_tone, badge.c_str(), st.panels, st.panels_shown,
          static_cast<unsigned long long>(st.lists_submitted), static_cast<unsigned long long>(st.lists_refused),
          static_cast<unsigned long long>(st.panel_frames), st.textures, st.world_flags, st.providers,
          input.window_filter, static_cast<unsigned long long>(st.presents),
          input.holder_owner == 0 ? 0u : input.holder_owner == owner ? 2u : 1u, input.holder_kind, input.closes,
-         input.last_close_reason, game_keys(), game_chars(), menu_part, server_part, shows_part, tail);
+         input.last_close_reason, game_keys(), game_chars(), menu_part, server_part, shows_part, pairing_part, tail);
 }
 
 }  // namespace fakegame

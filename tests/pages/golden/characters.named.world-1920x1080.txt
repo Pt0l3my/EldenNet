@@ -1,0 +1,64 @@
+# eldennet characters.named: 1920x1080, ui.scale 1.25, scale 1.250, theme grace, the fake face, settings at their defaults
+fill    scrim           0,   0 1920x1080
+fill    ground.1        0,   0 1920x1080
+fill    ground.0        0,   0  300x1080
+text    gold           30,  30  114x35   glyphs 8 "EldenNet"
+text    ink.mute       30,  95   42x30   glyphs 4 "Home"
+line    rule           30, 135  240x1   
+text    ink.mute       30, 145   21x30   glyphs 2 "AI"
+line    rule           30, 185  240x1   
+text    ink.hi         30, 195  106x30   glyphs 10 "Characters"
+fill    tint.select     0, 235  300x40  
+fill    gold            0, 235    3x40  
+text    gold.hi        50, 243   84x25   glyphs 9 "Named NPCs"
+line    rule           30, 275  240x1   
+text    ink.mute       30, 285   64x30   glyphs 6 "System"
+line    rule           30, 325  240x1   
+text    ink.mute       30, 335   85x30   glyphs 8 "Settings"
+fill    ground.well   340,  10  350x35   r3
+text    ink.faint     353,  15   51x25   glyphs 6 "Search"
+text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
+line    rule          300,  55 1620x1   
+text    ink.hi        340,  86  199x45   clip1 glyphs 9 "Named NPCs"
+text    ink.mute      340, 136  751x25   clip1 glyphs 74 "Every named character EldenNet voices: who they appear to be, and your own notes on them."
+line    rule.strong   340, 176 1540x1    clip1
+diamond gold.deep     340, 171   11x11   w1 clip1
+fill    ground.2      340, 201  524x205  r5 clip1
+stroke  rule          340, 201  524x205  r5 w1 clip1
+text    gold          365, 221   96x20   clip1 glyphs 9 "Named NPCs"
+fill    tint.select   350, 251  504x70   clip1
+fill    gold          350, 251    3x70   clip1
+text    gold.hi       365, 260   75x28   clip1 glyphs 7 "Old Bram"
+text    ink.mute      365, 288  236x25   clip1 glyphs 23 "a ferryman on the grey river"
+text    ink.hi        365, 330   56x28   clip1 glyphs 6 "Ysolde"
+text    ink.mute      365, 358  202x25   clip1 glyphs 20 "a weaver of fishing nets"
+text    gold.hi       894, 201   68x22   clip1 glyphs 7 "Profile"
+fill    gold          894, 232   67x3    clip1
+line    rule          894, 235  986x1    clip1
+fill    ground.2      894, 260  986x155  r5 clip1
+stroke  rule          894, 260  986x155  r5 w1 clip1
+text    gold          919, 280  144x20   clip1 glyphs 14 "General profile"
+text    ink.faint    1842, 280    8x25   clip1 glyphs 1 "-"
+text    ink.mute      919, 305  532x25   clip1 glyphs 53 "What anyone would see on meeting them, in EldenNet's own words."
+text    ink.mute      919, 355  169x25   clip1 glyphs 17 "Nothing to show yet."
+fill    ground.2      894, 435  986x155  r5 clip1
+stroke  rule          894, 435  986x155  r5 w1 clip1
+text    gold          919, 455   96x20   clip1 glyphs 9 "Your notes"
+text    ink.faint    1842, 455    8x25   clip1 glyphs 1 "-"
+text    ink.mute      919, 480  886x25   clip1 glyphs 87 "Your own layer over EldenNet's profile, kept in a file of your own. Left unset, a field keeps EldenNet's."
+text    ink.mute      919, 530  169x25   clip1 glyphs 17 "Nothing to show yet."
+fill    ground.2      894, 610  986x175  r5 clip1
+stroke  rule          894, 610  986x175  r5 w1 clip1
+text    gold          919, 630   67x20   clip1 glyphs 7 "Related"
+line    rule          919, 660  936x1    clip1
+text    ink.hi        919, 665   56x28   clip1 glyphs 6 "Models"
+text    ink.mute     1231, 668  515x25   clip1 glyphs 50 "Which model does each job, and the preset that sets them all."
+text    gold         1835, 665    9x28   clip1 glyphs 1 "→"
+line    rule          919, 715  936x1    clip1
+text    ink.hi        919, 720   38x28   clip1 glyphs 4 "Home"
+text    ink.mute     1231, 723  582x25   clip1 glyphs 55 "Whether EldenNet is working on this game, and what to do if it is not."
+text    gold         1835, 720    9x28   clip1 glyphs 1 "→"
+line    rule          300,1035 1620x1   
+text    ink.faint     340,1045  295x25   glyphs 20 "↑ ↓  Choose    →  Open    Esc  Back"
+stroke  gold.hi       347, 248  510x76   r5 w3 clip1
+# 62 items, 2792 vertices, 5622 indices, 4 commands; check_draw_list: passes
