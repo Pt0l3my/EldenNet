@@ -90,8 +90,9 @@ What this build adds to the schema, each the smallest reading of a rule the cata
   sampled until their spikes verify them.
 
 `requires` compiles through en-core's predicates (`en/core/predicates.hpp`): v0.1 evaluates `true`, `false`, `!`,
-`&&`, `||`, parentheses and comparisons of `runes` and `journey`; `world()` and `knows()` are refused in Augur for good,
-and `flag()`, `boss()`, `stage()` and `region()` until the catalogue and regions.toml exist (every alias is unknown).
+`&&`, `||`, parentheses and comparisons of `runes_held` (the runes held) and `journey`; `world()` and `knows()` are
+refused in Augur for good, and `flag()`, `boss()`, `stage()`, `region()` and `runes >= n` (MEM §6.6's great runes,
+through the catalogue's aliases; WHY§474) until Augur reads the catalogue and regions.toml (every alias is unknown).
 
 ## What ARCH §8 left open, and how this build reads it
 

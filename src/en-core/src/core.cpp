@@ -359,7 +359,7 @@ void Core::run_augur(const proto::WorldSnapshot* s, const proto::Lifecycle* l, M
   if (s != nullptr) {
     if (s->player) {
       view_.player = s->player->handle;
-      view_.facts.runes = s->player->runes_held;
+      view_.facts.runes_held = s->player->runes_held;
       view_.facts.journey = s->player->ng_lvl;
     } else {
       view_.player.reset();

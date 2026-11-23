@@ -53,7 +53,7 @@ at = "limgrave"
 state = "awake"
 [[stages]]
 id = "rich"
-when = "runes >= 2"
+when = "runes_held >= 2"
 gist = "The Tarnished has done well."
 [[stages]]
 id = "hidden"
@@ -110,10 +110,30 @@ TEST_CASE("the active stage: the last whose when holds; an unknown when hides, n
   CHECK_FALSE(d.find("nobody").has_value());
   // `quiet` only restricts, so its unknown flag leaves it active: the persona refuses (an unverified flag may hide).
   PredicateFacts poor;
-  poor.runes = 0;
+  poor.runes_held = 0;
   CHECK(d.active_stage(0, predicates, poor) == 3);
   CHECK(d.persona(0).chat_at(3) == ChatMode::Refuse);
   // `hidden` shows a gist of its own, so its unknown flag leaves it inactive; `rich` holds with two runes.
   CHECK_FALSE(d.persona(0).stages[3].shows);
   CHECK(d.persona(0).stages[2].shows);
+}
+
+TEST_CASE("a stage on the great runes (runes >= n) is Unknown to v0.1's predicates; one on the runes held holds") {
+  // WHY§474: `runes >= n` is MEM §6.6's everywhere, read through the catalogue, which v0.1's predicates do not read.
+  std::string two(kWren);
+  two.replace(two.find("[[stages]]\nid = \"hidden\""), std::string::npos,
+              "[[stages]]\nid = \"great\"\nwhen = \"runes >= 2\"\ngist = \"Shows something of its own.\"\n");
+  const ContentPack pack = pack_from({ContentFile{"identity/personas.toml", kIndex, ContentOrigin::Shipped},
+                                      ContentFile{"personas/wren.toml", two, ContentOrigin::Shipped}});
+  Predicates predicates;
+  const Directory d = Directory::build(pack, Realm::Game, predicates);
+  REQUIRE(d.size() == 1);
+  REQUIRE(d.persona(0).stages.size() == 3);
+  PredicateFacts f;
+  f.runes_held = 1;
+  CHECK(d.active_stage(0, predicates, f) == 0);
+  f.runes_held = 2;
+  CHECK(d.active_stage(0, predicates, f) == 1);  // `rich`, on the runes held
+  f.runes_held = 1'000'000;
+  CHECK(d.active_stage(0, predicates, f) == 1);  // `great` is Unknown and shows a gist: it never shows
 }
