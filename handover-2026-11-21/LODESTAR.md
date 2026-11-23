@@ -63,16 +63,21 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    in game, 6 then 2: the executable's lead confirmed); health is part 0 of the holder (0x190 of the player), field
    0x138, its maximum 0x13C (leads for `vitals`); position candidates in parts 13 and 4. Not settled: the lists
    (the search still takes element pairs for bounds), the falls' list (part 0 used it up).
-   **Open, and first: the game ended with 0xC0000374 at the quit, without GraceUI in the process.** Every session
-   since the spike runs of 2026-11-23 ended with a crash code; the ten before were clean. Checked and clean:
-   en-gal's tests under the sanitisers with a case at the game's sizes (engine 23dc535), the release DLL in the
-   fake game under Wine's full heap validation (how: the record), the threads' hand-over. Asked of the owner: two
-   short runs (package 19 quit at the title; package 17 the same) to tell the PC from the code. No new round goes
-   out before that is known.
-   Then, for the sixteenth round: the round is given the static 0x3D709A8 as a number and reads its object's class
-   by the game's type information (it enters the draft table and `leads.toml` from there), `[class.game_state]`
-   with `save_slot`, the vitals as leads, the layout's characters fields read through EldenNet's own reader, the
-   list candidates and the falls' list mended.
+   **The game's exit code is settled, and not ours**: the game ended with 0xC0000374 at the quit without GraceUI
+   in the process, and the owner's control run with nothing injected (Engine's, WHY§556) ended the same way once
+   a save was loaded. It is the game's own on that PC since 2026-11-23; the fault is in the game's teardown of its
+   file system (the record has the reading of Engine's stack from the executable). The rounds go on; the README
+   says the code will show.
+   **The sixteenth round is built** (the record's "What was changed for the sixteenth round"): the same fourteen
+   tasks; the pair search's hit in an object of the class the leads' `[statics]` give for the game's state names
+   the slot (no number from the executable is given to the round); the layout's list is judged first; the falls
+   and the moves list the likeliest first, a move with the class of its range. Report schema 16. When its files
+   come back: `pair`: `leads` 1 and one hit with `lead` (64,424,360 + 2,752) and `[item.game_state]` in the draft
+   table, then `[class.game_state]` with `save_slot` at 0xAC0 goes into the layout and the item into the table;
+   `chars`: the first list `expected` at 0x1F1E8 with `has_fraction`; `parts`: the first fall part 0 + 0x138 with
+   its bound at 0x13C, the first moves `span` 3 (three in a row are the position).
+   Then: the vitals and the position as leads in the layout, and a backend entry that reads the world's group
+   alone, so that EldenNet's own reader reads the main player, the near list and the health in a round.
    **Leads from the owner's executable (the record's "The offline study of the owner's executable")**: the game's
    state's static is 0x3D709A8 (its class's table of methods 0x2A84210; made with the event flags' store, so not
    there at the title), the save's slot the 32-bit number 0xAC0 into its object (compared with -1 and with the
