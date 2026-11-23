@@ -1968,6 +1968,13 @@ TEST_CASE("in game: the state search finds the field that reads -1 at the title 
   CHECK(found.hits[0].value == 2);
   CHECK(found.hits[1].rva == rva(w.at("st_hud")));
   CHECK(found.hits[1].offset == 0x1F0);
+  // Each pass was through before the next was asked for.
+  REQUIRE(found.looks.size() == 4);
+  CHECK_FALSE(found.overrun);
+  for (const lodestar::StateLook& l : found.looks) {
+    CHECK(l.through);
+    CHECK_FALSE(l.overrun);
+  }
   // The report carries the search as counts, places and the small number, and lints clean.
   lodestar::Found f = r.found;
   f.state = found;
@@ -1978,6 +1985,68 @@ TEST_CASE("in game: the state search finds the field that reads -1 at the title 
   CHECK(report::lint(*text, known).has_value());
   CHECK(text->find("\"state_hits\": [") != std::string::npos);
   CHECK(text->find("\"alive\": [4, 4, 2, 1]") != std::string::npos);
+}
+
+TEST_CASE("in game: a look of the state search that the tester overran is told, with each look's time") {
+  FakeWorld w;
+  const auto rva = [&](std::uint64_t at) { return static_cast<std::uint32_t>(at - w.base); };
+  lodestar::StateSearch search(w.base, {rva(w.at("st_hud")), rva(w.at("st_session")), rva(w.at("st_menus"))});
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  std::uint64_t now = 1'000'000;
+  const auto pass = [&] {
+    for (int steps = 0; steps < 100; ++steps) {
+      reader.begin_tick();
+      now += 250'000;  // a quarter of a second a step
+      if (search.step(gt, reader, now)) return true;
+    }
+    return false;
+  };
+  search.ask();
+  REQUIRE(pass());
+  // The second look is asked for and one candidate read; then the tester confirms the next state already.
+  search.ask();
+  reader.begin_tick();
+  now += 250'000;
+  CHECK_FALSE(search.step(gt, reader, now));
+  search.ask();
+  REQUIRE(pass());  // the second ends late
+  REQUIRE(pass());  // the third in its own time
+  // The fourth is asked for and the session ends before it is through.
+  search.ask();
+  const lodestar::StateFound found = search.found();
+  CHECK(found.asked == 4);
+  CHECK(found.passes == 3);
+  CHECK(found.overrun);
+  REQUIRE(found.looks.size() == 4);
+  CHECK(found.looks[0].through);
+  CHECK_FALSE(found.looks[0].overrun);
+  CHECK(found.looks[0].took_ms >= 500);  // three candidates and the count, a quarter of a second each
+  CHECK(found.looks[0].took_ms <= 1250);
+  CHECK(found.looks[1].through);
+  CHECK(found.looks[1].overrun);  // the one the tester moved the game on under
+  CHECK(found.looks[2].through);
+  CHECK_FALSE(found.looks[2].overrun);
+  CHECK_FALSE(found.looks[3].through);
+  CHECK_FALSE(found.looks[3].overrun);
+  CHECK(found.looks[3].took_ms == 0);
+  CHECK(found.hits.empty());
+  // A look that was never begun when the next was asked for is overrun too.
+  lodestar::StateSearch hurried(w.base, {rva(w.at("st_hud"))});
+  hurried.ask();
+  hurried.ask();
+  CHECK(hurried.found().looks.size() == 2);
+  CHECK(hurried.found().looks[0].overrun);
+  CHECK(hurried.found().overrun);
+  // The report tells it.
+  lodestar::Found f = round_of(w).found;
+  f.state = found;
+  const auto text = lodestar::write_report(f);
+  REQUIRE(text.has_value());
+  const report::Vocabulary* known[] = {&lodestar::vocabulary()};
+  CHECK(report::lint(*text, known).has_value());
+  CHECK(text->find("\"overrun\": true") != std::string::npos);
+  CHECK(text->find("\"looks\": [") != std::string::npos);
 }
 
 TEST_CASE("in game: a pass takes over a manager the search named first, and an invariant's static enters the table") {

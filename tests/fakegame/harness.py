@@ -2385,7 +2385,7 @@ def check_read(result, by_flag=False, events=False, marks=False):
     with open(table) as f:
         draft = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 12, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
+    need(d["report"] == "lodestar" and d["schema"] == 13, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
          failures)
     # Numbers and the catalogue's labels: no name of the fake game's, in either file.
     for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["SaveLedger", "FG::", "Imp", "task_loom", "Fg_"]:
@@ -2754,6 +2754,10 @@ def check_read_state(result):
          state.get("slots_hit") == 1 and len(state["state_hits"]) == 1 and state["state_hits"][0]["offset"] == 0x14 and
          state["state_hits"][0]["value"] == 2 and state["state_hits"][0]["sites"] >= 1,
          "the state search: %s" % state, failures)
+    looks = state.get("looks") or []
+    need(state.get("overrun") is False and len(looks) == 4 and
+         all(l["through"] is True and l["overrun"] is False and l["took_ms"] < 8000 for l in looks),
+         "the state search's looks, each through before the next confirmation: %s" % looks, failures)
     games = [v for v in d.get("invariants") or [] if v["label"] == "game_state"]
     need(len(games) == 1 and games[0]["id"] == 1003 and games[0]["offset"] == 0x14 and
          state["state_hits"] and games[0]["rva"] == state["state_hits"][0]["rva"] and games[0]["sites"] >= 1 and

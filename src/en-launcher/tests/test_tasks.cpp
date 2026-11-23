@@ -178,7 +178,7 @@ TEST_CASE("tasks: the read-only round's list starts with the round's own task an
     if (t.kind == TaskKind::Wait) {
       ++waits;
       seconds += t.seconds;
-      CHECK(t.seconds >= 45);
+      CHECK(t.seconds >= 60);  // a look of the state search must be through before the game moves on
     } else {
       CHECK(t.seconds == 0);
     }
@@ -187,7 +187,7 @@ TEST_CASE("tasks: the read-only round's list starts with the round's own task an
   // followed by a wait, in which the round reads the game in that state.
   CHECK(marks == 4);
   CHECK(waits == 5);
-  CHECK(seconds == 285);
+  CHECK(seconds == 300);
   for (std::size_t i = 0; i + 1 < tasks.size(); ++i) {
     if (tasks[i].mark) CHECK(tasks[i + 1].kind == TaskKind::Wait);
   }
