@@ -8,11 +8,11 @@ using namespace en::launcher;
 namespace {
 std::vector<Task> sample() {
   return {
-      {TaskKind::Round, "wait", "the round reads", 0, false},
-      {TaskKind::Do, "load", "press the key in the world", 0, false},
-      {TaskKind::Wait, "walk", "", 30, false},
-      {TaskKind::Do, "act", "then press the key", 0, true},
-      {TaskKind::Do, "quit", "", 0, false},
+      {TaskKind::Round, "wait", "the round reads", 0, false, ""},
+      {TaskKind::Do, "load", "press the key in the world", 0, false, ""},
+      {TaskKind::Wait, "walk", "", 30, false, ""},
+      {TaskKind::Do, "act", "then press the key", 0, true, "I have done it"},
+      {TaskKind::End, "quit", "", 0, false, ""},
   };
 }
 }  // namespace
@@ -61,11 +61,44 @@ TEST_CASE("tasks: each kind of task is done its own way, in order, and only a ma
   CHECK(c.mark);
   CHECK(c.task == 3);
   CHECK_FALSE(list.finished());
-  c = list.confirm(150'000);
+  // The last task ends the round itself: neither the key, the clock nor the round's step does it; the watch's end
+  // does.
+  CHECK_FALSE(list.confirm(150'000).changed);
+  CHECK_FALSE(list.tick(900'000).changed);
+  CHECK_FALSE(list.round_step(150'000).changed);
+  CHECK(list.current() == 4);
+  c = list.end(160'000);
   CHECK(c.changed);
+  CHECK_FALSE(c.mark);
   CHECK(list.finished());
-  CHECK_FALSE(list.confirm(151'000).changed);
-  CHECK_FALSE(list.tick(999'000).changed);
+  CHECK_FALSE(list.end(161'000).changed);
+  CHECK_FALSE(list.confirm(161'000).changed);
+}
+
+TEST_CASE("tasks: the panel's button speaks for the task under way, and only a task of the tester's has one") {
+  TaskList list(sample());
+  list.start(0);
+  // The round's own task: no button.
+  CHECK(button_text(list.rows(1'000)[0], true).empty());
+  (void)list.round_step(10'000);
+  // A task of the tester's with no word of its own: "Done". Without the key, only the click.
+  CHECK(button_text(list.rows(11'000)[1], true) == "Done: press Pause, or click here");
+  CHECK(button_text(list.rows(11'000)[1], false) == "Done: click here");
+  // A row that is not under way has no button, whatever its kind.
+  CHECK(button_text(list.rows(11'000)[3], true).empty());
+  (void)list.confirm(20'000);
+  CHECK(button_text(list.rows(21'000)[2], true).empty());  // a wait
+  (void)list.tick(50'000);
+  // The task's own word.
+  CHECK(button_text(list.rows(51'000)[3], true) == "I have done it: press Pause, or click here");
+  (void)list.confirm(60'000);
+  // The last task, which is to quit the game: nothing to press, so no button (the owner, 2026-11-22).
+  const TaskRow last = list.rows(61'000)[4];
+  CHECK(last.state == TaskState::Now);
+  CHECK(last.kind == TaskKind::End);
+  CHECK(button_text(last, true).empty());
+  CHECK(button_text(last, false).empty());
+  CHECK(timer_text(last) == "0:01");
 }
 
 TEST_CASE("tasks: the rows say what is done, what is under way and for how long") {
@@ -122,8 +155,8 @@ TEST_CASE("tasks: with a pace every wait is that long and the tester's tasks con
   CHECK(c.changed);
   CHECK(c.mark);
   CHECK(c.task == 3);
-  c = list.tick(30'000);
-  CHECK(c.changed);
+  CHECK_FALSE(list.tick(900'000).changed);  // the last task waits for the watch's end, paced or not
+  CHECK(list.end(30'000).changed);
   CHECK(list.finished());
 }
 
@@ -154,6 +187,10 @@ TEST_CASE("tasks: the read-only round's list starts with the round's own task an
   CHECK(marks == 2);
   CHECK(waits == 3);
   CHECK(seconds == 360);
-  CHECK(tasks.back().kind == TaskKind::Do);
+  // The last task is to quit the game: it has no button and nothing confirms it.
+  CHECK(tasks.back().kind == TaskKind::End);
   CHECK_FALSE(tasks.back().mark);
+  CHECK(tasks.back().detail.find("nothing more to press") != std::string::npos);
+  // Each task of the tester's has its own word for the button; no other kind has one.
+  for (const Task& t : tasks) CHECK((t.kind == TaskKind::Do) == !t.button.empty());
 }

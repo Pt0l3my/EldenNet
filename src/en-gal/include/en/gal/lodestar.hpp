@@ -504,13 +504,52 @@ struct SweepTarget {
   std::vector<SweepFlip> flips;
   // The flips around the tester's marks, in words that are not busy: at most 16 a mark, in the order seen.
   std::vector<MarkFlip> mark_flips;
-  bool retired = false;  // too much of it changed all the time: it was read no more
+  bool retired = false;  // too much of it changed all the time: it was read no more (and lists no flips)
+  std::uint64_t address = 0;  // where it stood at the last pass: for the round's own use, never written
 };
 
 struct SweepFound {
   std::uint64_t passes = 0;
   std::vector<std::uint32_t> mark_seconds;  // when each mark was taken, since the sweep's first reading
   std::vector<SweepTarget> targets;
+};
+
+// The tree beside the flags (our notes' lead: a tree whose records name each group's block). The records reached
+// from its root by their first three words (each an address or nothing) are read once, 64 bytes each, and counted
+// field by field, as sixteen 32-bit numbers: which fields vary, which hold multiples of a block's 125 bytes. Then
+// the joins: a record one of whose numbers is the start or the index of the block a marked flip lies in, or whose
+// word is that block's address; such a record is written out as its sixteen numbers, addresses left out.
+enum class TreeMatch : std::uint8_t { Start = 0, Index = 1, Address = 2 };
+struct TreeField {
+  std::uint32_t offset = 0;        // of the 32-bit field, from the record's start
+  std::uint32_t nonzero = 0;       // records in which it held something
+  std::uint32_t distinct = 0;      // how many different numbers, to 65,535
+  std::uint32_t lowest = 0;        // of the numbers held (addresses aside)
+  std::uint32_t highest = 0;
+  std::uint32_t multiples = 0;     // records in which it held a multiple of 125 (nothing aside)
+  std::uint32_t addresses = 0;     // records in which its word looked like an address
+  bool rising = false;             // walked left to right, it never fell: a key the tree is ordered by
+};
+struct TreeJoin {
+  std::uint32_t mark = 0;          // the mark the flip was seen around, from 1
+  std::uint32_t target = 0;        // the swept stretch, by its offset in the store
+  std::uint32_t flip = 0;          // the flipped byte, from the stretch's start
+  std::uint32_t bit = 0;
+  TreeMatch match = TreeMatch::Start;
+  std::uint32_t field = 0;         // the matching field's (or word's) offset in the record
+  std::vector<std::uint32_t> values;  // the record's sixteen numbers; a word that looked like an address reads 0
+};
+struct TreeFound {
+  std::uint32_t rva = 0;           // the static the way to the root starts at
+  std::uint32_t offset = 0;        // the root is the record whose address is kept there, from the static's object
+  bool done = false;               // the walk ended
+  bool capped = false;             // it ended at the most records it takes
+  std::uint32_t records = 0;       // records read and of the tree's shape
+  std::uint32_t off_shape = 0;     // addresses followed that held something else
+  std::uint32_t unreadable = 0;
+  std::uint32_t order = 0;         // 0: no field rises in either order; 1: first word left, third right; 2: the reverse
+  std::vector<TreeField> fields;   // the sixteen
+  std::vector<TreeJoin> joins;     // at most 4 a flip, 48 in all
 };
 
 // A static found by what its object holds (proposal 0005 §6.1's `invariant`): the slot of the data behind which one
@@ -542,6 +581,7 @@ struct Found {
   std::optional<ScanFound> scan;
   std::optional<WatchFound> watch;
   std::optional<SweepFound> sweep;
+  std::optional<TreeFound> tree;
   std::vector<InvariantFound> invariants;
 };
 

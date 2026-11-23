@@ -2,7 +2,7 @@
 # - the task group's index, from the offline round R0c (2026-11-16);
 # - the build's table (Lodestar; proposal 0005 §5), from the read-only rounds in game (2026-11-22;
 #   docs/ops/probes/2026-11-22-l5.md): ten of the eleven managers' slots, each named by its instance's class, the same
-#   in six sessions of the game. Nine were found by the accessor's shape, with the places in the code that load them;
+#   in eight sessions of the game. Nine were found by the accessor's shape, with the places in the code that load them;
 #   among them event_flags, which stands for the object the event flags are read through (the flags' store, WHY§359).
 #   The messages manager's slot no accessor's site loads: it is the one of two slots with one object that the code
 #   refers to (238 instructions), with eight of them as witnesses. Then save_data, a static with no class to name it
@@ -10,8 +10,11 @@
 #   nearly every pass of five sessions, the play time; 736 instructions refer to it, eight of them its witnesses.
 #   Then the two character classes' tables of methods, and the task groups' table. Each entry was checked against the
 #   image as loaded before the round wrote it, and the reader read the slots some 52,000 times over the six rounds
-#   with no fault. Every entry is still a lead: nothing is confirmed before S0-A and the self-tests. world_clock is not
-#   here: it has no slot of its own, and where the time of day is kept is step L6's to find.
+#   with no fault. Then world_clock, also by what its object holds: the static behind which the 8-byte word 8 bytes
+#   in keeps the minute (six bits from bit 39) and the hour (five bits from bit 34); in the eighth round the minutes
+#   went round four times with the hours stepping beside them, and in the seventh the hour went to 12 and to 20 when
+#   the owner let time pass; 113 instructions refer to the static. Every entry is still a lead: nothing is confirmed
+#   before S0-A and the self-tests.
 # The classes, fields, enums, params and self-test ids are later rounds' to find (L6), and are left out. A release build
 # refuses this file (every entry a lead).
 schema = 2
@@ -27,12 +30,12 @@ probe_record = "docs/ops/probes/2026-11-22-l5.md"
 group = { name = "ChrIns_PostPhysics", index = 110 }
 status = "lead"
 
-# The build's table, as the sixth read-only round wrote it (package 0.1.0-lodestar.9). tool_sha256 is the package's
+# The build's table, as the eighth read-only round wrote it (package 0.1.0-lodestar.11). tool_sha256 is the package's
 # own SHA-256 of its eldennet.dll, set at the review: the round itself writes zeros there.
 [provenance]
 method = "own-derivation"
-tool = "0.1.0-lodestar.9"
-tool_sha256 = "1695053de0e0eef46304fc58242b0d437caa96385d762983bfb2d98f8b261b15"
+tool = "0.1.0-lodestar.11"
+tool_sha256 = "ede418945be41d7a14abf4d49d9a3e0c0ca50f67807acf6abb5a2b31e1e89bee"
 round = "l5"
 date = "2026-11-22"
 leads = ["gal/leads.toml", "gal/recipes.toml"]
@@ -107,6 +110,15 @@ rva = 0x3D67F48
 found_by = ["accessor", "instance_class"]
 witnesses = [0x7674F6, 0x90B7EB, 0x90B8D9, 0x90B997, 0xAF983D, 0xC348E4, 0xD71943]
 checks = ["placement", "agree", "witness", "class"]
+status = "lead"
+
+[item.world_clock]
+id = 1012
+kind = "static"
+rva = 0x3D70388
+found_by = ["invariant"]
+witnesses = [0x2FDB76, 0x2FDBA9, 0x2FDBD6, 0x2FDC09, 0x2FDC56, 0x2FDC89, 0x3346DB, 0x33470E]
+checks = ["placement", "witness"]
 status = "lead"
 
 [item.camera]

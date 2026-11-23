@@ -176,6 +176,7 @@ void TaskPanel::show(const std::vector<TaskRow>& rows, std::string_view footer, 
     said += r.title;
     said += static_cast<char>('0' + static_cast<int>(r.state));
     said += timer_text(r);
+    said += button_text(r, key_works);
   }
   if (said == said_) return;
   said_ = std::move(said);
@@ -259,19 +260,19 @@ int TaskPanel::layout(HDC measure, HDC draw) {
     }
     y += height;
   }
-  // The button, where the task under way is the tester's to confirm; and the footer.
-  const bool mine = std::any_of(rows_.begin(), rows_.end(), [](const TaskRow& r) {
-    return r.state == TaskState::Now && r.kind == TaskKind::Do;
-  });
+  // The button, where the task under way is the tester's to confirm, in that task's own words; and the footer.
+  std::wstring button;
+  for (const TaskRow& r : rows_) {
+    if (r.state == TaskState::Now) button = widen(button_text(r, key_works_));
+  }
   button_ = RECT{0, 0, 0, 0};
-  if (mine) {
+  if (!button.empty()) {
     y += gap;
     const int height = MulDiv(28, dpi_, 96);
     button_ = RECT{margin, y, right, y + height};
     if (draw != nullptr) {
       fill(draw, button_, kButton);
-      draw_text(draw, title_font_, kText, key_works_ ? L"Done: press Pause, or click here" : L"Done: click here",
-                button_, DT_SINGLELINE | DT_VCENTER | DT_CENTER);
+      draw_text(draw, title_font_, kText, button, button_, DT_SINGLELINE | DT_VCENTER | DT_CENTER);
     }
     y += height;
   }
