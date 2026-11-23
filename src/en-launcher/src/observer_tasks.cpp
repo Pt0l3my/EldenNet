@@ -9,8 +9,11 @@ namespace {
 
 Task title_look(bool eldennet) {
   return {TaskKind::Do, "Look at the title screen",
-          eldennet ? "GraceUI's notice \"GraceUI spike: recording\" and EldenNet's banner (\"Spike run: EldenNet makes "
-                     "no call into the game\") should both show. Note whether they do, then press Pause."
+          // On the owner's game EldenNet stops before its reader (this package carries no reader data for it), so its
+          // banner says it is inactive; on the fake game it reaches the spike's own banner. Either is right here.
+          eldennet ? "GraceUI's notice \"GraceUI spike: recording\" and a banner of EldenNet's should both show. On "
+                     "your game EldenNet's says it is inactive: that is expected in this test, which calls nothing in "
+                     "the game. Note whether both show, then press Pause."
                    : "GraceUI's notice \"GraceUI spike: recording\" should show, and no banner of EldenNet's: it is not "
                      "loaded in this run. Note whether it does, then press Pause.",
           0, true, "I have looked"};
