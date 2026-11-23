@@ -2637,6 +2637,10 @@ def browse_editor(paths, out):
         out["phone_level"] = phone.command("eldennet", "settings.set", {"key": "debug.log_level", "value": "info"})
         out["phone_check"] = phone.command("eldennet", "profile.check",
                                            {"target": "persona.kale", "rev": 2, "doc": {"instructions": None}})
+        # The player's notes are saved, reset and restored on this PC alone (the owner's O112 (b)).
+        out["phone_save"] = phone.command("eldennet", "profile.save",
+                                          {"target": "persona.kale", "rev": 2, "doc": {"instructions": None}})
+        out["phone_reset"] = phone.command("eldennet", "profile.reset", {"target": "persona.kale", "rev": 2})
     except (browser.BrowserError, OSError, ValueError, KeyError) as e:
         out["error"] = repr(e)
     finally:
@@ -2711,7 +2715,7 @@ def check_graceui_editor(r):
     # The device paired at home: refused EldenNet's sensitive commands and settings by GraceUI, before EldenNet sees
     # them; it reads the pages, sets an unmarked setting and checks a profile as this PC's browser does.
     need(len(d.get("phone_list", {}).get("rows", [])) >= 1, "the device's list: %s" % d.get("phone_list"), failures)
-    for key in ("phone_add", "phone_remove", "phone_key", "phone_panel"):
+    for key in ("phone_add", "phone_remove", "phone_key", "phone_panel", "phone_save", "phone_reset"):
         need(d.get(key, {}).get("error") == "not_now" and d.get(key, {}).get("detail") == "Only on the PC the game runs on.",
              "%s from the device: %s" % (key, d.get(key)), failures)
     need(d.get("phone_level", {}).get("ok") is True, "an unmarked setting from the device: %s" % d.get("phone_level"),
@@ -2728,6 +2732,8 @@ def check_graceui_editor(r):
         need(secret not in text, "the log holds the player's text or the draft (%s)" % secret, failures)
     need(not any(e.get("name") in ("providers.add", "providers.remove", "providers.key") for e in
                  r.events("ELDENNET", "page")), "a device's sensitive command reached EldenNet", failures)
+    need(not any(l.startswith("ELDENNET profile ") and "what=reset" in l for l in r.lines),
+         "the device's reset reached EldenNet", failures)
     return failures + en_log_is_clean(r)
 
 

@@ -187,7 +187,8 @@ cmake --build build-cl
   a length out of range, and asks for a draft, which `fake_models.py` answers with a scripted JSON draft on the dialogue
   slot the draft slot borrows; in game F5's menu types and saves notes in the editor, then pairs a device from GraceUI's
   Browser view page, whose code the fake game's report names (`pairing=`); the tests' browser pairs as that device on
-  127.0.0.2 (`browser.pair`) and is refused EldenNet's sensitive commands and settings.
+  127.0.0.2 (`browser.pair`) and is refused EldenNet's sensitive commands and settings, the editor's save and reset
+  among them (the owner's O112 (b): the player's notes are written on the PC alone).
 - **EldenNet's pages** (`src/en-overlay/pages/space.toml`, its JSON beside it and `src/space_data.cpp`, all written by
   `python3 -I tools/pages/build.py`) have three CTest checks of their own: `en_pages_build` (`--check`: the outputs are
   what the source builds), in every build with Python; `en_pages_lint`, GraceUI's own page lint, with

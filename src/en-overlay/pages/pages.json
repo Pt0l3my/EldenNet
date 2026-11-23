@@ -899,6 +899,9 @@
   "sensitive_commands": [
     "providers.add",
     "providers.remove",
-    "providers.key"
+    "providers.key",
+    "profile.save",
+    "profile.reset",
+    "profile.restore"
   ]
 }

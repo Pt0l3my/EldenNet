@@ -276,7 +276,7 @@
       },
       {
         "label": "Game build",
-        "value": "3.14.15.0, supported"
+        "value": "3.14.15.0, recognised, not readable yet"
       },
       {
         "label": "This session",
@@ -330,9 +330,9 @@
     "compatibility": {
       "checks": [
         {
-          "detail": "Supported",
+          "detail": "Recognised, not readable yet",
           "label": "Game build 3.14.15.0",
-          "state": "pass"
+          "state": "wait"
         },
         {
           "detail": "Started by the EldenNet launcher",
@@ -361,7 +361,7 @@
       },
       {
         "label": "Game build",
-        "value": "3.14.15.0, supported"
+        "value": "3.14.15.0, recognised, not readable yet"
       }
     ],
     "rows": []
