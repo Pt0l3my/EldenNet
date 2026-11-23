@@ -524,6 +524,11 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 499 | 2026-11-23 | disable.toml (S11.3.g) | DECIDED | #engine #content |
 | 500 | 2026-11-23 | A failed configure-time download leaves an empty file that the next configure keeps | FACT | #engine #build |
 | 501 | 2026-11-23 | The polish's tests on the four toolchains; Lodestar's read-clock case passes | FACT | #engine #tests |
+| 502 | 2026-11-23 | The characters manager's places, by search and class, the same with two characters | LIKELY | #lodestar #gal |
+| 503 | 2026-11-23 | In the player's object: the parts holder at 0x190 and the character's sheet at 0x580 | LIKELY | #lodestar #gal |
+| 504 | 2026-11-23 | game_state's candidate is a number of the character: 4 for the list's first, 2 for the third | FACT | #lodestar #l6 |
+| 505 | 2026-11-23 | A search of a manager's object is asked for only once the game is in the state it is to see | METHOD | #lodestar |
+| 506 | 2026-11-23 | Fields past a class's 0x4000 copy are far fields, each read by its own small copy | DECIDED | #engine #gal #lodestar |
 
 ## Entries
 
@@ -7417,6 +7422,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   accessor's shape reaches (5 sites, 30 references), its object of a class no lead names.
 - LIKELY, on one session and the owner's word; not in the table. The thirteenth round confirms it by loading another
   character, then the usual one.
+- *Later (2026-11-23, WHY§504):* the candidate read 4 and 2 for two characters: a number of the character, which
+  fits the slot if the list runs last slot first; a third load is to settle it.
 
 ### 470. A search by what an object holds in each state takes its candidates in each state and lists its near misses
 
@@ -7617,6 +7624,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   something else; the round names `game_state` where one field in one slot alone read two numbers.
 - The owner agreed to load the first character once (O105's fourth note). Nothing enters `gal/` before Lodestar's
   review of the files.
+- *Later (2026-11-23, WHY§504):* with two characters seven fields in 25 slots read two numbers, so that rule alone
+  names nothing; a field that changed for the same character between sessions is ruled out.
 
 ### 489. The pointers and lists are sought by class from the characters manager's own object
 
@@ -7764,3 +7773,61 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   0 warnings, every unit test program under Wine, eldennet_dll_checks, and the harness's 121 cases, the ten GraceUI
   cases among them; `launcher-eldennet-read-clock` passed (133 s), after failing twice on the pilot's branch before
   Lodestar's latest merge. (CTest runs the Windows unit test programs without Wine, so they show as failed there.)
+
+### 502. The characters manager's places, by search and class, the same with two characters
+
+`2026-11-23` · LIKELY · `#lodestar` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§489, S10.1.m
+
+- The thirteenth round (package 0.1.0-lodestar.17; 7.0 minutes): `main_player` is the word 0x1E508 into the manager's
+  object, the one word that held the address of an object of the player's class, in both worlds, with two characters.
+- The near list at 0x1F1E8: three addresses side by side (start, end, a third at or past the end); 16-byte elements,
+  a character's address at 0 and a fraction at 8; 10 and 13 elements, never the main player. Two lists of addresses
+  alone at 0x1F1C8 (31, the main player among them) and 0x1F218 (6 and 5).
+- The player set at 0x10EF8: an address of plain memory whose first word is the main player's address (its stride and
+  length not known).
+- The manager is not there at the title (its static empty until a save is loaded, and again after a quit), and its
+  object is over 127 KiB: every one of these lies past the layout's 0x4000 (WHY§506).
+
+### 503. In the player's object: the parts holder at 0x190 and the character's sheet at 0x580
+
+`2026-11-23` · LIKELY · `#lodestar` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§489
+
+- `character.parts` at 0x190: the address of plain memory that begins with 30 addresses, the first 16 of classed
+  objects. 43 words of the player's object held the address of an object of the same kind at the same offset in both
+  characters, all in its first 2,712 bytes.
+- 0x580 is the address of an object of the class whose table is at 43954088; the save data's object points at that
+  class 8 and 16 bytes in, so `save_data.player_data` is 0x8 or 0x10, and the player's object keeps the sheet too.
+
+### 504. game_state's candidate is a number of the character: 4 for the list's first, 2 for the third
+
+`2026-11-23` · FACT · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§469, WHY§488, S10.1.m
+
+- With two characters the candidate (static 64543992, 0x470) read 4 with the list's first character and 2 with the
+  usual one (2 twice in the twelfth round): a number of the character, steady across sessions, but not its place from
+  the top of the list. Counted from the bottom of five, the first is 4 and the third is 2: it fits the save's slot if
+  the game lists its slots last first. A third load (the last of the list should read 0) is to make it firm.
+- Seven fields in 25 slots read two numbers, so "one field in one slot that reads two numbers" names nothing by itself;
+  a field that changed for the same character between sessions is ruled out by that (one read 1 twice before and 4
+  now).
+
+### 505. A search of a manager's object is asked for only once the game is in the state it is to see
+
+`2026-11-23` · METHOD · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md
+
+- Made when the manager was first named (as the first load began), the character search's first look ran through the
+  loading and saw the manager being filled, and its looks at the title were pointless (no manager there). The next
+  round looks in the world only, after a confirmation.
+
+### 506. Fields past a class's 0x4000 copy are far fields, each read by its own small copy
+
+`2026-11-23` · DECIDED · `#engine` `#gal` `#lodestar` · refs: ARCH§6.3, WHY§502, WHY§489, S10.1.m
+
+- Engine's ruling on Lodestar's question (the characters manager's four places lie at 0x10EF8 to 0x1F1F8, in an object
+  of over 127 KiB, all past ARCH §6.3's `copy_size ≤ 0x4000`): option (a), a field read by its own small copy, not a
+  class entry at an offset (b), which would need two windows or more of 58 KiB ten times a second.
+- In the layout, a field may say `far = true`: its `off` may lie past `copy_size`, up to 0x100000 (1 MiB) into the object;
+  it is read at the object's address plus `off` by a copy of its own size, at most 32 bytes (the whole numbers, `f32`,
+  `bool8`, `bit`, `bits`, `ptr`, `handle`, `vec3f` and `dlvector`; never `utf16[n]`, `mat4f` or `array`). A class whose
+  fields are all far may have `copy_size = 0`. Each far read counts against the tick's reads as any other copy.
+- Lodestar makes both sides, the layout's schema and lint (en-gal's layout.cpp) and ErBackend's groups reading far
+  fields, with tests on the fake world; Engine reviews, merges and adds ARCH §6.3's dated note.

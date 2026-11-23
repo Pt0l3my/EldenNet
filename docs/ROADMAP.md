@@ -1150,6 +1150,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     saves, and the character search (main_player, the near list, the player set, the player's parts, player_data's
     pointer), with the owner's agreement to its reading (O105's fourth note). Package 0.1.0-lodestar.17, awaiting the
     owner's run.
+    The thirteenth round reviewed the same day (WHY§502 to §505): the characters manager's main_player, near list and
+    player set, the player's parts holder and the sheet found as leads (LIKELY; not in gal/). The manager's places lie
+    past the layout's 0x4000: they are far fields, each read by its own small copy (Engine's ruling, WHY§506), the
+    layout's and the backend's sides by Lodestar. game_state: the candidate reads 4 and 2 for two characters; a third
+    load is to settle it. Next: the fourteenth round (the parts and the moving numbers by invariant).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
