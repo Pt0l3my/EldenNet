@@ -1521,7 +1521,9 @@ struct StateSearch::Candidate {
   std::uint8_t kept = 0;           // fields kept after the second pass
   std::array<std::uint16_t, kKept> offset{};
   std::array<std::uint8_t, kKept> value{};
-  std::array<std::uint8_t, kKept> state{};  // 1: read a small number at the second pass; 2: -1 again; 3: the same again
+  std::array<std::uint8_t, kKept> again{};  // what it read at the fourth pass
+  std::array<std::uint8_t, kKept> state{};  // 1: read a small number at the second pass; 2: -1 again; 3: a small
+                                            // number again (the same save's, or another save's)
 };
 
 StateSearch::StateSearch(std::uint64_t base, std::vector<std::uint32_t> slots, const ByteSource* image)
@@ -1638,8 +1640,9 @@ bool StateSearch::step(const proto::GameThread& gt, GuardedReader& reader, std::
     for (std::size_t k = 0; k < c.kept; ++k) {
       if (c.state[k] != pass - 1 || c.offset[k] / 4u >= fields) continue;
       const std::uint32_t v = field(c.offset[k] / 4u);
-      const bool holds = pass == 2 ? v == 0xFFFFFFFFu : v == c.value[k];
+      const bool holds = pass == 2 ? v == 0xFFFFFFFFu : v <= kSmall;
       if (holds) {
+        if (pass == 3) c.again[k] = static_cast<std::uint8_t>(v);
         c.state[k] = static_cast<std::uint8_t>(pass);
         any = true;
       }
@@ -1670,16 +1673,36 @@ StateFound StateSearch::found() const {
     out.looks.push_back(look);
   }
   if (out.passes < kPasses) return out;  // the candidates are the stepping thread's until the last pass is done
+  // A hit's field, as the object's address and the offset: several slots may keep one object's address, and then
+  // their hits are one field. `same_as` numbers the fields among the listed hits; the differing ones are counted
+  // over all.
+  std::vector<std::uint64_t> fields, differing;
   for (const Candidate& c : candidates_) {
     if (!c.alive) continue;
-    bool hit = false;
+    bool hit = false, differs = false;
     for (std::size_t k = 0; k < c.kept; ++k) {
       if (c.state[k] != 3) continue;
       hit = true;
-      if (out.hits.size() < kMaxHits) out.hits.push_back(StateHit{c.slot, c.offset[k], c.value[k], 0});
+      const std::uint64_t field = c.address + c.offset[k];
+      if (c.value[k] != c.again[k]) {
+        differs = true;
+        if (std::find(differing.begin(), differing.end(), field) == differing.end()) differing.push_back(field);
+      }
+      if (out.hits.size() >= kMaxHits) continue;
+      auto known = std::find(fields.begin(), fields.end(), field);
+      if (known == fields.end()) known = fields.insert(fields.end(), field);
+      StateHit h;
+      h.rva = c.slot;
+      h.offset = c.offset[k];
+      h.value = c.value[k];
+      h.again = c.again[k];
+      h.same_as = static_cast<std::uint32_t>(known - fields.begin());
+      out.hits.push_back(h);
     }
     out.slots_hit += hit ? 1 : 0;
+    out.slots_differ += differs ? 1 : 0;
   }
+  out.fields_differ = static_cast<std::uint32_t>(differing.size());
   return out;
 }
 

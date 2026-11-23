@@ -812,7 +812,7 @@ bool complete(const Found& found) {
   return !a.pattern || a.only_shape == 0;
 }
 
-// ---- The report: schema 13, kind `lodestar`. No key takes a pattern, and there is no free string. ----
+// ---- The report: schema 14, kind `lodestar`. No key takes a pattern, and there is no free string. ----
 
 namespace {
 
@@ -900,11 +900,16 @@ constexpr auto kKeys = std::to_array<Key>({
     // The state search (in game)
     O("state"), B("title_clean"), AU("alive"), U("fields_after_title"), U("fields_after_world"),
     U("fields_after_again"), AO("state_hits"), U("value"), U("slots_hit"), AO("looks"), U("took_ms"), B("through"),
-    B("overrun"),
+    B("overrun"), U("again"), U("same_as"), U("slots_differ"), U("fields_differ"),
+    // The character search (in game)
+    O("chars"), U("manager_bytes"), U("pointer_words"), U("targets_read"), B("targets_cut"), U("characters"),
+    U("players"), AO("char_pointers"), B("player"), AO("lists"), B("three"), U("chr_at"), U("elements"),
+    B("has_player"), B("has_distance"), U("distance_at"), AO("sets"), U("player_bytes"), U("members_total"),
+    AO("player_members"), U("save_bytes"), U("save_members_total"), AO("save_members"),
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 13, kKeys};
+constexpr report::Vocabulary kVocabulary{"lodestar", 14, kKeys};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -1528,13 +1533,96 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     w.number("fields_after_world", f.fields_after_world);
     w.number("fields_after_again", f.fields_after_again);
     w.number("slots_hit", f.slots_hit);
+    w.number("slots_differ", f.slots_differ);
+    w.number("fields_differ", f.fields_differ);
     w.begin_array("state_hits");
     for (const StateHit& h : f.hits) {
       w.begin_object();
       w.number("rva", h.rva);
       w.number("offset", h.offset);
       w.number("value", h.value);
+      w.number("again", h.again);
+      w.number("same_as", h.same_as);
       w.number("sites", h.sites);
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
+
+  if (found.chars) {
+    const CharFound& f = *found.chars;
+    const auto members = [&](std::string_view name, const std::vector<CharMember>& list) {
+      w.begin_array(name);
+      for (const CharMember& m : list) {
+        w.begin_object();
+        w.number("offset", m.offset);
+        w.number("vtable", m.vtable);
+        w.number("pointers", m.pointers);
+        w.number("classed", m.classed);
+        w.end_object();
+      }
+      w.end_array();
+    };
+    w.begin_object("chars");
+    w.number("rva", f.rva);
+    w.number("asked", f.asked);
+    w.number("passes", f.passes);
+    w.boolean("overrun", f.overrun);
+    w.begin_array("looks");
+    for (const CharLook& l : f.looks) {
+      w.begin_object();
+      w.number("mark", l.mark);
+      w.boolean("through", l.through);
+      w.boolean("overrun", l.overrun);
+      w.boolean("cut", l.cut);
+      w.number("took_ms", l.took_ms);
+      w.number("reads", l.reads);
+      w.number("manager_bytes", l.manager_bytes);
+      w.number("pointer_words", l.pointer_words);
+      w.number("targets_read", l.targets_read);
+      w.boolean("targets_cut", l.targets_cut);
+      w.number("characters", l.characters);
+      w.number("players", l.players);
+      w.begin_array("char_pointers");
+      for (const CharPointer& c : l.pointers) {
+        w.begin_object();
+        w.number("offset", c.offset);
+        w.boolean("player", c.player);
+        w.end_object();
+      }
+      w.end_array();
+      w.begin_array("lists");
+      for (const CharList& c : l.lists) {
+        w.begin_object();
+        w.number("offset", c.offset);
+        w.number("bytes", c.bytes);
+        w.boolean("three", c.three);
+        w.number("stride", c.stride);
+        w.number("chr_at", c.chr_at);
+        w.number("elements", c.elements);
+        w.number("characters", c.characters);
+        w.boolean("has_player", c.has_player);
+        w.boolean("has_distance", c.has_distance);
+        w.number("distance_at", c.distance_at);
+        w.end_object();
+      }
+      w.end_array();
+      w.begin_array("sets");
+      for (const CharSet& c : l.sets) {
+        w.begin_object();
+        w.number("offset", c.offset);
+        w.number("chr_at", c.chr_at);
+        w.number("vtable", c.vtable);
+        w.end_object();
+      }
+      w.end_array();
+      w.number("player_bytes", l.player_bytes);
+      w.number("members_total", l.members_total);
+      members("player_members", l.members);
+      w.number("save_bytes", l.save_bytes);
+      w.number("save_members_total", l.save_members_total);
+      members("save_members", l.save_members);
       w.end_object();
     }
     w.end_array();

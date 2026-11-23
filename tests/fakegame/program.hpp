@@ -35,6 +35,8 @@ struct Options {
   bool field_mirror = false;           // a second word of the data holds the FieldPlot's address (a copy of one address)
   bool slot_by_state = false;          // the run warden's save slot reads -1 outside the world (as the game's does, by
                                        // our notes) and 2 in it; without this it reads 2 always
+  std::uint32_t first_slot = 2;        // with slot_by_state: the slot it reads in the world before it goes back to its
+                                       // title (another save was loaded first); after that it reads 2
   std::uint32_t retitle_at_s = 0;      // seconds into the world at which the game goes back to its title, once; 0 never
   std::uint32_t retitle_for_s = 10;    // and how long it stays there before it loads the world again
   std::uint32_t clock_rate = 60;       // game seconds a second of real time in the world (a game minute a second)
