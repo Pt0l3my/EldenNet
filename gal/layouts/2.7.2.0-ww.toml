@@ -15,8 +15,15 @@
 #   went round four times with the hours stepping beside them, and in the seventh the hour went to 12 and to 20 when
 #   the owner let time pass; 113 instructions refer to the static. Every entry is still a lead: nothing is confirmed
 #   before S0-A and the self-tests.
-# The classes, fields, enums, params and self-test ids are later rounds' to find (L6), and are left out. A release build
-# refuses this file (every entry a lead).
+# - the event flags' fields (step L6; the ninth and tenth read-only rounds, 2026-11-23): in the store (event_flags)
+#   the divisor (1,000) 28 bytes in, the holder of the blocks 40 bytes in and the tree's head 56 bytes in; in a record
+#   of the tree (flag_node, 64 bytes) the three links, the key (the flags' group) 32 bytes in, the mode (1 in all
+#   11,928 records) 40 bytes in and the block's index 48 bytes in. A block is 125 bytes at the holder plus its index
+#   times 125. The tree was read whole in two sessions; it is ordered by the key with the first link the smaller
+#   side; and for every bit seen to flip where the owner did something, the way from the head's parent down by the
+#   key arrived at the record that names the bit's block. All of it is a lead.
+# The other classes, fields, enums, params and self-test ids are later rounds' to find, and are left out. A release
+# build refuses this file (every entry a lead).
 schema = 2
 build = "2.7.2.0-ww"
 derived_from = "probe"
@@ -173,3 +180,24 @@ count = 168
 found_by = ["table"]
 checks = ["placement"]
 status = "lead"
+
+# The event flags' store and the records of its tree (the ninth and tenth read-only rounds, packages
+# 0.1.0-lodestar.12 and .13; docs/ops/probes/2026-11-22-l5.md). The store is the object behind item event_flags.
+[class.event_flags]
+copy_size = 0x48
+status = "lead"
+[class.event_flags.fields]
+divisor = { off = 0x1C, ty = "u32", group = "flags" }
+map = { off = 0x38, ty = "dlmap", group = "flags" }
+holder_base = { off = 0x28, ty = "ptr", group = "flags" }
+
+[class.flag_node]
+copy_size = 0x40
+status = "lead"
+[class.flag_node.fields]
+left = { off = 0x0, ty = "ptr", group = "flags" }
+parent = { off = 0x8, ty = "ptr", group = "flags" }
+right = { off = 0x10, ty = "ptr", group = "flags" }
+key = { off = 0x20, ty = "u32", group = "flags" }
+mode = { off = 0x28, ty = "u32", group = "flags" }
+value = { off = 0x30, ty = "u64", group = "flags" }
