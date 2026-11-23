@@ -2845,6 +2845,8 @@ def check_s0_pkg(run, missing):
             "s0d-crash": {("crashes_recorded", None): "pass"},
         }[word]
         verdict = "pass" if word == "s0b" and not missing else "incomplete"
+        if verdict == "pass" and [k for k, x in got.items() if x["status"] == "fail"] == [("task_p99_us", None)]:
+            verdict = "fail"  # the task's p99 is Wine's on a shared machine here, as check_s0 allows
         need(rep is not None and rep["verdict"] == verdict, "spike-report %s: exit %s %s %s" % (
             report_spike, code, so[-400:], rep and rep["verdict"]), failures)
         for key, status in want_rules.items():
