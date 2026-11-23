@@ -1467,6 +1467,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     owner's go-ahead: the menu's search in game finds every space's settings, each named by its space and opened on
     its home page with its row revealed, as the browser view's already did. No change of ABI or protocol, and nothing
     for EldenNet to change (GraceUI's docs/eldennet-changes.md §58).
+- ak The init's step readable from outside, for a stalled start (GraceUI 0.2.24) [done]
+  - refs: GraceUI:D220, GraceUI:D175, WHY§467, WHY§255
+  - gives: built on 2026-11-23 (GraceUI feat/foundations 79c1c24): the init thread sets a step before each part,
+    read through GraceUI_Test_InitStep in the test build and written by the spike observer as init_step;
+    report.py names it when the host never hooked, and its movement row now says S10.1.m. No change of ABI or
+    protocol (GraceUI's docs/eldennet-changes.md §59).
 
 ### S11.3 EldenNet v0.2
 

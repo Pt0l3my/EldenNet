@@ -489,6 +489,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 464 | 2026-11-23 | A search that must end inside a session gets the searches' whole share until it is through | METHOD | #lodestar |
 | 465 | 2026-11-23 | The menu's frame-cost check in GraceUI's harness is noisy on a four-core container | FACT | #graceui #harness |
 | 466 | 2026-11-23 | The layout has a field type for a run of bits in a word; the clock's two fields and the play time enter it as leads | DECIDED | #lodestar #gal |
+| 467 | 2026-11-23 | Where a stalled GraceUI init stops: a step set before each part, readable from outside | METHOD | #graceui #spike |
 
 ## Entries
 
@@ -7337,3 +7338,13 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   a range lies within what the run holds; refused in a param row. A group takes it wherever it takes a whole number.
 - `world_clock` (hour and minute, the word at 0x8, shifts 34 and 39, widths 5 and 6) and `save_data` (the play time, a
   u32 at 0xA0) enter the build's layout as leads (engine a5efb98, by Lodestar; ARCH §6.3's dated note).
+
+### 467. Where a stalled GraceUI init stops: a step set before each part, readable from outside
+
+`2026-11-23` · METHOD · `#graceui` `#spike` · refs: GraceUI:D220, GraceUI:D175, WHY§255, S11.2.ak
+
+- GraceUI's log is drained by its init thread, so a stall before the install left only host=started (package case A2's
+  one stall under load: killed at 240 s, install_runs 0).
+- The init now sets a step before each part (fonts, the game's window, Direct3D, the hook targets, the input targets,
+  the install, hooked), read through GraceUI_Test_InitStep, written by the spike observer as init_step and named by
+  report.py when the host never hooked. A later stall says where it stopped.
