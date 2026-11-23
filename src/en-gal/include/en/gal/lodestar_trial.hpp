@@ -412,7 +412,10 @@ class TreeRead {
   void settle(const Watch::Live& live);
   [[nodiscard]] bool settled() const noexcept { return settled_; }
 
-  [[nodiscard]] TreeFound found(std::span<const Flip> flips) const;
+  // `index_field`: where a record keeps its block's index, where a layout says so (its offset in the record): a
+  // join by index then looks there alone. Without it, in any field but the key.
+  [[nodiscard]] TreeFound found(std::span<const Flip> flips,
+                                std::optional<std::uint32_t> index_field = std::nullopt) const;
 
  private:
   struct Record {

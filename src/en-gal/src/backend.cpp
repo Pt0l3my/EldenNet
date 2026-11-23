@@ -923,6 +923,31 @@ PhaseA ErBackend::phase_a(const GameThread& gt) {
   return PhaseA::Passed;
 }
 
+ErBackend::FlagsAlone ErBackend::flags_alone(const GameThread& gt, proto::WorldSnapshot& out) {
+  FlagsAlone done;
+  out.flags.reset();
+  if (inert_ || !book_.live(Group::Flags)) return done;
+  reader_.begin_tick();
+  book_.begin_tick();
+  tick_.fill(kUnread);
+  read_statics(gt);
+  read_flags(gt, out);
+  done.read = out.flags.has_value();
+  // The known flag, as phase B reads it: through the same tree, one byte of its block.
+  if (const auto flags = item_object(gt, Group::Flags, Item::EventFlags)) {
+    if (const auto block = flag_block(gt, *flags, kFlagKnownSet / kFlagDivisor)) {
+      std::array<std::byte, 1> byte{};
+      const std::uint32_t at = (kFlagKnownSet % kFlagDivisor) / 8;
+      if (reader_.copy_into(gt, Group::Flags, *block + at, byte)) {
+        done.known = ((static_cast<unsigned>(byte[0]) >> (7 - kFlagKnownSet % 8)) & 1u) != 0;
+      }
+    } else if (!reader_.spent()) {
+      done.known = false;  // no such group: its flags read false (ARCH §6.9)
+    }
+  }
+  return done;
+}
+
 void ErBackend::phase_b(const GameThread& gt, const proto::WorldSnapshot& out) {
   // session: solo play reads Host and the own world, with one player in the set.
   if (book_.live(Group::Session)) {

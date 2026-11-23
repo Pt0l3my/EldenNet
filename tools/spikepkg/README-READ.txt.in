@@ -8,18 +8,19 @@ so on), without knowing which is which. This round starts the game with EldenNet
 the game as it runs, which of those places holds which of the eleven managers EldenNet needs. Then it tries, for a few
 minutes, the way EldenNet v1 will read the game: from a thread of its own, about ten times a second.
 
-This is the tenth such round. The ninth (23 November) read the small tree the game keeps beside its event flags,
-all 11,930 records of it, and with it the bits your confirmations set became flag numbers: round numbers, as flag
-numbers are. It also showed that our own notes were wrong in one detail (a record gives a block's number, not its
-place in bytes), and EldenNet's own flag reader has been corrected to match.
+This is the eleventh such round. The tenth (23 November) confirmed how the game keeps its event flags, in a second
+session: going down the small tree by a flag's number arrived at the right record every time, and the flags' places
+are now in EldenNet's table beside the clock's and the play time's.
 
-This round is the check of that reader. It reads the tree once more, finds again the bits your confirmations set, and
-then goes the way EldenNet will go in play: from the top of the tree down to a flag's record by the flag's number. If
-that way arrives at the same record every time, the flags' places go into the table. It also looks in the flags' own
-object for the two numbers the reader relies on (1,000 flags to a group, 125 bytes to a block).
+Until now the flags were read by this round's own test code. This round lets EldenNet's real reader read them, the
+one that will run in play: it finds the game's places through the table, as EldenNet will at its start, and then reads
+a few flags by their numbers every ten seconds. Two things are compared. The flag that is set in every playthrough
+must read as set. And each bit your confirmations change, which the round finds and numbers as before, must read the
+same through the real reader.
 
-Everything else is as in the ninth round: the same panel, the same eight tasks, about eight minutes in the world, and
-the same reading (the tree: at most 32,768 records of 64 bytes, about 2 MiB, read once).
+Everything else is as in the tenth round: the same panel, the same eight tasks, about eight minutes in the world, and
+the same reading. The real reader's own reads are a handful of small records and one byte for each flag it is asked,
+through the same careful reads; it calls nothing in the game, like everything here.
 
 It has no wide search of the game's memory. As in the seventh round, and within what you agreed to then, it reads
 memory near the event flags' own object: up to 2 MiB from each of at most eight addresses that object keeps and up
@@ -213,6 +214,12 @@ What it does
     numbers (the group's number among them; an address is written as 0), and whether the way down the tree by
     that number arrives at the same record. Nothing else of the records is written. Of the flags' own object it
     reads the first 256 bytes once and writes only where in them the numbers 1,000 and 125 stand.
+  - EldenNet's own reader, from the same thread, every ten seconds: for the flag that is set in every playthrough
+    and for each flag the round has numbered from a bit you changed, it reads the flags' own object, goes down the
+    tree by the flag's group (up to sixteen or so records of 64 bytes), and reads the one byte that holds the
+    flag. It writes each such flag's number, whether it read as set, and whether that agrees with what the round
+    saw. Before that, once, it looks through the game's code as loaded for the places the table names and checks
+    them (the same reading as the round's first pass).
   - Every two seconds it writes lodestar-found.json into %APPDATA%\EldenNet\probe, and lodestar-table.toml when
     another manager is named. If the report ever grows past its limit, it is written without the detail of the
     watched object that has the most, then of the next, and says which were left out. They hold only numbers

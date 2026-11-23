@@ -1342,7 +1342,7 @@ void TreeRead::settle(const Watch::Live& live) {
   }
 }
 
-TreeFound TreeRead::found(std::span<const Flip> flips) const {
+TreeFound TreeRead::found(std::span<const Flip> flips, std::optional<std::uint32_t> index_field) const {
   TreeFound out;
   out.rva = static_rva_;
   out.offset = offset_;
@@ -1443,6 +1443,7 @@ TreeFound TreeRead::found(std::span<const Flip> flips) const {
   // round's counts showed), in a field that is not the key; where no record holds the index, by the block's start
   // in bytes or its address. Then the way a reader goes is tried for that record: from the head's middle link (the
   // root) down by the key, the smaller side as the order says; it must arrive at the same record.
+  const std::size_t only = index_field && *index_field / 4 < kFields ? *index_field / 4 : kFields;
   std::size_t target_before = ~std::size_t{0}, in_target = 0;
   for (const Flip& flip : flips) {
     if (out.joins.size() >= kMaxJoins) break;
@@ -1462,7 +1463,9 @@ TreeFound TreeRead::found(std::span<const Flip> flips) const {
         for (std::size_t f = 6; f < kFields && !hit; ++f) {
           if (f == key || ((r.addresses >> (f / 2)) & 1u) != 0) continue;
           const std::uint32_t v = r.fields[f];
-          if (by_start == 0 && block != 0 && v == block) {  // the first block's index is nothing: not joined so
+          // By index in the layout's own field where there is one: a small index is met by chance in a field of
+          // small marks (the tenth round). The first block's index is nothing: not joined so.
+          if (by_start == 0 && block != 0 && v == block && (only == kFields || f == only)) {
             hit = std::make_pair(TreeMatch::Index, static_cast<std::uint32_t>(f * 4));
           }
           if (by_start == 1 && v != 0 && v == start) {

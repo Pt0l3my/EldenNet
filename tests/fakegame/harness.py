@@ -2385,7 +2385,7 @@ def check_read(result, by_flag=False, events=False, marks=False):
     with open(table) as f:
         draft = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 10, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
+    need(d["report"] == "lodestar" and d["schema"] == 11, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
          failures)
     # Numbers and the catalogue's labels: no name of the fake game's, in either file.
     for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["SaveLedger", "FG::", "Imp", "task_loom", "Fg_"]:
@@ -2515,6 +2515,20 @@ def check_read(result, by_flag=False, events=False, marks=False):
                  joined[0]["values"][0] == 0 and joined[0]["reached"] is True and 1 <= joined[0]["depth"] <= 3,
                  "the tree: %s" % {k: v for k, v in tree.items() if k != "fields"}, failures)
             failures += want(result, "ELDENNET", "read", stage="tree_done", records=4, unreadable=0, capped=0)
+            # EldenNet's own reader on the flags: discovery through the build's layout (a partial pass), the backend
+            # built on it, its flags group read alone on the round's thread. The flag that is set in every
+            # playthrough (100) reads set; and the flag the fake game set (7123), which the round found as a bit
+            # that flipped and gave its number by the tree, reads set through the backend's own way as well.
+            backend = d.get("backend") or {}
+            asked = {f["flag"]: f for f in backend.get("flags", [])}
+            need(backend.get("discovered") is True and backend.get("flags_group") is True and
+                 backend.get("calls", 0) >= 2 and backend.get("reads", 0) >= 2 and backend.get("known_read") is True and
+                 backend.get("known_set") is True and backend.get("tripped") is False and
+                 backend.get("reader_faults") == 0 and 100 in asked and asked[100]["always_set"] is True and
+                 asked[100]["agrees"] is True and 7123 in asked and asked[7123]["expected"] is True and
+                 asked[7123]["valid"] is True and asked[7123]["set"] is True and asked[7123]["agrees"] is True,
+                 "the backend on the flags: %s" % backend, failures)
+            failures += want(result, "ELDENNET", "read", stage="backend", discovered=1, flags_group=1)
         if events:
             # One step more: what the first step's objects point at, watched and swept too.
             deeper = [o for o in watch["watched"] if o["label"] == "event_flags" and o["deeper"]]
@@ -2621,6 +2635,25 @@ def read_clock_gal(gal):
     assert changed != text, "the leads' world_clock line was not found"
     with open(path, "w") as f:
         f.write(changed)
+    # And the build's layout cut down to what the game's holds after step L6: the event flags' store and the tree's
+    # records, no other class. EldenNet's own discovery is then not ready to start, but finds the flags' group, and
+    # the backend reads the flags alone.
+    layouts = os.path.join(gal, "layouts")
+    cut = 0
+    for name in os.listdir(layouts):
+        with open(os.path.join(layouts, name)) as f:
+            lines = f.read().split("\n")
+        keep, out = True, []
+        for line in lines:
+            if line.startswith("["):
+                keep = (not line.startswith("[class.") or line.startswith("[class.event_flags") or
+                        line.startswith("[class.flag_node"))
+                cut += 0 if keep else 1
+            if keep:
+                out.append(line)
+        with open(os.path.join(layouts, name), "w") as f:
+            f.write("\n".join(out))
+    assert cut >= 10, "the layout's classes were not found"
 
 
 def check_read_clock(result):
@@ -2655,6 +2688,16 @@ def check_read_clock(result):
     at = draft.find("[item.world_clock]")
     need(at >= 0 and 'found_by = ["invariant"]' in draft[at:at + 400] and "witnesses = [" in draft[at:at + 400],
          "the draft table's world_clock: %s" % draft[at:at + 300], failures)
+    # EldenNet's own reader through the cut-down layout: discovery made its pass and is not ready to start; the
+    # flags' group is there; the flag that is set in every playthrough reads set, with no fault.
+    backend = d.get("backend") or {}
+    asked = {f["flag"]: f for f in backend.get("flags", [])}
+    need(backend.get("discovered") is True and backend.get("flags_group") is True and backend.get("ready") is False and
+         backend.get("calls", 0) >= 2 and backend.get("reads", 0) >= 2 and backend.get("known_read") is True and
+         backend.get("known_set") is True and backend.get("tripped") is False and
+         backend.get("reader_faults") == 0 and 100 in asked and asked[100]["agrees"] is True,
+         "the backend on the flags, through a layout of the flags alone: %s" % backend, failures)
+    failures += want(result, "ELDENNET", "read", stage="backend", discovered=1, flags_group=1, ready=0)
     failures += check_lines(("ELDENNET", "init", {"state": "ready"}), ("LAUNCHER", "end", {"kind": "clean"}))(result)
     return failures + ready_no_call(result) + en_log_is_clean(result)
 

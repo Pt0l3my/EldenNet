@@ -53,6 +53,7 @@
 #include <utility>
 #include <vector>
 
+#include "en/gal/backend.hpp"
 #include "en/gal/builds.hpp"
 #include "en/gal/derive.hpp"
 #include "en/gal/discovery.hpp"
@@ -85,6 +86,8 @@ constexpr std::size_t kMaxRisingCandidates = std::size_t{1} << 14;
 constexpr std::size_t kFlagHops = 8;            // objects one step on from the flags' store
 constexpr std::size_t kFlagHopsDeeper = 4;      // objects one step more, from each of those
 constexpr std::size_t kFlagHopsDeeperAll = 32;  // and of those in all
+constexpr std::uint64_t kBackendEveryUs = 10'000'000;  // EldenNet's own reader on the flags: every ten seconds
+constexpr std::size_t kBackendFlags = 64;              // flags it is asked for at most
 constexpr std::uint64_t kSearchShareUs = 4'000;  // of each step of the reader's thread, for all the searches together
 
 void state(w::InitState s) {
@@ -250,6 +253,36 @@ class Body final : public en::gal::TaskBody {
       search_steps_.fetch_add(1, std::memory_order_relaxed);
       if (cut) search_cut_.fetch_add(1, std::memory_order_relaxed);
     }
+    // EldenNet's own reader on the flags (WHY§457): the backend's flags group alone, every ten seconds, with the
+    // list of flags T1 last handed over. It reads through this thread's careful reads (asked first), outside the
+    // searches' share: a call takes as long as the tree is deep for each group asked.
+    if (auto* backend = backend_.load(std::memory_order_acquire)) {
+      if (!backend_bound_) {
+        backend_bound_ = true;
+        (void)backend->first_tick(gt, false);
+      }
+      // At once when T1 has a new list, else every ten seconds.
+      const bool fresh = flag_list_.load(std::memory_order_acquire) != nullptr;
+      if (fresh || frame.qpc_now_us - backend_at_us_ >= kBackendEveryUs) {
+        backend_at_us_ = frame.qpc_now_us;
+        if (const FlagList* list = flag_list_.exchange(nullptr, std::memory_order_acq_rel)) {
+          (void)backend->apply(
+              gt, en::proto::GameCommand{en::proto::GameCommand::SetWatchFlags{list->version, list->ids}});
+          flag_count_ = std::min(list->ids->size(), kBackendFlags);
+        }
+        const en::gal::ErBackend::FlagsAlone done = backend->flags_alone(gt, snapshot_);
+        backend_calls_.fetch_add(1, std::memory_order_relaxed);
+        if (done.read) backend_reads_.fetch_add(1, std::memory_order_relaxed);
+        backend_known_.store(done.known ? (*done.known ? 1 : 0) : -1, std::memory_order_relaxed);
+        if (snapshot_.flags) {
+          for (std::size_t i = 0; i < flag_count_; ++i) {
+            const unsigned state = (snapshot_.flags->valid[i] ? 1u : 0u) | (snapshot_.flags->bits[i] ? 2u : 0u);
+            flag_state_[i].store(static_cast<std::uint8_t>(state), std::memory_order_relaxed);
+          }
+          flag_version_.store(snapshot_.flags->watch_version, std::memory_order_release);
+        }
+      }
+    }
     steps_.fetch_add(1, std::memory_order_release);
   }
 
@@ -264,6 +297,31 @@ class Body final : public en::gal::TaskBody {
   void set_watch(lodestar::Watch* watch) noexcept { watch_.store(watch, std::memory_order_release); }
   void set_sweep(lodestar::Sweep* sweep) noexcept { sweep_.store(sweep, std::memory_order_release); }
   void set_tree(lodestar::TreeRead* tree) noexcept { tree_.store(tree, std::memory_order_release); }
+  // EldenNet's own reader: built by T1 over this thread's careful reads, stepped here. A list of flags is handed
+  // over by its address; T1 keeps every list it ever handed over.
+  struct FlagList {
+    std::uint32_t version = 0;
+    std::shared_ptr<const std::vector<std::uint32_t>> ids;
+  };
+  struct FlagsRead {
+    std::uint64_t calls = 0;
+    std::uint64_t reads = 0;
+    int known = -1;             // the known flag at the last call: 1 set, 0 not set, -1 not read
+    std::uint32_t version = 0;  // the list the states belong to
+    std::array<std::uint8_t, kBackendFlags> states{};  // bit 0: valid; bit 1: set
+  };
+  [[nodiscard]] en::gal::SysLayer& careful_sys() noexcept { return quiet_; }
+  void set_backend(en::gal::ErBackend* backend) noexcept { backend_.store(backend, std::memory_order_release); }
+  void set_flag_list(const FlagList* list) noexcept { flag_list_.store(list, std::memory_order_release); }
+  [[nodiscard]] FlagsRead flags_read() const noexcept {
+    FlagsRead out;
+    out.calls = backend_calls_.load(std::memory_order_relaxed);
+    out.reads = backend_reads_.load(std::memory_order_relaxed);
+    out.known = backend_known_.load(std::memory_order_relaxed);
+    out.version = flag_version_.load(std::memory_order_acquire);
+    for (std::size_t i = 0; i < kBackendFlags; ++i) out.states[i] = flag_state_[i].load(std::memory_order_relaxed);
+    return out;
+  }
   [[nodiscard]] const en::gal::GuardedReader& reader() const noexcept { return reader_; }
   [[nodiscard]] const AskFirstCopier& asks() const noexcept { return quiet_.asks(); }
 
@@ -277,6 +335,17 @@ class Body final : public en::gal::TaskBody {
   std::atomic<lodestar::Watch*> watch_{nullptr};
   std::atomic<lodestar::Sweep*> sweep_{nullptr};
   std::atomic<lodestar::TreeRead*> tree_{nullptr};
+  std::atomic<en::gal::ErBackend*> backend_{nullptr};
+  std::atomic<const FlagList*> flag_list_{nullptr};
+  en::proto::WorldSnapshot snapshot_;  // the backend's, of which only the flags are filled
+  bool backend_bound_ = false;
+  std::uint64_t backend_at_us_ = 0;
+  std::size_t flag_count_ = 0;
+  std::atomic<std::uint64_t> backend_calls_{0};
+  std::atomic<std::uint64_t> backend_reads_{0};
+  std::atomic<int> backend_known_{-1};
+  std::atomic<std::uint32_t> flag_version_{0};
+  std::array<std::atomic<std::uint8_t>, kBackendFlags> flag_state_{};
   std::atomic<std::uint64_t> steps_{0};
   std::atomic<std::uint64_t> search_steps_{0};
   std::atomic<std::uint64_t> search_cut_{0};
@@ -297,6 +366,7 @@ class Round {
   explicit Round(Shell& s) : s_(s), folder_(s.paths.data + L"\\probe"), ask_first_(*s.sys) {}
 
   void run(const en::gal::Gated& gated) {
+    gated_ = &gated;
     (void)make_dirs(folder_);
     state(w::InitState::Discover);
     log(Line("read").word("stage", "settle").num("s", s_.settings.probe.settle_s));
@@ -504,6 +574,132 @@ class Round {
             .num("not_committed", search_.not_committed).num("no_access", search_.no_access)
             .num("rising_candidates", rising_->candidates()).num("member_tables", member_tables)
             .num("ms", since_ms()));
+  }
+
+  // EldenNet's own reader on the flags (WHY§457): discovery through the build's layout as it stands (the table and
+  // the flags' fields; a partial pass, on a thread of our own: it calls nothing in the game), and the backend built
+  // on it over T2's careful reads. Once, when the searches start.
+  void prepare_backend() {
+    backend_tried_ = true;
+    lodestar::BackendFound b;
+    const auto text = [&](const std::string& name) {
+      std::wstring wide(name.begin(), name.end());  // gal/'s names are ASCII
+      for (wchar_t& c : wide) {
+        if (c == L'/') c = L'\\';
+      }
+      return read_text(s_.paths.gal + L"\\" + wide, 256u << 10);
+    };
+    const std::optional<std::string> layout = text(gated_->profile.entry().layout);
+    const std::optional<std::string> recipes = text("recipes.toml");
+    std::optional<std::string> patterns = text("patterns.toml");
+    if (!patterns) patterns = "schema = 1\n";
+    if (!layout) {
+      log(Line("read").word("stage", "backend").flag("layout", false), LogLevel::Warn);
+      backend_found_ = b;
+      return;
+    }
+    en::gal::DiscoveryOptions options;
+    if (recipes) options.recipes = *recipes;
+    if (const std::optional<std::string> ids = text("ids.toml")) options.ids = *ids;
+    options.frame = en::gal::FrameProvider::OwnThread;
+    options.mode = en::gal::LayoutMode::Dev;
+    options.partial = true;
+    const std::uint64_t t0 = since_ms();
+    auto found = en::gal::discover(*s_.sys, *gated_, *patterns, *layout, options);
+    if (!found) {
+      log(Line("read").word("stage", "backend").flag("discovered", false).num("problems", found.error().size()),
+          LogLevel::Warn);
+      backend_found_ = b;
+      return;
+    }
+    discovery_ = new en::gal::Discovery(std::move(*found));  // lives for the process
+    const en::gal::DiscoveryReport& r = discovery_->report();
+    b.discovered = true;
+    b.flags_group = discovery_->has(en::proto::Group::Flags);
+    b.ready = r.ready;
+    for (const en::gal::ItemResult& item : r.items) b.items += item.status == en::gal::ItemStatus::Resolved ? 1 : 0;
+    b.table_items = r.table_items;
+    b.table_refused = r.table_refused;
+    if (const en::gal::FieldLayout* holder = discovery_->bound().field(en::gal::roles::Fld::HolderBase)) {
+      holder_offset_ = holder->off;
+    }
+    if (const en::gal::FieldLayout* value = discovery_->bound().field(en::gal::roles::Fld::NodeValue)) {
+      index_field_ = value->off;
+    }
+    if (b.flags_group && body_ != nullptr) {
+      en::gal::BackendOptions o;
+      o.budget = en::gal::ReadBudget{8192, 4u << 20};
+      backend_ = new en::gal::ErBackend(body_->careful_sys(), *discovery_, o);  // lives for the process
+      body_->set_backend(backend_);
+    }
+    backend_found_ = b;
+    log(Line("read").word("stage", "backend").flag("discovered", true).flag("flags_group", b.flags_group)
+            .flag("ready", b.ready).num("items", b.items).num("table", b.table_items)
+            .num("table_refused", b.table_refused).num("ms", since_ms() - t0));
+  }
+
+  // The flags the backend is asked for, and how its answers compare: the flag that is set in every playthrough,
+  // then each flag a marked flip of the holder's stretch was joined to (its number from the record's key and the
+  // bit's place), with what the sweep saw the bit become.
+  void compare_backend() {
+    if (!backend_found_) return;
+    lodestar::BackendFound b = *backend_found_;
+    if (backend_ == nullptr || body_ == nullptr) {
+      found_.backend = b;
+      return;
+    }
+    std::vector<std::uint32_t> ids = {en::gal::kFlagKnownSet};
+    std::vector<bool> expected = {true};
+    if (found_.tree && found_.tree->key_field != 0 && found_.sweep && holder_offset_) {
+      // What each bit of the holder's stretch became, by its last flip around a mark.
+      std::map<std::pair<std::uint32_t, std::uint32_t>, bool> became;
+      for (const lodestar::SweepTarget& t : found_.sweep->targets) {
+        if (t.deeper || t.offset != *holder_offset_) continue;
+        for (const lodestar::MarkFlip& m : t.mark_flips) became[{m.flip.offset, m.flip.bit}] = m.flip.set;
+      }
+      for (const lodestar::TreeJoin& j : found_.tree->joins) {
+        if (j.target != *holder_offset_ || j.match != lodestar::TreeMatch::Index || !j.reached) continue;
+        if (ids.size() >= kBackendFlags) break;
+        const std::uint64_t group = j.values[found_.tree->key_field / 4];
+        const std::uint32_t place = (j.flip % lodestar::TreeRead::kBlock) * 8 + (7 - j.bit);
+        const std::uint64_t id = group * en::gal::kFlagDivisor + place;
+        const auto was = became.find({j.flip, j.bit});
+        if (id > 0xFFFFFFFFull || was == became.end()) continue;
+        if (std::find(ids.begin(), ids.end(), static_cast<std::uint32_t>(id)) != ids.end()) continue;
+        ids.push_back(static_cast<std::uint32_t>(id));
+        expected.push_back(was->second);
+      }
+    }
+    if (ids != flag_ids_) {
+      // A new list: handed to T2 by its address, and kept for the process.
+      flag_ids_ = ids;
+      auto* list = new Body::FlagList{++flag_version_, std::make_shared<const std::vector<std::uint32_t>>(ids)};
+      body_->set_flag_list(list);
+      log(Line("read").word("stage", "backend_flags").num("flags", ids.size()).num("version", flag_version_));
+    }
+    flag_expected_ = expected;
+    const Body::FlagsRead read = body_->flags_read();
+    b.calls = read.calls;
+    b.reads = read.reads;
+    b.known_read = read.known >= 0;
+    b.known_set = read.known == 1;
+    b.tripped = !backend_->book().live(en::proto::Group::Flags);
+    b.reader_faults = backend_->reader().faults(en::gal::FaultKind::Copy);
+    if (read.version == flag_version_ && read.version != 0) {
+      // The answers to the list as it stands now: kept until a later list is answered.
+      backend_flags_.clear();
+      for (std::size_t i = 0; i < flag_ids_.size() && i < kBackendFlags; ++i) {
+        lodestar::BackendFlag f;
+        f.flag = flag_ids_[i];
+        f.known = i == 0;
+        f.expected = flag_expected_[i];
+        f.valid = (read.states[i] & 1u) != 0;
+        f.set = (read.states[i] & 2u) != 0;
+        backend_flags_.push_back(f);
+      }
+    }
+    b.flags = backend_flags_;
+    found_.backend = b;
   }
 
   // The slot search for one lead that has a class of its name and no static yet: made here, stepped on T2, read back
@@ -882,12 +1078,14 @@ class Round {
         for (const lodestar::SweepTarget* stretch : stretches) {
           const lodestar::SweepTarget& t = *stretch;
           if (t.deeper || t.retired) continue;
+          // Only the holder's stretch holds flags (the layout says which it is): the others' joins are chance.
+          if (holder_offset_ && t.offset != *holder_offset_) continue;
           for (const lodestar::MarkFlip& m : t.mark_flips) {
             flips.push_back(lodestar::TreeRead::Flip{m.mark, t.offset, m.flip.offset, m.flip.bit, t.address});
           }
         }
       }
-      found_.tree = tree_->found(flips);
+      found_.tree = tree_->found(flips, index_field_);
       // Where the store keeps the flags' divisor (1,000) and a block's size (125), if it keeps them: its first 256
       // bytes read once here on T1, asked first; only the offsets of those two numbers are kept. EldenNet's own
       // reader checks the divisor before it trusts the tree.
@@ -913,6 +1111,7 @@ class Round {
       found_.tree->divisor_at = divisor_at_;
       found_.tree->block_at = block_at_;
     }
+    compare_backend();
     // A report the writer refuses (too large, most likely: a long round's watch) is written again smaller, a step
     // at a time: the watched object with the most words loses them (and says so), then the next, the flags' objects
     // last (theirs are what this round is after); with no words left, the sweep's flips go, the longest list
@@ -925,7 +1124,7 @@ class Round {
                 .flag("too_large", text.error().problem.find("larger") != std::string::npos),
             LogLevel::Error);
       }
-      if (!found_.watch && !found_.sweep && !found_.tree) break;
+      if (!found_.watch && !found_.sweep && !found_.tree && !found_.backend) break;
       lodestar::WatchObject* most = nullptr;
       if (found_.watch) {
         const auto ahead = [&](const lodestar::WatchObject& a, const lodestar::WatchObject& b) {
@@ -967,8 +1166,10 @@ class Round {
         found_.watch.reset();
       } else if (found_.sweep) {
         found_.sweep.reset();
-      } else {
+      } else if (found_.tree) {
         found_.tree.reset();
+      } else {
+        found_.backend.reset();
       }
       text = lodestar::write_report(found_);
     }
@@ -994,6 +1195,7 @@ class Round {
         if (!searching_ && (trial_->found().world_readings != 0 || since_ms() - trial_at_ms_ >= kSearchAfterMs)) {
           start_searches();
         }
+        if (searching_ && !backend_tried_) prepare_backend();
         if (searching_) slot_searches();
       }
       // The tester's marks (the launcher's panel: a task confirmed as done): the sweep keeps what flipped around
@@ -1080,6 +1282,17 @@ class Round {
   bool play_time_way_ = false;
   lodestar::Sweep* sweep_ = nullptr;
   lodestar::TreeRead* tree_ = nullptr;
+  const en::gal::Gated* gated_ = nullptr;           // the gate's, which lives for the process
+  en::gal::Discovery* discovery_ = nullptr;         // EldenNet's own, through the build's layout
+  en::gal::ErBackend* backend_ = nullptr;           // built on it; stepped on T2
+  bool backend_tried_ = false;
+  std::optional<lodestar::BackendFound> backend_found_;
+  std::optional<std::uint32_t> holder_offset_;      // where the store keeps the holder, by the layout
+  std::optional<std::uint32_t> index_field_;        // where a record keeps its block's index, by the layout
+  std::vector<std::uint32_t> flag_ids_;             // the flags the backend is asked for
+  std::vector<bool> flag_expected_;
+  std::uint32_t flag_version_ = 0;
+  std::vector<lodestar::BackendFlag> backend_flags_;
   bool store_looked_ = false;
   std::vector<std::uint32_t> divisor_at_;  // offsets in the flags' store that hold 1,000
   std::vector<std::uint32_t> block_at_;    // and 125

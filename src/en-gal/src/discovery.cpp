@@ -161,6 +161,7 @@ Expected<Discovery, SchemaErrors> discover(SysLayer& sys, const Gated& gated, st
                                      [&](const auto& s) { return s.first == info.label; });
     if (!slotted) required.push_back(info.label);
   }
+  if (options.partial) required.clear();
   auto patterns = parse_patterns(patterns_text, required);
   if (!patterns) return Unexpected{std::move(patterns.error())};
 

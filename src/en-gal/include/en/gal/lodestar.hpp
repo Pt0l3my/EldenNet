@@ -557,6 +557,32 @@ struct TreeFound {
   std::vector<TreeJoin> joins;     // one a flip, at most 24 a stretch and 48 in all
 };
 
+// EldenNet's own reader on the flags (the eleventh read-only round; WHY§457): discovery through the build's layout
+// as it stands, the backend built on it, and its flags group read alone on the round's reading thread; compared
+// with what the round's own tree reader and sweep found. A flag is written by its number.
+struct BackendFlag {
+  std::uint32_t flag = 0;   // the flag's number
+  bool expected = false;    // what the sweep saw the bit become (the known flag: set)
+  bool known = false;       // this is the flag that is set in every playthrough, not one from a mark
+  bool valid = false;       // the backend found the flag's group
+  bool set = false;         // what the backend read
+};
+struct BackendFound {
+  bool discovered = false;   // discovery read the build's files and made its pass
+  bool flags_group = false;  // it found everything the flags group asks for
+  bool ready = false;        // it found enough to start (not expected: only the flags are placed)
+  std::uint32_t items = 0;   // items resolved, of those the design asks for
+  std::uint32_t table_items = 0;
+  std::uint32_t table_refused = 0;
+  std::uint64_t calls = 0;   // times the flags group was read alone
+  std::uint64_t reads = 0;   // of those, the ones that gave a frame
+  bool known_read = false;   // the known flag was read at the last call
+  bool known_set = false;
+  bool tripped = false;      // the flags group's breaker tripped
+  std::uint64_t reader_faults = 0;
+  std::vector<BackendFlag> flags;  // the known flag first, then the marks' flags; at most 64
+};
+
 // A static found by what its object holds (proposal 0005 §6.1's `invariant`): the slot of the data behind which one
 // field rose by the clock in nearly every pass of the rising search, far ahead of every other. The code's references
 // to the slot are its sites and witnesses.
@@ -587,6 +613,7 @@ struct Found {
   std::optional<WatchFound> watch;
   std::optional<SweepFound> sweep;
   std::optional<TreeFound> tree;
+  std::optional<BackendFound> backend;
   std::vector<InvariantFound> invariants;
 };
 
