@@ -1,4 +1,4 @@
-# Lodestar's status, 23 November 2026 (twelve read-only rounds run, the thirteenth built; step L6's three subjects placed; the game's state has one candidate; the pointers and lists begun)
+# Lodestar's status, 23 November 2026 (thirteen read-only rounds run; step L6's three subjects placed; the characters manager's pointers and lists found as leads; the game's state has one candidate, read as 4 and 2 for two characters)
 
 For the next sitting of the Lodestar session, or a new session that takes it over. Read [HANDOVER.md](HANDOVER.md)
 first; this file adds only where Lodestar's own work stands.
@@ -29,7 +29,7 @@ first; this file adds only where Lodestar's own work stands.
 | The tenth read-only run, and the reader's correction (2026-11-23; the same record, "The tenth round in game") | package 0.1.0-lodestar.13; engine 6d56207, the flags' fields at e864140 | **Done, reviewed.** The reader's way down the tree arrived at the record of every joined flip; the store keeps the divisor 28 bytes in; the flags' fields are in the layout as leads. L6's three subjects are placed |
 | The eleventh read-only run: EldenNet's own reader on the flags (2026-11-23; the same record, "The eleventh round in game") | package 0.1.0-lodestar.14; engine 998d078 | **Done, reviewed.** `discover` through the build's layout works on the game (a partial pass, 19 ms, 12 items from the table, none refused); `ErBackend::flags_alone` read the flag set in every playthrough as set, 44 frames, no fault. The marked flags were not compared: the tree's walk was 47 records short when the owner quit |
 | The twelfth round's build: the game's state by what it holds at the title and in the world (roadmap S10.1.m) | package 0.1.0-lodestar.16; engine 082127f | **Done, reviewed** (the record's "The twelfth round in game"). The backend read the four flags the owner changed, and the always-set one, as set: five of five agree. The state search ran clean (four looks, none overrun) and hit 15 slots, so it named none; by the owner's word (the character is third in the list of saves, so slot 2) one hit alone fits: static 64543992, the 32-bit field 1,136 bytes in (LIKELY). Its candidates were only the 1,397 slots live at the title |
-| The thirteenth round's build: the game's state by two characters, and the character search (roadmap S10.1.m) | package 0.1.0-lodestar.17; engine 63122b6 | **Built, not yet run by the owner.** The state search keeps both numbers and names the slot whose field read two; `CharSearch` reads the characters manager, its lists, the player's object and the save data's, in four looks; nine tasks, three marks |
+| The thirteenth read-only run: the game's state by two characters, and the character search (roadmap S10.1.m; the record's "The thirteenth round in game") | package 0.1.0-lodestar.17; engine 63122b6 | **Done, reviewed.** In the characters manager (absent at the title; its object over 127 KiB): the main player's word at 0x1E508, the near list at 0x1F1E8 (16-byte elements, the address first, a fraction at 8), two lists of addresses at 0x1F1C8 and 0x1F218, the player set at 0x10EF8. In the player's object: the holder of parts at 0x190, the character's sheet at 0x580 (the class the save data points at 8 and 16 bytes in). All LIKELY, none in `gal/`: the manager's places lie past the layout's 0x4000 cap (Engine's to rule). The game's state: the candidate read 4 and 2 for the list's first and third character, which fits a slot only if the list runs last slot first; the round named nothing |
 | The layout's bit-run type, and the clock's and the play time's fields | engine a5efb98 | **Done.** `bits{word, shift, width}` in en-gal's layout (ARCH §6.3's dated note); `world_clock.hour`, `world_clock.minute` and `save_data.play_time` in the build's layout as leads |
 | Digests | — | Moved to L7 (WHY§311): v1 calls no function of the game |
 | The text for ARCH and DESIGN (proposal §15) | `docs/lodestar` | Written as dated notes and changed rows: ARCH §1.2, §3.2, §6.2, §6.3, §6.4, §6.10; DESIGN §2.1, §4.2, §16.1 |
@@ -56,22 +56,19 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The owner's thirteenth read-only run** (package 0.1.0-lodestar.17, engine 63122b6; built, not yet run; the
-   record's "What was changed for the thirteenth round"). The owner agreed to its new reading and to loading the
-   first character of the list at the first load. When the files come back:
-   - `state`: `slots_differ` 1 and `fields_differ` 1, with the hit at static 64543992, 1,136 bytes in, reading 0
-     and then 2: the round then writes `game_state` into its draft table by the invariant recipe, and
-     `[class.game_state]` with `save_slot` (i32 at 0x470) goes into the layout. If the owner loaded the usual
-     character twice the fifteen slots come again, and it stays LIKELY;
-   - `chars`: four looks, none overrun or cut, each world look within its minute and a half. In the world looks:
-     the words with `player` true (`main_player`; note the offset against the layout's cap of 0x4000 a class);
-     the `lists` (the near list: its element size, the address's place, `has_distance`; the player set may show as
-     a list or a set); `sets`; `player_members` (the parts: a member whose target begins with addresses of classed
-     objects); `save_members` (`player_data`: a member of the save data's object). What repeats in both world
-     looks with two different characters is the layout's; what differs is the character's;
-   - then the fields enter the layout as leads, each by hand from the report, and the next round checks them by
-     EldenNet's own reader (as the flags were), with the moving numbers by invariant (hp, pos, death_count, runes).
-   - Small ones left: the state search's candidates at the title only; its near misses not listed.
+1. **The fourteenth read-only round** (not built). From the thirteenth's review:
+   - `game_state`: one more load, of the last character in the list: the candidate (static 64543992, 1,136 bytes
+     in) should read 0. Ask the owner which characters are the oldest and the newest (the list's order).
+   - The character search looks in the world only (after a confirmation), not at the title and not when the
+     manager is first named; the near list's fraction is reported without the test for order.
+   - The parts: from the holder (player + 0x190), each of its addresses with its target's table of methods; then
+     the moving numbers by invariant with panel tasks (Engine's order, WHY§460): position (three fractions that
+     move when the owner walks and stand when they stand), hp and its maximum (a hit, then a heal: a task that
+     costs the owner something is optional and says its cost), runes, the death count. Any new reading is asked
+     of the owner outright first, with its size.
+   - The layout: the manager's four places lie past 0x4000; Engine rules how the layout says them (a field read
+     by its own small copy, or a class entry at an offset) before they can enter as leads. `character.parts`
+     (0x190) and `save_data.player_data` (0x8; 0x10 holds the same class) wait for the next round's values.
    The start's use of the layout is Engine's (discovery through the table and the reader at the start, spikes S0-A
    and S0-B, roadmap S10.1.b), shared as Engine says.
    **The layout for a ready start (roadmap S10.1.m, Lodestar's; Engine's order, WHY§460; the list is WHY§459):**
