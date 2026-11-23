@@ -277,6 +277,14 @@ std::optional<PersonaLayer> read_layer(const ContentFile& file, std::vector<Laye
   return layer;
 }
 
+std::uint32_t layer_rev(std::string_view text) {
+  if (text.size() > kLayerFileMaxBytes || proto::unsafe_for_toml(text, proto::TomlText::Player)) return 0;
+  toml::parse_result parsed = toml::parse(text);
+  if (!parsed) return 0;
+  const auto rev = parsed.table()["rev"].value<std::int64_t>();
+  return rev && *rev > 0 && *rev <= std::numeric_limits<std::uint32_t>::max() ? static_cast<std::uint32_t>(*rev) : 0;
+}
+
 std::string layer_text(const PersonaLayer& layer) {
   std::string out;
   out += "# Your own layer over EldenNet's profile \"" + layer.persona +

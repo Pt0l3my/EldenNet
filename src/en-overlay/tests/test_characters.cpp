@@ -39,7 +39,7 @@ SpaceFacts facts_with(const CharacterFacts* c) {
 
 json doc_of(const json& body, std::string_view id) {
   for (const json& f : body["fields"]) {
-    if (f["id"] == id) return f;
+    if (f["id"] == std::string(id)) return f;
   }
   return json();
 }
@@ -62,14 +62,14 @@ TEST_CASE("characters: the page data: Named NPCs' master list, its families, the
   }
   REQUIRE(page != nullptr);
   CHECK((*page)["increment"] == "0.2");
-  CHECK((*page)["master"]["topic"] == kNamedList);
-  CHECK((*page)["master"]["detail"] == kNamedFamily);
+  CHECK((*page)["master"]["topic"] == std::string(kNamedList));
+  CHECK((*page)["master"]["detail"] == std::string(kNamedFamily));
   CHECK((*page)["master"]["key"] == "id");
   const json& tab = (*page)["tabs"][0];
-  CHECK(tab["sections"][0]["blocks"][0]["topic"] == kNamedFamily);
+  CHECK(tab["sections"][0]["blocks"][0]["topic"] == std::string(kNamedFamily));
   const json& editor = tab["sections"][1]["blocks"][0];
   CHECK(editor["kind"] == "editor");
-  CHECK(editor["topic"] == kProfilesFamily);
+  CHECK(editor["topic"] == std::string(kProfilesFamily));
   CHECK(editor["editor"]["save"] == "profile.save");
   CHECK(editor["editor"]["draft"] == "profile.draft");
   CHECK(editor["editor"]["notes_max"] == 400);

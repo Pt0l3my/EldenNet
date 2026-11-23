@@ -823,6 +823,14 @@ json space_state_body(const SpaceFacts& f) {
   return json{{"greyed", std::move(greyed)}};
 }
 
+// A watch's note for the DLL's log: a family's member (GraceUI D215, `profiles/persona.kale`) as its family and its key,
+// since the log takes words alone (no '/').
+SpaceNote note_of(SpaceNote::What what, const std::string& topic) {
+  const std::size_t slash = topic.find('/');
+  if (slash == std::string::npos) return SpaceNote{what, topic, {}, {}};
+  return SpaceNote{what, topic.substr(0, slash), topic.substr(slash + 1), {}};
+}
+
 // The rate of each state topic (GraceUI DESIGN §6.5): the least time between two publishes.
 std::uint64_t interval_of(std::string_view topic) noexcept {
   if (topic == "status") return 250;
@@ -956,14 +964,14 @@ void Space::watched(std::string_view sub_frame) {
   watched_.insert(topic);
   topics_[topic].fresh = true;
   if (topic == "logs") logs_sent_ = 0;  // a new watcher: the stream from its oldest row held (§22 item 3)
-  notes_.push_back(SpaceNote{SpaceNote::What::Watched, topic, {}, {}});
+  notes_.push_back(note_of(SpaceNote::What::Watched, topic));
 }
 
 void Space::unwatched(std::string_view unsub_frame) {
   const std::string topic = frame_topic(unsub_frame);
   if (topic.empty()) return;
   watched_.erase(topic);
-  notes_.push_back(SpaceNote{SpaceNote::What::Unwatched, topic, {}, {}});
+  notes_.push_back(note_of(SpaceNote::What::Unwatched, topic));
 }
 
 std::string Space::answer(const json& id, std::string_view error, std::string_view detail) const {

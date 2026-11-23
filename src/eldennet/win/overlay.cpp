@@ -544,6 +544,7 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
     if (pages) {
       fill_space(s, core, latest, tripped, o.graceui_version(), banner_words, facts);
       facts.ai = ai_tick(s, cs.gate_open, space->space);
+      facts.characters = profiles_facts(s, core, cs.gate_open);  // Characters › Named NPCs (profiles.cpp)
     }
     en::overlay::Overlay::Step step =
         pages ? o.step(view, &space->space, &facts, now) : o.step(view, nullptr, nullptr, now);
@@ -562,6 +563,11 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
       }
       apply_changes(s, *space, now);
       for (en::overlay::AiRequest& r : space->space.take_requests()) ai_request(s, space->space, r);
+      // The profile editor's commands (profiles.cpp): a check answered now, a write or a draft once made.
+      for (en::overlay::ProfileRequest& r : space->space.take_profile_requests()) {
+        profiles_request(s, core, space->space, std::move(r));
+      }
+      (void)o.answer_later(space->space);
       if (step.page_refused != GRACEUI_OK && step.page_refused != link->page_refused) {
         log(Line("page").word("refused", "publish_or_answer").num("status", step.page_refused), LogLevel::Warn);
       }
@@ -613,6 +619,8 @@ std::vector<en::proto::UiEvent> overlay_show(Shell& s, const en::proto::UiModel&
   }
   return out;
 }
+
+en::overlay::Space* overlay_space() noexcept { return g_space != nullptr ? &g_space->space : nullptr; }
 
 HANDLE overlay_wake(Shell& s) noexcept {
   OverlayLink* link = s.overlay.load(std::memory_order_acquire);

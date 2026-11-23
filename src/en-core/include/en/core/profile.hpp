@@ -76,6 +76,10 @@ inline constexpr std::array<std::string_view, 4> kLayerFields = {"instructions",
 // path's persona. Its findings go to `findings`; the layer is returned when none is an error.
 [[nodiscard]] std::optional<PersonaLayer> read_layer(const ContentFile& file, std::vector<LayerFinding>& findings);
 
+// A layer file's revision as it states it, whatever else the file holds wrong (0 when it states none, or cannot be read):
+// the editor's conflict check over a refused file too.
+[[nodiscard]] std::uint32_t layer_rev(std::string_view text);
+
 // The layer as its file's text, which read_layer reads back as it was: the editor's save (NPC §4.7). A prose field's
 // line breaks and tabs become spaces (one paragraph, GraceUI's G38 (3)).
 [[nodiscard]] std::string layer_text(const PersonaLayer& layer);

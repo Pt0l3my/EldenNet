@@ -226,9 +226,44 @@ game's own text entry is not read in v0.1.
   new watch) and when its body changes, no oftener than its rate (`status`, `providers` and `selftest` 4 a second,
   `system.status` and `health` once a second, the rest on change); the logs stream from its oldest row held, in batches of 100, then each new row once a second.
 
+## The Characters pages and the profile editor (`characters.hpp`; PAGES §4.6.4, NPC §4.7; S7.2.b)
+
+On GraceUI 0.2.22's topic families, master list, slow commands, editor block and chosen row (D215 to D218), registered
+in `pages/space.toml` like every page (its 0.2 increment, where PAGES ships Named NPCs in 0.3: the owner wants profiles
+edited now) and served by the space, which owns a `Characters` for them:
+
+- **Characters › Named NPCs** (`characters.named`): the roster as the page's master list, `named.list` (a table, a row
+  per profile EldenNet voices: its key, `persona.<id>` as WHY§387 has it, its first-meeting name and its role); its
+  Profile tab holds the chosen row's general profile (the family `named`, a key-value list of `public.summary`,
+  `public.role`, the `subjects` and our labels for its way of speaking and its news temperament: SP1's fields alone) and
+  "Your notes", an editor block over the family `profiles`. The Allowances and Reactions tabs, and Met and Nearby, wait
+  for the allowances and the sightings store: absent until then (SP5).
+- **The editor's document** (`profiles/<key>`, D217): the four fields a layer may set (NPC §4.5): `instructions`
+  (prose, 35 words, 210 characters), `subjects` (a list of 8 at most, 10 words and 50 characters each), `register` (a
+  choice of NPC §3.3's five, by our labels) and `reply_words_max` (10 to 60), each nullable, null where the layer leaves
+  it to the shipped profile, with the shipped value beside it as its `reference`; its revision (the layer file's `rev`);
+  a state line (Not written yet, Saved, Saved with warnings, Updated since you wrote this, Not loaded, Newer file); the
+  draft's help naming the provider, or `draft_blocked` saying why it cannot run now. A newer file's fields are locked.
+- **Commands**: `profile.check`, `profile.save` {target, rev, doc}, `profile.reset` {target, all, confirm},
+  `profile.restore` {target}, and `profile.draft` {target, notes}, the space's one slow command (D216). Each is checked
+  at the space's entry point (a row's key, a whole revision, the doc's four fields of their kinds, a list item's text
+  taken from `{text, key}`, the notes within 400 characters and not blank, a reset confirmed and of a layer that exists,
+  a draft not blocked), then handed to the DLL as a `ProfileRequest` with GraceUI's reply handle (`Space::command`'s
+  third argument). The DLL answers through `Space::answer_profile` (messages {field, item, level, words}; a save's
+  `chosen` row; a draft's `{draft, notice}`), and the Overlay hands each answer to GraceUI once (`answer_later`, and
+  every step before it publishes, so a save's answer comes before its document's new revision).
+- **Published** like every state topic: the list and each watched member on change, nothing unwatched, and a member
+  whose row is gone not at all. A watch of a member is logged as its family and its key (the log takes words alone).
+- **Sensitive** (protocol 1.8, D221; S11.4.e): `providers.add`, `providers.remove` and `providers.key` are marked, and
+  the settings `debug.panel` and `debug.record_sessions`; GraceUI refuses them from a paired device before EldenNet
+  sees them. An older GraceUI reads past the marks (it has no devices to refuse).
+
 ## Tests
 
-`en_overlay_tests` (doctest): in every build, the surfaces laid out (the panels' places, text decoded, upper-cased
+`en_overlay_tests` (doctest): in every build, the Characters pages (`test_characters.cpp`: the page data with its
+master, families, editor and marks, the bodies from invented characters, every refusal at the entry point, the
+requests handed over with their reply handles, the answers later, what is published when, and the spoiler golden: no
+string a projection does not publish reaches a body), the surfaces laid out (the panels' places, text decoded, upper-cased
 and wrapped, a page's, a card's, the box's and the hint's lists checked as GraceUI checks them, the caret and its
 scroll, the fades and PageShown, the toasts' keys, the input mapping and the swallowed character), the view's lines (every section, the newest event and the newest change
 first with their ages, each event's columns and its square's source, full lists within the view's lines and its panel,

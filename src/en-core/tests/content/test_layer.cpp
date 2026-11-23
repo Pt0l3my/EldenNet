@@ -51,6 +51,9 @@ TEST_CASE("layer: its path in the overrides folder, by the persona's id") {
   CHECK_FALSE(layer_persona("layers/persona-.toml"));
   CHECK(record_hash("") == "cbf29ce484222325");
   CHECK(record_hash("a").size() == 16);
+  CHECK(layer_rev("schema = 1\nrev = 12\nregister = \"shouting\"\n") == 12);  // a refused file's revision too
+  CHECK(layer_rev("rev = = 1") == 0);
+  CHECK(layer_rev("schema = 1\n") == 0);
 }
 
 TEST_CASE("layer: a file a layer may hold reads whole; every field optional") {

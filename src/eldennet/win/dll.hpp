@@ -88,6 +88,26 @@ struct AiWrite {
 void set_ai_folder(const std::wstring& config) noexcept;
 // T6: queued in order; T11 makes them in that order.
 void post_ai_write(AiWrite write) noexcept;
+// One of the profile editor's file changes (profiles.cpp; NPC §4.7's save path, C17): T11 writes a player's layer
+// beside it and renames it over it, the previous version kept as <file>.bak; removes it (the file becomes the .bak); or
+// reads the .bak back. Relative paths under the overrides folder alone, never a link out of it.
+struct ProfileWrite {
+  enum class Op : std::uint8_t { Write, Remove, ReadBak };
+  Op op = Op::Write;
+  std::wstring folder;  // the overrides folder
+  std::string rel;      // "layers/persona-<id>.toml"
+  std::string text;     // Write: the file's new text
+  std::uint64_t token = 0;
+};
+struct ProfileWritten {
+  std::uint64_t token = 0;
+  bool ok = false;
+  std::string text;  // ReadBak: the .bak's text
+};
+// T6: false when eight wait already (C17's capacity: the command is answered busy).
+bool post_profile_write(ProfileWrite& write) noexcept;
+// T6: the next write T11 made; false when none waits.
+bool take_profile_written(ProfileWritten& out) noexcept;
 
 // ---- Paths and the process (platform.cpp) ----
 struct Paths {
@@ -233,6 +253,9 @@ void ai_pump(Shell& s, bool allowed, std::vector<en::proto::LlmEvent>& conversat
 // core's own timers then end the reply). Logged by its id and the answer alone.
 bool ai_submit(Shell& s, en::proto::LlmRequest request) noexcept;
 void ai_cancel(Shell& s, en::proto::RequestId id) noexcept;
+// T6: the provider a slot's first model is on (a slot that borrows, its lender's), or empty with none: the draft
+// helper's, which its button names (NPC §4.7).
+[[nodiscard]] std::string ai_slot_provider(Shell& s, std::string_view slot) noexcept;
 // T6: the model client's health as the core's ladder reads it (L3 and L4 need the dialogue slot usable).
 [[nodiscard]] en::proto::NetHealth ai_health(Shell& s) noexcept;
 // T6: a change of the space's `ai.preset` or a job's model (`slots.<slot>.model`), made and written to providers.toml.
@@ -250,6 +273,27 @@ bool content_tick(Shell& s, en::core::Core& core) noexcept;
 // T6, after each step of the core: its requests submitted, its cancels made, its commits and its ending logged as
 // words and numbers.
 void conversation_out(Shell& s, en::core::Outputs& out) noexcept;
+
+// ---- The profile editor (profiles.cpp; S7.2.b, NPC §4.7) ----
+// The draft helper's request ids, below the conversation's (en-core's kConversationRequests): ai_pump hands their
+// events to profiles_llm_event.
+inline constexpr en::proto::RequestId kDraftRequests = en::proto::RequestId{1} << 44;
+// T6, once the content is loaded (content_tick): the files it was loaded from, the shipped pack's then the overrides
+// folder's, and the realm, kept for the editor's checks and the loads after a write.
+void profiles_loaded(Shell& s, const en::core::Core& core, std::vector<en::core::ContentFile> files,
+                     en::core::Realm realm) noexcept;
+// T6, each wake before the space's step: the Characters pages' facts (null before the content is loaded).
+const en::overlay::CharacterFacts* profiles_facts(Shell& s, const en::core::Core& core, bool gate_open) noexcept;
+// T6: a command of the editor's the space took: made (a check answered at once, a write or a draft later).
+void profiles_request(Shell& s, const en::core::Core& core, en::overlay::Space& space,
+                      en::overlay::ProfileRequest request) noexcept;
+// T6 (ai_pump): an event of a draft's request.
+void profiles_llm_event(Shell& s, en::proto::LlmEvent event) noexcept;
+// T6, each wake after the overlay's: T11's writes answered, a draft whose page was left cancelled, and the content
+// loaded again after a write once no conversation is open.
+void profiles_tick(Shell& s, en::core::Core& core) noexcept;
+// T6: EldenNet's space (overlay.cpp's), or null before its first wake.
+[[nodiscard]] en::overlay::Space* overlay_space() noexcept;
 
 // ---- The S0 runs (spike.cpp; DESIGN §16.1's S0-A to S0-D, roadmap S10.1.b) ----
 // The report of an S0 run, eldennet-spike.json in the run's folder (en_shell's spikerun.hpp), and what T1 measures for

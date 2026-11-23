@@ -245,8 +245,8 @@ struct AiRequest {
 struct SpaceNote {
   enum class What : std::uint8_t { Watched, Unwatched, Command };
   What what = What::Watched;
-  std::string topic;   // Watched, Unwatched: the topic; Command: the command's name
-  std::string key;     // Command: the setting's key or the reset's target, if any
+  std::string topic;   // Watched, Unwatched: the topic (a family's member: its family); Command: the command's name
+  std::string key;     // Command: the setting's key or the reset's target, if any; Watched, Unwatched: a member's key
   std::string result;  // Command: "ok" or the error code
 };
 

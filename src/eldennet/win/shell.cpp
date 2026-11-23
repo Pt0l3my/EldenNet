@@ -271,6 +271,7 @@ DWORD WINAPI core_main(void* param) noexcept {
       s.recorded.store(rec.lines(), std::memory_order_relaxed);
       ui_in.clear();
       overlay_tick(s, *core, cs.snapshots > 0 ? latest.get() : nullptr, tripped, now, ui_in);
+      profiles_tick(s, *core);  // the profile editor's writes answered, and the content loaded again after one
       // What the player did goes to the core in the same wake, and the newest model to the surfaces; what they raise
       // (PageShown, Close) goes to the core at once, and the model is drawn again (a few rounds at most).
       for (int round = 0; round < 4; ++round) {
