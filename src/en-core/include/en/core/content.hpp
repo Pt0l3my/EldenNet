@@ -68,10 +68,21 @@ struct EntityRow {
   friend bool operator==(const EntityRow&, const EntityRow&) = default;
 };
 
+// A persona's flag block in the catalogue (NPC §2.1; MEM §6.1): its alias prefix and base, which must agree with the
+// catalogue's `[[block]]` (knowledge.hpp checks it).
+struct FlagBlockRef {
+  std::string alias;
+  std::uint32_t base = 0;  // 0: unknown
+  bool verified = false;
+
+  friend bool operator==(const FlagBlockRef&, const FlagBlockRef&) = default;
+};
+
 struct PersonaRow {
   std::string id;    // slug, at most 32 bytes: the memory key
   std::string file;  // "personas/<name>.toml"
   std::optional<std::uint16_t> talk_code;  // metadata only, never used to resolve
+  std::optional<FlagBlockRef> flag_block;
   std::vector<NpcParamRow> npc_params;
   std::vector<EntityRow> entity_ids;
   bool enabled = true;

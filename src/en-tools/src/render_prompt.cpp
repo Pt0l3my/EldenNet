@@ -37,7 +37,8 @@ constexpr const char* usage_text =
     "                    with --context, also find variable names the context lacks\n"
     "  --list-functions  print the function reference (Markdown), or with --json the lint's allowlist\n"
     "  --fixture         render the dialogue prompt a fixture gives (tests/fixtures/prompt/), with en-core's\n"
-    "                    renderer over the pack's prompts/ (--content, content/eldenring by default): its blocks,\n"
+    "                    renderer over the pack's prompts/ (--content, content/eldenring by default), a persona of\n"
+    "                    the pack at a fixture flag state when the fixture names one (\"pack\"): its blocks,\n"
     "                    caps, trim and cache marks, in the prompt goldens' form, or with --json as JSON\n";
 
 struct Options {
@@ -190,6 +191,11 @@ int render_fixture(const Options& options) {
   auto fixture = en::tools::parse_prompt_fixture(text);
   if (!fixture) return failure("the fixture: " + fixture.error());
   const fs::path pack = options.content.empty() ? fs::path("content") / "eldenring" : fs::path(options.content);
+  std::error_code ec;
+  if (std::string problem = en::tools::complete_from_pack(*fixture, pack, fs::absolute(options.fixture, ec).parent_path());
+      !problem.empty()) {
+    return failure("the fixture: " + problem);
+  }
   std::map<std::string, std::string> templates;
   std::string problem;
   if (!en::tools::read_pack_prompts(pack, templates, problem)) return failure(problem);

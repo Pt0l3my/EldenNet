@@ -33,11 +33,13 @@
 
 #include "en/augur/augur.hpp"
 #include "en/augur/bus.hpp"
+#include "en/core/behaviour.hpp"
 #include "en/core/content.hpp"
 #include "en/core/conversation.hpp"
 #include "en/core/event_log.hpp"
 #include "en/core/gate.hpp"
 #include "en/core/identity.hpp"
+#include "en/core/knowledge.hpp"
 #include "en/core/predicates.hpp"
 #include "en/proto/command.hpp"
 #include "en/proto/lifecycle.hpp"
@@ -240,7 +242,24 @@ class Core {
   [[nodiscard]] const Conversation& conversation() const noexcept { return conversation_; }
   [[nodiscard]] proto::NetHealth net() const noexcept { return net_; }
 
+  // Quest and world awareness (knowledge.hpp; S11.3.c). A load builds the knowledge with the content (its errors refuse
+  // the pack) and a watch list of the catalogue's verified, resolved aliases for the load's realm; the next step sends
+  // it as SetWatchFlags when it is not empty (in game none is verified before S6, so nothing is sent). A snapshot's
+  // FlagFrame of that list's version gives the flag state, and a change of it the view: each persona's active stage and
+  // block 5b's lines, which the conversation reads. Until a playthrough's first frame every alias is Unknown, so
+  // nothing holds and block 5b has the road alone; a new playthrough or the title forgets the frame.
+  [[nodiscard]] const Knowledge& knowledge() const noexcept { return knowledge_; }
+  [[nodiscard]] const WatchList& watch_list() const noexcept { return watch_; }
+  [[nodiscard]] const FlagState& flags() const noexcept { return flags_; }
+  [[nodiscard]] const KnowledgeView& known_view() const noexcept { return known_; }
+  // The player's behaviour settings (behaviour.hpp): from the next step; one out of bounds is refused (the old stays),
+  // and its key answered.
+  std::optional<std::string> set_behaviour(const Behaviour& b);
+  [[nodiscard]] const Behaviour& behaviour() const noexcept { return behaviour_; }
+
  private:
+  void on_flags(const proto::WorldSnapshot& s);
+  void forget_flags();
   void on_snapshot(const proto::WorldSnapshot& s, Outputs& out);
   void on_lifecycle(const proto::Lifecycle& l, Mono now, Outputs& out);
   void on_banner(const BootBanner& b, Mono now, Outputs& out);
@@ -289,6 +308,16 @@ class Core {
   std::unique_ptr<proto::WorldSnapshot> last_;  // the newest snapshot, for the conversation
   std::vector<std::uint64_t> engaged_;          // the opponents the Tarnished is engaged with (Augur's events)
   std::vector<std::uint8_t> hostile_teams_;
+
+  // Quest and world awareness, and the behaviour settings.
+  Knowledge knowledge_;
+  Realm realm_ = Realm::Game;
+  WatchList watch_;
+  std::uint32_t watch_version_ = 0;
+  bool watch_pending_ = false;  // the list is to go out with the next step
+  FlagState flags_;
+  KnowledgeView known_;
+  Behaviour behaviour_;
 };
 
 }  // namespace en::core

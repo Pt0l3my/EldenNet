@@ -18,8 +18,10 @@
 //   bearing_deg = 5.0
 //   clock = [18, 30]
 //   subtitles = true
+//   flags = "fresh"                          # optional: a fixture flag state (tests/fixtures/flagstates/<name>.toml,
+//                                            # found from the scenario's folder up), read through the core's watch list
 //   [[step]]                                 # in order, from when the world is ready and the observer allows chat
-//   do = "open"                              # open | say | wait | esc | skip | move | expect
+//   do = "open"                              # open | say | wait | esc | skip | move | flags | expect
 //   [[step]]
 //   do = "say"
 //   text = "Where does the road go?"
@@ -28,8 +30,14 @@
 //   ms = 8000
 //   [[step]]
 //   do = "expect"                            # each field optional: state, box, npc_lines, player_lines, failures,
-//   state = "open"                           # deflections, ended, last_npc, toast
+//   state = "open"                           # deflections, ended, last_npc, toast, prompt_has, prompt_lacks
 //   npc_lines = 1
+//   prompt_has = ["As things stand now:"]    # texts the last dialogue request's messages hold, or lack
+//
+// A `flags` step (`flags = "after_radahn"`) changes the world's flag state from the next snapshot on: the scenario's
+// overrides give a catalogue whose aliases a `ci:` record verifies (the eval's realm alone), so the core asks for them
+// (SetWatchFlags) and the runner answers each fourth snapshot with a FlagFrame of the state's aliases, as the game task
+// would. A failed `prompt_has` names its line and the entry's index, never the text.
 //
 // The report holds the conversation's text, the model's included: it is a local-only kind, written only where the
 // caller says (`--report`), never into the repository (eval-reports/ is ignored by git), and never uploaded (PV rules).
@@ -51,7 +59,7 @@
 namespace en::tools {
 
 struct EvalStep {
-  enum class Kind : std::uint8_t { Open, Say, Wait, Esc, Skip, Move, Expect };
+  enum class Kind : std::uint8_t { Open, Say, Wait, Esc, Skip, Move, Expect, Flags };
   Kind kind = Kind::Wait;
   std::size_t line = 0;
   std::string text;                 // Say
@@ -61,6 +69,8 @@ struct EvalStep {
   std::optional<std::string> state, box, ended, last_npc, toast;
   std::optional<std::size_t> npc_lines, player_lines, failures, deflections;
   std::optional<std::size_t> regenerations, cancels;  // the run's so far: lines sent twice, requests cancelled
+  std::vector<std::string> prompt_has, prompt_lacks;  // Expect: in the last dialogue request's messages, or not
+  std::string flags;                                  // Flags: a fixture flag state's name
 };
 
 struct EvalScenario {
@@ -73,6 +83,7 @@ struct EvalScenario {
   float bearing_deg = 0.0f;
   std::uint8_t clock_h = 12, clock_m = 0;
   bool subtitles = true;
+  std::optional<std::string> flags;  // the fixture flag state the world starts in
   std::vector<EvalStep> steps;
 };
 

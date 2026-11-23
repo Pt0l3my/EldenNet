@@ -1,0 +1,22 @@
+{
+  "fixture": 1,
+  "persona": "kale",
+  "name": "Kalé",
+  "pack": {"persona": "kale", "flags": "erdtree_burned", "set": ["kale.howl_told"]},
+  "history": [
+    {"who": "tarnished", "text": "The woods to the east were as you said."},
+    {"who": "persona", "text": "Ah. Then you were lucky, or quick."}
+  ],
+  "scene": {
+    "place": "A ruined church by the grassland road",
+    "time_word": "at night",
+    "weather_word": "",
+    "nearby": ["a lone wanderer warming his hands by the wall"],
+    "tarnished": "he, in a mended cloak, badly hurt",
+    "just_now": [],
+    "you_now": "bloodied"
+  },
+  "recap": [
+    "The sky has gone strange. Do you know why?"
+  ]
+}

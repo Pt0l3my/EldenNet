@@ -21,6 +21,12 @@ the tally and block 5b's lines (src/en-tools/lib/prompt_fixture.hpp). It prints 
 `--json` the messages, their parts and marks, the estimate, the blocks and the trim. A refused render prints the
 refusal and exits 1: nothing would be sent. The fixtures and their goldens are in `tests/fixtures/prompt/`.
 
+A fixture may name a persona of the pack at a fixture flag state in place of a record and block 5b's lines (`"pack":
+{"persona", "flags", "set"}`, S11.3.c): the pack's content is loaded as the core loads it (the index and records, the
+world files, the prompts' and lexicon's checks), the flag state (`tests/fixtures/flagstates/<name>.toml`, found from the
+fixture's folder upwards, `set` naming aliases set on top) gives the persona's active stage, and its record at that
+stage and its grounding (en-core's knowledge.hpp) fill the prompt. The pilot's three fixtures are made so.
+
 ## lexicon: the lint's lexicon (NPC §8.3; O107)
 
 ```text
@@ -333,10 +339,16 @@ recorded` with its recorded events, each request's from its own start with the l
 
 A scenario (`tests/scenarios/talk/*.toml`, `lib/eval_run.hpp` has its schema) names its persona, its overrides, its
 script and recording, one invented character (its NpcParam row, distance, bearing; the clock and the subtitles), and
-its steps from when the world is ready and the observer allows chat: `open`, `say`, `wait`, `esc`, `skip`, `move` and
-`expect`, whose fields (the state, the box, the lines, the "…" pages, the deflections, the regenerations and the
-requests cancelled so far, the last ending, the last reply's text, a toast that went up) are each checked.
-`tests/scenarios/talk/` holds four: `lantern-first-words` (the test persona's first words, a cut-off, Esc),
+its steps from when the world is ready and the observer allows chat: `open`, `say`, `wait`, `esc`, `skip`, `move`,
+`flags` and `expect`, whose fields (the state, the box, the lines, the "…" pages, the deflections, the regenerations and
+the requests cancelled so far, the last ending, the last reply's text, a toast that went up, and texts the last
+dialogue request's messages hold or lack, `prompt_has` and `prompt_lacks`) are each checked. The world's flag state is
+a fixture state (`[world] flags`, then each `flags` step): the scenario's overrides give a catalogue that a `ci:` record
+verifies in the eval's realm alone, the core sends its watch list, and the runner answers every fourth snapshot with a
+FlagFrame of the state's aliases, as the game task would (S11.3.c). A failed `prompt_has` names its line and index.
+`tests/scenarios/talk/` holds five: `pilot-two-states` (the pilot asked for news on a fresh journey and again after the
+general's fall and the star: his prompt holds his road alone, then the star as known and the two falls as heard),
+`lantern-first-words` (the test persona's first words, a cut-off, Esc),
 `lantern-no-answer` (no answer in 20 s, a 429, a reply, walking away), `lantern-regenerate` (a reply breaking the
 world's frame in its first sentence regenerated once with block 11's reminder; then a regeneration that breaks it too,
 and the persona's deflection) and `lantern-long-reply` (the reply's second sentence fills it past the word cap, and the
@@ -397,7 +409,8 @@ runs `golden check` on each route as CI does, and `en_golden_prompt.<name>` on e
 think leak and its reset, a trailer, the error classes, a cancel, the last reply repeating), its script's refusals by
 line and key, the recorded model with the live ids, and every conversation scenario through `eval --llm mock` and
 `--llm recorded` to a report, every expectation holding, with a summary that holds no line of the conversation; the
-regeneration, the deflection and the pager's cap in their scenarios' turns.
+regeneration, the deflection and the pager's cap in their scenarios' turns; and the pilot at two states, the same
+scenario failing by index with the world left fresh, and an unknown state named as the scenario's error.
 
 Its `test_dialogue_prompt.cpp` runs the first conversation's part A on the shipped content: the pack loads, the frame and
 the registers keep their caps, blocks 1 to 5 never move with the turn and 5b only with the stage and its lines (T5),

@@ -1,7 +1,7 @@
 # The who-knows-what truth tables (MEM §12.11 T2): known(P) per persona and fixture state, written from MEM §12.5's
 # rules apart from the code they test, with world_seen empty. Each item is a world stage (w:) or a track step some
-# persona ties (q:), and its value "certainty:path" or "none". Invented test data, our own; the gated test in
-# en-core's tests reads them, and compares them with known(P) once S11.3.c builds it (WHY§364 (11)).
+# persona ties (q:), and its value "certainty:path" or "none". Invented test data, our own; en-core's T2
+# (tests/content/test_fixtures.cpp) compares them with known(P) over the shipped content (S11.3.c).
 #
 # v0.2's personas: Kalé (the pilot, NPC §3.4: at and home limgrave, hears all, no tie with a certainty) and the
 # Lantern-Keeper (NPC §3.5: at limgrave, no home, no ties); limgrave has a sky. The other five join at v0.5.

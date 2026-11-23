@@ -1,0 +1,206 @@
+# The pilot's test catalogue (tests and the eval only; DESIGN §11.4: an overrides file replaces the shipped one whole):
+# the shipped aliases, each given an invented id and marked verified by a `ci:` record, so that a fixture flag state
+# (tests/fixtures/flagstates/, MEM §7.8: every alias verified) can reach the core as a FlagFrame. A `ci:` record verifies
+# in the eval's realm alone, never in the game's (knowledge.hpp). Invented data: no id here is the game's.
+schema = 1
+
+[[block]]
+alias = "kale"
+base = 990700
+verified = true
+evidence = ["ci:pilot"]
+
+[[block]]
+alias = "tanith"
+base = 990100
+verified = true
+evidence = ["ci:pilot"]
+
+[[flag]]
+alias = "boss.godrick"
+id = 990001
+kind = "outcome"
+ng = "unknown"
+verified = true
+evidence = ["ci:pilot"]
+spoiler = 1
+
+[[flag]]
+alias = "boss.rennala"
+id = 990002
+kind = "outcome"
+ng = "unknown"
+verified = true
+evidence = ["ci:pilot"]
+spoiler = 1
+
+[[flag]]
+alias = "boss.radahn"
+id = 990003
+kind = "outcome"
+ng = "unknown"
+verified = true
+evidence = ["ci:pilot"]
+spoiler = 1
+
+[[flag]]
+alias = "boss.rykard"
+id = 990004
+kind = "outcome"
+ng = "unknown"
+verified = true
+evidence = ["ci:pilot"]
+spoiler = 2
+
+[[flag]]
+alias = "boss.morgott"
+id = 990005
+kind = "outcome"
+ng = "unknown"
+verified = true
+evidence = ["ci:pilot"]
+spoiler = 2
+
+[[flag]]
+alias = "boss.mohg_lord"
+id = 990006
+kind = "outcome"
+ng = "unknown"
+verified = true
+evidence = ["ci:pilot"]
+spoiler = 2
+
+[[flag]]
+alias = "boss.maliketh"
+id = 990007
+kind = "outcome"
+ng = "unknown"
+verified = true
+evidence = ["ci:pilot"]
+spoiler = 3
+
+[[flag]]
+alias = "story.star_fell"
+id = 990008
+kind = "outcome"
+ng = "unknown"
+verified = true
+evidence = ["ci:pilot"]
+spoiler = 1
+
+[[flag]]
+alias = "story.erdtree_burned"
+id = 990009
+kind = "outcome"
+ng = "unknown"
+verified = true
+evidence = ["ci:pilot"]
+spoiler = 2
+
+[[flag]]
+alias = "runes.ge1"
+id = 990010
+kind = "state"
+ng = "unknown"
+verified = true
+evidence = ["ci:pilot"]
+spoiler = 0
+core = true
+
+[[flag]]
+alias = "runes.ge2"
+id = 990011
+kind = "state"
+ng = "unknown"
+verified = true
+evidence = ["ci:pilot"]
+spoiler = 0
+core = true
+
+[[flag]]
+alias = "runes.ge3"
+id = 990012
+kind = "state"
+ng = "unknown"
+verified = true
+evidence = ["ci:pilot"]
+spoiler = 0
+core = true
+
+[[flag]]
+alias = "runes.ge4"
+id = 990013
+kind = "state"
+ng = "unknown"
+verified = true
+evidence = ["ci:pilot"]
+spoiler = 0
+core = true
+
+[[flag]]
+alias = "runes.ge5"
+id = 990014
+kind = "state"
+ng = "unknown"
+verified = true
+evidence = ["ci:pilot"]
+spoiler = 0
+core = true
+
+[[flag]]
+alias = "runes.ge6"
+id = 990015
+kind = "state"
+ng = "unknown"
+verified = true
+evidence = ["ci:pilot"]
+spoiler = 0
+core = true
+
+[[flag]]
+alias = "runes.ge7"
+id = 990016
+kind = "state"
+ng = "unknown"
+verified = true
+evidence = ["ci:pilot"]
+spoiler = 0
+core = true
+
+[[flag]]
+alias = "tanith.hosting"
+id = 990017
+kind = "state"
+ng = "unknown"
+verified = true
+evidence = ["ci:pilot"]
+spoiler = 1
+
+[[flag]]
+alias = "tanith.devouring"
+block = "tanith"
+offset = 9
+kind = "state"
+ng = "unknown"
+verified = true
+evidence = ["ci:pilot"]
+spoiler = 3
+
+[[flag]]
+alias = "kale.howl_told"
+id = 990018
+kind = "outcome"
+ng = "unknown"
+verified = true
+evidence = ["ci:pilot"]
+spoiler = 0
+
+[[flag]]
+alias = "kale.asleep"
+block = "kale"
+offset = 17
+kind = "state"
+ng = "unknown"
+verified = true
+evidence = ["ci:pilot"]
+spoiler = 0

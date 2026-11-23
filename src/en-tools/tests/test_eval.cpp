@@ -139,7 +139,7 @@ TEST_CASE("eval --llm mock and recorded run every scripted conversation to a rep
       for (const std::string& f : run->failed) FAIL_CHECK(f);
       const nlohmann::json report = eval_report(*run);
       CHECK(report["kind"] == "eval-local");
-      CHECK(report["persona"] == "lantern_keeper");
+      CHECK(report["persona"] == scenario->persona);
       CHECK(report["metrics"]["requests"].get<std::size_t>() >= report["turns"].size());
       // The summary is numbers only: no line of the conversation in it.
       const std::string summary = eval_summary(*run);
@@ -203,6 +203,45 @@ TEST_CASE("eval: a scenario's errors") {
   const auto bad = parse_eval_scenario(
       "schema = 1\nname = \"x\"\npersona = \"p\"\n[world]\nparam = 5\n[[step]]\ndo = \"dance\"\n", ".");
   REQUIRE_FALSE(bad.has_value());
-  CHECK(bad.error() == "line 6: step[0].do: must be one of open, say, wait, esc, skip, move, expect");
+  CHECK(bad.error() == "line 6: step[0].do: must be one of open, say, wait, esc, skip, move, expect, flags");
+  const auto no_state =
+      parse_eval_scenario("schema = 1\nname = \"x\"\npersona = \"p\"\n[world]\nparam = 5\n[[step]]\ndo = \"flags\"\n", ".");
+  REQUIRE_FALSE(no_state.has_value());
+  CHECK(no_state.error() == "line 6: step[0]: flags needs a state's name");
+  const auto not_list = parse_eval_scenario(
+      "schema = 1\nname = \"x\"\npersona = \"p\"\n[world]\nparam = 5\n[[step]]\ndo = \"expect\"\nprompt_has = \"a\"\n", ".");
+  REQUIRE_FALSE(not_list.has_value());
+  CHECK(not_list.error() == "line 6: step[0].prompt_has: must be an array of strings");
   CHECK_FALSE(parse_eval_scenario("schema = 1\nname = \"x\"\npersona = \"p\"\noverrides = \"../up\"\n", ".").has_value());
+}
+
+TEST_CASE("eval: the pilot at two states, his prompt grounded by each; a wrong state fails by index, never by text") {
+  const auto path = kTalk / "pilot-two-states.toml";
+  const auto text = read_file(path.string(), 256 * 1024);
+  REQUIRE(text.has_value());
+  auto scenario = parse_eval_scenario(*text, path.parent_path());
+  REQUIRE(scenario.has_value());
+  CHECK(scenario->persona == "kale");
+  CHECK(scenario->flags == std::optional<std::string>("fresh"));
+  auto run = run_eval(*scenario, EvalLlm::Mock);
+  REQUIRE(run.has_value());
+  CHECK(run->failed.empty());
+  CHECK(run->turns.size() == 2);
+  // The world left fresh: the second prompt lacks the news, and the failures name the line and the index alone.
+  for (EvalStep& st : scenario->steps) {
+    if (st.kind == EvalStep::Kind::Flags) st.flags = "fresh";
+  }
+  auto stale = run_eval(*scenario, EvalLlm::Mock);
+  REQUIRE(stale.has_value());
+  REQUIRE(stale->failed.size() == 2);
+  CHECK(stale->failed[0].find("the prompt lacks prompt_has[0]") != std::string::npos);
+  for (const std::string& f : stale->failed) CHECK(f.find("sky") == std::string::npos);
+  // A state that does not exist is the scenario's error.
+  for (EvalStep& st : scenario->steps) {
+    if (st.kind == EvalStep::Kind::Flags) st.flags = "no_such_state";
+  }
+  auto missing = run_eval(*scenario, EvalLlm::Mock);
+  REQUIRE(missing.has_value());
+  CHECK(std::any_of(missing->failed.begin(), missing->failed.end(),
+                    [](const std::string& f) { return f.find("no fixture flag state") != std::string::npos; }));
 }

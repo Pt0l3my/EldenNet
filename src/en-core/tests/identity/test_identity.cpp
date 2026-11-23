@@ -39,6 +39,8 @@ entity_ids = [ { id = 77001, verified = false } ]
 
 constexpr const char* kWren = R"toml(id = "wren"
 schema = 1
+drafted = "hand"
+review = "ci"
 display_name_fallback = "Wren"
 register = "colloquial"
 pronouns = "she"
@@ -67,7 +69,7 @@ chat = "refuse"
 
 TEST_CASE("a test_only persona never resolves in the game's realm, an override's binding included") {
   const ContentPack shipped = pack_from(builtin_content());
-  CHECK(IdentityIndex::build(shipped, Realm::Game).rows() == 0);
+  CHECK(IdentityIndex::build(shipped, Realm::Game).rows() == 1);  // the pilot's lead row alone
   const ContentPack bound = pack_from(content_with_overrides());
   const IdentityIndex game = IdentityIndex::build(bound, Realm::Game);
   CHECK(game.rows() == 0);

@@ -1,0 +1,133 @@
+# The world stages (MEM §12.2, §12.4): nine states of the land, built on outcome flags only, so the save itself is the
+# latch. Original text, in our own words; `note` is developer-facing and never rendered. Every flag behind a stage is a
+# lead, unverified until S6 (flags/catalog.toml): an unverified flag keeps its stage Unknown, and Unknown is silent.
+# `line` and `short` are impersonal, name no doer and never say who saw it (MEM §12.5); `lexicon` lists the proper
+# nouns they introduce (MEM §7.2). `clears` (W10's, lint only) waits for the personas whose flags it names (v0.5).
+schema = 1
+
+[[world_stage]]
+id      = "castle_fallen"
+when    = "boss('godrick')"
+boss    = "godrick"
+reach   = "region"
+regions = ["stormveil", "stormhill", "limgrave"]
+near    = "rumour"
+rank    = 40
+spoiler = 1
+short   = "the death of the castle's lord"
+line    = "The lord of the castle on the cliffs is dead, and his garrison has lost its head."
+topics  = ["castle", "lord", "garrison", "cliffs", "godrick", "stormveil"]
+lexicon = ["Godrick", "Stormveil"]
+note    = "The castle's lord's kill flag. Our words."
+
+[[world_stage]]
+id      = "queen_fallen"
+when    = "boss('rennala')"
+boss    = "rennala"
+reach   = "region"
+regions = ["raya_lucaria", "liurnia"]
+near    = "rumour"
+rank    = 45
+spoiler = 1
+short   = "the queen of the academy brought low"
+line    = "The queen who kept to the great library by the lake has been brought low in her own hall."
+topics  = ["queen", "academy", "library", "lake", "rennala"]
+lexicon = ["Rennala"]
+note    = "The academy queen's kill flag. Our words."
+
+[[world_stage]]
+id      = "general_fallen"
+when    = "boss('radahn')"
+boss    = "radahn"
+reach   = "region"
+regions = ["caelid", "dragonbarrow"]
+near    = "rumour"
+rank    = 60
+spoiler = 1
+short   = "the fall of the red general"
+line    = "The red general who held the eastern wastes has fallen at last."
+topics  = ["general", "radahn", "red", "festival", "redmane", "caelid"]
+lexicon = ["Radahn"]
+note    = "The red general's kill flag. Our words."
+
+[[world_stage]]
+id      = "star_fallen"
+when    = "flag('story.star_fell') && world('general_fallen')"   # the && guards the flag's meaning (MEM §12.4)
+reach   = "everywhere"
+rank    = 80
+spoiler = 1
+short   = "a star come down out of the sky"
+line    = "A star came down out of the sky and struck the land, and the shock of it was felt far and wide."
+topics  = ["star", "sky", "fell", "falling", "crater", "shook"]
+lexicon = []
+note    = "Meteor after the general's fall. Where it lands stays out of the common line."
+
+[[world_stage]]
+id      = "manor_lord_fallen"
+when    = "boss('rykard')"
+boss    = "rykard"
+reach   = "region"
+regions = ["volcano_manor", "gelmir"]
+near    = "fact"
+rank    = 50
+spoiler = 2
+short   = "the death of the manor's lord"
+line    = "The lord who ruled the manor from inside the burning mountain has been slain."
+topics  = ["manor", "mountain", "volcano", "rykard", "lord"]
+lexicon = ["Rykard"]
+note    = "The manor lord's kill flag. Our words."
+
+[[world_stage]]
+id      = "capital_king_fallen"
+when    = "boss('morgott')"
+boss    = "morgott"
+reach   = "region"
+regions = ["leyndell", "altus"]
+near    = "rumour"
+rank    = 55
+spoiler = 2
+short   = "the fall of the capital's king"
+line    = "The king who held the royal capital against all comers has been cut down in his own city."
+topics  = ["king", "capital", "city", "morgott", "royal"]
+lexicon = ["Morgott"]
+note    = "The capital king's kill flag. Our words."
+
+[[world_stage]]
+id      = "blood_lord_fallen"
+when    = "boss('mohg_lord')"
+boss    = "mohg_lord"
+reach   = "linked"
+rank    = 50
+spoiler = 2
+short   = "the blood lord struck down"
+line    = "The lord of blood has been struck down in his hidden palace."
+topics  = ["blood", "palace", "mohg"]
+lexicon = ["Mohg"]
+note    = "The blood lord's kill flag. Reaches no one but by a tie or a stage. Our words."
+
+[[world_stage]]
+id      = "erdtree_burned"
+when    = "flag('story.erdtree_burned')"
+reach   = "everywhere"
+rank    = 90
+spoiler = 2
+short   = "the burning of the great tree"
+line    = "The great tree has gone up in flames."
+topics  = ["tree", "fire", "flames", "burned", "burning"]
+lexicon = []
+note    = "The great tree set alight. Our words."
+
+[[world_stage]]
+id         = "capital_ashen"
+when       = "boss('maliketh') && world('erdtree_burned')"
+reach      = "region"
+regions    = ["leyndell", "altus"]
+near       = "fact"
+rank       = 95
+spoiler    = 3
+supersedes = ["w:erdtree_burned"]
+short      = "the royal capital buried in ash"
+line       = "The great tree has burned, and the royal capital lies buried under grey ash."
+topics     = ["ash", "ashen", "capital", "buried", "grey"]
+lexicon    = []
+note       = "The capital under ash, after the tree burned. A lead, likely only. Our words."
