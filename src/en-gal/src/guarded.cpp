@@ -148,6 +148,12 @@ std::optional<std::int64_t> ObjView::integer(const FieldLayout* f) const noexcep
       if (!v) return std::nullopt;
       return static_cast<std::int64_t>(*v);
     }
+    case FieldType::Bits: {
+      if (f->width == 0 || f->width > 32 || f->shift > 63) return std::nullopt;
+      const auto v = raw(f->off, f->size);
+      if (!v) return std::nullopt;
+      return static_cast<std::int64_t>((*v >> f->shift) & ((std::uint64_t{1} << f->width) - 1));
+    }
     case FieldType::I32: {
       const auto v = raw(f->off, 4);
       if (!v) return std::nullopt;

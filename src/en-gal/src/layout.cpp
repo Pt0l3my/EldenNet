@@ -23,6 +23,7 @@ const char* to_string(FieldType type) noexcept {
     case FieldType::F32: return "f32";
     case FieldType::Bool8: return "bool8";
     case FieldType::Bit: return "bit";
+    case FieldType::Bits: return "bits";
     case FieldType::Ptr: return "ptr";
     case FieldType::Handle: return "handle";
     case FieldType::Vec3f: return "vec3f";
@@ -159,13 +160,13 @@ constexpr std::array<std::string_view, 12> kGroupNames = {"session", "world", "c
                                                           "ui",      "place", "camera", "params", "status", "boot"};
 static_assert(kGroupNames.size() == proto::kGroupCount + 1, "proto::Group's names, in its order, then boot");
 
-// A type's name, and its size where the name alone fixes it (0 for utf16[n] and array).
+// A type's name, and its size where the name alone fixes it (0 for utf16[n], bits and array).
 struct TypeName {
   std::string_view name;
   FieldType type;
   std::uint32_t size;
 };
-constexpr std::array<TypeName, 15> kTypes = {{{"u8", FieldType::U8, 1},
+constexpr std::array<TypeName, 16> kTypes = {{{"u8", FieldType::U8, 1},
                                               {"u16", FieldType::U16, 2},
                                               {"u32", FieldType::U32, 4},
                                               {"u64", FieldType::U64, 8},
@@ -173,6 +174,7 @@ constexpr std::array<TypeName, 15> kTypes = {{{"u8", FieldType::U8, 1},
                                               {"f32", FieldType::F32, 4},
                                               {"bool8", FieldType::Bool8, 1},
                                               {"bit", FieldType::Bit, 1},
+                                              {"bits", FieldType::Bits, 0},
                                               {"ptr", FieldType::Ptr, 8},
                                               {"handle", FieldType::Handle, 8},
                                               {"vec3f", FieldType::Vec3f, 12},
@@ -205,7 +207,8 @@ std::optional<LayoutStatus> read_status(Table& t, Errors& errors) {
   return std::nullopt;
 }
 
-// One field: { off, ty, group?, range?, bit?, to?, enum?, elem?, len?, stride? }. `param` fields take off and ty only.
+// One field: { off, ty, group?, range?, bit?, word?, shift?, width?, to?, enum?, elem?, len?, stride? }. `param` fields
+// take off and ty only.
 std::optional<FieldLayout> read_field(const toml::table& t, std::string name, const std::string& path, Errors& errors,
                                       bool param) {
   Table f(t, path, errors);
@@ -236,7 +239,7 @@ std::optional<FieldLayout> read_field(const toml::table& t, std::string name, co
     const auto known = std::find_if(kTypes.begin(), kTypes.end(), [&](const TypeName& k) { return k.name == *ty; });
     if (known == kTypes.end()) {
       errors.add(f.where("ty"),
-                 "must be one of u8, u16, u32, u64, i32, f32, bool8, bit, ptr, handle, vec3f, mat4f, utf16[n], "
+                 "must be one of u8, u16, u32, u64, i32, f32, bool8, bit, bits, ptr, handle, vec3f, mat4f, utf16[n], "
                  "dlvector, dlmap, array");
       ok = false;
     } else {
@@ -244,7 +247,7 @@ std::optional<FieldLayout> read_field(const toml::table& t, std::string name, co
       out.size = known->size;
     }
   }
-  if (param && ok && (out.type == FieldType::Array || out.type == FieldType::Bit)) {
+  if (param && ok && (out.type == FieldType::Array || out.type == FieldType::Bit || out.type == FieldType::Bits)) {
     errors.add(f.where("ty"), "is not a type a param row's field may have");
     ok = false;
   }
@@ -265,8 +268,31 @@ std::optional<FieldLayout> read_field(const toml::table& t, std::string name, co
         out.group = static_cast<proto::Group>(*index);  // kGroupNames follows proto::Group's order, then boot
       }
     }
+    // A run of bits: the word's size in bytes (1, 2, 4 or 8), the run's lowest bit and its length, all within the word.
+    const bool bits = ok && out.type == FieldType::Bits;
+    const auto word = f.integer("word", bits, 1, 8);
+    const auto shift = f.integer("shift", bits, 0, 63);
+    const auto width = f.integer("width", bits, 1, 32);
+    if ((word || shift || width) && ok && !bits) errors.add(path, "has word, shift or width, which only bits fields take");
+    std::optional<std::pair<std::int64_t, std::int64_t>> bits_domain;
+    if (bits) {
+      if (!word || !shift || !width) {
+        ok = false;
+      } else if (*word != 1 && *word != 2 && *word != 4 && *word != 8) {
+        errors.add(f.where("word"), "must be 1, 2, 4 or 8");
+        ok = false;
+      } else if (*shift + *width > 8 * *word) {
+        errors.add(f.where("width"), "runs past the word");
+        ok = false;
+      } else {
+        out.size = static_cast<std::uint32_t>(*word);
+        out.shift = static_cast<std::uint8_t>(*shift);
+        out.width = static_cast<std::uint8_t>(*width);
+        bits_domain = std::pair<std::int64_t, std::int64_t>{0, (std::int64_t{1} << *width) - 1};
+      }
+    }
     if (const toml::node* range = f.node("range", false)) {
-      const auto domain = ok ? domain_of(out.type) : std::nullopt;
+      const auto domain = !ok ? std::nullopt : bits_domain ? bits_domain : domain_of(out.type);
       if (ok && !domain) {
         errors.add(f.where("range"), "applies only to whole-number fields");
       } else if (domain) {
@@ -283,7 +309,7 @@ std::optional<FieldLayout> read_field(const toml::table& t, std::string name, co
       out.to = *to;
     }
     if (const auto table = f.text("enum", false)) {
-      if (ok && !domain_of(out.type)) errors.add(f.where("enum"), "applies only to whole-number fields");
+      if (ok && !domain_of(out.type) && !bits_domain) errors.add(f.where("enum"), "applies only to whole-number fields");
       out.enum_table = *table;
     }
     const bool array = ok && out.type == FieldType::Array;

@@ -22,6 +22,10 @@
 #   times 125. The tree was read whole in two sessions; it is ordered by the key with the first link the smaller
 #   side; and for every bit seen to flip where the owner did something, the way from the head's parent down by the
 #   key arrived at the record that names the bit's block. All of it is a lead.
+# - the clock's and the play time's fields (step L6; the seventh to the eleventh rounds): in world_clock's object the
+#   hour and the minute as runs of bits of the 64-bit word 8 bytes in (type bits: the word's size, the run's lowest
+#   bit and its length); in save_data's object the play time in milliseconds, the 32-bit number 160 bytes in. Leads,
+#   as all of this file.
 # The other classes, fields, enums, params and self-test ids are later rounds' to find, and are left out. A release
 # build refuses this file (every entry a lead).
 schema = 2
@@ -183,6 +187,19 @@ status = "lead"
 
 # The event flags' store and the records of its tree (the ninth and tenth read-only rounds, packages
 # 0.1.0-lodestar.12 and .13; docs/ops/probes/2026-11-22-l5.md). The store is the object behind item event_flags.
+[class.world_clock]
+copy_size = 0x20
+status = "lead"
+[class.world_clock.fields]
+hour = { off = 0x8, ty = "bits", word = 8, shift = 34, width = 5, group = "place" }
+minute = { off = 0x8, ty = "bits", word = 8, shift = 39, width = 6, group = "place" }
+
+[class.save_data]
+copy_size = 0xA8
+status = "lead"
+[class.save_data.fields]
+play_time = { off = 0xA0, ty = "u32", group = "player" }
+
 [class.event_flags]
 copy_size = 0x48
 status = "lead"
