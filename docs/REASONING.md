@@ -7883,6 +7883,9 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - *Later (2026-11-23, WHY§511):* A1 again and A0 (no eldennet.dll) crashed the same way, 5.8 to 6.0 s in, one
   Present passed, no queue found, nothing drawn; so EldenNet is out of it. The frame-time overlay's hooks were still
   loaded in both, so its part is not yet tested.
+- *Later (2026-11-23):* Windows' Application Error events for all four crashes name no module (unknown, 0.0.0.0) and a
+  fault offset of 0: the faulting address was 0, a call or jump through a null pointer on the first Present's path,
+  not a bad read inside a DLL. Told to Grace; package 0.1.0-spikes.4 (A5 without the stand-in, frame_step) is to place it.
 
 ### 510. A start that stops at a banner once the window has shown installs the crash filter
 
