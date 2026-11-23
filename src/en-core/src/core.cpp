@@ -264,7 +264,8 @@ std::vector<ContentError> Core::load_content(std::span<const ContentFile> files,
   // Quest and world awareness: the world files and every predicate compiled (knowledge.hpp); errors refuse the pack.
   auto knowledge = Knowledge::build(*pack);
   if (!knowledge) return knowledge.error();
-  content_warnings_ = std::move(speech->warnings);
+  content_warnings_ = pack->warnings;  // disable.toml's, then block 2's
+  content_warnings_.insert(content_warnings_.end(), speech->warnings.begin(), speech->warnings.end());
   if (builtin_) {
     builtin_->lint.current = std::move(speech->lint);
     builtin_->prompt.current = std::move(speech->prompt);
