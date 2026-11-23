@@ -107,7 +107,7 @@ struct WorldStage {
   std::string boss;  // links slew:<boss> claims (MEM §12.7); empty: none
   Reach reach = Reach::Linked;
   std::vector<std::string> regions;
-  Certainty near = Certainty::Rumour;
+  Certainty near_certainty = Certainty::Rumour;  // the file's `near` (windows.h defines `near` as nothing)
   std::uint8_t rank = 0;
   std::uint8_t spoiler = 0;
   std::vector<std::string> supersedes;  // item ids whose line this one makes redundant

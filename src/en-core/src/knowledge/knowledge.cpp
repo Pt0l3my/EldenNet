@@ -723,7 +723,7 @@ proto::Expected<Knowledge, std::vector<ContentError>> Knowledge::build(const Con
             w.boss = st["boss"].value_or(std::string());
             w.reach = enum_of<Reach>(st["reach"].value_or(std::string()), kReach, Reach::Linked);
             w.regions = strings_at(st, "regions");
-            w.near = st["near"].value_or(std::string("rumour")) == "fact" ? Certainty::Fact : Certainty::Rumour;
+            w.near_certainty = st["near"].value_or(std::string("rumour")) == "fact" ? Certainty::Fact : Certainty::Rumour;
             w.rank = static_cast<std::uint8_t>(st["rank"].value_or(std::int64_t{0}));
             w.spoiler = static_cast<std::uint8_t>(st["spoiler"].value_or(std::int64_t{0}));
             w.supersedes = strings_at(st, "supersedes");
@@ -1207,9 +1207,9 @@ std::vector<KnownLine> Knowledge::known_lines(std::size_t persona, const FlagSta
           paths.emplace_back(Certainty::Rumour, Path::Word);  // no sky over it: word of the road
         }
       } else if (w.reach == Reach::Region && H == "all") {
-        const bool near = std::any_of(w.regions.begin(), w.regions.end(), [&](const std::string& r) { return hearing.contains(r); });
-        if (near) {
-          paths.emplace_back(w.near, Path::Near);
+        const bool close_by = std::any_of(w.regions.begin(), w.regions.end(), [&](const std::string& r) { return hearing.contains(r); });
+        if (close_by) {
+          paths.emplace_back(w.near_certainty, Path::Near);
         } else if (w.spoiler <= 1) {
           paths.emplace_back(Certainty::Rumour, Path::Word);  // spoiler ≥ 2 never spreads loose
         }
