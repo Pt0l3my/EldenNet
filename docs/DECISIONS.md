@@ -2187,3 +2187,34 @@ where to look.
 **Owner's words.** "Approve as written (Recommended)", twice (the question dialog, 2026-11-23).
 
 **Follows from.** NPC §5.1, §5.5; PAGES §4.5; S11.3.a; S11.4.a; WHY§442, WHY§495, WHY§496.
+
+## O111
+
+**The owner's own game files as research inputs: the limits are what ships and what is uploaded** · *2026-11-23 · Decided by the owner*
+
+**Question.** After sending a save file to Lodestar's session, the owner asked whether other game files would help, and
+Lodestar answered that nothing of the game should be sent: the handover's rule was "nothing of the game in any file,
+report, message or chat". The owner answered, in Lodestar's chat, that the rule reads the limits too widely.
+
+**Decision.** The owner's limits are two: what ships with the mod publicly, and what is uploaded to a repository. A file
+of the owner's own game (the game's executable, for one) given by the owner to a session for research is not limited
+by them. What a session keeps to, whatever is sent (Engine's conditions, with Lodestar's):
+- each upload in its own folder outside every checkout, read with `python3 -I` from scripts kept elsewhere, never run
+  and never built, and deleted when the work with it is done;
+- nothing of it (no bytes, text, code listings, names or values) in a repository, a package, a published page, a report
+  or a message between sessions: numbers and our own labels only, as for the read-only rounds;
+- every fact taken from it is a lead until the game confirms it (O48), and nothing from other projects changes (O47,
+  O48); game files come from the owner alone, never fetched from elsewhere;
+- anything personal in it (a save's character names, for one) is never written down anywhere, whatever the owner allows
+  in a chat.
+O74 and O75 stand as they are: they limit what the devkit ships and carries, which this does not change. The
+handover's §3 reads with this decision: "nothing of the game" in files, reports and messages, not in what the owner
+may give a session to study.
+
+**Owner's words.** "nothing is off limit for our research, the only limit is what we ship with the mod publicly, and
+what we upload to repo." (Lodestar's chat, 2026-11-23, after "it's not about what the project keeps, its about solutions
+and research that helps with the project, what I was asking if any game files you could think of that could help with
+your work.")
+
+**Follows from.** DP21 (DataPiler's "using game data for research and development is fine, we are just careful what we
+ship online"); O47, O48, O74, O75; WHY§507.
