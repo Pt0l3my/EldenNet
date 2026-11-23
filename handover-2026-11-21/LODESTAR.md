@@ -68,9 +68,10 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    a save was loaded. It is the game's own on that PC since 2026-11-23; the fault is in the game's teardown of its
    file system (the record has the reading of Engine's stack from the executable). The rounds go on; the README
    says the code will show.
-   **The sixteenth round is with the owner** (package 0.1.0-lodestar.20, engine 55874cd, after Engine's read;
-   the record's "What was changed for the sixteenth round"; the quit's code is the game's own beside an overlay
-   tool of the owner's, WHY§557 to §562, and the README asks the owner to exit that tool): the same fourteen
+   **The sixteenth round is with the owner** (package 0.1.0-lodestar.20, engine 6ee4d5d, after Engine's read;
+   the record's "What was changed for the sixteenth round"; the quit's code is the game's own, what decides it
+   is not known, WHY§557 to §562). Read the other sessions' messages before a package goes out: a correction of
+   Engine's to its own read lay unread while the first pack was sent. The round: the same fourteen
    tasks; the pair search's hit in an object of the class the leads' `[statics]` give for the game's state names
    the slot (no number from the executable is given to the round); the layout's list is judged first; the falls
    and the moves list the likeliest first, a move with the class of its range. Report schema 16. When its files
