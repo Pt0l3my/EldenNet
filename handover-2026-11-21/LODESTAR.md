@@ -1,4 +1,4 @@
-# Lodestar's status, 22 November 2026 (nine read-only rounds run, the tenth built; 15 leads in the build's table; the flags' layout found)
+# Lodestar's status, 22 November 2026 (ten read-only rounds run; step L6's three subjects placed: the clock, the play time, the event flags)
 
 For the next sitting of the Lodestar session, or a new session that takes it over. Read [HANDOVER.md](HANDOVER.md)
 first; this file adds only where Lodestar's own work stands.
@@ -26,7 +26,7 @@ first; this file adds only where Lodestar's own work stands.
 | The seventh read-only run (2026-11-22; the same record, "The seventh round in game") | package 0.1.0-lodestar.10; engine b0a2fa7 | **Done, reviewed.** The time of day found (hour and minute packed into one word behind static 64422792; told by the owner's two passings of time). The flags' blocks and tree have candidates. The reader at 9.97 readings a second. The sweep's list missed what the owner did; the play time's invariant was refused by its margin rule |
 | The eighth read-only run, with the tester's panel (2026-11-22/23; the same record, "The eighth round in game"; roadmap S10.1.l) | package 0.1.0-lodestar.11; engine 3030114, the table at a6cdf26 | **Done, reviewed.** The panel worked on the owner's PC. `world_clock` in the table by the invariant recipe: 15 leads. Bits set in the flags' stretch around both confirmations. The reader at 9.98 readings a second |
 | The ninth read-only run (2026-11-23; the same record, "The ninth round in game") | package 0.1.0-lodestar.12; engine 620dcd7 | **Done, reviewed.** The tree beside the flags read whole (11,930 records): key, mode and block index placed; a block is 125 bytes at the holder plus index times 125; the flips at the owner's marks decode to round flag numbers. The lead's "offset" is an index. The panel's button change ran |
-| The tenth round's build, and the reader's correction | package 0.1.0-lodestar.13; engine 6d56207 | **Built, not yet run by the owner.** `ErBackend::flag_block` takes a record's value as a block index; the round joins by index, finds the key by the tree's order, tries the reader's way down the tree, and looks for the divisor |
+| The tenth read-only run, and the reader's correction (2026-11-23; the same record, "The tenth round in game") | package 0.1.0-lodestar.13; engine 6d56207, the flags' fields at e864140 | **Done, reviewed.** The reader's way down the tree arrived at the record of every joined flip; the store keeps the divisor 28 bytes in; the flags' fields are in the layout as leads. L6's three subjects are placed |
 | Digests | — | Moved to L7 (WHY§311): v1 calls no function of the game |
 | The text for ARCH and DESIGN (proposal §15) | `docs/lodestar` | Written as dated notes and changed rows: ARCH §1.2, §3.2, §6.2, §6.3, §6.4, §6.10; DESIGN §2.1, §4.2, §16.1 |
 | The design document, with a code for `wp` | `docs/lodestar` | Not started |
@@ -52,18 +52,19 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The owner's tenth read-only run** (package 0.1.0-lodestar.13, engine 6d56207; built, not yet run): the
-   flags' reader, checked. The ninth round gave the flags' layout (the record's "The ninth round in game"); en-gal's
-   own reader now takes a record's value as a block index (Engine agreed, WHY§452). When the files come back:
-   - `tree.order` and `tree.key_field` (32 expected): which link is the smaller side;
-   - `tree.joins`: one a flip, by index, in the stretch 40 bytes into the store; `reached` must be true for every
-     one (the reader's way down from the root arrives at the same record), and the flag numbers come from the key
-     and the bit's place;
-   - `tree.divisor_at`: where the store keeps 1,000 (the reader checks it; if nowhere, the reader's check of the
-     divisor must go, with Engine's word);
-   - then the flags' fields into `gal/layouts/2.7.2.0-ww.toml` as leads (`event_flags`: divisor, map 56,
-     holder 40; the record: links 0, 8 and 16, key 32, mode 40, value 48), and L6's three subjects (the clock,
-     the play time, the flags) are placed.
+1. **Step L6's three subjects are placed** (the record's "The tenth round in game"): the time of day
+   (`world_clock`, by the invariant recipe), the play time (`save_data`, likewise) and the event flags (the store's
+   and the record's fields in `gal/layouts/2.7.2.0-ww.toml`, engine e864140; en-gal's reader corrected for the
+   block's index, 6d56207). All of it is leads: ten read-only rounds, no fault in some 80,000 readings. What comes
+   next is not another probe round of the same kind:
+   - EldenNet's own reader (`ErBackend`) reading the flags through the build's layout in the game, with its
+     self-test (a flag set in every playthrough): the first use of the layout's fields, a start of EldenNet's own
+     snapshot path. It touches discovery and the start (Engine's `boot.cpp`): to be agreed with Engine first;
+   - the fields of the other managers v1 reads (characters, the HUD, messages, params): each its own round of the
+     kind L6 ran, with the tester's panel;
+   - small mends kept for the next round's code: a join looks in the index's field alone; no joins for stretches
+     that hold no flags (the report was at its limit four times); the time of day's seconds, if wanted;
+   - the design document with a code for `wp` (still not started).
 2. **R1's clean-up (O106)**: done on `feat/lodestar` (3e11238, and its leftovers as WHY§372 ruled in 532e751), commits of their own (the DLL's R1 mode, the
    launcher's `--probe`, R1's package and cases, and what only R1 used in en-gal), and the dated notes are in ARCH
    and DESIGN. What it left in place because something else may use it is listed in the message to Engine that goes
