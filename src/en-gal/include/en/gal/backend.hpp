@@ -110,6 +110,33 @@ class ErBackend final : public proto::GameBackend {
     std::optional<bool> known;  // the known flag: set, not set, or not read (no store yet, or a read refused)
   };
   FlagsAlone flags_alone(const proto::GameThread& gt, proto::WorldSnapshot& out);
+  // The world's leads alone, in a tick of its own (the seventeenth read-only round; WHY§567 to §569): for a build
+  // whose layout places the game's state's slot, the main player's word, a character's parts with the health and the
+  // position, and the near list, and not yet the rest of the world's and the player's groups, so that snapshot()
+  // never reaches them. Each part is read only where the layout binds everything it needs; `lacks` names the parts
+  // it does not, and nothing is read for those. The statics are re-read; the objects are copied as snapshot() copies
+  // them, with the class's check where the build's table gives the class. A read that fails is no group's fault here
+  // (in such a build the groups are not live) and leaves its part empty. The near list may be longer than snapshot()
+  // allows (119 elements in the sixteenth round): its length is told, kWalkEntries elements at most are read, and
+  // the distance is judged element by element, never for the list (WHY§569). Nothing of a snapshot is touched, and
+  // the book's phase B is not set.
+  struct WorldAlone {
+    static constexpr std::uint32_t kSlot = 1, kPlayer = 2, kParts = 4, kNear = 8;
+    std::uint32_t lacks = 0;                  // the parts the layout does not bind (the bits above)
+    bool state = false;                       // the game's state's object was there
+    std::optional<std::int32_t> save_slot;    // as read: -1 where no save is loaded
+    bool characters = false;                  // the characters manager's object was there
+    bool player = false;                      // an object of the player's class behind the main player's word
+    std::optional<proto::Meter> hp;           // the main player's health and its maximum
+    std::optional<std::array<float, 3>> pos;  // and its position
+    bool list = false;                        // the near list's bounds made sense
+    std::uint32_t near_all = 0;               // its elements, by its bounds
+    std::uint32_t near_read = 0;              // of them, looked at (kWalkEntries at most)
+    std::uint32_t near_chr = 0;               // of those, an object of a character's class behind the address
+    std::uint32_t near_distance = 0;          // of those, a plain fraction beside it (finite, 0 to 1e6)
+    std::uint32_t near_rising = 0;            // of those, one not below the element's before it
+  };
+  WorldAlone world_alone(const proto::GameThread& gt);
   // Whether a structural group tripped: the task goes inert and reads nothing more (L1).
   [[nodiscard]] bool inert() const noexcept { return inert_; }
   void make_inert() noexcept { inert_ = true; }

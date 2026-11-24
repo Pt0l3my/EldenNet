@@ -245,7 +245,7 @@ of any game is in it, and every name it looks for comes from a leads file.
   those the accessor's own sites reach too (`known`) and with the same class object (`agreeing`), and the statics
   that are new, each with its class object, count of sites and witnesses; `all_statics` is the accessor's own and
   then the variants' new ones, which the naming goes through. A variant never changes the accessor's own counts or
-  `complete`. `write_report` writes kind `lodestar`, schema 16, through the numbers-only writer: whole
+  `complete`. `write_report` writes kind `lodestar`, schema 17, through the numbers-only writer: whole
   numbers, booleans, fixed words and the leads' labels. Its vocabulary holds no key of the pattern type and no
   fraction, which a test pins, so a report cannot carry a byte, a pattern, text, a name or an instruction.
   **The in-game round (step L5; proposal 0005 §6.1's `instance_class`, O92)** adds, all read-only:
@@ -369,7 +369,16 @@ of any game is in it, and every name it looks for comes from a leads file.
   the one that fell once and rose once under such a bound is listed first, across the parts).
   What a field held is never reported. `ErBackend::flags_alone`
   and `DiscoveryOptions::partial` (backend.hpp, discovery.hpp) let one group of EldenNet's own reader be read before
-  the others' fields are placed.
+  the others' fields are placed. `ErBackend::world_alone` (the seventeenth round) does the same for the world's
+  leads: the game's state's slot, the main player's class, its health and position through the holder of its
+  parts, and the near list, each read only where the layout binds everything it needs (`lacks` says which part it
+  does not), with no group's fault counted. The list's length is told whole and 48 elements at most are read
+  (the game's held 119 in the sixteenth round, where `snapshot()` takes a list over 48 for a fault), and an
+  element's distance is judged by itself. The round calls it once a second and reports counts, whether the
+  position moved from one frame to the next by the tester's marks, and, as the first frame after each mark read
+  them, the slot, the health and its maximum (`WorldRead`; numbers of the tester's character, written with the
+  owner's word of 2026-11-24; the position never is). The parts watch now starts at the second world's mark from
+  the layout's `character.parts`, and runs before the character search's look.
   The round watches each named manager, the objects the event flags' store's first addresses lead to and the
   objects those lead to (and sweeps the stretches all of them start), each place the member search found a
   pointer to an unnamed lead's object at with the object that holds it (0x4000 bytes of both for the world's

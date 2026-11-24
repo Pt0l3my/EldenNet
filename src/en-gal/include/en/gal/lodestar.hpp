@@ -666,6 +666,43 @@ struct CharFound {
 // the slots of the characters (one fact read offline), so the save's slot is sought as the field that reads the first
 // loaded character's slot in the first world and the second's in the second, over the data's slots in use in the
 // world, with no rule about the title and none about the object behind a slot staying the same.
+// EldenNet's own reader on the world's leads (in game; ErBackend::world_alone, the seventeenth round): the game's
+// state's slot, the main player with its health and position, and the near list, read through the build's layout
+// once a second. Counts over the frames, and what the first frame after each of the tester's marks read. The
+// health, its maximum and the save's slot are written as numbers, for the tester to hold against the screen (the
+// owner agreed, 2026-11-24); the position never is: only whether it moved from one frame to the next.
+struct WorldAt {
+  std::uint32_t mark = 0;     // the tester's marks so far (0: before the first)
+  bool there = false;         // the game's state's object was there
+  bool loaded = false;        // its slot read 0 or more: a save is loaded
+  std::uint32_t slot = 0;     // the slot, where loaded
+  bool player = false;        // an object of the player's class behind the main player's word
+  bool has_hp = false;        // the health and its maximum were read
+  std::uint32_t hp = 0;
+  std::uint32_t max_hp = 0;
+  std::uint32_t near_all = 0; // the near list's elements
+};
+struct WorldRead {
+  static constexpr std::size_t kSpans = 12;  // before the first mark, then after each of eleven
+  std::uint32_t lacks = 0;          // the parts the layout does not bind (ErBackend::WorldAlone's bits); 0: none
+  std::uint64_t calls = 0;          // frames asked for
+  std::uint64_t state_frames = 0;   // in which the game's state's object was there
+  std::uint64_t slot_frames = 0;    // in which a save's slot read 0 or more
+  std::uint64_t player_frames = 0;  // in which the main player was there
+  std::uint64_t hp_frames = 0;      // in which its health was read
+  std::uint64_t hp_over = 0;        // of those, the health above its maximum, or the maximum 0
+  std::uint64_t pos_frames = 0;     // in which its position was read
+  std::uint64_t list_frames = 0;    // in which the near list's bounds made sense
+  std::uint32_t near_most = 0;      // the longest list seen
+  std::uint64_t near_read = 0;      // elements looked at, over the frames
+  std::uint64_t near_chr = 0;       // of them, a character behind the address
+  std::uint64_t near_distance = 0;  // of them, a plain fraction beside it
+  std::uint64_t near_rising = 0;    // of them, not below the element's before it
+  std::vector<std::uint32_t> pos_frames_by;  // by span (the marks so far): frames with a position after one with one
+  std::vector<std::uint32_t> pos_moved_by;   // of those, the position more than a centimetre from the frame's before
+  std::vector<WorldAt> at_marks;    // the first frame of each span: what was read just after the mark
+};
+
 struct PairHit {
   std::uint32_t rva = 0;     // the slot
   std::uint32_t offset = 0;  // the field, from the object's start
@@ -792,6 +829,7 @@ struct Found {
   std::optional<CharFound> chars;
   std::optional<PairFound> pair;
   std::optional<PartsFound> parts;
+  std::optional<WorldRead> world;
   std::vector<InvariantFound> invariants;
 };
 
