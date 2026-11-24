@@ -1255,6 +1255,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     team and the on-screen and dead bits found by the survey and entered as leads (engine e816200, merged at 6771b7e);
     the type and the block open. Next: the nineteenth round reads them through EldenNet's own reader on the near
     list's characters.
+    The nineteenth round built the same day (engine 20825c7, merged at 274ab87; WHY§608): EldenNet's own reader reads
+    the near characters' handle, kind, model, entity, team and the dead and on-screen bits through the layout, beside
+    the survey; twenty checks for the type, the block and the dead bit's rivals. Within O117 (behaviour only), so no
+    new question to the owner; README read by Engine. Package 0.1.0-lodestar.24. Awaiting the owner's run.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1721,12 +1725,14 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     regenerates its goldens with a Related card at 0.2.39, with its next pin. Pinned the same day with Content packs
     (engine 7773f47, merged at 86d3991): every golden moved by its Related rows alone (WHY§599); the faces by name
     (GRACEUI_FACES_ELDENNET, D139).
-- bc The menu's keyboard hints as key caps (GraceUI 0.2.40) [active]
-  - refs: GraceUI:D246, GraceUI:D242
+- bc The menu's keyboard hints as key caps (GraceUI 0.2.40) [done]
+  - refs: GraceUI:D246, GraceUI:D242, WHY§606, WHY§607
   - gives: built on 2026-11-24 (GraceUI feat/foundations c53f414; GraceUI's docs/eldennet-changes.md §73): each key of
     the footer's hints in a cap, its label beside it, so every golden's footer moves. EldenNet pins 0.2.40 once
     GraceUI's full run is green, regenerates its goldens once, and reads a whole hints line from
-    GraceUiTestMenu.footer instead of the screen.
+    GraceUiTestMenu.footer instead of the screen. Pinned the same day (engine b294e06, merged at 01ed439): all 18
+    goldens moved by their footer alone (WHY§606); no check of the fake game's harness read a whole hints line, so
+    none changed (WHY§607).
 - bd The key caps' arrows drawn (GraceUI 0.2.41) [done]
   - refs: GraceUI:D247, GraceUI:D246
   - gives: built on 2026-11-24 (GraceUI feat/foundations 94284d7, with the gap after "Shift+" and its run in 0ed0e61):
@@ -1741,8 +1747,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     "yet", which SP5 and GraceUI's invariant 2 both forbid for anything not reached). EldenNet then marks Settings,
     Content packs and Docs as its foot. Built the same day (GraceUI feat/foundations 9157984, its run in b36bd2a);
     foot categories come after every other. EldenNet takes 0.2.41 and 0.2.42 in one pin after S11.2.bc.
-- bf A table's own filter bar and sort, done in the view (GraceUI's proposal 0012, G43 (a); protocol 1.11) [next]
-  - refs: G43, PAGES§4.6.2
+- bf A table's own filter bar and sort, done in the view (GraceUI's proposal 0012, G43 (a); protocol 1.11) [done]
+  - refs: G43, GraceUI:D250, PAGES§4.6.2
   - gives: put to the owner on 2026-11-24 and decided as recommended (G43 (a), the owner's words "(a) Filter bar now,
     Events later (Recommended)"): a table or a master list carries `filter_bar`, up to four filters from the values
     its published rows hold, up to four sort options on a column or a hidden key of each row, an optional search on
@@ -1751,6 +1757,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     (0.3); Events' paged filtering is designed with its pages for 0.4. Engine answered the proposal's §6 that day
     (`calls` and the roster are whole state topics); the hidden keys are last_met_s, first_met_s, at_ms,
     first_token_ms, total_ms, tokens, a memory's time and weight; "names as shown" is the search over the name column.
+    Built the same day as GraceUI 0.2.43 (D250, feat/foundations 72f77a0, its run there; GraceUI's
+    docs/eldennet-changes.md §76). EldenNet's next pin takes 0.2.41 to 0.2.43 together, and AI › Requests uses it.
 - bg A document block, a prose form field and the report preview (GraceUI's proposal 0013, G44 (a)) [next]
   - refs: G44, PAGES§4.6.8, PAGES§4.6.9, G16
   - gives: GraceUI's answer to Docs and Tools › Bug report (2026-11-24): a document block on a master page (headings,
