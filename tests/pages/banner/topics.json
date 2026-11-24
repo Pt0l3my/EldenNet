@@ -158,6 +158,115 @@
   "ai.status": {
     "sentence": "EldenNet inactive: game build 3.14.15.0 not supported yet"
   },
+  "content": {
+    "off": {
+      "items": [
+        {
+          "label": "Personas",
+          "value": "heron_watcher"
+        },
+        {
+          "label": "Cards",
+          "value": "salt_crier"
+        }
+      ]
+    },
+    "overrides": {
+      "columns": [
+        {
+          "id": "file",
+          "label": "File"
+        },
+        {
+          "id": "state",
+          "label": "State"
+        },
+        {
+          "id": "line",
+          "label": "Where"
+        },
+        {
+          "id": "problem",
+          "label": "Problem"
+        }
+      ],
+      "rows": [
+        {
+          "file": "disable.toml",
+          "line": "Line 3",
+          "problem": "cards[1]: names no shipped card, so nothing is turned off",
+          "state": "Loaded"
+        },
+        {
+          "file": "layers/persona-ferryman.toml",
+          "line": "",
+          "problem": "reply_words_max: refused: Must be a whole number from 10 to 60.",
+          "state": "Refused"
+        },
+        {
+          "file": "layers/persona-weaver.toml",
+          "line": "",
+          "problem": "",
+          "state": "Loaded"
+        }
+      ]
+    },
+    "reloads": {
+      "columns": [
+        {
+          "id": "time",
+          "label": "Time"
+        },
+        {
+          "id": "layer",
+          "label": "What it read"
+        },
+        {
+          "id": "result",
+          "label": "Result"
+        }
+      ],
+      "rows": [
+        {
+          "layer": "Shipped content and your overrides",
+          "result": "Loaded, with 2 warnings",
+          "time": "0:00:06"
+        }
+      ]
+    },
+    "shipped": {
+      "items": [
+        {
+          "label": "Name",
+          "value": "EldenNet's own content"
+        },
+        {
+          "label": "Version",
+          "value": "0.1.0"
+        },
+        {
+          "label": "Credit",
+          "value": "Written for EldenNet, in its own words"
+        },
+        {
+          "label": "Personas",
+          "value": "2"
+        },
+        {
+          "label": "Cards",
+          "value": "3"
+        },
+        {
+          "label": "Knowledge",
+          "value": "Included"
+        },
+        {
+          "label": "Event rules",
+          "value": "Included"
+        }
+      ]
+    }
+  },
   "errors": {
     "checks": [
       {

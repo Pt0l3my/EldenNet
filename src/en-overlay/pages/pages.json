@@ -65,6 +65,13 @@
       "pages": [
         "settings.developer"
       ]
+    },
+    {
+      "id": "content",
+      "name": "Content packs",
+      "pages": [
+        "content"
+      ]
     }
   ],
   "pages": [
@@ -768,6 +775,91 @@
           ]
         }
       ]
+    },
+    {
+      "id": "content",
+      "category": "content",
+      "name": "Content packs",
+      "description": "What content EldenNet runs: its own, and the files of your overrides folder.",
+      "help": {
+        "purpose": "See what content EldenNet runs: its own, your files in its overrides folder, and what you turned off.",
+        "steps": [
+          "Read Shipped content: EldenNet's own personas and cards, and the knowledge and rules it ships with.",
+          "Look down Your overrides: each of your files, and whether it loaded; a refused one names its line and problem.",
+          "Read Turned off for what your disable.toml turns off.",
+          "Read Reloads for each time EldenNet loaded its content this session, and how it went."
+        ]
+      },
+      "related": [
+        "characters.named",
+        "system.logs"
+      ],
+      "increment": "0.2",
+      "sections": [
+        {
+          "id": "shipped",
+          "title": "Shipped content",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "content",
+              "props": {
+                "field": "shipped",
+                "empty": "Shown once EldenNet has loaded its content."
+              }
+            }
+          ]
+        },
+        {
+          "id": "overrides",
+          "title": "Your overrides",
+          "description": "Each file of your overrides folder, by its path there: it replaces EldenNet's file of that path.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "content",
+              "props": {
+                "field": "overrides",
+                "empty": "No file of yours in the overrides folder."
+              }
+            }
+          ]
+        },
+        {
+          "id": "off",
+          "title": "Turned off",
+          "description": "What disable.toml in your overrides folder turns off.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "content",
+              "props": {
+                "field": "off",
+                "empty": "Nothing is turned off."
+              }
+            }
+          ]
+        },
+        {
+          "id": "reloads",
+          "title": "Reloads",
+          "description": "Each time EldenNet loaded its content this session, newest first.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "content",
+              "props": {
+                "field": "reloads",
+                "empty": "EldenNet has not loaded its content yet."
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "topics": [
@@ -877,6 +969,10 @@
       "id": "profiles",
       "shape": "state",
       "family": true
+    },
+    {
+      "id": "content",
+      "shape": "state"
     }
   ],
   "commands": [

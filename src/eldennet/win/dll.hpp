@@ -31,6 +31,7 @@
 #include "en/gal/native_sys.hpp"
 #include "en/gal/task.hpp"
 #include "en/proto/command.hpp"
+#include "en/proto/content_view.hpp"
 #include "en/proto/lifecycle.hpp"
 #include "en/proto/llm.hpp"
 #include "en/proto/ui.hpp"
@@ -207,6 +208,7 @@ struct Shell {
   std::atomic<AiFilesRead*> ai_files{nullptr};  // T1 publishes it on the main path; T6 alone uses it after
   std::atomic<ContentRead*> content{nullptr};   // T1 publishes it on the main path; T6 takes it once
   std::string content_notice;                    // T6's: the content's first problem in words, for one notice
+  en::proto::ContentView content_view;           // T6's: Content packs' projection, each load recorded (en-core's)
   std::atomic<SpikeState*> spike{nullptr};       // an S0 run's (spike.cpp); null in every other start
   // T6's: the pages' changes of a behaviour key (features.*, range.*; WHY§476), for the core after overlay_tick.
   std::vector<en::shell::SettingsEdit> behaviour_edits;

@@ -17,6 +17,8 @@ line    rule           30, 355  240x1
 text    ink.mute       30, 365   64x30   glyphs 6 "System"
 line    rule           30, 405  240x1   
 text    ink.mute       30, 415   85x30   glyphs 8 "Settings"
+line    rule           30, 455  240x1   
+text    ink.mute       30, 465  138x30   glyphs 12 "Content packs"
 fill    ground.well   340,  10  350x35   r3
 text    ink.faint     353,  15   51x25   glyphs 6 "Search"
 text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
@@ -304,14 +306,14 @@ fill    ground.2      340,3861 1540x175  r5 clip1
 stroke  rule          340,3861 1540x175  r5 w1 clip1
 text    gold          365,3881   67x20   clip1 glyphs 7 "Related"
 line    rule          365,3911 1490x1    clip1
-text    ink.hi        365,3916   84x28   clip1 glyphs 9 "Providers"
-text    ink.mute      862,3919  624x25   clip1 glyphs 63 "Where EldenNet's model calls go, with whose key, and whether each answers."
-text    gold         1835,3916    9x28   clip1 glyphs 1 "→"
+text    ink.hi        380,3925   84x28   clip1 glyphs 9 "Providers"
+text    ink.mute      862,3926  624x25   clip1 glyphs 63 "Where EldenNet's model calls go, with whose key, and whether each answers."
+text    gold         1820,3925    9x28   clip1 glyphs 1 "→"
 line    rule          365,3966 1490x1    clip1
-text    ink.hi        365,3971   84x28   clip1 glyphs 9 "Self-test"
-text    ink.mute      862,3974  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
-text    gold         1835,3971    9x28   clip1 glyphs 1 "→"
+text    ink.hi        380,3980   84x28   clip1 glyphs 9 "Self-test"
+text    ink.mute      862,3981  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
+text    gold         1820,3980    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 text    ink.faint     340,1045  304x25   glyphs 21 "← →  Choose    R  Reset    Esc  Back"
 stroke  gold.hi      1502, 414  356x44   r5 w3 clip1
-# 315 items, 11268 vertices, 24204 indices, 4 commands; check_draw_list: passes
+# 317 items, 11320 vertices, 24282 indices, 4 commands; check_draw_list: passes

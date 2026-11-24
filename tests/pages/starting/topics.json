@@ -158,6 +158,7 @@
   "ai.status": {
     "sentence": "No provider yet: on Providers, add the preset's provider or one of your own."
   },
+  "content": {},
   "errors": {
     "checks": []
   },

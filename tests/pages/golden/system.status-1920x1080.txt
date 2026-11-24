@@ -16,6 +16,8 @@ text    gold.hi        50, 293   51x25   glyphs 6 "Status"
 text    ink.mute       50, 333   34x25   glyphs 4 "Logs"
 line    rule           30, 365  240x1   
 text    ink.mute       30, 375   85x30   glyphs 8 "Settings"
+line    rule           30, 415  240x1   
+text    ink.mute       30, 425  138x30   glyphs 12 "Content packs"
 fill    ground.well   340,  10  350x35   r3
 text    ink.faint     353,  15   51x25   glyphs 6 "Search"
 text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
@@ -120,14 +122,14 @@ fill    ground.2      340, 900 1540x175  r5 clip1
 stroke  rule          340, 900 1540x175  r5 w1 clip1
 text    gold          365, 920   67x20   clip1 glyphs 7 "Related"
 line    rule          365, 950 1490x1    clip1
-text    ink.hi        365, 955   38x28   clip1 glyphs 4 "Logs"
-text    ink.mute      862, 958  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
-text    gold         1835, 955    9x28   clip1 glyphs 1 "→"
+text    ink.hi        380, 964   38x28   clip1 glyphs 4 "Logs"
+text    ink.mute      862, 965  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
+text    gold         1820, 964    9x28   clip1 glyphs 1 "→"
 line    rule          365,1005 1490x1    clip1
-text    ink.hi        365,1010   38x28   clip1 glyphs 4 "Home"
-text    ink.mute      862,1013  591x25   clip1 glyphs 56 "Whether EldenNet is working on this game, and what to do if it is not."
-text    gold         1835,1010    9x28   clip1 glyphs 1 "→"
+text    ink.hi        380,1019   38x28   clip1 glyphs 4 "Home"
+text    ink.mute      862,1020  591x25   clip1 glyphs 56 "Whether EldenNet is working on this game, and what to do if it is not."
+text    gold         1820,1019    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 text    ink.faint     340,1045  202x25   glyphs 16 "Enter  Open    Esc  Back"
 stroke  gold.hi       362, 947 1496x61   r5 w3 clip1
-# 131 items, 4396 vertices, 8028 indices, 4 commands; check_draw_list: passes
+# 133 items, 4448 vertices, 8106 indices, 4 commands; check_draw_list: passes
