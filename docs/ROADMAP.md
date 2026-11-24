@@ -1797,7 +1797,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     drop their stand-ins with its next pin, which takes 0.2.41 to 0.2.44 together. Done the same day (engine
     0538221; S11.4.a).
 - bh Quick switches and live updates, then a space's scope and paged tables (GraceUI's proposal 0014, G45 (a)) [done]
-  - refs: G45, GraceUI:D252, GraceUI:D254, PAGES§4.6.1, PAGES§4.6.4, PAGES§4.9
+  - refs: G45, GraceUI:D252, GraceUI:D254, GraceUI:D255, PAGES§4.6.1, PAGES§4.6.4, PAGES§4.9
   - gives: decided by the owner on 2026-11-24 (G45 (a), "All four, in two steps (Recommended)"): quick switches (a
     setting's shortcut or a session switch with its state) and live updates (Live, every 5 s, Paused) first, as
     protocol 1.13, for EldenNet 0.2's Home, Requests and Pause AI; then a space's scope (the Journey) and paged tables,
@@ -1817,6 +1817,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     topic, scoped pages reading a family member per journey, a read-only journey greying the page, and tables and
     master lists read a page at a time (filters, sort, search and scope sent; Show more; New rows). For EldenNet 0.3's
     History, Playthrough and Named NPCs.
+    GraceUI 0.2.48 (D255, feat/foundations b9eb970): four fixes to D254's paging found by a review of 0.2.47; EldenNet's
+    0.3 pin takes 0.2.48, and publishes its History pages' changes topic when a character loads.
 
 ### S11.3 EldenNet v0.2
 
