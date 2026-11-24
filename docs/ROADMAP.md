@@ -1748,7 +1748,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: built on 2026-11-24 (GraceUI feat/foundations 94284d7, with the gap after "Shift+" and its run in 0ed0e61):
     each arrow in a footer's key cap drawn as a shaft and a head, centred, instead of the mono face's glyph.
     EldenNet's footers with arrows move at its next pin after S11.2.bc, which takes 0.2.41 and 0.2.42 (S11.2.be)
-    together; GraceUiTestMenu.footer is unchanged.
+    together; GraceUiTestMenu.footer is unchanged. Pinned with 0.2.42 to 0.2.44 (engine c9832bb, merged at 0538221;
+    WHY§617).
 - be The rail's foot for a mod's categories, and empty words without "yet" (GraceUI 0.2.42, protocol 1.10) [done]
   - refs: GraceUI:D248, GraceUI:D249, PAGES§4.2.1, PAGES§4.6.9, O119
   - gives: asked by Engine from Content packs on 2026-11-24; Grace builds both as framework details of the design
@@ -1756,7 +1757,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     bottom under a rule; a block with no items and no words of its own reads "Nothing to show." in both views (no
     "yet", which SP5 and GraceUI's invariant 2 both forbid for anything not reached). EldenNet then marks Settings,
     Content packs and Docs as its foot. Built the same day (GraceUI feat/foundations 9157984, its run in b36bd2a);
-    foot categories come after every other. EldenNet takes 0.2.41 and 0.2.42 in one pin after S11.2.bc.
+    foot categories come after every other. EldenNet takes 0.2.41 and 0.2.42 in one pin after S11.2.bc. Pinned at
+    0.2.44 (engine c9832bb, merged at 0538221): Settings, Docs and Content packs are EldenNet's foot.
 - bf A table's own filter bar and sort, done in the view (GraceUI's proposal 0012, G43 (a); protocol 1.11) [done]
   - refs: G43, GraceUI:D250, PAGES§4.6.2
   - gives: put to the owner on 2026-11-24 and decided as recommended (G43 (a), the owner's words "(a) Filter bar now,
@@ -1783,7 +1785,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     docs/eldennet-changes.md §77), in both views, the demo's Handbook, lamp report and Notes field as examples: Docs a
     master page whose list's own filter-bar search covers titles and headings only; "What happened" a form field with
     `"prose": true`; `report_preview` sending the space's command for a part's switch. EldenNet's Docs and Bug report
-    drop their stand-ins with its next pin, which takes 0.2.41 to 0.2.44 together.
+    drop their stand-ins with its next pin, which takes 0.2.41 to 0.2.44 together. Done the same day (engine
+    0538221; S11.4.a).
 - bh Quick switches and live updates, then a space's scope and paged tables (GraceUI's proposal 0014, G45 (a)) [active]
   - refs: G45, GraceUI:D252, PAGES§4.6.1, PAGES§4.6.4, PAGES§4.9
   - gives: decided by the owner on 2026-11-24 (G45 (a), "All four, in two steps (Recommended)"): quick switches (a
@@ -1951,6 +1954,15 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     for review; O120's words merged with them (the refused-key toast, Home's Observing reason; Writing content without
     its own-profile section). Next: GraceUI 0.2.44's pin with the Docs page and Tools › Bug report on its document
     block, prose field and report preview (S11.2.bg).
+    Built the same day at GraceUI 0.2.44 (engine c9832bb, 6abc997 and faf9e43, merged at 0538221; WHY§617 to §622):
+    Docs, a master page with its list's search over titles and headings and the ten documents bundled in the DLL by a
+    checked build step; Tools › Bug report, the "What happened" prose field and the report's preview (What happened,
+    Versions and State always in; Settings, Content and the recent log switchable by `report.part`), scrubbed of
+    SteamIDs, paths and local addresses, the typed words kept in memory for the preview alone; Settings, Docs and
+    Content packs as the rail's foot. EldenNet's GraceUI floor is 0.2.44 (WHY§619). Docs shows in game too, since a
+    page cannot yet be kept out of one view; in game its documents show "Nothing to show." until GraceUI watches a
+    document's member (WHY§621), and a preview field is one line (both asked of Grace). The pages' new words, for the
+    owner's review. Copy and save of the report stay 0.6's.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
