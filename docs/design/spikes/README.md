@@ -5,6 +5,9 @@ build A's S0-A to S0-D first (the plan for roadmap S10.1.a, §1.2), then build B
 what a spike package holds, and how the owner runs each S0 spike. `formats.md` describes every file the runs write, for
 DataPiler's importer (O73).*
 
+`capture-plans.md` (2026-11-24, roadmap S6.3.s) plans the in-game checks S1, S2 and S6 and the roster's captures
+for a normal playthrough: what each records, where and when, and v0.1's three golden routes.
+
 ## How a result is recorded
 
 1. **The run.** The owner runs a spike package (below) on their own PC, as its README says. Every file it writes is

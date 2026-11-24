@@ -1183,7 +1183,8 @@ NPC with a profile converses and remembers, whoever wrote the profile (§7.7).
 
 **The roster pipeline.** Two prerequisites first, as the owner set them, both now settled: (1) Min's engine blueprint,
 and the owner's decision on what EldenNet adopts from it (O84: an engine of our own); (2) the bio's structure (O46).
-Then, per batch of NPCs (a region or a hub, so that a batch's captures share saves):
+Then, per batch of NPCs (a region or a hub, so that a batch's captures share a stretch of play; *2026-11-24:* not
+saves, O58 as amended; docs/design/spikes/capture-plans.md §6 gives the batches):
 1. **Census** (`eldennet-engine roster-scan`, offline, on the author's machine): from the author's own exports and
    install data (params through `identity-fill`, names through `fmg-import`'s local database; ARCH §12.3), every
    NpcParam row with a personal name, its `nameId`, entity ids where known, its flag block if one exists, and each boss
@@ -1222,7 +1223,8 @@ mechanical checks (banned words, quoted lines, template syntax; NPC §4.8).
   author's saves across one full playthrough, about a dozen points, each NPC seen once while F11's unknown-characters
   list and the sightings record its keys; `eldennet-engine roster-verify` matches the leads to what was seen and
   writes evidence records to `tests/roster/`, as `flag-verify` does for S6. About 2–4 minutes per NPC on a prepared
-  save: roughly 5–8 hours.
+  save: roughly 5–8 hours. *2026-11-24 (O58 as amended on 2026-11-16):* no prepared saves; the recordings are made
+  when the player meets each NPC in a normal playthrough, as docs/design/spikes/capture-plans.md §6 plans them.
 - **S2 roster captures:** every named boss's fight once, its bar's `name_id` matched to its holder's row; about 10 minutes a fight with retries: roughly 8–10 hours.
 - **S3 records:** each named boss with scripted lines is its own kind (§9.10): ≥ 30 of its lines detected, over several attempts if it has few, and a boss with none is recorded `scripted = "none"`. About ten base-game bosses have lines (ER04 §2.5): roughly 10 hours. Every named invader and every hostile form of a roster NPC gets an S3 record the same way, most as `scripted = "none"` (ER04 §2.6 finds no invader lines in the dump, which holds for the dump only), taken during the S1 or S2 capture of that invasion or fight so no extra session is needed: about 5 minutes each, roughly 2–3 hours. A kind that S3 or S7 has not recorded stays held.
 - **Schedule:** captures start at v0.4, once the census has run and character bindings ship, run in batches through v0.5 and v0.6, and finish by the v1.0 release candidate. A bio whose binding is not verified by then ships *held*: listed and described in GraceUI, silent in game, with the reason in its checklist; release lint rejects any binding that would speak unverified. The v1.0 exit wants every binding verified; a held bio is the fallback, not the plan.

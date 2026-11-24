@@ -376,10 +376,13 @@ O46 on 2026-11-16), and the research into the game's data that went ahead before
   - refs: O43, O51, O59, WHY§55
   - gives: `docs/research/eldenring/leads/npc-flags.json`: 55 blocks (status, questline stages, 112 progress steps)
     and 6 endings, numbers only, unverified; bound to the roster's ids later, never by the slug.
-- s The capture plans, in our own words: S6's expectation scripts, the S1 and S2 capture routes and the checkpoint list, the roster batch by batch [next]
+- s The capture plans, in our own words: S6's expectation scripts, the S1 and S2 capture routes and the checkpoint list, the roster batch by batch [done]
   - needs: j
-  - refs: O58, DATA, MEM§6.3, DESIGN§7.8, DESIGN§16.1
+  - refs: O58, DATA, MEM§6.3, DESIGN§7.8, DESIGN§16.1, WHY§580
   - gives: what each live check records, where and when, so the captures start the day the first build runs.
+    Written on 2026-11-24 (docs/design/spikes/capture-plans.md; WHY§580), for a normal playthrough (O58 as amended):
+    25 checkpoints, nine S1 routes (the first three v0.1's golden routes, S10.2.c), S2's routes and the ten boss
+    fights, S6's scripts in MEM §6.3's shape, the roster in ten base-game batches, and 19 open points (S6.3.v).
 - t The owner keeps a save before each named boss fight and each later form of a roster NPC, on their own PC, never committed and never taken online [done]
   - needs: j
   - refs: O58, DESIGN§7.8
@@ -388,6 +391,12 @@ O46 on 2026-11-16), and the research into the game's data that went ahead before
 - u The gear's names: which text entries hold the weapon and armour names, checked on the owner's data (DataPiler 0.2.40, jobs en-0041 to en-0043) [done]
   - refs: DATA§3.1, DESIGN§4.5, WHY§105
   - gives: 2026-11-16: WeaponName (11) and ProtectorName (12) name 80.0% and 76.4% of the rows by row id, and no row needs the expansion's layers; DESIGN §4.5 lists them, and S2 checks them in game.
+- v The capture plans' open points: telling Marks apart in normal play, S6's wide watch without GraceUI, v0.1's recording form for S1 (the list's distance and length, the player set's types, each character's class), the S1 and S2 reports, S2's text match without text [next]
+  - needs: s
+  - refs: WHY§580
+  - gives: the 19 open points listed at the end of docs/design/spikes/capture-plans.md, each settled or put to the
+    owner before the capture it blocks; the design's stale "prepared saves" wording carries dated notes since
+    2026-11-24.
 
 ## S7 Open items
 
@@ -1235,6 +1244,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Open: the owner's check of the maximum HP. Next: the rest of the world's and the player's fields, in
     WHY§460's order (the character's other fields, the save data's deaths and the sheet's level and name, then
     field_area, the menus' screen and the session).
+    The eighteenth round built the same day (engine b365148, merged at 067b725; package 0.1.0-lodestar.22; WHY§577
+    to §579, O117, O118): the character survey under plan 1, for a character's other fields. Reviewed by
+    Engine; the package (README at 02b0f27) is with the owner. Awaiting the owner's run.
+    The eighteenth round's first run (2026-11-24; WHY§597, §598): the dead bit found (0x1C6, bits 0 and 1), and
+    on-screen candidates (first, bit 4 of 0x1C4); the still fields lost to a fault of the survey's at the quit,
+    mended (engine bf36cbe, merged at 88aaa16). Package 0.1.0-lodestar.23 repeats the round; its README read by
+    Engine (bf36cbe). Awaiting the owner's run.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1264,8 +1280,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - b The read-group self-tests, the matrix's v0.1 rows (with S0's third-party rows not yet run), and the patch drill if the JP build's layout is ready
   - refs: ARCH§12.4, O91
 - c Every CI stage but the eval (from v0.2) gating, and signed builds for testers
-- d One hook library in the process, GraceUI's; EldenNet's imports and symbols free of any; two consumers each way round; a second GraceUI copy idling
-  - refs: G15, GraceUI:DESIGN§10
+- d One hook library in the process, GraceUI's; EldenNet's imports and symbols free of any; two consumers each way round; a second GraceUI copy idling [done]
+  - refs: G15, GraceUI:DESIGN§10, WHY§581, WHY§583, WHY§590
+  - gives: on 2026-11-24, with Grace (the owner's request): dll_checks.py (no hook library's symbol, imports against a
+    reviewed list); the fake-game cases -second-copy and -second-copy-first (a second GraceUI copy idles, installs no
+    hook and is named once; EldenNet and another mod stay on the active copy; engine 08fef7a, merged at 4c5632d) and
+    -unbound (two consumers each way round, with the package cases A1 to A4 by hand); GraceUI's own cases of a mod
+    beside a second copy and its hook leads (S11.2.ax). Left: the hook-lead check in EldenNet's case, with the move
+    to GraceUI 0.2.36. Done the same day at GraceUI 0.2.38 (engine dc601a3, merged at 6930988; WHY§590): at every
+    report the active copy's six hooks each lead into its own detour and module, and the idle copy answers none; a
+    mutation of the report fails both cases. With GraceUI's own copy idle, its notice now names the copy in use.
 
 ### S10.4 GraceUI 0.1 Host
 
@@ -1666,6 +1690,31 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     300 ms gap between reads, the detours' longest calls). The owner's A1 run again showed the first A1's drops a
     first-run effect (WHY§566); for a next one, the owner's rough time of a missed press is set against the state
     line near it. For spikes.7.
+- ax S10.3.d's GraceUI side: where each hooked function leads, in GraceUI's test build, and a mod of EldenNet's kind beside a second copy each way round (GraceUI 0.2.35) [done]
+  - refs: GraceUI:D240, GraceUI:D72, GraceUI:D102, WHY§581, WHY§582
+  - gives: built on 2026-11-24 (GraceUI feat/foundations f368290) at Engine's request; GraceUI_Test_GetHookLead says,
+    per hook, whether its entry leads to the active copy's detour and into which module. Left for S10.3.d: EldenNet's
+    own case against GraceUI's test build (a second copy beside the game while EldenNet runs; every hook leading into
+    the active copy).
+- ay S11.4.c's italic face: EB Garamond Italic in GraceUI's fonts folder for mods' faces (GraceUI 0.2.36) [done]
+  - refs: GraceUI:D241, GraceUI:D139
+  - gives: built on 2026-11-24 (GraceUI feat/foundations 9f536a0); EldenNet registers it as a third scaled face for
+    the Tarnished's lines. Rounded corners need no change in GraceUI (GraceUI's docs/eldennet-changes.md §69).
+- az The in-game menu's pad mode: the key hints as the pad's buttons, Y for search, View for the hints, the right stick to scroll; a pad-only walkthrough in the harness (GraceUI 0.2.37) [done]
+  - refs: GraceUI:D242, GraceUI:D33, GraceUI:D237
+  - gives: built on 2026-11-24 (GraceUI feat/foundations a9755cb); the menu-pad scenario is the first of v1.0's
+    pad-only walkthrough. Left for later: §3.8's key caps for the keyboard (they would move every golden), a 44 px
+    floor for smaller rows, and Start's quick switches. Nothing for EldenNet to change (GraceUI's
+    docs/eldennet-changes.md §70).
+- ba What pressed a hotkey (ABI 1.7) and the notice when GraceUI's own copy idles (GraceUI 0.2.38) [done]
+  - refs: GraceUI:D243, GraceUI:D244, GraceUI:D240, WHY§585
+  - gives: built on 2026-11-24 (GraceUI feat/foundations 3ea17b6) at Engine's request after its second-copy and chord
+    cases; EldenNet reads hotkey_by for the chat box's via and its swallow, with its pin moving to 0.2.38. Pinned the
+    same day (engine 678b313, merged at 6930988; WHY§585, §590).
+- bb The preview's three findings in GraceUI's menu: the links back by the space's increment, the rail's ring whole, a related row's words clear of its ring (GraceUI 0.2.39) [done]
+  - refs: GraceUI:D245, GraceUI:D173, WHY§595
+  - gives: built on 2026-11-24 (GraceUI feat/foundations c9d699e) from Engine's preview shots (S11.4.c); EldenNet
+    regenerates its goldens with a Related card at 0.2.39, with its next pin.
 
 ### S11.3 EldenNet v0.2
 
@@ -1846,6 +1895,18 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     call-out box waits for v0.6 (WHY§364 (5); S15.1.a). Since O113 (2026-11-23, the owner's direction) the box asks
     for the keyboard and the pad, never the mouse: no pointer, and the camera still turns while the player types
     (engine 8424f15).
+    On 2026-11-24 the chord and the danger close were tested against GraceUI's real test build (engine 08fef7a,
+    merged at 4c5632d; WHY§584 to §587): -talk-chord and -talk-danger. The italic face (GraceUI 0.2.36, S11.2.ay),
+    the rounded corners and the kept draft's loss when T is pressed during danger (WHY§586) are being done with the
+    move to GraceUI 0.2.36. Done the same day at GraceUI 0.2.38, ABI 1.7 (engine 07ae392 to 678b313, merged at
+    6930988; WHY§588 to §594): the Tarnished's lines in the box's history in EB Garamond Italic where GraceUI ships it;
+    the box's ground and frame rounded at GraceUI's card radius and the hint's key at its control radius; a box GraceUI
+    refuses at its opening keeps the kept draft; the chord alone opens the box by the chord (via=pad_chord, no
+    swallow), from GraceUI's hotkey_by. Left: the call-out box (v0.6), and S4 and S0-E's input half in game.
+    The same day the fake game learnt a backdrop of our own, a swap chain at a given size and format and shots of the
+    frame as presented, driven by tools/preview/shoot.py (engine a44d9f4 and 2311c1d, merged at de94506; WHY§595,
+    §596): the box, the answer, the hint, the menu and F11's view, on a test backdrop, are in the showcase's In game
+    section. The caret, seen touching the last letter, now stands a pixel clear (engine 52e6d72).
 - d A second Escape while a reply paces (NPC §5.7): a way for it to reach EldenNet once the box has closed, asked of GraceUI [done]
   - needs: c
   - refs: NPC§5.7, WHY§437, WHY§461, G39

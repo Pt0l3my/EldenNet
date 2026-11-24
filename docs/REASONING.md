@@ -599,6 +599,28 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 574 | 2026-11-24 | EldenNet's own reader read the world's leads in the game through the build's layout, with no fault | FACT | #lodestar #gal #backend |
 | 575 | 2026-11-24 | The save's slot keeps its number at the title: it does not tell the title from the world | FACT | #lodestar #design |
 | 576 | 2026-11-24 | Of 12,720 near-list elements read in a session, 8 held no plain distance, and none fell below the one before | FACT | #lodestar |
+| 577 | 2026-11-24 | A character's other fields are sought by how numbers stand among the near characters and over a session | METHOD | #lodestar #l6 |
+| 578 | 2026-11-24 | A read round's plan travels in the watch block (probe_plan, version 2); a plan the round does not know is a refusal | DECIDED | #lodestar #launcher |
+| 579 | 2026-11-24 | Two neighbouring 32-bit numbers often pass for an address by size alone | METHOD | #lodestar |
+| 580 | 2026-11-24 | The capture plans for a normal playthrough: 25 checkpoints, nine S1 routes, three of them v0.1's golden routes | DECIDED | #design #spikes #roster |
+| 581 | 2026-11-24 | With the hook library linked statically, only where each hooked function leads shows which copy holds the hooks | FACT | #graceui #hooks |
+| 582 | 2026-11-24 | Under Wine, GetModuleHandleW of a name two loaded copies share answered the copy asked first; Windows may differ | FACT | #graceui #wine |
+| 583 | 2026-11-24 | A second GraceUI copy beside EldenNet idles and is named once, in either order; Wine's by-name look answered the copy loaded first | FACT | #graceui #s10.3 #wine |
+| 584 | 2026-11-24 | The talk chord through GraceUI's filter, read once a frame, completes as the harness's 10 ms reads do | METHOD | #graceui #input |
+| 585 | 2026-11-24 | GraceUI's hotkey event does not say whether the key or the chord fired it | FACT | #graceui #overlay |
+| 586 | 2026-11-24 | Pressing T while danger lasts lost the box's kept draft | FACT | #core #overlay |
+| 587 | 2026-11-24 | v0.1's two danger stand-ins differ: GraceUI's provider claim and the conversation's safe context | FACT | #overlay #core #graceui |
+| 588 | 2026-11-24 | GraceUI 0.2.32 to 0.2.38 change two vendored files and the ABI's minor, and no page golden | FACT | #graceui #pages |
+| 589 | 2026-11-24 | A box refused at its opening keeps the store's draft; a sent line drops it | DECIDED | #core #overlay |
+| 590 | 2026-11-24 | The active GraceUI copy's hooks all lead into it; the idle copy answers none | FACT | #graceui #s10.3 #wine |
+| 591 | 2026-11-24 | The fake GraceUI gave every mod two faces; EldenNet has eight | FACT | #graceui #tests |
+| 592 | 2026-11-24 | Only the box's history carries the Tarnished's lines, so only it takes the italic | FACT | #overlay |
+| 593 | 2026-11-24 | The surfaces' fonts are read beside the copy named graceui.dll, not the active one | LIKELY | #overlay #dll |
+| 594 | 2026-11-24 | Rounded corners as Dear ImGui draws them, on EldenNet's white texel, at GraceUI's radius tokens | METHOD | #overlay |
+| 595 | 2026-11-24 | Under Wine, a cursor put back before each key press reads as a mouse move, and G42 hides GraceUI's ring again | FACT | #graceui #wine #fakegame |
+| 596 | 2026-11-24 | GraceUI 0.2.38 draws on a 10-bit swap chain under Wine as on an 8-bit one | FACT | #graceui #wine #fakegame |
+| 597 | 2026-11-24 | A character's dead bit, by one death among 64 characters followed: bits 0 and 1 of the byte 0x1C6 | FACT | #lodestar #l6 |
+| 598 | 2026-11-24 | A summary recomputed every pass must not be overwritten by a pass that saw nothing, and a case must end as a run ends | METHOD | #lodestar #tests |
 
 ## Entries
 
@@ -8682,3 +8704,227 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - With up to 95 elements in the list, the reader found a character behind every address it read, a plain distance
   in all but 8 elements, and no distance below the one before it: the list is kept by distance, and the reader's
   element-by-element reading of the distance (982f09a) fits the few that are not a number yet.
+
+### 577. A character's other fields are sought by how numbers stand among the near characters and over a session
+
+`2026-11-24` · METHOD · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the eighteenth round"), WHY§460, O117, O118
+
+- The eighteenth round (package 0.1.0-lodestar.22, engine b365148, merged at 067b725) reads, every two seconds, the
+  first 2 KiB of the main player's object and of the near list's first 48 characters, with their health, and notes
+  per place: still in nearly all, shared by a kind, different in each, the player's alone; one field a ten-
+  thousandth of another (a parameter and its model); a bit that flips at a death and holds in every other
+  character, living or dead; a bit that flips while the tester looks around (on screen). The report holds places
+  and counts, no value of any character.
+- Later (2026-11-24): the first run found the dead bit (0x1C6, bits 0 and 1) and on-screen candidates (WHY§597);
+  its still fields were lost at the quit (WHY§598), so the round repeats.
+
+### 578. A read round's plan travels in the watch block (probe_plan, version 2); a plan the round does not know is a refusal
+
+`2026-11-24` · DECIDED · `#lodestar` `#launcher` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the eighteenth round")
+
+- The launcher's --read-plan N (0 or 1, with --read only) writes probe_plan, appended to the watch block (offset
+  464; kVersion 2, so a launcher and a DLL of different blocks refuse each other) before the game starts; the
+  round reads it once and logs it, and a number it does not know stops the round before any reading. Plan 0 is the
+  rounds up to the seventeenth, plan 1 the character survey; read.cmd names its plan. boot.cpp is untouched, and
+  GraceUI opens no watch block, so its builds are not affected. Settled by Engine on Lodestar's proposal (a).
+
+### 579. Two neighbouring 32-bit numbers often pass for an address by size alone
+
+`2026-11-24` · METHOD · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the eighteenth round")
+
+- Read as one eight-byte word, a kind's number beside its model's looks like an address by its size. The survey
+  takes a word for an address only if it lies in the image or near where the game's objects were met.
+
+### 580. The capture plans for a normal playthrough: 25 checkpoints, nine S1 routes, three of them v0.1's golden routes
+
+`2026-11-24` · DECIDED · `#design` `#spikes` `#roster` · refs: O58, DESIGN §16.1, DESIGN §7.8, MEM §6.3, S6.3.s, S10.2.c
+
+- docs/design/spikes/capture-plans.md (roadmap S6.3.s, drafted by an agent of Engine's and reviewed) plans S1, S2,
+  S6 and the roster's captures as "when the player next reaches X, this check runs and records Y", with no save
+  kept or loaded (O58 as amended). v0.1's three golden routes are the road and gate, a camp fight and the first
+  boss fight, mirroring Augur's synthetic routes (WHY§225). It lists 19 open points (S6.3.v) and found the
+  design still speaking of prepared saves in MEM §12.12, DESIGN §7.8 and DATA §3.2 risk 6, which now carry dated
+  notes. The goldens may carry the character's game numbers by the owner's standing word on uploads.
+
+### 581. With the hook library linked statically, only where each hooked function leads shows which copy holds the hooks
+
+`2026-11-24` · FACT · `#graceui` `#hooks` · refs: GraceUI:D240, GraceUI:D72, S10.3.d
+
+- Every copy of graceui.dll carries MinHook's code and only the active one initialises it, so a list of the loaded
+  modules cannot show which holds the process's hooks. Where each hooked function's entry leads, followed through
+  MinHook's jump and relay, shows it (GraceUI_Test_GetHookLead, GraceUI 0.2.35's test build); a hook laid over one
+  of GraceUI's shows as leading into its own module. With dll_checks.py (static) and an idle copy's
+  hooks_installed 0, that is the whole of "one hook library in the process".
+- Later (2026-11-24): EldenNet's -second-copy cases check it at every report from GraceUI 0.2.38's pin (WHY§590).
+
+### 582. Under Wine, GetModuleHandleW of a name two loaded copies share answered the copy asked first; Windows may differ
+
+`2026-11-24` · FACT · `#graceui` `#wine` · refs: GraceUI:D240
+
+- Under Wine 9.0, with two copies of graceui.dll from two folders, GetModuleHandleW(L"graceui.dll") answered the
+  copy first asked for GraceUI's table, in both orders; why is not known. Windows may answer the one loaded first,
+  idle or not, so graceui-sys's scan past an idle copy holding the name is tested by itself, and EldenNet's case
+  allows either way of finding and asserts the table and the module.
+- Later (2026-11-24): in EldenNet's -second-copy-first case Wine answered the copy loaded first (GraceUI's own, idle)
+  and graceui-sys found the active one by its scan; Wine's answer differs from case to case (WHY§583).
+
+### 583. A second GraceUI copy beside EldenNet idles and is named once, in either order; Wine's by-name look answered the copy loaded first
+
+`2026-11-24` · FACT · `#graceui` `#s10.3` `#wine` · refs: S10.3.d, S11.4.c, engine 08fef7a (merged at 4c5632d), GraceUI:D72, GraceUI:D83, WHY§581, WHY§582
+
+- The fake-game cases launcher-eldennet-graceui-second-copy and -second-copy-first (GraceUI's 0.2.33 test build twice,
+  from two folders): the copy asked second answers null, host 4, no thread, install run or hook; the active one keeps
+  6 hooks at every report and names the other in one notice and one log line; EldenNet's banner and F11 view and the
+  other mod stay on the active copy. With the private copy asked first, GetModuleHandleW answered Game\GraceUI's
+  (idle) and graceui-sys found the active copy by its scan: Grace's harness saw the active copy answered by name in
+  both orders, so the cases allow either. "Two consumers each way round" is covered in CMake's set by -unbound and
+  the two new cases, and by hand by the package cases A1 to A4. The hook-lead check waits for GraceUI 0.2.36's pin.
+- Later (2026-11-24): the hook-lead check is in from GraceUI 0.2.38's pin (WHY§590), and with the private copy
+  first GraceUI's own idle copy's notice now names the copy in use and asks the player to remove it (GraceUI:D244).
+
+### 584. The talk chord through GraceUI's filter, read once a frame, completes as the harness's 10 ms reads do
+
+`2026-11-24` · METHOD · `#graceui` `#input` · refs: S10.3.d, S11.4.c, engine 08fef7a (merged at 4c5632d), GraceUI:D204
+
+- The fake game reads pad 0 through GraceUI_Test_PadRead once a frame at 60 FPS (Up alone 250 ms, Up and View 650 ms):
+  the game saw Up on 39 reads and View on none, the talk hotkey fired once and EldenNet's box held input. With the
+  chord changed to Down then View, View reached the game on all 39 reads and no box opened.
+
+### 585. GraceUI's hotkey event does not say whether the key or the chord fired it
+
+`2026-11-24` · FACT · `#graceui` `#overlay` · refs: S10.3.d, S11.4.c, engine 08fef7a (merged at 4c5632d), GraceUI:D204
+
+- A chord's press arrives as the same GRACEUI_EVENT_HOTKEY as T's, so EldenNet logs via=talk_key for it, never
+  produces OpenVia::PadChord, and arms the 100 ms swallow of T's character after a chord open (harmless in practice).
+  Asked of Grace: a field naming the binding that fired.
+- Later (2026-11-24): GraceUI 0.2.38 gives it, GraceUiEvent.hotkey_by (D243, ABI 1.7).
+- Later (2026-11-24): EldenNet uses it (engine 678b313, merged at 6930988): the chord alone opens the box by
+  OpenVia::PadChord, logged via=pad_chord, and arms no swallow; the key, both, or 0 from an older GraceUI open by the key.
+
+### 586. Pressing T while danger lasts lost the box's kept draft
+
+`2026-11-24` · FACT · `#core` `#overlay` · refs: S10.3.d, S11.4.c, engine 08fef7a (merged at 4c5632d), NPC §5.4
+
+- After GraceUI's danger close kept the draft, T during danger closed the box as not_now with an empty draft and ended
+  the conversation: the core's reopen moved the kept draft into the box, the overlay's not-now close carried an empty
+  one, and on_close keeps no draft for NotNow or Refused. Being fixed with EldenNet's move to GraceUI 0.2.36, with a
+  unit test and the danger case extended by a T press.
+- Later (2026-11-24): fixed in the core alone at the 0.2.38 pin (WHY§589).
+
+### 587. v0.1's two danger stand-ins differ: GraceUI's provider claim and the conversation's safe context
+
+`2026-11-24` · FACT · `#overlay` `#core` `#graceui` · refs: S10.3.d, S11.4.c, engine 08fef7a (merged at 4c5632d), GraceUI:D78, GraceUI invariant 9
+
+- EldenNet's world-state provider claims danger for a boss bar, the player dead or locked on; the conversation's
+  safe_context closes the box for the player dead or riding, a boss, combat or hostiles near. A lock-on on a friendly
+  closes the box through GraceUI alone (input lost, draft kept); riding closes it through the core alone, with
+  GraceUI's menu free to stay open. To align when safe_context replaces the stand-in, as world.hpp plans.
+
+### 588. GraceUI 0.2.32 to 0.2.38 change two vendored files and the ABI's minor, and no page golden
+
+`2026-11-24` · FACT · `#graceui` `#pages` · refs: S10.3.d, S11.4.c, engine 07ae392 (merged at 6930988), GraceUI:D235, GraceUI:D238, GraceUI:D240, GraceUI:D242, GraceUI:D243, GraceUI:G42
+
+- From 386d1ba to 3ea17b6 only graceui.h (ABI 1.7: GraceUiEvent.hotkey_by in the word that was reserved3, the
+  hotkey-by cap) and graceui_test.h (input counters, the focus ring and pad mode, the heap guard, the hook leads)
+  changed; the page lint's five files are byte for byte the same (protocol 1.9). The floor stays 0.2.22; the italic
+  face and hotkey_by are used only where present. The pages' goldens regenerated with 3ea17b6's grace-dev came out
+  byte for byte the old ones: G42's ring and D242's pad mode leave grace-dev's dumps as they were.
+
+### 589. A box refused at its opening keeps the store's draft; a sent line drops it
+
+`2026-11-24` · DECIDED · `#core` `#overlay` · refs: S11.4.c, engine 64f7a42 (merged at 6930988), NPC §5.4, WHY§586
+
+- The core's opening (a reopen or a new conversation) copies the kept draft into the box instead of taking it out of
+  the store, so a not-now or refused answer, whose close carries no draft, leaves the store on its first 60 s clock.
+  The store's copy goes at the box's next close (which carries the editor's text) or when a line is sent. Rejected:
+  the refusal's close carrying the draft back, which changes both sides and restarts the 60 s that NPC §5.4 counts
+  from the danger. The unit test fails before the fix; in the danger case T during the lock-on logs not_now and
+  draft=0, and T after it brings the three characters back and sends them.
+
+### 590. The active GraceUI copy's hooks all lead into it; the idle copy answers none
+
+`2026-11-24` · FACT · `#graceui` `#s10.3` `#wine` · refs: S10.3.d, engine dc601a3 (merged at 6930988), GraceUI:D240, GraceUI invariant 16, WHY§581
+
+- Under Wine, at every report of -second-copy and -second-copy-first, the active copy reads leads=6 leads_here=6
+  jumps=2,2,2,2,2,0 (the render half's five and the window procedure; the fake game loads neither DirectInput nor
+  XInput, so six, not GraceUI's harness's seven), every lead in its own module; the idle copy and a copy never asked
+  answer none. A mutation reporting hook 1 as leading into another module failed both cases at frames 360 and 600.
+
+### 591. The fake GraceUI gave every mod two faces; EldenNet has eight
+
+`2026-11-24` · FACT · `#graceui` `#tests` · refs: engine a3686fc (merged at 6930988), GraceUI:D139, GraceUI:D241
+
+- graceui.h's GRACEUI_FACES_PER_MOD is 2, and the fake answered full past it for every mod; D139 gives the id eldennet
+  eight. With the italic as EldenNet's third face the fake counts eight for eldennet and two for any other id, as
+  GraceUI's registry does. Asked of Grace (low): a constant or a comment in graceui.h naming EldenNet's eight.
+- Later (2026-11-24): graceui.h now names GRACEUI_FACES_ELDENNET (8) and GRACEUI_FACES_ALL_MODS (24), and GraceUI's
+  registry takes its limits from them (GraceUI feat/foundations 8d30ac3); header only, no value changed.
+
+### 592. Only the box's history carries the Tarnished's lines, so only it takes the italic
+
+`2026-11-24` · FACT · `#overlay` · refs: S11.4.c, engine a3686fc (merged at 6930988), NPC §10.1, GraceUI:D241
+
+- The lower third (and the strip page in the box) shows a PageView, always the NPC's speech or card; the Tarnished's
+  lines are only the box's history lines, the queued "(waiting)" line among them. Those are drawn in EB Garamond
+  Italic at 30 px when GraceUI ships the face (0.2.36 on), upright otherwise; the lower third is unchanged, as NPC
+  §10.1 names italic for the history alone.
+
+### 593. The surfaces' fonts are read beside the copy named graceui.dll, not the active one
+
+`2026-11-24` · LIKELY · `#overlay` `#dll` · refs: S10.3.d, engine a3686fc (merged at 6930988), WHY§582
+
+- grace_fonts() reads fonts\ beside GetModuleHandleW(L"graceui.dll"), which under Wine can be the idle copy loaded
+  first. The files are the same build's in the cases and the surfaces are off on their banner path, so nothing shows
+  it, but a private copy of another version would lend its fonts. Reading beside the module en::overlay::find()
+  connected to would follow the active copy; not changed yet.
+
+### 594. Rounded corners as Dear ImGui draws them, on EldenNet's white texel, at GraceUI's radius tokens
+
+`2026-11-24` · METHOD · `#overlay` · refs: S11.4.c, engine a3686fc (merged at 6930988), NPC §10.1, GraceUI tokens [radius]
+
+- The box's ground and frame take the card's radius (4 px, NPC §10.1's too) and the hint's key box the control's
+  (2 px), each times the content scale. A ground is a fan inside two rings half a pixel either side of the outline (its
+  colour, then clear); a frame four rings; six points a corner at 4 px keep the chord within a quarter pixel. On
+  whole-pixel sides they cover exactly what the square rect() and edge() did, so the fake game's probes kept their
+  counts; a small rasteriser in the unit test checks the corner pixel clear, its neighbour partly covered and the
+  frame hollow. A box at 1080 lines: 144 vertices and 642 indices. The lower third and the card have no ground.
+
+### 595. Under Wine, a cursor put back before each key press reads as a mouse move, and G42 hides GraceUI's ring again
+
+`2026-11-24` · FACT · `#graceui` `#wine` `#fakegame` · refs: S11.4.c, engine a44d9f4 (merged at de94506), GraceUI:G42, GraceUI:D237
+
+- The fake game's press_key_into put the cursor in the middle of the window (SetCursorPos) before every key. Under
+  Wine 9 that reached GraceUI 0.2.38 as a mouse move even when the cursor was already there, so G42's rule (the mouse
+  puts the ring away) hid the focus ring straight after the key showed it: the focus moved, menu_ring read 0 and the
+  frame was the one before the key byte for byte. With --cursor-once (the cursor put there at the first press alone,
+  as GraceUI's harness does) the ring shows. No case checked the ring before; one that does needs --cursor-once.
+
+### 596. GraceUI 0.2.38 draws on a 10-bit swap chain under Wine as on an 8-bit one
+
+`2026-11-24` · FACT · `#graceui` `#wine` `#fakegame` · refs: S11.4.c, engine a44d9f4 (merged at de94506), GraceUI:D118
+
+- The fake game's swap chain at 1920 by 1080 in DXGI format 24 (R10G10B10A2_UNORM, the game's own) under Wine 9 and
+  software Vulkan: GraceUI binds it and draws the box, the lower third, the hint, F11's view and the menu, and the
+  talk, events and pages runs pass. The chat box read back at format 24 (10-bit channels taken to 8) and at format 28
+  differ by at most 2 levels, on 13 of 2,073,600 pixels (the backdrop's dither); mean difference 0.20 levels. The
+  showcase's in-game previews were taken so, on a backdrop of our own, with the invented stand-in persona.
+
+### 597. A character's dead bit, by one death among 64 characters followed: bits 0 and 1 of the byte 0x1C6
+
+`2026-11-24` · FACT · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md ("The eighteenth round in game"), engine bf36cbe (merged at 88aaa16), WHY§577, O117
+
+- In the eighteenth round's first run (29 passes, 49 characters a pass, 64 followed, one death), of 74 bits that
+  flipped at the death and never before, two held in every sighting since: bits 0 and 1 of the byte 0x1C6 into the
+  character's object, clear in all 328 sightings of the living, set in all 14 of the dead, none against (the next
+  best had 7 against). The on-screen bit's first candidate is bit 4 of the byte 0x1C4 (80 flips in all 8 looking
+  passes, 4 while standing), then bits 2 to 4 of 0xB4 (a small number, not a flag). Leads, to be confirmed: the
+  still fields, the handle and the pairs wait for the rerun (package 0.1.0-lodestar.23).
+
+### 598. A summary recomputed every pass must not be overwritten by a pass that saw nothing, and a case must end as a run ends
+
+`2026-11-24` · METHOD · `#lodestar` `#tests` · refs: docs/ops/probes/2026-11-22-l5.md ("The eighteenth round in game"), engine bf36cbe (merged at 88aaa16)
+
+- The survey told its fields, handles and pairs from each pass's characters and published them; as the owner quit,
+  five passes found no character and the report kept the last (fields_total 0), while the log a pass earlier held
+  273. The unit case and the fake game's case both ended with characters present. Mended: only a pass with two
+  characters or more tells them, and both cases now end at the title. The listed fields grow from 160 to 512.

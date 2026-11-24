@@ -47,9 +47,9 @@ slug 884a0cd5-2a74-4287-a29b-a99bc5ce0693).
 
 # EldenNet
 
-- updated: 2026-11-17
+- updated: 2026-11-24
 - lede: A mod for Elden Ring on PC, for offline play, that lets the game's characters talk with you in their own words, remember you, and know what is going on around them.
-- status: Building towards the first test in game
+- status: Testing in game: reading the world
 - facts: Offline, solo play · Dialogue only in version 1 · A cloud model by default, or your own · Spoiler-safe by design · Never writes to your game
 - roadmap-published: https://claude.ai/artifact/1HQVhkTsKhgR1EdkqUijxk
 
@@ -314,30 +314,91 @@ A key goes in and is never shown again. Since this mock was made, each use (conv
 memory and the rest) can name a provider of its own, "same as conversation" until you change it
 (decision O88).
 
+## In game, on a test backdrop {#preview}
+
+- kind: gallery
+- nav: In game
+
+What EldenNet draws in game today, through GraceUI's overlay, shot from our own test program instead of the game: a
+dark backdrop of our own takes the game's place, and the character, Lantern-Keeper, is invented for the tests. Each
+shot was taken at 1920 by 1080 in the game's own colour format and scaled down. None of these is the game.
+
+### Speaking to a character
+
+- image: preview-chat.webp
+- alt: The chat box at the foot of the screen, a line being typed to an invented character, on a test backdrop
+
+Press the talk key near a character and the box opens: it names whom you speak to and who will hear you, and you type
+your line. On a test backdrop, not the game.
+
+### The answer
+
+- image: preview-lower-third.webp
+- alt: An invented character's answer under their name in the lower third, and the box below it, on a test backdrop
+
+The answer comes in the lower third, under the speaker's name, and the box keeps the exchange: your lines in italic,
+theirs upright. On a test backdrop, not the game.
+
+### Who you can speak to
+
+- image: preview-hint.webp
+- alt: A small gold marker over the line "T Speak" and an invented character's name, on a test backdrop
+
+A small marker and one line show whom you can speak to, and with which key. On a test backdrop, not the game.
+
+### The menu, on F5
+
+- image: preview-menu-ring.webp
+- alt: EldenNet's Home page in GraceUI's menu, a gold ring on the Logs row, over a test program
+
+EldenNet's pages in GraceUI's menu: Home says whether EldenNet is working, and why not when it is not. Moving with the
+keys shows a gold ring on the row in focus; with the mouse it stays hidden. The game build shown is the test
+program's invented number. On a test backdrop, not the game.
+
+### GraceUI's own pages
+
+- image: preview-graceui.webp
+- alt: GraceUI's Menu page, with the menu's size, theme and comfort settings, over a test program
+
+GraceUI's own settings sit beside every mod's pages in the same menu: here the menu's size, its theme and the comfort
+options. On a test backdrop, not the game.
+
+### The developer view, on F11
+
+- image: preview-f11.webp
+- alt: EldenNet's developer view at the top left, listing its reads and the events it has seen, on a test backdrop
+
+For testers: what EldenNet reads, how each part is faring and the events it has seen. Here it shows the test
+program's scripted run, which ends back at the title screen, not a real session. On a test backdrop, not the game.
+
 ## Where it stands {#status}
 
 - kind: status
 - nav: Status
 
-**Building towards the first test in game.** The design of version 1 and its review rounds are done, and so is the
-design of GraceUI, which is becoming a UI framework other mods can use too. EldenNet has an engine of its own, open
-source, built on SkyrimNet's proven logic and structure (decision O84). Its core runs outside the game: the prompt
-templates, the client that talks to your model, and the calls in which the model picks one of the options code gives
-it. It now builds for Windows the way the release will, is tested under Wine and with sanitizers and fuzzing, and has
-answered a model server on a home network and a cloud service on Windows. The character profile is settled too, in
-five layers (decision O46).
+**Testing in game: EldenNet now reads the world.** The design of version 1 is done, and so is the design of GraceUI,
+which is becoming a UI framework other mods can use too. EldenNet has an engine of its own, open source, built on
+SkyrimNet's proven logic and structure (decision O84): the prompt templates, the client that talks to your model, and
+the calls in which the model picks one of the options code gives it. It builds for Windows the way the release will,
+and is tested under Wine, with sanitizers and fuzzing, against a stand-in game of our own.
 
-GraceUI's overlay, the part that draws in game, has its host built and reviewed: it draws over a test program's
-frames and handles keys and the pad in a harness that runs without the game, and other mods can connect to it and draw
-panels through its public interface. EldenNet's first build for the game is built too (decisions O89 to O91): its
-launcher, which backs up your saves and starts the game offline; the part that reads the game, read-only and guarded;
-its recorder; and a crash watcher that keeps no dump. It is tested against a stand-in game of our own. A short round
-on the owner's PC, run by DataPiler, our companion tool, has read what EldenNet needs from the game's program file, and
-the first round inside the game is under way.
+Inside the game, a series of short read-only rounds on the owner's PC has found where the game keeps what EldenNet
+needs, by EldenNet's own checks, with nothing taken from other modding projects. In the latest round EldenNet's own
+reader read the game as the finished mod will, once a second: which save is loaded, your character, its health and
+its maximum (checked against the game's own status screen), whether you are moving, and the characters around you,
+nearest first, with no fault. It only reads: it calls nothing in the game and changes nothing in it.
 
-Then come the first checks in game, the roster written in batches, and EldenNet's versions, from v0.1 *Eyes* to v1.0,
-each one ready for testers, with GraceUI's menu growing beside them. GraceUI's interactive map of your journey is
-designed for version 1.1, drawn at run time from your own game.
+GraceUI's overlay runs in the game too. Test runs beside other overlays have checked its menu and pointer, the gold
+ring that shows where the keyboard is, and that nothing you type in its panels reaches the game; its own heap guard
+and its input counters watch every run. EldenNet's launcher starts the game offline, backs up your saves, keeps a
+short record if the game ends badly, and says nothing when the game's own error at quitting comes after its window
+has closed.
+
+Next: the rest of what EldenNet reads about each character and the world (their kind, their side, whether they are
+dead or on screen, your level and the area you are in), then v0.1 *Eyes*: EldenNet starting fully in your game, its
+debug view showing what happens around you as events. Then v0.2 *First words*: the first conversation, with the
+chat box and the subtitles already built and tested against the stand-in game. GraceUI's interactive map of your
+journey is designed for version 1.1, drawn at run time from your own game.
 
 ## Credits {#credits}
 
