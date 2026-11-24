@@ -398,6 +398,132 @@
   "ai.status": {
     "sentence": "Model calls wait while you play with others online."
   },
+  "content": {
+    "off": {
+      "items": [
+        {
+          "label": "Personas",
+          "value": "heron_watcher"
+        },
+        {
+          "label": "Cards",
+          "value": "salt_crier"
+        }
+      ]
+    },
+    "overrides": {
+      "columns": [
+        {
+          "id": "file",
+          "label": "File"
+        },
+        {
+          "id": "state",
+          "label": "State"
+        },
+        {
+          "id": "line",
+          "label": "Where"
+        },
+        {
+          "id": "problem",
+          "label": "Problem"
+        }
+      ],
+      "rows": [
+        {
+          "file": "disable.toml",
+          "line": "",
+          "problem": "",
+          "state": "Not loaded: another file was refused"
+        },
+        {
+          "file": "layers/persona-ferryman.toml",
+          "line": "",
+          "problem": "",
+          "state": "Not loaded: another file was refused"
+        },
+        {
+          "file": "layers/persona-weaver.toml",
+          "line": "",
+          "problem": "",
+          "state": "Not loaded: another file was refused"
+        },
+        {
+          "file": "personas/ferryman.toml",
+          "line": "Line 12",
+          "problem": "voice.cadence: is longer than 60 words",
+          "state": "Refused"
+        },
+        {
+          "file": "drafts/old/a/b/c",
+          "line": "",
+          "problem": "is a folder nested too deep: four levels are read",
+          "state": "Not read"
+        }
+      ]
+    },
+    "reloads": {
+      "columns": [
+        {
+          "id": "time",
+          "label": "Time"
+        },
+        {
+          "id": "layer",
+          "label": "What it read"
+        },
+        {
+          "id": "result",
+          "label": "Result"
+        }
+      ],
+      "rows": [
+        {
+          "layer": "Your overrides",
+          "result": "Refused for a problem: the content loaded before stays in use",
+          "time": "0:21:15"
+        },
+        {
+          "layer": "Shipped content and your overrides",
+          "result": "Loaded, with 2 warnings",
+          "time": "0:00:06"
+        }
+      ]
+    },
+    "shipped": {
+      "items": [
+        {
+          "label": "Name",
+          "value": "EldenNet's own content"
+        },
+        {
+          "label": "Version",
+          "value": "0.1.0"
+        },
+        {
+          "label": "Credit",
+          "value": "Written for EldenNet, in its own words"
+        },
+        {
+          "label": "Personas",
+          "value": "2"
+        },
+        {
+          "label": "Cards",
+          "value": "3"
+        },
+        {
+          "label": "Knowledge",
+          "value": "Included"
+        },
+        {
+          "label": "Event rules",
+          "value": "Included"
+        }
+      ]
+    }
+  },
   "errors": {
     "checks": []
   },

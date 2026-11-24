@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "en/overlay/characters.hpp"
+#include "en/proto/content_view.hpp"
 #include "en/proto/llm.hpp"
 #include "en/proto/snapshot.hpp"
 #include "en/proto/watch.hpp"
@@ -223,6 +224,9 @@ struct SpaceFacts {
   // The Characters pages' facts (characters.hpp): the profiles of the loaded content and the player's layers; null
   // before the content is loaded (the list is empty, and no member has a body).
   const CharacterFacts* characters = nullptr;
+  // The Content packs page's projection (en-proto's content_view.hpp, built by en-core on each load); null before the
+  // first load (the topic publishes nothing).
+  const proto::ContentView* content = nullptr;
 };
 
 // A long command the space took (selftest.run, models.list) or a change of providers.toml or secrets.toml it asked for

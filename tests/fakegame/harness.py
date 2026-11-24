@@ -1701,11 +1701,26 @@ def check_graceui_events(r):
 # EldenNet's pages (S11.4.a; GraceUI D169, D171), at the title screen (in the world the fake game's player reads as in
 # danger, which keeps GraceUI's menu shut, invariant 9): F5 opens GraceUI's menu on EldenNet's Home; Page Down past AI's
 # three pages and Characters › Named NPCs (S7.2.b) to System › Status, and once more to Logs, where Log detail's shortcut row has the focus; Enter on it opens its home, Settings ›
-# Developer, with the row focused; → there changes it (a command to EldenNet, answered); F5 closes the menu. While it
-# runs, a browser of the tests' own (tests/pages/browser.py) joins GraceUI's server on loopback, at the port the fake
-# game's report gives, reads EldenNet's topics and sends commands.
-PAGES_KEYS = "600:f5,720:next,780:next,840:next,900:next,930:next,1020:next,1140:return,1260:right,1380:f5"
-PAGES_REPORTS = "360,660,960,1080,1200,1320,1440"
+# Developer, with the row focused; → there changes it (a command to EldenNet, answered); Page Down once more to Content
+# packs at the rail's foot (PAGES §4.6.9); F5 closes the menu. While it runs, a browser of the tests' own
+# (tests/pages/browser.py) joins GraceUI's server on loopback, at the port the fake game's report gives, reads
+# EldenNet's topics (Content packs' among them) and sends commands. The overrides folder holds a disable.toml of our
+# own, which turns the test persona off, and a folder nested past the four levels the DLL reads, which it leaves out.
+PAGES_KEYS = "600:f5,720:next,780:next,840:next,900:next,930:next,1020:next,1140:return,1260:right,1380:next,1500:f5"
+PAGES_REPORTS = "360,660,960,1080,1200,1320,1440,1560"
+PAGES_DISABLE = 'personas = ["lantern_keeper"]\n'
+PAGES_DEEP = "drafts/old/a/b/c"  # the fifth level of folders, which the DLL does not read
+
+
+def install_pages(paths):
+    """GraceUI's folder, and an overrides folder of our own: a disable.toml, and a folder nested too deep."""
+    install_graceui(paths)
+    folder = os.path.join(paths["appdata"], "EldenNet", "overrides")
+    os.makedirs(os.path.join(folder, *PAGES_DEEP.split("/")), exist_ok=True)
+    with open(os.path.join(folder, "disable.toml"), "w", encoding="utf-8", newline="\n") as f:
+        f.write(PAGES_DISABLE)
+    with open(os.path.join(folder, *PAGES_DEEP.split("/"), "notes.toml"), "w", encoding="utf-8", newline="\n") as f:
+        f.write("# An invented note, never read.\n")
 
 
 def browse_eldennet(paths, out):
@@ -1733,7 +1748,7 @@ def browse_eldennet(paths, out):
     try:
         view = browser.Browser(port, timeout=10)
         out["welcome"] = view.welcome
-        for topic in ("status", "errors", "system.status", "logs", "settings"):
+        for topic in ("status", "errors", "system.status", "logs", "settings", "content"):
             view.sub("eldennet", topic)
             out[topic] = view.state("eldennet", topic, timeout=10)
         out["set_ok"] = view.command("eldennet", "settings.set", {"key": "debug.record_sessions", "value": False})
@@ -1791,6 +1806,27 @@ def check_graceui_pages(r):
          "a page's reset unconfirmed: %s" % d.get("reset_unconfirmed"), failures)
     need(body("settings_after").get("values", {}).get("debug.record_sessions") is False,
          "the settings after the change: %s" % body("settings_after").get("values"), failures)
+    # Content packs (PAGES §4.6.9): the shipped content's cast in the game's realm (the pilot alone), knowledge and
+    # rules as included; the overrides by their paths relative to the folder (PV5), disable.toml loaded and the folder
+    # nested too deep left out; the test persona turned off by id; the start's load.
+    content = body("content")
+    shipped = {i.get("label"): i.get("value") for i in content.get("shipped", {}).get("items", [])}
+    need(shipped.get("Version") == "0.1.0" and shipped.get("Personas") == "1" and
+         shipped.get("Knowledge") == "Included" and shipped.get("Event rules") == "Included" and "Cards" not in shipped,
+         "Content packs' shipped content: %s" % shipped, failures)
+    files = {row.get("file"): row for row in content.get("overrides", {}).get("rows", [])}
+    need(sorted(files) == ["disable.toml", PAGES_DEEP] and files["disable.toml"].get("state") == "Loaded" and
+         files[PAGES_DEEP].get("state") == "Not read" and "too deep" in files[PAGES_DEEP].get("problem", ""),
+         "Content packs' overrides: %s" % files, failures)
+    off = {i.get("label"): i.get("value") for i in content.get("off", {}).get("items", [])}
+    need(off == {"Personas": "lantern_keeper"}, "Content packs' turned off: %s" % off, failures)
+    reloads = content.get("reloads", {}).get("rows", [])
+    need(len(reloads) == 1 and reloads[0].get("result") == "Loaded" and
+         reloads[0].get("layer") == "Shipped content and your overrides", "Content packs' reloads: %s" % reloads,
+         failures)
+    text = json.dumps(content, ensure_ascii=False)
+    need("\\" not in text and ":/" not in text and "Users" not in text and "AppData" not in text and
+         os.environ.get("USER", "\0") not in text, "Content packs' body holds a path or a name: %s" % text, failures)
     # In game: F5's menu on EldenNet's Home; System › Status and Logs; Log detail's shortcut to its home on Settings ›
     # Developer, where → sends EldenNet a command it answers; F5 closes. The menu watched the settings while open.
     failures += (want_grace(r, 360, eldennet=1, server=1, spaces=1, menu_open=0) +
@@ -1800,7 +1836,8 @@ def check_graceui_pages(r):
                  want_grace(r, 1200, menu_open=1, menu_page="settings.developer",
                             menu_focused="setting:debug.log_level") +
                  want_grace(r, 1320, menu_open=1, menu_page="settings.developer", menu_refusals=0) +
-                 want_grace(r, 1440, menu_open=0))
+                 want_grace(r, 1440, menu_open=1, menu_page="content") +
+                 want_grace(r, 1560, menu_open=0))
     failures += check_lines(("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main", "pages": 0}),
                             ("LAUNCHER", "end", {"kind": "clean"}))(r)
     for name, key, result in (("settings.set", "debug.record_sessions", "ok"),
@@ -1827,14 +1864,15 @@ def check_graceui_pages(r):
 
 
 case("launcher-eldennet-graceui-pages", LGAME + ["--dll", "{eldennetdll}", "--console"] +
-     game("--d3d12", "--stay-title", "--press-keys", PAGES_KEYS, "--grace-report", PAGES_REPORTS, frames=1560),
+     game("--d3d12", "--stay-title", "--press-keys", PAGES_KEYS, "--grace-report", PAGES_REPORTS, frames=1680),
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=GRACE_ENV, timeout=240,
-     prepare=install_eldennet(EN_PANEL, then=install_graceui), during=browse_eldennet,
+     prepare=install_eldennet(EN_PANEL, then=install_pages), during=browse_eldennet,
      check=check_graceui_pages,
      what="EldenNet's pages through GraceUI: register_pages at the connect; F5's menu on EldenNet's Home, then System › "
-          "Status and Logs, a setting changed from Logs' shortcut row and answered, and Settings › Developer; a "
-          "browser on GraceUI's server reading EldenNet's topics and sending commands, each answered; settings.toml "
-          "written after the pages' quiet")
+          "Status and Logs, a setting changed from Logs' shortcut row and answered, Settings › Developer and Content "
+          "packs; a browser on GraceUI's server reading EldenNet's topics (Content packs' shipped content, overrides "
+          "by relative path, what is turned off and the start's load) and sending commands, each answered; "
+          "settings.toml written after the pages' quiet")
 # EldenNet's AI pages (S11.4.a's second to fourth slices; PAGES §4.6.2), at the title screen, against a fake model
 # server of the tests' own on loopback (tests/pages/fake_models.py) with invented models, which the models.toml installed
 # beside the DLL names for the Cloud budget preset's provider. A browser of the tests' own adds the preset's provider and
@@ -2639,7 +2677,7 @@ case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--conso
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),
      env=dict(GRACE_ENV, FAKEGAME_SHOWS="{text_ai_shows}"), timeout=300,
      prepare=install_eldennet(AI_SETTINGS, then=install_ai), during=browse_ai, check=check_graceui_ai,
-     what="EldenNet's AI pages through GraceUI 0.2.38 against a fake model server on loopback: AI › Models as one "
+     what="EldenNet's AI pages through GraceUI 0.2.39 against a fake model server on loopback: AI › Models as one "
           "card per job with its chip and live status, a provider added from its preset (No key yet), a wrong key on "
           "its row refused (Refused; the cards Failing) and the right one set (Ready), a server of the case's own "
           "on this PC from the form (Not needed, no key), the self-test and the model lists, a job given that server "
@@ -2648,7 +2686,7 @@ case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--conso
           "the self-test; then the picks reset (a fallback by its picker's Default), no row changed, a new preset, and "
           "the unused providers removed; either key in no topic, log line, recording, report or file, and drawn "
           "nowhere in the menu")
-# The profile editor (S7.2.b) and the sensitive marks (S11.4.e), through GraceUI 0.2.38 with its listener at home on
+# The profile editor (S7.2.b) and the sensitive marks (S11.4.e), through GraceUI 0.2.39 with its listener at home on
 # 127.0.0.2 alone (the fake game's --grace-lan, GraceUI loaded first with the launcher's --also, Other devices on in its
 # own settings). A browser of the tests' own on this PC reads Characters › Named NPCs (the shipped pilot's row, its
 # general profile and the editor's document at revision 0), checks notes holding a banned word (a warning), saves them
@@ -2660,16 +2698,16 @@ case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--conso
 # opens GraceUI's Browser view page and pairs a device; that device, on 127.0.0.2, is refused EldenNet's sensitive
 # commands and settings ("Only on the PC the game runs on.") but may read the pages and check a profile. No player's
 # text, notes or draft in the log.
-# The menu's presses, by the stops GraceUI 0.2.38 gives: F5 on Home; Page Down past AI's three pages to Named NPCs, its
+# The menu's presses, by the stops GraceUI 0.2.39 gives: F5 on Home; Page Down past AI's three pages to Named NPCs, its
 # list's row (the pilot's) chosen; → into the detail, on the Profile tab; nine ↓ past the General profile and Your notes
 # sections and the editor's Save, Check, Restore, Reset, notes and Draft to the notes' field; Enter edits it, the typing
 # goes in at its end, Enter ends it; six ↑ back to Save, Enter saves. Then Page Down to System › Status, ← into the rail,
-# three ↓ to GraceUI's own pages at its foot, Enter, two Page Down to Browser view, → into the page, five ↓ to Pair a
-# device, Enter: the sheet shows the code.
+# four ↓ (Logs, Settings, Content packs) to GraceUI's own pages at its foot, Enter, two Page Down to Browser view, →
+# into the page, five ↓ to Pair a device, Enter: the sheet shows the code.
 EDITOR_KEYS = ("600:f5,720:next,780:next,840:next,900:next,1020:right,1080:down,1110:down,1140:down,1170:down,1200:d"
                "own,1230:down,1260:down,1290:down,1320:down,1440:return,1800:return,1920:up,1950:up,1980:up,2010:up,"
-               "2040:up,2070:up,2160:return,2340:next,2460:left,2520:down,2550:down,2580:down,2700:return,2820:next,"
-               "2880:next,3000:right,3060:down,3090:down,3120:down,3150:down,3180:down,3240:return")
+               "2040:up,2070:up,2160:return,2340:next,2460:left,2520:down,2550:down,2580:down,2610:down,2700:return,"
+               "2820:next,2880:next,3000:right,3060:down,3090:down,3120:down,3150:down,3180:down,3240:return")
 EDITOR_REPORTS = "660,960,1050,1380,1500,1860,2130,2280,2400,2490,2640,2760,2940,3230,3300,3600,3900,4200,4500"
 EDITOR_FRAMES = 4560
 EDITOR_SETTINGS = 'schema = 2\ndebug = { panel = false, record_sessions = false, log_level = "debug" }\n'
@@ -2867,7 +2905,7 @@ case("launcher-eldennet-graceui-editor", LGAME + ["--also", "{gracedll}", "--dll
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),
      env=dict(GRACE_ENV, FAKEGAME_SHOWS="{text_editor_shows}"), timeout=300,
      prepare=install_eldennet(EDITOR_SETTINGS, then=install_editor), during=browse_editor, check=check_graceui_editor,
-     what="EldenNet's profile editor through GraceUI 0.2.38: Characters › Named NPCs read and the pilot's notes "
+     what="EldenNet's profile editor through GraceUI 0.2.39: Characters › Named NPCs read and the pilot's notes "
           "checked, saved as a layer of the player's own, a stale save and an out-of-range length refused, and a draft "
           "from a local model server; in game, the notes typed and saved from F5's menu; a device paired at home "
           "refused EldenNet's sensitive commands and settings")

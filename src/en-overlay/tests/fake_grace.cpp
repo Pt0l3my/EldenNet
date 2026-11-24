@@ -188,7 +188,7 @@ GraceUiStatus register_texture(GraceUiConsumer me, const GraceUiTextureDesc* t, 
 }
 
 // A face before warm-up (D139): a file of some bytes (the fake reads no font), 6 to 128 px; too late after it. A mod
-// may register two (GRACEUI_FACES_PER_MOD), and EldenNet (the id `eldennet`) eight.
+// may register two (GRACEUI_FACES_PER_MOD), and EldenNet (the id `eldennet`) eight (GRACEUI_FACES_ELDENNET).
 GraceUiStatus register_face(GraceUiConsumer me, const GraceUiFaceDesc* face, uint32_t* id) {
   Grace& g = *g_fake;
   if (const GraceUiStatus a = admitted(me); a != GRACEUI_OK) return a;
@@ -200,7 +200,7 @@ GraceUiStatus register_face(GraceUiConsumer me, const GraceUiFaceDesc* face, uin
       face->pixel_height > 128 || (face->flags & ~GRACEUI_FACE_SCALED) != 0) {
     return GRACEUI_REFUSED;
   }
-  if (g.faces.size() >= (g.id == "eldennet" ? 8u : GRACEUI_FACES_PER_MOD)) return GRACEUI_FULL;
+  if (g.faces.size() >= (g.id == "eldennet" ? GRACEUI_FACES_ELDENNET : GRACEUI_FACES_PER_MOD)) return GRACEUI_FULL;
   g.faces.push_back(Face{face->pixel_height, face->flags, face->data_length});
   *id = kFirstModFace + static_cast<std::uint32_t>(g.faces.size() - 1);
   return GRACEUI_OK;

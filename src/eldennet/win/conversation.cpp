@@ -7,7 +7,8 @@
 //   whole), is read by T1 on the main path, every .toml, .md and .j2 in it (records, indexes, prompts), each within
 //   its cap. T6 loads them at its next wake. The content's warnings (en-core's, once it keeps them: a player's file past
 //   a cap, and others) are logged by count and shown once as a notice that names the file, the key and the line, never
-//   the text (NPC §4.7).
+//   the text (NPC §4.7). Each load, and each file the read left out by its relative path, goes to the Content packs
+//   page's projection (en-core's content_view.hpp; PAGES §4.6.9).
 // - The realm (part B, identity.hpp): the game's. The tests' own switch, ELDENNET_TEST_REALM=eval in the environment,
 //   is taken by a probe build alone (the tests' DLL; CI refuses EN_PROBE in a release build) and refused by the
 //   release DLL, which logs that it was asked: a test persona never resolves in a player's game, whatever their
@@ -19,6 +20,7 @@
 
 #include "dll.hpp"
 #include "en/core/content.hpp"
+#include "en/core/content_view.hpp"
 #include "en/proto/ffi_guard.hpp"
 
 namespace eldennet {
@@ -30,12 +32,14 @@ struct ContentRead {
   std::vector<en::core::ContentFile> overrides;
   bool folder = false;         // the overrides folder exists
   std::uint32_t refused = 0;   // its files left out: too large, too deep, unreadable, or past the count
+  std::vector<en::core::ContentError> left_out;  // the first of them, by relative path, in fixed words (Content packs)
   en::core::Realm realm = en::core::Realm::Game;
 };
 
 namespace {
 
 constexpr std::size_t kMaxOverrideFiles = 256;
+constexpr std::size_t kMaxLeftOut = 64;  // the files left out that the Content packs page names; the rest are counted
 constexpr int kMaxDepth = 4;
 
 std::string utf8_of(std::wstring_view w) {
@@ -88,6 +92,19 @@ std::vector<en::core::ContentError> warnings_of(const C& core) {
   }
 }
 
+// A path relative to the overrides folder, as the content holds it: UTF-8, '/'-separated; empty if it is not UTF-16.
+std::string key_of(const std::wstring& rel) {
+  std::string key = utf8_of(rel);
+  for (char& c : key) c = c == '\\' ? '/' : c;
+  return key;
+}
+
+// A file or folder left out, counted, and named on Content packs by its relative path in fixed words (never the text).
+void leave_out(ContentRead& out, const std::wstring& rel, const char* words) {
+  ++out.refused;
+  if (out.left_out.size() < kMaxLeftOut) out.left_out.push_back(en::core::ContentError{key_of(rel), 0, words});
+}
+
 void read_folder(const std::wstring& root, const std::wstring& rel, int depth, ContentRead& out) {
   WIN32_FIND_DATAW f{};
   const std::wstring pattern = root + (rel.empty() ? L"" : L"\\" + rel) + L"\\*";
@@ -98,23 +115,22 @@ void read_folder(const std::wstring& root, const std::wstring& rel, int depth, C
     if (name == L"." || name == L"..") continue;
     const std::wstring path = rel.empty() ? name : rel + L"\\" + name;
     if ((f.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
-      ++out.refused;  // a link: never followed out of the folder
+      leave_out(out, path, "is a link, which is never followed");  // never out of the folder
     } else if ((f.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0) {
       if (depth < kMaxDepth) {
         read_folder(root, path, depth + 1, out);
       } else {
-        ++out.refused;
+        leave_out(out, path, "is a folder nested too deep: four levels are read");
       }
     } else if (content_file(name)) {
       if (out.overrides.size() >= kMaxOverrideFiles) {
-        ++out.refused;
+        leave_out(out, path, "is past the 256 files read");
         continue;
       }
       std::optional<std::string> text = read_text(root + L"\\" + path, en::core::kContentFileMaxBytes);
-      std::string key = utf8_of(path);
-      for (char& c : key) c = c == '\\' ? '/' : c;
+      std::string key = key_of(path);
       if (!text || key.empty()) {
-        ++out.refused;
+        leave_out(out, path, "could not be read");  // one past its cap is given, at its cap, for the load to refuse
         continue;
       }
       out.overrides.push_back(
@@ -155,6 +171,9 @@ bool content_tick(Shell& s, en::core::Core& core) noexcept {
     std::vector<en::core::ContentFile> files = en::core::builtin_content();
     for (const en::core::ContentFile& f : c->overrides) files.push_back(f);
     const std::vector<en::core::ContentError> errors = core.load_content(files, c->realm);
+    // Content packs (PAGES §4.6.9): what the read left out, then this load.
+    en::core::record_left_out(s.content_view, c->left_out);
+    en::core::record_load(s.content_view, files, errors, core, c->realm, since_ms(), en::proto::ReloadLayer::All);
     if (errors.empty()) profiles_loaded(s, core, files, c->realm);  // the profile editor's checks and loads
     const std::vector<en::core::ContentError> warnings = warnings_of(core);
     // The errors by count alone: their words name the file's keys, and the log takes words of its own shape only.

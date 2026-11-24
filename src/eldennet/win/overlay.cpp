@@ -570,6 +570,8 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
       fill_space(s, core, latest, tripped, o.graceui_version(), banner_words, facts);
       facts.ai = ai_tick(s, cs.gate_open, space->space);
       facts.characters = profiles_facts(s, core, cs.gate_open);  // Characters › Named NPCs (profiles.cpp)
+      // Content packs (PAGES §4.6.9): the loads recorded so far (conversation.cpp, profiles.cpp); none before one.
+      facts.content = s.content_view.revision != 0 ? &s.content_view : nullptr;
     }
     en::overlay::Overlay::Step step =
         pages ? o.step(view, &space->space, &facts, now) : o.step(view, nullptr, nullptr, now);

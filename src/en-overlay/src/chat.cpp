@@ -207,7 +207,8 @@ std::unique_ptr<Surfaces> Surfaces::make(const graceui::Api& api, GraceUiConsume
   };
   face(fonts.serif, kSerifDesignPx, s->serif_face_);
   face(fonts.sans, kSansDesignPx, s->sans_face_);
-  face(fonts.italic, kSerifDesignPx, s->italic_face_);  // the third of the eight a mod may register (D139)
+  face(fonts.italic, kSerifDesignPx, s->italic_face_);  // the third of EldenNet's eight (D139)
+  static_assert(GRACEUI_FACES_ELDENNET >= 3, "the surfaces' three faces are within what GraceUI gives EldenNet");
   report.italic = s->italic_face_ != 0;
   // The hotkeys (§48, §49): stable action ids, players' names; the chord with the talk key where GraceUI has chords.
   const GraceUiApi1* t = api.table();

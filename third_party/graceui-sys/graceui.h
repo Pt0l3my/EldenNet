@@ -123,7 +123,9 @@ typedef uint32_t GraceUiStatus;
 #define GRACEUI_TEXTURES_PER_MOD 8u    /* a mod's textures (EST) */
 #define GRACEUI_TEXTURE_BYTES_PER_MOD 8388608u /* a mod's textures' pixels, 4 bytes each (EST: 8 MiB) */
 #define GRACEUI_TEXTURE_SIDE_MAX 4096u /* a texture's width and height */
-#define GRACEUI_FACES_PER_MOD 2u       /* a mod's faces in the shared atlas (EST; EldenNet's surfaces more, D80) */
+#define GRACEUI_FACES_PER_MOD 2u       /* a mod's faces in the shared atlas (EST), but EldenNet's: */
+#define GRACEUI_FACES_ELDENNET 8u      /* the mod whose id is "eldennet": its surfaces' faces (EST; D80, D139) */
+#define GRACEUI_FACES_ALL_MODS 24u     /* every mod's faces together, after which register_face answers full (EST) */
 #define GRACEUI_FACE_BYTES_MAX 4194304u /* a face's font file (EST: 4 MiB) */
 #define GRACEUI_FACE_RANGES_MAX 64u    /* a face's code-point ranges */
 #define GRACEUI_DRAW_VERTEX_BYTES_MAX 262144u /* a submission's vertices (D76, EST: 256 KiB, 13,107 vertices) */
