@@ -82,7 +82,7 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    it after the heal; the position moving with the walk alone; the near list sorted by distance, a character in
    every element, 8 of 12,720 elements without a distance yet. The game's state's item passed the table's checks
    in the game. The owner checked the maximum HP against the status screen: it is the number the reader read.
-   **The eighteenth round is built** (package 0.1.0-lodestar.22, engine b365148; the record's "What was changed
+   **The eighteenth round is with the owner** (package 0.1.0-lodestar.22, engine 02b0f27, after Engine's read; the record's "What was changed
    for the eighteenth round"): the character survey under plan 1 (`--read-plan 1`; the watch block's `probe_plan`,
    version 2), the owner's O117 and O118. When its files come back: `survey.survey_fields` for the type (small,
    the player's alone), the team, the kind's number (`id_like`, groups), the block (`block_like`); `handles`;
