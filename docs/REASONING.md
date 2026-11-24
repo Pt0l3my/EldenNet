@@ -596,6 +596,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 571 | 2026-11-24 | The world's leads are read through EldenNet's own reader before the world's group can be: ErBackend::world_alone | METHOD | #lodestar #gal #backend |
 | 572 | 2026-11-24 | The game's near list held 119 elements in the open world; snapshot() takes more than 48 for a fault of the world's group | FACT | #lodestar #design #gal |
 | 573 | 2026-11-24 | A near list longer than a snapshot walks is read for its nearest 48, and only bounds that make no sense are a fault | DECIDED | #gal #design #engine |
+| 574 | 2026-11-24 | EldenNet's own reader read the world's leads in the game through the build's layout, with no fault | FACT | #lodestar #gal #backend |
+| 575 | 2026-11-24 | The save's slot keeps its number at the title: it does not tell the title from the world | FACT | #lodestar #design |
+| 576 | 2026-11-24 | Of 12,720 near-list elements read in a session, 8 held no plain distance, and none fell below the one before | FACT | #lodestar |
 
 ## Entries
 
@@ -8585,6 +8588,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   eight witnesses, placement and witness), and it is in the build's layout with save_slot as a far field (engine
   8441e8d, merged at b1b2e2b): the place the fifteenth round and the offline study gave, with no number from the
   executable given to the round.
+- Later (2026-11-24): EldenNet's own reader read it in the game through the build's layout (WHY§574).
 
 ### 568. A character's parts by two rounds: the holder at 0x190, health in the first part, position in the fourteenth
 
@@ -8594,6 +8598,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   fourteenth the object with the position (three fractions from 0x70: x, height, z). By the main player's
   behaviour alone, and nine other fields fell and rose as the health did (copies or other numbers). They are leads
   in the build's layout until EldenNet's own reader reads them (the seventeenth round).
+- Later (2026-11-24): EldenNet's own reader read it in the game through the build's layout (WHY§574).
 
 ### 569. The near list's elements do not all hold a fraction 8 bytes in: the reader takes the distance element by element
 
@@ -8625,6 +8630,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   48 elements at most are looked at, and the distance is judged element by element (WHY§569). The seventeenth
   round calls it once a second and writes the save's slot, the health and its maximum after each of the tester's
   marks, with the owner's word (O116), and never the position, only whether it moved. Reviewed by Engine.
+- Later (2026-11-24): EldenNet's own reader read it in the game through the build's layout (WHY§574).
 
 ### 572. The game's near list held 119 elements in the open world; snapshot() takes more than 48 for a fault of the world's group
 
@@ -8645,3 +8651,31 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   nearest, and keeps its whole length (`near_all`). The rest of the walk is as it was: each entry checked, the
   distance element by element (WHY§569), the snapshot's 32 within 40 m. A unit case with 119 entries failed on the
   old reader (the world's group tripped) and passes now. ARCH §6.6 #4 and game-data's B-1 carry a dated note.
+
+### 574. EldenNet's own reader read the world's leads in the game through the build's layout, with no fault
+
+`2026-11-24` · FACT · `#lodestar` `#gal` `#backend` · refs: docs/ops/probes/2026-11-22-l5.md ("The seventeenth round in game"), WHY§567, WHY§568, WHY§571, O116
+
+- The seventeenth round (package 0.1.0-lodestar.21, 6.4 minutes): discovery took the layout's new entries (13 items,
+  14 from the table, none refused, the game's state's item by its placement and witnesses); ErBackend::world_alone
+  lacked nothing and made 323 frames, one a second, with no fault. It read the save's slot (6, then 2), an object of
+  the player's class at the main player's word in all 270 frames with a save loaded, the health (lower after the
+  hit, the maximum after the heal, never above it), the position (moving in 26 of the walk's 29 seconds and in none
+  of the 107 standing ones) and the near list (a character behind every address read). The game ended clean.
+  Open: the owner's check of the maximum against the status screen.
+
+### 575. The save's slot keeps its number at the title: it does not tell the title from the world
+
+`2026-11-24` · FACT · `#lodestar` `#design` · refs: docs/ops/probes/2026-11-22-l5.md ("The seventeenth round in game")
+
+- After a quit to the title the game's state's object stays and its slot still reads the last save's number; before
+  the first load the object is not there at all. Nothing may read "no save loaded" from the slot: the main
+  player's presence tells the world from the title. Phase B's check of the slot's range is unaffected.
+
+### 576. Of 12,720 near-list elements read in a session, 8 held no plain distance, and none fell below the one before
+
+`2026-11-24` · FACT · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md ("The seventeenth round in game"), WHY§569, WHY§573
+
+- With up to 95 elements in the list, the reader found a character behind every address it read, a plain distance
+  in all but 8 elements, and no distance below the one before it: the list is kept by distance, and the reader's
+  element-by-element reading of the distance (982f09a) fits the few that are not a number yet.

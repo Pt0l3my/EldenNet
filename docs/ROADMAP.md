@@ -1230,6 +1230,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Before a ready start: snapshot() must walk a near list longer than 48 in part, not fault (WHY§572).
     Done the same day (engine 982f09a; WHY§573): the first 48 walked, the whole length kept, only bounds that make
     no sense a fault.
+    The seventeenth round reviewed the same day (WHY§574 to §576): EldenNet's own reader read the slot, the main
+    player, the health, the position and the near list through the build's layout in the game, with no fault.
+    Open: the owner's check of the maximum HP. Next: the rest of the world's and the player's fields, in
+    WHY§460's order (the character's other fields, the save data's deaths and the sheet's level and name, then
+    field_area, the menus' screen and the session).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
