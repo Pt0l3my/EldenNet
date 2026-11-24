@@ -1711,6 +1711,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: built on 2026-11-24 (GraceUI feat/foundations 3ea17b6) at Engine's request after its second-copy and chord
     cases; EldenNet reads hotkey_by for the chat box's via and its swallow, with its pin moving to 0.2.38. Pinned the
     same day (engine 678b313, merged at 6930988; WHY§585, §590).
+- bb The preview's three findings in GraceUI's menu: the links back by the space's increment, the rail's ring whole, a related row's words clear of its ring (GraceUI 0.2.39) [done]
+  - refs: GraceUI:D245, GraceUI:D173, WHY§595
+  - gives: built on 2026-11-24 (GraceUI feat/foundations c9d699e) from Engine's preview shots (S11.4.c); EldenNet
+    regenerates its goldens with a Related card at 0.2.39, with its next pin.
 
 ### S11.3 EldenNet v0.2
 
