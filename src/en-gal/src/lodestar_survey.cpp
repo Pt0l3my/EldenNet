@@ -105,6 +105,7 @@ struct CharSurvey::Impl {
   std::uint32_t phase_now = 0;
   std::uint64_t next_due_us = 0;
   std::uint32_t passes = 0, absent = 0, deaths = 0, most_listed = 0, read_now = 0;
+  std::uint32_t told_most = 0;  // the most characters a pass had when the fields were told
   std::array<std::uint32_t, kPhases> phase_passes{};
   std::atomic<std::uint32_t> phase{0};
   mutable std::mutex mutex;
@@ -287,10 +288,12 @@ struct CharSurvey::Impl {
     };
     std::array<std::uint16_t, kPairSide> large{}, little{};
     std::size_t large_count = 0, little_count = 0;
-    // The fields, the handles and the pairs are told from the characters of this pass. A pass with fewer than two of
-    // them (the tester quit, or went back to the title) tells nothing, and what the last pass with characters told
-    // is kept: the eighteenth round's first run lost all three to its last, empty passes.
-    const bool told = n >= 2 && followed != 0;
+    // The fields, the handles and the pairs are told from the characters of this pass. A pass with few of them tells
+    // little or nothing (the tester quit, or went back to the title, and the world is going or gone), and what a
+    // fuller pass told is kept: the eighteenth round's first run lost all three to its last, empty passes. A pass
+    // tells when it has four characters at least and half as many as the fullest pass so far.
+    told_most = std::max(told_most, static_cast<std::uint32_t>(n));
+    const bool told = n >= 4 && n * 2 >= told_most && followed != 0;
     if (told) {
       s.fields_total = 0;
       s.field_count = 0;
@@ -354,7 +357,7 @@ struct CharSurvey::Impl {
     }
     // A handle: eight bytes that never changed, differ in every character seen, are never nothing, and are not all
     // addresses.
-    for (std::size_t f = 0; f + 1 < kFields && told && n >= 4; f += 2) {
+    for (std::size_t f = 0; f + 1 < kFields && told; f += 2) {
       bool changed = false;
       for (std::size_t i = 0; i < tracked_count && !changed; ++i) {
         changed = tracked[i].sightings >= 2 && (tracked[i].changed[f / 64] >> (f % 64) & 3) != 0;
