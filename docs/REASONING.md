@@ -587,6 +587,12 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 562 | 2026-11-23 | With the owner's on-screen-display tool exited, two quits ended clean after twelve of twelve had faulted | LIKELY | #crash #engine |
 | 563 | 2026-11-23 | An object no accessor reaches is named by a search for what its field must read and the class the leads give, checked on each hit | METHOD | #lodestar #l6 #gal |
 | 564 | 2026-11-23 | A search with a fixed number of candidates tries the place the layout gives first, and a run's own elements last | METHOD | #lodestar |
+| 565 | 2026-11-23 | A stop that a test package makes by design is shown as the test's own plain note, never as the product's warning | DECIDED | #engine #tests #graceui |
+| 566 | 2026-11-24 | spikes.6: the pointer and the typing test hold; in A1 alone, presses dropped now and then that GraceUI's counters do not show | FACT | #graceui #input #spikes #crash |
+| 567 | 2026-11-24 | The game's state is named by a round's own checks: one of 22 fields that read the two saves' slots lies in an object of the class the leads give | FACT | #lodestar #l6 #gal |
+| 568 | 2026-11-24 | A character's parts by two rounds: the holder at 0x190, health in the first part, position in the fourteenth | LIKELY | #lodestar #l6 |
+| 569 | 2026-11-24 | The near list's elements do not all hold a fraction 8 bytes in: the reader takes the distance element by element | FACT | #lodestar |
+| 570 | 2026-11-24 | A press a player says did not register is placed by maxima and gaps, not by percentiles | METHOD | #graceui #input |
 
 ## Entries
 
@@ -8523,6 +8529,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   information as loaded. The name is the class's innermost name, compared and kept nowhere; no number or name from
   the executable enters the round, which is stricter than being given the static as a number. The sixteenth round
   (package 0.1.0-lodestar.20) does it on the pair search's hits, 64 guarded reads at most.
+- Later (2026-11-24): it named the game's state in the sixteenth round's run (WHY§567).
 
 ### 564. A search with a fixed number of candidates tries the place the layout gives first, and a run's own elements last
 
@@ -8531,3 +8538,75 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - In the fifteenth round, runs of rising addresses took all 64 candidates before the lists' places were reached. The
   sixteenth judges first the run at the place the build's layout gives (characters.by_distance), lists it as
   expected, and tries last the words inside a run of four or more rising addresses.
+
+### 565. A stop that a test package makes by design is shown as the test's own plain note, never as the product's warning
+
+`2026-11-23` · DECIDED · `#engine` `#tests` `#graceui` · refs: O114, WHY§549, the owner's spikes.4 and spikes.6 runs
+
+- The S0-E and S4 package carries no reader data for the real game, so on the owner's game EldenNet's start stops in
+  discovery (22 refusals, `gal_files`) before an observer run's own stop at Reader. Its banner then spoke as the
+  product does: "not supported yet" in spikes.4, and since O114 "its files are incomplete. Reinstall EldenNet" in
+  spikes.6, in the warning tone. The owner read both as GraceUI faults. Since engine 961cae6 an observer run shows
+  the test run's banner ("EldenNet test run: it makes no call into the game", GraceUI's normal tone) at any stop of
+  the reading's own (unknown build, discovery, register, inert); the log and the init keep the real reason, and
+  anti-cheat, the session and a game that did not start show their own. Read rounds are not observer runs.
+
+### 566. spikes.6: the pointer and the typing test hold; in A1 alone, presses dropped now and then that GraceUI's counters do not show
+
+`2026-11-24` · FACT · `#graceui` `#input` `#spikes` `#crash` · refs: WHY§559, WHY§562, WHY§565, GraceUI:D235, GraceUI:D236, GraceUI:G42
+
+- The owner's six runs of 0.1.0-spikes.6 (GraceUI 0.2.33): the menu's pointer no longer snaps to the centre (D236);
+  no stray ring round items (G42); the typing test held the keyboard 60 s, saw 45 characters and passed none to the
+  game, and the Tarnished stood still; the heap guard found no breach in any run; own_p99 88-106 us, detour_p99
+  145-180 us, no frame skipped.
+- In A1 only, the owner's presses (Pause twice, attacks in play) were missed now and then and went through when
+  pressed again, with no click. A1 was the first run after unzipping (the launcher's GraceUI check and the second
+  injection took 10 s each, likely the PC's scanner on new files). In its two minutes of play the game held 58-59
+  fps and GraceUI masked nothing and held nothing, so whatever dropped them is not in its counters: a short stall
+  of an input path once every few seconds would not show in a p99 or a 200 ms fps window. Asked of Grace: maxima
+  for the input detours' stalls; asked of the owner: A1 once more.
+- Every one of the six runs ended at the quit with the game's teardown fault (the overlay tool of WHY§562 loaded),
+  each after the window had gone and kept quietly (O115).
+- Later (2026-11-24): the owner ran A1 again (folder s0e-12) and missed no press. Its start was quick (the
+  GraceUI check 22 ms, the injections 2 ms apart), its Marks came at once, and play held 58-59 fps. So the
+  first A1's drops came with the first run of new files, not with A1's path; GraceUI's focus and press
+  counters, coming in its test build, are to place one if it comes back.
+
+### 567. The game's state is named by a round's own checks: one of 22 fields that read the two saves' slots lies in an object of the class the leads give
+
+`2026-11-24` · FACT · `#lodestar` `#l6` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md ("The sixteenth round in game"), WHY§563, WHY§551
+
+- Of the 22 32-bit fields the pair search left (6 with one save, 2 with the other), one lies in an object of the
+  class the leads give (one table of methods under that name in the image): 2,752 bytes behind the static at
+  64,424,360, with 345 places in the code. The round wrote the item into its draft table (the invariant recipe,
+  eight witnesses, placement and witness), and it is in the build's layout with save_slot as a far field (engine
+  8441e8d, merged at b1b2e2b): the place the fifteenth round and the offline study gave, with no number from the
+  executable given to the round.
+
+### 568. A character's parts by two rounds: the holder at 0x190, health in the first part, position in the fourteenth
+
+`2026-11-24` · LIKELY · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md ("The sixteenth round in game")
+
+- The holder at 0x190 in the character; its first address the object with the health (0x138, maximum 0x13C), its
+  fourteenth the object with the position (three fractions from 0x70: x, height, z). By the main player's
+  behaviour alone, and nine other fields fell and rose as the health did (copies or other numbers). They are leads
+  in the build's layout until EldenNet's own reader reads them (the seventeenth round).
+
+### 569. The near list's elements do not all hold a fraction 8 bytes in: the reader takes the distance element by element
+
+`2026-11-24` · FACT · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md ("The sixteenth round in game"), WHY§460
+
+- At the layout's place the list held 119 elements of 16 bytes, a character's address first in each, but not a
+  fraction in every element 8 bytes in, where the thirteenth round's shorter lists had one in all. near_entry's
+  distance is not to be trusted in every element.
+
+### 570. A press a player says did not register is placed by maxima and gaps, not by percentiles
+
+`2026-11-24` · METHOD · `#graceui` `#input` · refs: GraceUI:D239, GraceUI:D175, WHY§566
+
+- A game that reads input state loses a press shorter than the gap between two of its reads, and one late read in
+  thousands shows in no p99 and no 200 ms frame window. GraceUI's spike report (0.2.34) now keeps each input
+  detour's longest call, the longest gap between the game's DirectInput reads and the counts over thresholds, with
+  the times at which they rose, beside the window's focus and the presses that reached the game. In spikes.6's
+  first A1, GraceUI's allocation count did not move during play (188 before and after), so its heap guard never
+  ran on the game's threads then.

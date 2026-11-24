@@ -996,6 +996,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     orders, beside the Steam overlay and another overlay, and A1 no longer fell; S4 passed all it could measure. Every
     run ended at the quit with the same fault in the game's own teardown, as did a read round without GraceUI
     (WHY§550): with Grace and Lodestar, and a control run with nothing injected asked of the owner.
+    Packed and sent the same day as 0.1.0-spikes.6 (engine bf92dbd, GraceUI 0.2.33 at 2e219de: D236's pointer, G42's
+    focus ring, the typing test on the keyboard and pad alone, D235's heap guard): 19 GraceUI and spike cases and the
+    seven package cases passed. At its title the owner again read EldenNet's banner (O114's "files incomplete")
+    as a GraceUI warning: since engine 961cae6 an observer run shows the test run's plain note instead (WHY§565),
+    for the next package.
 - h O89 to O91 folded into the designs: the derivation round (ARCH §6.2, §6.10), the spikes without GraceUI and the launcher's Mark (DESIGN §14, §16.1), the third-party rows (DESIGN §16.1) [done]
   - refs: O89, O90, O91, ARCH§6.2, ARCH§4.14, DESIGN§16.1
   - gives: folded on 2026-11-17 with the first in-game build's choices (WHY§159 to §204): ARCH
@@ -1210,6 +1215,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     §564): game_state by the class the leads give, on the pair search's hits; the layout's list judged first; the
     falls and moves ranked. The quit's code is the game's on that PC (WHY§556, §557, §561); it came at every quit
     for an afternoon and evening, then stopped, cause unknown (WHY§562). Awaiting the owner's run.
+    The sixteenth round's package (0.1.0-lodestar.20, engine 6ee4d5d, merged at c6472f0) is with the owner after
+    Engine's read of its README (sent again with the README corrected, the programs the same). Awaiting the
+    owner's run.
+    The sixteenth round reviewed on 2026-11-24 (WHY§567 to §569): game_state named by the class the leads give
+    and entered in the build's table, with save_slot (engine 8441e8d, merged at b1b2e2b); the near list
+    confirmed at the layout's place; health and position as leads in the layout. Next: the seventeenth round
+    reads them through EldenNet's own reader (a backend entry beside flags_alone, Lodestar's).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1634,6 +1646,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: decided by the owner on 2026-11-23 as recommended ("After keys or pad") and built the same day (GraceUI
     feat/foundations 63d63c3); the harness's menu-focus-ring scenario reads the ring's pixels beside the focus (none at
     open, there after a key, gone after a mouse move, the focus kept). EldenNet's goldens do not change.
+- aw The spike report places a dropped press: the game window's focus and place, the presses that reached the game, each input detour's longest call and the game's gaps between DirectInput reads, in each state line (GraceUI 0.2.34) [done]
+  - refs: GraceUI:D238, GraceUI:D239, WHY§566, WHY§570
+  - gives: built on 2026-11-24 (GraceUI feat/foundations d3a6837, 2d8cef8) at Engine's request after spikes.6's A1.
+    The harness checks each count (a press with no holder by DirectInput and by message, focus lost and gained, a
+    300 ms gap between reads, the detours' longest calls). The owner's A1 run again showed the first A1's drops a
+    first-run effect (WHY§566); for a next one, the owner's rough time of a missed press is set against the state
+    line near it. For spikes.7.
 
 ### S11.3 EldenNet v0.2
 
