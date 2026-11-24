@@ -1833,6 +1833,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     stream shows its newest 200 rows, each with its time, wrapped (System › Logs and any feed on Home); a log tail may
     carry a filter bar (a `level` filter and a search on the line), standing in for PAGES §4.6.7's level tiles as one
     control in both views. EldenNet's next pin takes it with 0.2.49, a `level` on each log row.
+- bk A page in the browser alone, shown with a setting, behind a gate, with a ribbon (GraceUI 0.2.51, protocol 1.17) [done]
+  - refs: GraceUI:D258, PAGES§4.6.8, PAGES§4.9
+  - gives: built on 2026-11-24 (GraceUI feat/foundations 337b143; GraceUI's docs/eldennet-changes.md §84) for
+    EldenNet's Tools › Workshop (D10, SP8): `browser_only`, `shown_with = "debug.panel"`, a `gate` with the space's own
+    words once a browser session, and a `ribbon` at the page's top while it is open. SP8's ribbon is read as each
+    page's: every page that shows unfiltered developer content carries it (Workshop now, the Event monitor's plumbing at
+    0.4), not every page of the session. For Workshop's build after the next pin.
 
 ### S11.3 EldenNet v0.2
 
