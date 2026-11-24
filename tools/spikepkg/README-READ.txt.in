@@ -38,10 +38,12 @@ them. Which is which the numbers do not say: that is what your status screen and
 the chat.
 
 Your character's name lies in that sheet too. The round cannot skip what it has not found, so it copies those bytes
-with the rest; it recognises text by its shape and writes nothing of it, only where a run of text lies and how many
-fields long it is. A number that happens to stand right after a text is dropped with it, to be safe. (When I asked you
-I wrote that the name is "never read". The exact statement is this one: copied with the rest, never read as text,
-never written.)
+with the rest; it recognises text by its shape, in any script, and writes nothing of it, only where a run of text lies
+and how many fields long it is. To be safe it drops a good deal with it: a number that stands right after a text,
+after a fraction or after an id, and a number of two million or more. (When I asked you I wrote that the name is
+"never read". The exact statement is this one: copied with the rest, never read as text, never written.) One case its
+shape cannot catch: a name of ONE SINGLE LETTER looks like a small number. If the character you load has such a name,
+do not run this round, and tell me.
 
 The report goes from you to me and no further: no number of your character goes into the repository, the records, a
 message to another session or any page. As before it also holds your health, your maximum health and the save's slot
@@ -323,9 +325,10 @@ What it does
     between 1 and 99,999,999 at the first or the last look and changed in eight looks at most: where it lies, THE
     NUMBER AS FIRST READ AND AS LAST READ, in how many looks it changed, and in which of your tasks. Left out and only
     counted: a number that changed more often (a timer), half of an address, and anything that reads as text. For text
-    (two letters or more in a row, as the game stores them) it writes where the run lies and how many fields it
-    covers, never a letter; a number standing right after a text is dropped with it. It also writes whether the sheet
-    is the object the save data's own words lead to. A thousand numbers an object at most, from its start.
+    (two letters or more in a row, as the game stores them, in any script) it writes where the run lies and how many
+    fields it covers, never a letter; a number standing right after a text, a fraction or an id is dropped with it,
+    and so is a number of two million or more whose lower half could be a letter. It also writes whether the sheet is
+    the object the save data's own words lead to. A thousand numbers an object at most, from its start.
   - The watch on your character's parts, back for this round, from your first confirmation to the end of the ride:
     once a second or so, your character's address, the holder of its parts, and the first 4 KiB of each of its thirty
     or so parts. It writes which 32-bit fields of which part changed in most looks of the ride and in none while you

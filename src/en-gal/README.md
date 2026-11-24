@@ -397,8 +397,11 @@ of any game is in it, and every name it looks for comes from a leads file.
   main player's object), every two seconds in pieces of 16 KiB, and tells every 32-bit number from 1 to
   99,999,999 that changed in eight passes at most: its place, as first and as last read, its changes and the
   tester's phases they fell in. Half of an address is left out (two small numbers side by side are none), and
-  so is whatever reads as text, two letters or more as 16-bit units: only where such a run lies is told, for a
-  name lies in the sheet and is never written. A pass that reads less than an earlier one changes nothing of
+  so is whatever reads as text, two 16-bit units or more in a row from U+0020 up, in any script (a list of
+  scripts let two Hebrew letters, or the last letter of an odd-length Arabic text, through as numbers): only
+  where such a run lies is told, for a name lies in the sheet and is never written. The price is a number right
+  after a fraction, an id or a text, and numbers of two million or more; a text of one letter cannot be told
+  from a small number, which the round's README says. A pass that reads less than an earlier one changes nothing of
   what was told. The numbers are the tester's own character's, written with the owner's word and kept between
   the owner and the reviewer. The parts watch now starts at the second world's mark from
   the layout's `character.parts`, and runs before the character search's look. `CharSurvey`
