@@ -84,8 +84,9 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    in the game. The owner checked the maximum HP against the status screen: it is the number the reader read.
    **The eighteenth round's first run lost its fields (mine; the record's "The eighteenth round in game")**: the
    survey's last, empty passes at the quit replaced them with nothing. It did find the dead bits (byte 0x1C6, bits
-   0 and 1) and on-screen candidates (0x1C4 bit 4 first). Mended (engine bf36cbe), with cases that end as a quit
-   does; package 0.1.0-lodestar.23 repeats the round. A summary that is recomputed every pass must not be
+   0 and 1) and on-screen candidates (0x1C4 bit 4 first). Mended (engine de126c7: only a pass that is full enough
+   replaces the summary), with cases that end as a quit does; package 0.1.0-lodestar.23 repeats the round and is
+   with the owner. A summary that is recomputed every pass must not be
    overwritten by a pass that saw nothing: test the ending a real run has.
    **The eighteenth round as first sent** (package 0.1.0-lodestar.22, engine 02b0f27, after Engine's read; the record's "What was changed
    for the eighteenth round"): the character survey under plan 1 (`--read-plan 1`; the watch block's `probe_plan`,
