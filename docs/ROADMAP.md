@@ -1237,7 +1237,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     field_area, the menus' screen and the session).
     The eighteenth round built the same day (engine b365148, merged at 067b725; package 0.1.0-lodestar.22; WHY§577
     to §579, O117, O118): the character survey under plan 1, for a character's other fields. Reviewed by
-    Engine; awaiting the owner's run.
+    Engine; the package (README at 02b0f27) is with the owner. Awaiting the owner's run.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
