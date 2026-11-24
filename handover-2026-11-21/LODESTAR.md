@@ -81,7 +81,7 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    not); the player's class at the main player's word; the health under its maximum after the hit and equal to
    it after the heal; the position moving with the walk alone; the near list sorted by distance, a character in
    every element, 8 of 12,720 elements without a distance yet. The game's state's item passed the table's checks
-   in the game. Open: the owner's check of the maximum HP against the status screen (asked twice).
+   in the game. The owner checked the maximum HP against the status screen: it is the number the reader read.
    **Next (WHY§460's order, and what a ready start still lacks)**: the rest of the character's fields the world's
    and the player's groups need (handle, the ids, team, the dead and on-screen bits, the block), the save data's
    deaths and the sheet's level and name, the place (field_area), the menus' screen and the session. The
