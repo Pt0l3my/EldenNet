@@ -605,6 +605,11 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 580 | 2026-11-24 | The capture plans for a normal playthrough: 25 checkpoints, nine S1 routes, three of them v0.1's golden routes | DECIDED | #design #spikes #roster |
 | 581 | 2026-11-24 | With the hook library linked statically, only where each hooked function leads shows which copy holds the hooks | FACT | #graceui #hooks |
 | 582 | 2026-11-24 | Under Wine, GetModuleHandleW of a name two loaded copies share answered the copy asked first; Windows may differ | FACT | #graceui #wine |
+| 583 | 2026-11-24 | A second GraceUI copy beside EldenNet idles and is named once, in either order; Wine's by-name look answered the copy loaded first | FACT | #graceui #s10.3 #wine |
+| 584 | 2026-11-24 | The talk chord through GraceUI's filter, read once a frame, completes as the harness's 10 ms reads do | METHOD | #graceui #input |
+| 585 | 2026-11-24 | GraceUI's hotkey event does not say whether the key or the chord fired it | FACT | #graceui #overlay |
+| 586 | 2026-11-24 | Pressing T while danger lasts lost the box's kept draft | FACT | #core #overlay |
+| 587 | 2026-11-24 | v0.1's two danger stand-ins differ: GraceUI's provider claim and the conversation's safe context | FACT | #overlay #core #graceui |
 
 ## Entries
 
@@ -8746,3 +8751,49 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   copy first asked for GraceUI's table, in both orders; why is not known. Windows may answer the one loaded first,
   idle or not, so graceui-sys's scan past an idle copy holding the name is tested by itself, and EldenNet's case
   allows either way of finding and asserts the table and the module.
+
+### 583. A second GraceUI copy beside EldenNet idles and is named once, in either order; Wine's by-name look answered the copy loaded first
+
+`2026-11-24` · FACT · `#graceui` `#s10.3` `#wine` · refs: S10.3.d, S11.4.c, engine 08fef7a (merged at 4c5632d), GraceUI:D72, GraceUI:D83, WHY§581, WHY§582
+
+- The fake-game cases launcher-eldennet-graceui-second-copy and -second-copy-first (GraceUI's 0.2.33 test build twice,
+  from two folders): the copy asked second answers null, host 4, no thread, install run or hook; the active one keeps
+  6 hooks at every report and names the other in one notice and one log line; EldenNet's banner and F11 view and the
+  other mod stay on the active copy. With the private copy asked first, GetModuleHandleW answered Game\GraceUI's
+  (idle) and graceui-sys found the active copy by its scan: Grace's harness saw the active copy answered by name in
+  both orders, so the cases allow either. "Two consumers each way round" is covered in CMake's set by -unbound and
+  the two new cases, and by hand by the package cases A1 to A4. The hook-lead check waits for GraceUI 0.2.36's pin.
+
+### 584. The talk chord through GraceUI's filter, read once a frame, completes as the harness's 10 ms reads do
+
+`2026-11-24` · METHOD · `#graceui` `#input` · refs: S10.3.d, S11.4.c, engine 08fef7a (merged at 4c5632d), GraceUI:D204
+
+- The fake game reads pad 0 through GraceUI_Test_PadRead once a frame at 60 FPS (Up alone 250 ms, Up and View 650 ms):
+  the game saw Up on 39 reads and View on none, the talk hotkey fired once and EldenNet's box held input. With the
+  chord changed to Down then View, View reached the game on all 39 reads and no box opened.
+
+### 585. GraceUI's hotkey event does not say whether the key or the chord fired it
+
+`2026-11-24` · FACT · `#graceui` `#overlay` · refs: S10.3.d, S11.4.c, engine 08fef7a (merged at 4c5632d), GraceUI:D204
+
+- A chord's press arrives as the same GRACEUI_EVENT_HOTKEY as T's, so EldenNet logs via=talk_key for it, never
+  produces OpenVia::PadChord, and arms the 100 ms swallow of T's character after a chord open (harmless in practice).
+  Asked of Grace: a field naming the binding that fired.
+
+### 586. Pressing T while danger lasts lost the box's kept draft
+
+`2026-11-24` · FACT · `#core` `#overlay` · refs: S10.3.d, S11.4.c, engine 08fef7a (merged at 4c5632d), NPC §5.4
+
+- After GraceUI's danger close kept the draft, T during danger closed the box as not_now with an empty draft and ended
+  the conversation: the core's reopen moved the kept draft into the box, the overlay's not-now close carried an empty
+  one, and on_close keeps no draft for NotNow or Refused. Being fixed with EldenNet's move to GraceUI 0.2.36, with a
+  unit test and the danger case extended by a T press.
+
+### 587. v0.1's two danger stand-ins differ: GraceUI's provider claim and the conversation's safe context
+
+`2026-11-24` · FACT · `#overlay` `#core` `#graceui` · refs: S10.3.d, S11.4.c, engine 08fef7a (merged at 4c5632d), GraceUI:D78, GraceUI invariant 9
+
+- EldenNet's world-state provider claims danger for a boss bar, the player dead or locked on; the conversation's
+  safe_context closes the box for the player dead or riding, a boss, combat or hostiles near. A lock-on on a friendly
+  closes the box through GraceUI alone (input lost, draft kept); riding closes it through the core alone, with
+  GraceUI's menu free to stay open. To align when safe_context replaces the stand-in, as world.hpp plans.

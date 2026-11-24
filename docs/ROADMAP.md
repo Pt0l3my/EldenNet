@@ -1277,7 +1277,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: ARCH§12.4, O91
 - c Every CI stage but the eval (from v0.2) gating, and signed builds for testers
 - d One hook library in the process, GraceUI's; EldenNet's imports and symbols free of any; two consumers each way round; a second GraceUI copy idling
-  - refs: G15, GraceUI:DESIGN§10
+  - refs: G15, GraceUI:DESIGN§10, WHY§581, WHY§583
+  - gives: on 2026-11-24, with Grace (the owner's request): dll_checks.py (no hook library's symbol, imports against a
+    reviewed list); the fake-game cases -second-copy and -second-copy-first (a second GraceUI copy idles, installs no
+    hook and is named once; EldenNet and another mod stay on the active copy; engine 08fef7a, merged at 4c5632d) and
+    -unbound (two consumers each way round, with the package cases A1 to A4 by hand); GraceUI's own cases of a mod
+    beside a second copy and its hook leads (S11.2.ax). Left: the hook-lead check in EldenNet's case, with the move
+    to GraceUI 0.2.36.
 
 ### S10.4 GraceUI 0.1 Host
 
@@ -1868,6 +1874,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     call-out box waits for v0.6 (WHY§364 (5); S15.1.a). Since O113 (2026-11-23, the owner's direction) the box asks
     for the keyboard and the pad, never the mouse: no pointer, and the camera still turns while the player types
     (engine 8424f15).
+    On 2026-11-24 the chord and the danger close were tested against GraceUI's real test build (engine 08fef7a,
+    merged at 4c5632d; WHY§584 to §587): -talk-chord and -talk-danger. The italic face (GraceUI 0.2.36, S11.2.ay),
+    the rounded corners and the kept draft's loss when T is pressed during danger (WHY§586) are being done with the
+    move to GraceUI 0.2.36.
 - d A second Escape while a reply paces (NPC §5.7): a way for it to reach EldenNet once the box has closed, asked of GraceUI [done]
   - needs: c
   - refs: NPC§5.7, WHY§437, WHY§461, G39
