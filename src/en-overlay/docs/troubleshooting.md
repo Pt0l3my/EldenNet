@@ -78,7 +78,8 @@ The State row, and the lamp at the top of the menu, read one of these words; the
 - **Inactive**: EldenNet stopped for this session. Why gives the banner's words: see
   [The banner in game](doc:troubleshooting#The banner in game).
 - **Observing**: EldenNet reads the game, but no model answers Conversation yet. Why reads "EldenNet reads the game.
-  NPCs speak from a later version." Open AI › Providers: its Now line says what is missing.
+  NPCs speak once a model answers Conversation: AI › Providers says what is missing." Open AI › Providers: its Now
+  line says what is missing.
 - **Speaking, in part**: "NPCs speak, but part of the game EldenNet reads has stopped: System › Status says which."
   Characters still talk. Restarting the game tries the stopped part again.
 - **Speaking**: "EldenNet reads the game, and NPCs speak." All is well.
@@ -125,6 +126,8 @@ Each AI page starts with a line that says what the AI can do now, and why.
 - **"Model calls wait until EldenNet has confirmed that this session is offline and solo."**
 - **"Your providers file has a problem, so EldenNet calls no model: System › Status says what."**
 - **"Conversation is ready: NPCs answer when you speak to them."** All is well.
+- **"NPCs speak once a model answers Conversation. The self-test checks your provider meanwhile."** None of the
+  above, but no model has answered Conversation yet. Run the self-test on AI › Self-test.
 
 Each job's card on AI › Models shows its state: Ready, No model, No key yet, Failing (its provider refused its key, or
 asked for one), Cooling down (its provider asked EldenNet to wait), or Resting after failures. On Providers, Health and
@@ -152,8 +155,8 @@ the model lists say what went wrong with a provider:
 - **"No answer: provider timed out"**, **"No answer: the provider failed"** or **"Provider rate limit, try again
   shortly"**. Your provider did not answer in time, failed, or asked EldenNet to wait. Try again; Health on AI ›
   Providers says more.
-- **"API key rejected: open settings (F10)"**. Your provider refused the key. This version has no F10: open the menu
-  with F5, then AI › Providers, and paste the key again on its row.
+- **"API key rejected: paste it again on AI › Providers"**. Your provider refused the key. Open the menu with F5,
+  then AI › Providers, and paste the key again on its row.
 - **"No answer: no model is ready"**. No model answers Conversation: see
   [The AI pages' Now line](doc:troubleshooting#The AI pages' Now line).
 - **"No answer: the conversation's prompt could not be made"**. EldenNet could not build the request from its content.

@@ -102,106 +102,12 @@ An id that names no character draws a warning, and nothing else. The file also a
 `characters`, `kb`, `triggers` and `rules`, each of ids of at most 64 characters, but in this version they turn
 nothing off and draw a warning. Content packs lists what the file turned off under **Turned off**.
 
-## A character profile of your own
-
-A character's profile is a file `personas/<id>.toml`, with a row for it in the index, `identity/personas.toml`. The
-row binds the profile to a character of the game by the game's own row number for that character, which EldenNet does
-not give you, and your index replaces EldenNet's whole, so it must hold EldenNet's own rows as well. In this version,
-then, a profile of your own is for authors who already know those numbers.
-
-### The profile
-
-An invented character, with the keys this version reads. The `at` key takes one of EldenNet's own region keys:
-
-```
-id = "example"
-schema = 1
-display_name_fallback = "Wenna"
-register = "colloquial"
-reply_words_max = 30
-pronouns = "she"
-address_forms = ["traveller"]
-deflections = [
-  "That's the river's business, not mine.",
-  "Ask me about rope. That much I know.",
-  "Some questions sink. Let that one.",
-]
-subjects = ["the river in flood", "knots, and the rope that holds them"]
-stirs = ["a stranger at the water's edge", "talk of floods"]
-
-[public]
-summary = "A rope-maker who works beside a ferry landing, mending lines for anyone who will wait."
-appearance = "A broad woman in an oiled apron, her hands tarred black to the wrist."
-role = "a rope-maker at a ferry landing"
-
-[private]
-personality = "Patient, dry and kind. Trusts work done slowly, and distrusts anyone in a hurry."
-honesty = "truthful: says what she thinks, and little more"
-claims = "Has made rope at the landing all her life, as her mother did."
-seeks = ["Keep the ferry's lines sound"]
-ties = ["The ferryman: an old friend she scolds daily"]
-
-[voice]
-cadence = "Short sentences, often a question back, with long pauses she does not apologise for."
-diction = "Plain words and the trade's terms."
-deflection = "Turns a question back to the rope in her hands."
-openers = ["Well"]
-tics = [ { text = "Mind the knot", max_per_conversation = 1 } ]
-
-[[stages]]
-id = "base"
-when = "true"
-road = "Mends the ferry's lines and waits for the river to fall."
-at = "<a region key>"
-state = "awake"
-where = "at the ferry landing"
-mood = "content, a little tired"
-```
-
-| Key | Limit |
-|---|---|
-| id | A slug of 32 characters at most, the same as its index row's |
-| display_name_fallback | 32 characters; the name the game shows wins |
-| register, pronouns | One of the five ways of speaking; he, she, they or it |
-| reply_words_max | 10 to 60; 40 if left out |
-| address_forms | 3 at most, each 3 words at most |
-| deflections | 3 to 5, each 20 words at most; shown when a reply fails twice, never sent to the model |
-| subjects | 8 at most, each 10 words and 50 characters |
-| stirs | 6 at most, each 12 words |
-| instructions | 35 words and 210 characters |
-| public.summary, appearance, role | 60, 40 and 20 words |
-| private.personality, claims | 80 words each |
-| private.honesty | truthful, guarded or liar, then 25 words at most |
-| private.seeks, ties | 3 of 15 words, and 4 of 20 words |
-| voice.cadence, diction, deflection | 60, 40 and 30 words |
-| voice.openers, tics | 4 single words; 3 tics of 12 words, each once or twice a conversation |
-| stages | 1 to 12; the first has when "true" and sets road, at and state |
-
-The first stage is what the character knows at a first meeting. A profile's later stages each depend on a sign in the
-game, and in this version none of those signs has been checked yet, so later stages never show: see
-[Spoilers: how EldenNet keeps them](doc:spoilers).
-
-### The index
-
-```
-schema = 1
-
-[[persona]]
-id = "example"
-file = "personas/example.toml"
-npc_params = [ { param = <the character's row number>, form = "default" } ]
-```
-
-Replace the placeholder with the number before you save. Each row number may belong to one character's profile alone.
-
 ## Writing well
 
 - Write in your own words, never the game's text.
 - Describe what a character does, not the effect: "answers a question with a question" rather than "mysterious".
-- Never quote a sample line in a profile: a model tends to repeat it word for word. Describe the manner instead.
+- Never quote a sample line in your notes: a model tends to repeat it word for word. Describe the manner instead.
 - Write each subject as a short phrase, not a sentence, a question or an instruction.
-- Keep the first-meeting fields to what a stranger could see or be told: no secret, no fate, nothing that happens
-  later.
 - Keep notes short. A character's voice has a fixed room in each request, and long notes are warned about.
 - Never write `{{`, `{%` or `{#` in a field: they are errors.
 
@@ -211,7 +117,7 @@ Replace the placeholder with the number before you save. Each row number may bel
 - **Event rules**: EldenNet's rules for what happens in the game are built in, and none is read from your overrides
   folder.
 - **Knowledge entries** for a profile's `knowledge` keys: none is read yet.
-- **Profiles of your own kept apart from EldenNet's index**, and a profile of the character you play.
+- **Profiles of your own** for characters EldenNet does not voice, and a profile of the character you play.
 
 ## See also
 

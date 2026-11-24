@@ -396,7 +396,7 @@
     }
   },
   "ai.status": {
-    "sentence": "EldenNet only observes in this version: NPCs speak from a later one. The self-test checks your provider meanwhile."
+    "sentence": "NPCs speak once a model answers Conversation. The self-test checks your provider meanwhile."
   },
   "content": {
     "off": {
@@ -992,7 +992,7 @@
       },
       {
         "label": "Why",
-        "value": "EldenNet reads the game. NPCs speak from a later version."
+        "value": "EldenNet reads the game. NPCs speak once a model answers Conversation: AI › Providers says what is missing."
       },
       {
         "label": "EldenNet",
@@ -1012,7 +1012,7 @@
       }
     ],
     "page": "system.status",
-    "reason": "EldenNet reads the game. NPCs speak from a later version.",
+    "reason": "EldenNet reads the game. NPCs speak once a model answers Conversation: AI › Providers says what is missing.",
     "tone": "ember",
     "word": "Observing"
   },
@@ -1090,7 +1090,7 @@
       },
       {
         "label": "Why",
-        "value": "EldenNet reads the game. NPCs speak from a later version."
+        "value": "EldenNet reads the game. NPCs speak once a model answers Conversation: AI › Providers says what is missing."
       },
       {
         "label": "Start",

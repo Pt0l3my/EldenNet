@@ -234,7 +234,7 @@ TEST_CASE("a failed request gives the ... page with its class's toast") {
     CHECK(r.of(Commit::Kind::NpcSaid).empty());
     return r.toasts;
   };
-  CHECK(run(proto::ErrorClass::Auth) == std::vector<std::string>{"API key rejected: open settings (F10)"});
+  CHECK(run(proto::ErrorClass::Auth) == std::vector<std::string>{"API key rejected: paste it again on AI › Providers"});
   CHECK(run(proto::ErrorClass::RateLimited) == std::vector<std::string>{"Provider rate limit, try again shortly"});
   CHECK(run(proto::ErrorClass::TotalTimeout) == std::vector<std::string>{"No answer: provider timed out"});
   CHECK(run(proto::ErrorClass::Server) == std::vector<std::string>{"No answer: the provider failed"});
