@@ -1530,12 +1530,13 @@ def any_line_kv(result, source, event, kv):
     return ["no %s %s line with %s" % (source, event, " ".join("%s=%s" % i for i in sorted(kv.items())))]
 
 
-def want_grace(result, frame, **kv):
+def want_grace(result, frame, _event="grace", **kv):
     """The fake game's report of GraceUI's state at `frame`: each key equal to a string, a number within (lo, hi), or
-    a callable that answers whether the value is right."""
-    line = next((e for e in result.events("FAKEGAME", "grace") if e.get("frame") == str(frame)), None)
+    a callable that answers whether the value is right. `_event` "grace_copies" reads the report's line of the copies
+    loaded instead."""
+    line = next((e for e in result.events("FAKEGAME", _event) if e.get("frame") == str(frame)), None)
     if line is None:
-        return ["no FAKEGAME grace line at frame %d" % frame]
+        return ["no FAKEGAME %s line at frame %d" % (_event, frame)]
     failures = []
     for key, value in kv.items():
         got = line.get(key)
@@ -1545,8 +1546,8 @@ def want_grace(result, frame, **kv):
             ok = got is not None and re.match(r"^-?[0-9.]+$", got) and value[0] <= float(got) <= value[1]
         else:
             ok = got == str(value)
-        need(ok, "FAKEGAME grace frame=%d %s=%s, wanted %s" % (frame, key, got, getattr(value, "__name__", value)),
-             failures)
+        need(ok, "FAKEGAME %s frame=%d %s=%s, wanted %s" % (_event, frame, key, got,
+                                                            getattr(value, "__name__", value)), failures)
     return failures
 
 
@@ -2507,6 +2508,111 @@ case("launcher-eldennet-graceui-talk-leaks", LGAME + ["--dll", "{eldennetdll}", 
      what="No input leak across the chat box, GraceUI's menu and F11's view: the typing and F11 the box's while it "
           "holds input and none of it the game's, the player's exit keeping the draft, the box's Esc never the game's, "
           "and the game's keys and the view again once the box has closed")
+# The talk hotkey's pad chord (S11.4.c; GraceUI D204, ABI 1.3, "pad-chords"), D-pad Up then View, against GraceUI's real
+# test build: the fake game reads pad 0 through GraceUI's XInput filter once a frame (--pad-chord-at; Wine has no pad):
+# Up alone for 250 ms, then Up and View for 650 ms. The game sees Up (the anchor) and never View; the hotkey fires once,
+# and EldenNet opens the box as for T (GraceUI's hotkey event does not say which of the two fired it: `via=talk_key`);
+# no key is pressed. Then a line typed and sent, and Esc closing the box.
+CHORD_KEYS = "1700:return,2400:escape"
+CHORD_REPORTS = "1440,1600,1680,2460"
+
+
+def check_talk_chord(r):
+    server = TALK_RUNS.pop(r.paths["case"], None)
+    counts = server.snapshot() if server is not None else {}
+    if server is not None:
+        server.close()
+    grace = {e.get("frame"): e for e in r.events("FAKEGAME", "grace")}
+    keys = lambda f: int(grace.get(str(f), {}).get("game_keys", "-1"))
+    chars = lambda f: int(grace.get(str(f), {}).get("game_chars", "-1"))
+    failures = check_lines(("ELDENNET", "surfaces", {"state": "ready", "talk": "bound", "chord": "asked"}),
+                           ("ELDENNET", "content_load", {"ok": 1, "bound": 1}),
+                           ("FAKEGAME", "pad_chord", {"frame": 1500, "view_seen": 0}),
+                           ("LAUNCHER", "end", {"kind": "clean"}))(r)
+    # The chord as the game read it: the anchor seen, View held 650 ms and never seen, the packet number moved when
+    # GraceUI hid both (the fire), so that the game reads the change.
+    failures += want(r, "FAKEGAME", "pad_chord", up_seen=(1, 1e9), view_reads=(20, 1e9), packets=(1, 1e9))
+    need(not [e for e in r.events("FAKEGAME", "key_down") if e.get("key") == "0x54"], "T was pressed", failures)
+    # The hotkey's event: the box opened by the core, input held.
+    failures += any_line(r, "ELDENNET", "chat", what="open_key", via="talk_key")
+    need([e for e in r.events("ELDENNET", "chat") if e.get("what") == "opened"], "no box opened", failures)
+    failures += want_grace(r, 1440, holder=0) + want_grace(r, 1600, holder=2, refused=0)
+    # The line typed reaches the box and is sent, none of it the game's.
+    failures += want_grace(r, 1680, holder=2)
+    need(keys(1680) == keys(1440) and chars(1680) == chars(1440),
+         "keys or characters reached the game while the box held input: %s %s, %s %s" %
+         (keys(1440), keys(1680), chars(1440), chars(1680)), failures)
+    failures += want(r, "ELDENNET", "chat", which="first", what="submit", chars=str(len(TALK_TYPED)))
+    failures += any_line(r, "ELDENNET", "commit", kind="player_said", chars=len(TALK_TYPED))
+    need(counts.get("open_chats", 0) >= 1, "the model server answered %s" % counts, failures)
+    # Esc: the box closed, input given back.
+    failures += any_line(r, "ELDENNET", "chat", what="close", reason="escape")
+    failures += want_grace(r, 2460, holder=0)
+    text = "\n".join(l for l in r.lines if l.startswith("ELDENNET "))
+    need(TALK_TYPED.split()[0] not in text.split(), "the log holds chat text", failures)
+    return failures + en_log_is_clean(r)
+
+
+case("launcher-eldennet-graceui-talk-chord", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--calm", "--pad-chord-at", "1500", "--press-keys", CHORD_KEYS, "--type-at", "1620:" + TALK_TYPED,
+          "--grace-report", CHORD_REPORTS, frames=2520),
+     program="{launcher}", needs=GRACE_NEEDS + ("eldennet_probe",), toolchains=("clang-cl",),
+     env=dict(GRACE_ENV, ELDENNET_TEST_REALM="eval"), timeout=240,
+     prepare=install_eldennet(TALK_SETTINGS, probe=True, then=install_talk), check=check_talk_chord,
+     what="The talk hotkey's pad chord through GraceUI's test build: D-pad Up then View read through its XInput filter "
+          "opens the chat box with no key pressed, the game seeing the anchor and never View; a line typed and sent, "
+          "none of it the game's, and Esc closing the box")
+# Danger closes the box (GraceUI's invariant 9, D78): EldenNet is the world-state provider, and in v0.1 claims danger
+# while the player is locked on to a target (en-overlay's world.hpp), which its conversation's own rules (en-core's
+# safe_context) do not count, so that the box is closed by GraceUI alone: the holder ended with GRACEUI_CLOSED_DANGER,
+# which EldenNet takes as input lost, its draft kept (NPC §5.4). The box opened, "abc" typed, the lock-on from frame
+# 1700 to 1900; T again after it gives the draft back, which is sent; nothing typed reaches the game.
+DANGER_KEYS = "1500:t,2000:t,2100:return,2400:escape"
+DANGER_REPORTS = "1440,1540,1680,1760,1960,2060,2460"
+
+
+def check_talk_danger(r):
+    server = TALK_RUNS.pop(r.paths["case"], None)
+    if server is not None:
+        server.close()
+    grace = {e.get("frame"): e for e in r.events("FAKEGAME", "grace")}
+    keys = lambda f: int(grace.get(str(f), {}).get("game_keys", "-1"))
+    chars = lambda f: int(grace.get(str(f), {}).get("game_chars", "-1"))
+    failures = check_lines(("ELDENNET", "surfaces", {"state": "ready", "talk": "bound"}),
+                           ("ELDENNET", "content_load", {"ok": 1, "bound": 1}),
+                           ("LAUNCHER", "end", {"kind": "clean"}))(r)
+    failures += any_line(r, "FAKEGAME", "lock_on", frame=1700, on=1) + any_line(r, "FAKEGAME", "lock_on", frame=1900,
+                                                                                on=0)
+    # The box holds input, "abc" in it; EldenNet claims no danger yet.
+    failures += want_grace(r, 1540, holder=2) + want_grace(r, 1680, holder=2, world="0x0")
+    # Locked on: EldenNet's claim, and GraceUI ends the holder at once for danger (3); the box closed as input lost
+    # with its three characters kept. Nothing typed reached the game, before the close or by it.
+    failures += any_line(r, "ELDENNET", "world", flags="0x1", status=0)
+    failures += want_grace(r, 1760, holder=0, world="0x1", providers=1, close_reason=3)
+    failures += any_line(r, "ELDENNET", "chat", what="close", reason="input_lost", draft=3)
+    need(not any(e.get("what") == "close" and e.get("reason") == "shut" for e in r.events("ELDENNET", "chat")),
+         "the core closed the box itself", failures)
+    need(keys(1760) == keys(1440) and chars(1760) == chars(1440),
+         "keys or characters reached the game: %s %s, %s %s" % (keys(1440), keys(1760), chars(1440), chars(1760)),
+         failures)
+    # The danger over (1900): the claim withdrawn; T opens the box again with its draft, which is sent.
+    failures += want_grace(r, 1960, holder=0, world="0x0")
+    failures += want_grace(r, 2060, holder=2)
+    failures += any_line(r, "ELDENNET", "chat", what="submit", chars=3)
+    failures += any_line(r, "ELDENNET", "chat", what="close", reason="escape")
+    failures += want_grace(r, 2460, holder=0)
+    return failures + en_log_is_clean(r)
+
+
+case("launcher-eldennet-graceui-talk-danger", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--calm", "--press-keys", DANGER_KEYS, "--type-at", "1560:abc", "--lock-on-at", "1700,1900",
+          "--grace-report", DANGER_REPORTS, frames=2520),
+     program="{launcher}", needs=GRACE_NEEDS + ("eldennet_probe",), toolchains=("clang-cl",),
+     env=dict(GRACE_ENV, ELDENNET_TEST_REALM="eval"), timeout=240,
+     prepare=install_eldennet(TALK_SETTINGS, probe=True, then=install_talk), check=check_talk_danger,
+     what="Danger closes the chat box through GraceUI: the player locked on, EldenNet claims danger as the world-state "
+          "provider, GraceUI ends the box's holder at once (danger), the draft kept and given back when the box opens "
+          "again once the danger is over; nothing typed reaches the game")
 case("launcher-eldennet-realm-release", LGAME + ["--dll", "{eldennetdll}", "--console"] + game(frames=600),
      program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",),
      env=dict(EN_ENV, ELDENNET_TEST_REALM="eval"), timeout=120,
@@ -2793,6 +2899,115 @@ case("launcher-eldennet-graceui-anticheat", LGAME + ["--also", "{easyanticheat_e
      check=check_graceui_anticheat,
      what="a simulated anti-cheat module with GraceUI installed: GraceUI's own check puts it in the notice-only mode, "
           "connect answers inactive (anti-cheat), and the banner goes through notice alone")
+
+
+# v0.1's coexistence check (roadmap S10.3.d; GraceUI's invariant 18, its D72 and D83): a second copy of the same test
+# build in another mod's folder beside the game (OtherMod\GraceUI\), loaded by the launcher's --also after the game's
+# own GraceUI folder, and asked for its table by the fake game standing in for that mod (--grace-copy-at), which then
+# connects to whichever GraceUI answers. The first GraceUI_RequestApi in the process takes GraceUI's mutex, so the copy
+# asked second idles: it answers null every time, starts no thread and installs no hook, and the active copy names it
+# once, in one notice of its own and one log line (at the active copy's first request where the other copy is loaded by
+# then, else when that copy is first asked). Both orders: EldenNet first (the game's order: Game\GraceUI's copy active),
+# and the other mod first (its copy active, Game\GraceUI's idle once EldenNet asks it). graceui-sys's way to the active
+# copy is not checked: Wine answers GetModuleHandleW(L"graceui.dll") with one copy and Windows may answer with another,
+# the scan then finding the active one; that EldenNet's table is the active copy's is told by the mods each copy holds.
+# On the banner path (a build the DLL's gal/ does not know), as -before: EldenNet's banner and F11's view on the active
+# copy. Each report adds a grace_copies line: every copy in load order (c1, c2), and the reported copy's notices and log
+# lines naming another copy.
+# TODO(GraceUI 0.2.35): GraceUI_Test_GetHookLead(index, out) tells, for each hook on D102's list, whether it still
+# leads to that copy's detour and the module it leads into. The test build here (0.2.31 to 0.2.33) lacks it, so "one
+# module holds GraceUI's hooks" is checked by hooks_installed alone (0 on the idle copy, the same on the active one at
+# every report); once a 0.2.35 test build is EN_GRACEUI_DIR, report each hook's module and check they are all the
+# active copy's.
+COPY_NAMES = ("GraceUI\\graceui.dll", "OtherMod\\GraceUI\\graceui.dll")
+COPY_NOTICE = "A_second_copy_of_GraceUI_was_loaded_from_another_folder_and_is_idle:_"
+COPY_BANNER = "EldenNet_inactive:_game_build_3.14.15.0_not_supported_yet"
+
+
+def install_grace_copy(paths):
+    """GraceUI's folder beside the fake game, and a second copy of the same build in another mod's folder there."""
+    install_graceui(paths)
+    folder = os.path.join(paths["gamedir"], "OtherMod", "GraceUI")
+    shutil.copytree(os.path.dirname(paths["graceui"]), folder, symlinks=False)
+    paths["gracecopy"] = os.path.join(folder, "graceui.dll")
+
+
+def check_second_copy(active, asks, reports):
+    """`active`: the copy that took the mutex, 1 (Game\\GraceUI's) or 2 (the other mod's), in load order; `asks`: the
+    other mod's grace_copy lines, (table, the looks allowed) each; `reports`: the frames of the reports after the first
+    ask, the last after F11 (shown)."""
+    idle = 3 - active
+
+    def check(r):
+        a, i = "c%d" % active, "c%d" % idle
+        failures = check_lines(("LAUNCHER", "preflight", {"graceui": "ok"}),
+                               ("ELDENNET", "gate", {"result": "unknown_build"}),
+                               ("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "banner",
+                                                        "installed": 1, "view": "ready"}),
+                               ("ELDENNET", "notice", {"what": "banner", "reason": "unknown_build", "status": 0}),
+                               ("ELDENNET", "init", {"state": "banner"}),
+                               ("LAUNCHER", "end", {"kind": "clean"}))(r)
+        injected = [e for e in r.events("LAUNCHER", "inject") if e.get("dll") == "graceui.dll" and e.get("ok") == "1"]
+        need(len(injected) == 2, "%d copies of graceui.dll injected, wanted 2" % len(injected), failures)
+        hows = [e.get("how") for e in r.events("ELDENNET", "connect") if e.get("ok") == "1"]
+        need(hows and hows[-1] in ("name", "scan"), "EldenNet found GraceUI by %s" % hows, failures)
+        # The other mod: its own copy asked (null where it idles), then one connection, to the active copy.
+        lines = r.events("FAKEGAME", "grace_copy")
+        need(len(lines) == len(asks) and lines and lines[0].get("connect") == "0" and
+             all(e.get("name") == COPY_NAMES[1] and e.get("table") == str(t) and e.get("look") in looks
+                 for e, (t, looks) in zip(lines, asks)),
+             "the other mod's asks: %s" % [(e.get("name"), e.get("table"), e.get("look"), e.get("connect"))
+                                          for e in lines], failures)
+        # Every report: both copies loaded, the active one reported, hooked once with its one init thread, both mods
+        # connected to it and the other copy named once; the idle copy with no thread, no hook and no mod. The active
+        # copy's hooks the same at every report: no copy installed any later.
+        hooks = set()
+        for frame in reports:
+            failures += want_grace(r, frame, "grace_copies", copies=2, reported=active,
+                                   **{a: COPY_NAMES[active - 1], a + "_test": 1, a + "_host": 2, a + "_threads": 1,
+                                      a + "_installs": 1, a + "_hooks": (1, 64), a + "_consumers": 2, a + "_named": 1,
+                                      i: COPY_NAMES[idle - 1], i + "_test": 1, i + "_host": 4, i + "_threads": 0,
+                                      i + "_installs": 0, i + "_hooks": 0, i + "_consumers": 0, i + "_named": 0},
+                                   copy_notices=1, copy_logs=(1, 1), copy_tone=1,
+                                   copy_notice=COPY_NOTICE + COPY_NAMES[idle - 1].replace(" ", "_"))
+            line = next((e for e in r.events("FAKEGAME", "grace_copies") if e.get("frame") == str(frame)), {})
+            hooks.add(line.get(a + "_hooks"))
+        need(len(hooks) == 1, "the active copy's hooks changed between reports: %s" % sorted(map(str, hooks)), failures)
+        # EldenNet on the active copy (its two mods above, and EldenNet among the reported copy's): its banner as one
+        # notice under its key, and F11's view drawn on the game's frame.
+        failures += want_grace(r, reports[0], found=1, host=2, eldennet=1, consumers=2, notice_only=0,
+                               banner=COPY_BANNER, banner_tone=1, shown=0)
+        failures += want_grace(r, reports[-1], shown=1, refused=0, panel_frames=(1, 1e9),
+                               probe=(VIEW_AREA // 2, VIEW_AREA), banner=COPY_BANNER)
+        failures += any_line(r, "ELDENNET", "view", presses=1, open=1)
+        return failures + en_log_is_clean(r)
+    return check
+
+
+case("launcher-eldennet-graceui-second-copy",
+     LGAME + ["--also", "{gracedll}", "--also", "{gracecopy}", "--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--grace-copy-at", "330,540", "--press-f11-at", "420", "--grace-report", "300,360,600",
+          "--grace-probe", VIEW_PROBE, frames=660),
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=GRACE_ENV, timeout=200,
+     prepare=install_eldennet(EN_PANEL, gal_change=unknown_build_for_dll, then=install_grace_copy),
+     check=check_all(check_second_copy(1, [(0, ("name", "scan")), (0, ("none",))], [360, 600]),
+                     # Before the other mod asked: its copy loaded and never asked (no thread, no hook).
+                     lambda r: want_grace(r, 300, "grace_copies", copies=2, reported=1, c1_host=2, c2_host=0,
+                                          c2_threads=0, c2_installs=0, c2_hooks=0)),
+     what="A second copy of GraceUI in another mod's folder, asked after EldenNet (the game's order): it answers "
+          "null each time, idles with no thread and no hook, and is named once in a notice and a log line, while "
+          "EldenNet stays on Game\\GraceUI's copy with its banner and F11's view, and the other mod connects there "
+          "too")
+case("launcher-eldennet-graceui-second-copy-first",
+     LGAME + ["--also", "{gracedll}", "--also", "{gracecopy}", "--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--grace-copy-at", "0", "--press-f11-at", "420", "--grace-report", "360,600",
+          "--grace-probe", VIEW_PROBE, frames=660),
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=GRACE_ENV, timeout=200,
+     prepare=install_eldennet(EN_PANEL, gal_change=unknown_build_for_dll, then=install_grace_copy),
+     check=check_second_copy(2, [(1, ("own",))], [360, 600]),
+     what="A second copy of GraceUI in another mod's folder, asked at boot before EldenNet: that copy is active, "
+          "Game\\GraceUI's idles once EldenNet asks it and is named once, and EldenNet's look finds the active copy, "
+          "with its banner and F11's view there")
 case("launcher-eldennet-graceui-spike-s0e", LGAME + ["--dll", "{eldennetdll}", "--console", "--spike", "s0e"] +
      game("--d3d12", "--press-f11-at", "480", "--press-pause-at", "540", "--grace-report", "420,600", "--grace-probe",
           VIEW_PROBE, frames=720),
