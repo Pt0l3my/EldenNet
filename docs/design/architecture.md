@@ -2538,7 +2538,7 @@ fallback = "google/gemma-4-31b-it"
 | `FirstTokenTimeout` | No content delta by the slot's first-token time | Fallback model once (already sent if a backup request started, below), then "…" and a toast | Seed | Retry once | Retry (2 total), then requeue | +1 failure |
 | `TotalTimeout` | Total time exceeded | Commit shown pages; "…" and a toast | Seed | Keep seeds | Requeue | +1 |
 | `RateLimited` | HTTP 429 | Fallback model once, then a toast | Seed | Drop the batch | Requeue | Provider cooling 60 s (honour `Retry-After` up to 300 s, impl) |
-| `Auth` | HTTP 401/403 | Toast "API key rejected: open settings (F10)" | Seed | Drop | Requeue | Provider disabled until `providers.toml` or `secrets.toml` changes |
+| `Auth` | HTTP 401/403 | Toast "API key rejected: open settings (F10)" (since 2026-11-24, O120: "API key rejected: paste it again on AI › Providers") | Seed | Drop | Requeue | Provider disabled until `providers.toml` or `secrets.toml` changes |
 | `BadRequest` | HTTP 400/404/422 | Retry once without the optional fields (`json_schema`, `stream_options`, the rest of `extra_body`), but never without the reasoning switch or the quantisation floor (below), then a toast | Seed | Drop | Retry once stripped the same way, then requeue | Not counted (our request) |
 | `Server` | HTTP 5xx, connection reset | Fallback model once | Seed | Retry once | Requeue | +1 |
 | `Empty` | `[DONE]` with no content | Fallback model once | Seed | Batch rejected | Retry | +1 |

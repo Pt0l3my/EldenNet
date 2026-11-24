@@ -628,6 +628,10 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 603 | 2026-11-24 | The DLL names the overrides files it leaves out, the first 64 | FACT | #content |
 | 604 | 2026-11-24 | A file past 64 KB that nothing reads shows as Loaded | FACT | #content |
 | 605 | 2026-11-24 | A character's other fields, by the survey of 49 characters over two runs: seven leads in the layout | LIKELY | #lodestar #l6 #gal |
+| 606 | 2026-11-24 | GraceUI 0.2.40's key caps moved EldenNet's goldens by their footer alone | FACT | #graceui #pages #goldens |
+| 607 | 2026-11-24 | No check of the fake game's harness reads a whole hints line | FACT | #graceui #fakegame |
+| 608 | 2026-11-24 | A field found by how numbers behave is confirmed by two readers in one run | METHOD | #lodestar #l6 #gal |
+| 609 | 2026-11-24 | A pin's goldens can be regenerated before any EldenNet build | METHOD | #pages #goldens |
 
 ## Entries
 
@@ -9017,3 +9021,43 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   character is now, the block its position is measured from, so the moving candidate fits it; the fixed one is the
   map a character belongs to. The dead bit has two rivals, bit 1 of 0x1C6 and bit 4 of 0x53B, that one death a run
   does not tell apart. The nineteenth round reads all of them through EldenNet's own reader on the near list.
+
+### 606. GraceUI 0.2.40's key caps moved EldenNet's goldens by their footer alone
+
+`2026-11-24` · FACT · `#graceui` `#pages` `#goldens` · refs: GraceUI D246, docs/eldennet-changes.md §73 (GraceUI), engine b294e06 (merged at 01ed439)
+
+- All 18 of EldenNet's page goldens moved at GraceUI 0.2.40 by their footer alone: the one hints line becomes, for
+  each key, a cap (a fill and a border), the key inside it and its label beside it; words with no key ("Not available
+  now") stay one plain text. The keys and labels, read in order, are the old line's. The draw list's summary grows by
+  the footer's lines alone, 72 vertices and 318 indices a cap, glyphs and commands unchanged. Checked with a script of
+  our own against the earlier goldens: every other line the same and in the same order.
+
+### 607. No check of the fake game's harness reads a whole hints line
+
+`2026-11-24` · FACT · `#graceui` `#fakegame` · refs: tests/fakegame/harness.py, tests/fakegame/present.cpp, tools/preview/shoot.py
+
+- D246 makes a hints line no longer one text (GraceUiTestMenu.footer holds its words), but no check of EldenNet's
+  fake-game harness or of tools/preview/shoot.py looked for one: the texts the harness asks GraceUI_Test_MenuShows for
+  are page words and an invented key's fragment that must never be drawn. The fake game reports no footer; a later
+  check of a hints line would read the footer's words, which its report would then have to carry.
+
+### 608. A field found by how numbers behave is confirmed by two readers in one run
+
+`2026-11-24` · METHOD · `#lodestar` `#l6` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the nineteenth round"), engine 20825c7 (merged at 274ab87), WHY§605, O117
+
+- The survey that found a field and EldenNet's own reader through the layout each count the same things over the
+  same characters in one run: handles all different, kinds and their models, entity ids, teams, the dead, the on
+  screen by the tester's phases. Open candidates are told by checks counted for the main player and for the others
+  apart (is the number at a place b, are two places equal, is a character's the main player's, block-shaped,
+  changed), never by reporting values. The nineteenth round's twenty checks cover the type's two places, the block's
+  three and the dead bit's rivals; a number from research (NPC §1.4's 5 for a character of the world) is only counted
+  against, so the game says whether it holds.
+
+### 609. A pin's goldens can be regenerated before any EldenNet build
+
+`2026-11-24` · METHOD · `#pages` `#goldens` · refs: tests/pages/preview.py
+
+- The page preview reads only committed files, so a Linux grace-dev at the new GraceUI commit is all a pin needs to
+  regenerate EldenNet's goldens (`EN_UPDATE_GOLDENS=1 python3 -I tests/pages/preview.py --grace-dev <grace-dev>
+  --pages src/en-overlay/pages --fixtures tests/pages --work <scratch>`); the GCC tree's en_pages_preview then checks
+  the same files.

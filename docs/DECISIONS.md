@@ -2409,3 +2409,26 @@ them in a dated note.
 **Owner's words.** "Accept as written (Recommended)" (question dialog, 2026-11-24).
 
 **Follows from.** PAGES §4.6.9, PV5, SP1, SP5; S11.4.a; O99, O104.
+
+## O120
+
+**Two built texts that mislead, and the own-profile section of Writing content** · *2026-11-24 · Decided by the owner, as recommended*
+
+**Question.** Found while drafting the Docs page's documents (S11.4.a): (1) the chat toast for a refused key, "API key
+rejected: open settings (F10)", names a key v0.2 does not have (keys are set on F5 › AI › Providers); (2) Home's reason
+while no model answers Conversation, "EldenNet reads the game. NPCs speak from a later version.", is untrue in v0.2,
+where NPCs speak once a model answers (and the AI pages' last fallback, "EldenNet only observes in this version: NPCs
+speak from a later one.", likewise); (3) Writing content's section on a character profile of one's own needs the game's
+row number for the character and a whole index of one's own, which players cannot easily do. **Options:** new words
+for (1) and (2), or keep them as built; drop (3) for v0.2, or keep it with its warning.
+
+**Recommendation.** (1) "API key rejected: paste it again on AI › Providers". (2) "EldenNet reads the game. NPCs speak
+once a model answers Conversation: AI › Providers says what is missing.", and the fallback "NPCs speak once a model
+answers Conversation. The self-test checks your provider meanwhile." (3) Drop it for v0.2.
+
+**Decision.** All three as recommended.
+
+**Owner's words.** "'paste it again on AI › Providers' (Recommended)", "'...speak once a model answers' (Recommended)",
+"Drop it for v0.2 (Recommended)" (question dialog, 2026-11-24).
+
+**Follows from.** O110, O114; PAGES §4.5, §4.6.9; S11.4.a.
