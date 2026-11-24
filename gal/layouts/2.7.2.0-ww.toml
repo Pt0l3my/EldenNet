@@ -32,6 +32,18 @@
 #   a fraction 8 bytes in; the player set at 0x10EF8, an address of memory whose first word is the main player's
 #   address. The manager's object is over 127 KiB, so each is a far field (read by a copy of its own; WHY§506). The
 #   set's length and the element's size of the set are not known. Leads, as all of this file.
+# - the game's state (the fifteenth and sixteenth read-only rounds, 2026-11-23): the static behind which one 32-bit
+#   field, 0xAC0 into the object, read the slot of each of two saves as it was loaded (6, then 2), in an object of
+#   the class the leads' [statics] give for the game's state, told by the image's own type information; 345
+#   instructions refer to the static, eight of them its witnesses. The object is not there at the title. The field
+#   lies past any sensible copy of the object's start, so it is a far field.
+# - the player's parts (the thirteenth to the sixteenth rounds): the holder of a character's parts 0x190 into the
+#   character's object, a run of addresses; its first address is the object with the health (the 32-bit number
+#   0x138 in, which fell once at the owner's one hit and rose once at the one heal in two rounds, and its maximum
+#   0x13C in, which never changed); its fourteenth (0x68 into the holder) the object with the position (three
+#   fractions from 0x70: the first and the third ranged over metres while the owner walked, the second, the height,
+#   moved in the one round where the ground was not level). Leads from the main player alone, by behaviour: no
+#   other character was read, and several other numbers behaved as the health did.
 # The other classes, fields, enums, params and self-test ids are later rounds' to find, and are left out. A release
 # build refuses this file (every entry a lead).
 schema = 2
@@ -193,6 +205,47 @@ status = "lead"
 
 # The event flags' store and the records of its tree (the ninth and tenth read-only rounds, packages
 # 0.1.0-lodestar.12 and .13; docs/ops/probes/2026-11-22-l5.md). The store is the object behind item event_flags.
+[item.game_state]
+id = 1003
+kind = "static"
+rva = 0x3D709A8
+found_by = ["invariant"]
+witnesses = [0x52C669, 0x679226, 0x679256, 0x6792AF, 0x6792E5, 0x679311, 0x679371, 0x679398]
+checks = ["placement", "witness"]
+status = "lead"
+
+[class.game_state]
+copy_size = 0
+status = "lead"
+[class.game_state.fields]
+save_slot = { off = 0xAC0, ty = "i32", far = true, group = "player" }
+
+[class.character]
+copy_size = 0x198
+status = "lead"
+[class.character.fields]
+parts = { off = 0x190, ty = "ptr", group = "world" }
+
+[class.character_parts]
+copy_size = 0x70
+status = "lead"
+[class.character_parts.fields]
+vitals = { off = 0x0, ty = "ptr", group = "world" }
+motion = { off = 0x68, ty = "ptr", group = "world" }
+
+[class.vitals]
+copy_size = 0x140
+status = "lead"
+[class.vitals.fields]
+hp = { off = 0x138, ty = "i32", group = "world" }
+max_hp = { off = 0x13C, ty = "i32", group = "world" }
+
+[class.motion]
+copy_size = 0x80
+status = "lead"
+[class.motion.fields]
+pos = { off = 0x70, ty = "vec3f", group = "world" }
+
 [class.characters]
 copy_size = 0
 status = "lead"

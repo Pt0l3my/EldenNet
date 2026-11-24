@@ -14,12 +14,12 @@ your list and 2 with your usual one, as your save file said it should. Your heal
 rose at your heal, with its maximum beside it. And the numbers that moved only while you walked, your position
 among them.
 
-The game ended with an error code when you quit, in that round as in most sessions since the first test run of
-EldenNet's interface that day. The control run you then made with nothing of ours loaded ended the same way, so
-the code is the game's own on your PC, not EldenNet's and not GraceUI's. It does not always show (your second run
-of the older package ended clean), and we do not know yet what decides it. It may show again at the end of this
-round. When the launcher tells you at its next start that the last session ended with an error, that is this
-code: the notice can be closed.
+The game ended with an error code when you quit, in that round as in every session that afternoon and evening
+with a save loaded. The control runs you then made, with nothing of ours loaded and from Steam as you usually
+start it, ended the same way, so the code is the game's own on your PC, not EldenNet's and not GraceUI's. Your
+later runs ended clean, and we do not know what decides it. If it shows again at the end of this round, the
+launcher now keeps its record quietly and says nothing at its next start; an error while the game is still on
+screen is still explained.
 
 This round has the same tasks as the last and finishes what it left open:
 
@@ -172,8 +172,9 @@ The steps
      %APPDATA%\EldenNet\probe\lodestar-table.toml   required
      %APPDATA%\EldenNet\logs\eldennet.log           helpful
      %APPDATA%\EldenNet\logs\launcher.log           helpful
-     %APPDATA%\EldenNet\crashes\                    the newest file there (the launcher keeps a short record of
-                                                    the game's error code at the quit: see the top of this file)
+     %APPDATA%\EldenNet\crashes\                    the newest file there, if the game ended with an error
+                                                    code (the launcher keeps a short record of it: see the top
+                                                    of this file)
 
    (Type %APPDATA%\EldenNet into Explorer's address bar to open the folder.) You can check the report yourself:
 
@@ -340,7 +341,8 @@ If the game crashes or freezes
     EldenNet; only if the game itself reports a damaged save, copy ER0000.sl2 (and ER0000.sl2.bak) from the newest
     backup back into %APPDATA%\EldenRing\<the same number>\, with the game closed.
   - If the game freezes, close it with Alt+F4, or end eldenring.exe in Task Manager.
-  - Send the files of step 5, the newest crash record included. The next start of the launcher explains it once.
+  - Send the files of step 5, the newest crash record included. The next start of the launcher explains it once,
+    if the game was still on screen when it ended.
   - To play normally again, start the game from Steam as usual. Nothing of EldenNet stays loaded.
 
 
