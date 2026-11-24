@@ -385,7 +385,25 @@ of any game is in it, and every name it looks for comes from a leads file.
   the model's, entity ids, teams and the largest group of one, the dead and the on-screen, and says of the main
   player whether it has a handle, a kind, the dead bit, and a team of its own. `WorldRead` sums them over the
   frames, keeps the most a frame had, and counts objects, dead and on-screen by the tester's marks, so that they
-  can be held against the survey of the same run; no value is kept. The parts watch now starts at the second world's mark from
+  can be held against the survey of the same run; no value is kept. Since the twentieth round it reads the type
+  and the block the same way (how many types and the largest group; a block that reads as a block's id, and how
+  many are in the main player's own; the main player's block is handed to the caller, who tells only whether it
+  changed), and in every call the world's clock and the play time where the layout binds them (`lacks` has
+  `kClock`, `kPlay` otherwise). `WorldRead` counts by the tester's marks the frames with the main player, with
+  its health at nothing, with its dead bit set and with its block changed, and over the run the clock's minute
+  stepping on, standing or jumping and the play time rising. `SheetScan` (lodestar_sheet.cpp, `SheetFound`; the
+  twentieth round, the owner's O121 and O122) reads up to 64 KiB from where the save data's object begins and from
+  where the main player's sheet begins (by the layout's `save_data.player_data`, else by the round's lead in the
+  main player's object), every two seconds in pieces of 16 KiB, and tells every 32-bit number from 1 to
+  99,999,999 that changed in eight passes at most: its place, as first and as last read, its changes and the
+  tester's phases they fell in. Half of an address is left out (two small numbers side by side are none), and
+  so is whatever reads as text, two 16-bit units or more in a row from U+0020 up, in any script (a list of
+  scripts let two Hebrew letters, or the last letter of an odd-length Arabic text, through as numbers): only
+  where such a run lies is told, for a name lies in the sheet and is never written. The price is a number right
+  after a fraction, an id or a text, and numbers of two million or more; a text of one letter cannot be told
+  from a small number, which the round's README says. A pass that reads less than an earlier one changes nothing of
+  what was told. The numbers are the tester's own character's, written with the owner's word and kept between
+  the owner and the reviewer. The parts watch now starts at the second world's mark from
   the layout's `character.parts`, and runs before the character search's look. `CharSurvey`
   (lodestar_survey.cpp, `SurveyFound`; the eighteenth round, the owner's O117) is the search for a character's other
   fields: every two seconds it reads the main player and the near list's first 48 characters for the first 0x800

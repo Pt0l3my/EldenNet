@@ -3068,3 +3068,205 @@ TEST_CASE("in game: a pass takes over a manager the search named first, and an i
   CHECK(lodestar::draft_table(r.found, r.ids, provenance, r.gated.image, w.sys->image()).text.find("[item.save_data]") ==
         std::string::npos);
 }
+
+TEST_CASE("in game: the sheet scan tells the numbers of the save data's object and the sheet, and never a text") {
+  // An invented save data's object and an invented sheet: a level and attributes that keep still, a count that
+  // rises by one at the tester's death, a purse that empties at it, a timer that never keeps still, a fraction,
+  // addresses, and a name. The sheet lies behind a word of the main player's object and behind one of the save
+  // data's; after the death it lies elsewhere.
+  FakeWorld w;
+  w.world();
+  const auto rva = [&](std::uint64_t at) { return static_cast<std::uint32_t>(at - w.base); };
+  const std::uint64_t manager = w.mem.alloc(0x100), hero = w.mem.alloc(0x800);
+  const std::uint64_t save = w.mem.alloc(0x4000 + 0x2000);  // six KiB past the first piece: the span is cut there
+  const std::uint64_t sheet_a = w.mem.alloc(0x1000), sheet_b = w.mem.alloc(0x1000);
+  w.mem.put<std::uint64_t>(w.at("st_characters"), manager);
+  w.mem.put<std::uint64_t>(w.at("st_save_data"), save);
+  w.mem.put<std::uint64_t>(manager + 0x10, hero);
+  w.set_vtable(hero, "hero");
+  const auto fill_sheet = [&](std::uint64_t at) {
+    w.set_vtable(at, "npc");  // any class of the image: an object of a class
+    w.mem.put<std::uint32_t>(at + 0x10, 40);       // attributes
+    w.mem.put<std::uint32_t>(at + 0x14, 25);
+    w.mem.put<std::uint32_t>(at + 0x18, 33);
+    w.mem.put<std::uint32_t>(at + 0x40, 150);      // the level
+    w.mem.put<std::uint32_t>(at + 0x44, 48'213);   // the purse
+    w.mem.put<std::uint32_t>(at + 0x48, 0x42C8'0000u);  // 100.0: a fraction, above what is told
+    w.mem.put<std::uint64_t>(at + 0x50, w.mem.alloc(0x10));  // an address
+    const char16_t name[] = u"Wren of Oak";
+    for (std::size_t i = 0; i < 11; ++i) w.mem.put<std::uint16_t>(at + 0x9C + i * 2, static_cast<std::uint16_t>(name[i]));
+    w.mem.put<std::uint32_t>(at + 0xB8, 77);       // a number right after the name's end: a field of its own
+    // Texts in scripts no list of ours had (Engine's review): two Hebrew letters, which as one number are small
+    // enough to be told; and three Arabic letters, whose last, with the nothing after it, reads as a small number.
+    w.mem.put<std::uint16_t>(at + 0x60, 0x05D0);
+    w.mem.put<std::uint16_t>(at + 0x62, 0x05D1);
+    w.mem.put<std::uint16_t>(at + 0x70, 0x0627);
+    w.mem.put<std::uint16_t>(at + 0x72, 0x0628);
+    w.mem.put<std::uint16_t>(at + 0x74, 0x062A);
+    // What is no text: an unset number (all bits set) with a number after it. And the price: a number right after
+    // a fraction that is not round goes with it.
+    w.mem.put<std::uint32_t>(at + 0x80, 0xFFFF'FFFFu);
+    w.mem.put<std::uint32_t>(at + 0x84, 64);
+    w.mem.put<std::uint32_t>(at + 0x88, 0x41A3'D70Au);  // 20.48
+    w.mem.put<std::uint32_t>(at + 0x8C, 50);
+    w.mem.put<std::uint32_t>(at + 0xFF0, 9);       // near the object's end
+  };
+  fill_sheet(sheet_a);
+  fill_sheet(sheet_b);
+  w.mem.put<std::uint64_t>(hero + 0x580, sheet_a);
+  w.mem.put<std::uint64_t>(save + 0x8, sheet_a);
+  w.mem.put<std::uint64_t>(save + 0x10, w.mem.alloc(0x10));
+  w.mem.put<std::uint32_t>(save + 0x94, 12);       // the deaths so far
+  w.mem.put<std::uint32_t>(save + 0xA0, 1000);     // the play time: never still
+  w.mem.put<std::uint32_t>(save + 0x4100, 3);      // in the second piece
+  lodestar::SheetScan::Options o;
+  o.base = w.base;
+  o.image_size = w.sys->image().size();
+  o.image = &w.sys->image();
+  o.save_slot = rva(w.at("st_save_data"));
+  o.manager_slot = rva(w.at("st_characters"));
+  o.main_player_word = 0x10;
+  o.sheet_at = 0x580;
+  o.save_first_word = 0x8;
+  o.save_second_word = 0x10;
+  lodestar::SheetScan scan(o);
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  std::uint64_t now = 10'000'000;
+  std::uint32_t tick = 0;
+  const auto pass = [&] {
+    now += lodestar::SheetScan::kEveryUs;
+    ++tick;
+    w.mem.put<std::uint32_t>(save + 0xA0, 1000 + tick * 2000);
+    for (int steps = 0; steps < 200; ++steps) {
+      reader.begin_tick();
+      if (scan.step(gt, reader, now)) return;
+    }
+    FAIL("a pass did not end");
+  };
+  CHECK(scan.due(now));
+  for (int i = 0; i < 5; ++i) pass();  // standing
+  CHECK_FALSE(scan.due(now));
+  scan.mark(now);
+  for (int i = 0; i < 6; ++i) pass();  // the ride
+  scan.mark(now);
+  pass();
+  // The death: the count rises by one and the purse empties; then the world loads again, with no main player for
+  // two passes, and the sheet lies elsewhere after it.
+  w.mem.put<std::uint32_t>(save + 0x94, 13);
+  w.mem.put<std::uint32_t>(sheet_a + 0x44, 0);
+  w.mem.put<std::uint32_t>(sheet_b + 0x44, 0);
+  pass();
+  w.mem.put<std::uint64_t>(manager + 0x10, 0);
+  pass();
+  pass();
+  w.mem.put<std::uint64_t>(hero + 0x580, sheet_b);
+  w.mem.put<std::uint64_t>(save + 0x8, sheet_b);
+  w.mem.put<std::uint64_t>(manager + 0x10, hero);
+  pass();
+  scan.mark(now);
+  for (int i = 0; i < 4; ++i) pass();  // standing again
+  // The tester quits: the manager and the save data's static are emptied. Nothing told so far is lost.
+  w.mem.put<std::uint64_t>(w.at("st_characters"), 0);
+  w.mem.put<std::uint64_t>(w.at("st_save_data"), 0);
+  pass();
+  pass();
+  const lodestar::SheetFound f = scan.found();
+  CHECK(f.passes == 22);
+  CHECK(f.absent == 2);
+  CHECK(f.phase == 3);
+  REQUIRE(f.phase_passes.size() == lodestar::SheetScan::kPhases);
+  CHECK(f.phase_passes[0] == 5);
+  CHECK(f.phase_passes[1] == 6);
+  CHECK(f.phase_passes[2] == 5);
+  CHECK(f.phase_passes[3] == 4);
+  CHECK(f.sheet_classed);
+  CHECK(f.sheet_is_first);
+  CHECK_FALSE(f.sheet_is_second);
+  REQUIRE(f.objects.size() == 2);
+  const lodestar::SheetObject& sd = f.objects[0];
+  const lodestar::SheetObject& sh = f.objects[1];
+  const auto field = [](const lodestar::SheetObject& ob, std::uint32_t offset) -> const lodestar::SheetField* {
+    for (const lodestar::SheetField& r : ob.fields) {
+      if (r.offset == offset) return &r;
+    }
+    return nullptr;
+  };
+  // The save data's object: read to where its memory ends, 20 passes; the count that rose by one at the death, in
+  // the death's phase alone; the play time left out for never keeping still; its two words to objects left out
+  // as addresses.
+  CHECK(sd.there);
+  CHECK(sd.bytes == 0x6000);
+  CHECK(sd.passes == 20);
+  CHECK(sd.moved == 0);
+  REQUIRE(field(sd, 0x94) != nullptr);
+  CHECK(field(sd, 0x94)->first == 12);
+  CHECK(field(sd, 0x94)->last == 13);
+  CHECK(field(sd, 0x94)->changes == 1);
+  CHECK(field(sd, 0x94)->phases == 0b100);
+  CHECK(field(sd, 0xA0) == nullptr);
+  CHECK(sd.restless == 1);
+  CHECK(field(sd, 0x8) == nullptr);
+  CHECK(field(sd, 0xC) == nullptr);
+  CHECK(sd.address_fields == 4);
+  REQUIRE(field(sd, 0x4100) != nullptr);
+  CHECK(field(sd, 0x4100)->last == 3);
+  CHECK(sd.fields_total == sd.fields.size());
+  // The sheet: 18 passes (none while the world loaded), once at another address; the level and the attributes
+  // as they stand, the purse that emptied, the number at the object's end.
+  CHECK(sh.there);
+  CHECK(sh.bytes == 0x1000);
+  CHECK(sh.passes == 18);
+  CHECK(sh.moved == 1);
+  REQUIRE(field(sh, 0x40) != nullptr);
+  CHECK(field(sh, 0x40)->first == 150);
+  CHECK(field(sh, 0x40)->last == 150);
+  CHECK(field(sh, 0x40)->changes == 0);
+  REQUIRE(field(sh, 0x10) != nullptr);
+  CHECK(field(sh, 0x10)->last == 40);
+  REQUIRE(field(sh, 0x44) != nullptr);
+  CHECK(field(sh, 0x44)->first == 48'213);
+  CHECK(field(sh, 0x44)->last == 0);
+  CHECK(field(sh, 0x44)->changes == 1);
+  CHECK(field(sh, 0x44)->phases == 0b100);
+  CHECK(field(sh, 0x48) == nullptr);   // a fraction: above what is told
+  CHECK(field(sh, 0x50) == nullptr);   // an address
+  CHECK(field(sh, 0x54) == nullptr);
+  REQUIRE(field(sh, 0xFF0) != nullptr);
+  // The name: eleven letters from 0x9C on, six fields of text. Not one of them is told, the last (one letter and
+  // nothing after it) included; where the run lies is. The number after it is a field of its own, and told.
+  for (std::uint32_t at = 0x9C; at < 0xB4; at += 4) CHECK(field(sh, at) == nullptr);
+  // The two Hebrew letters (as one number 97,584,592, which is under what is told) and the three Arabic ones
+  // (the last as a number 1,578): never told. The unset number is no text and the number after it is told. The
+  // number after the fraction is lost with it.
+  CHECK(field(sh, 0x60) == nullptr);
+  CHECK(field(sh, 0x70) == nullptr);
+  CHECK(field(sh, 0x74) == nullptr);
+  CHECK(field(sh, 0x80) == nullptr);
+  REQUIRE(field(sh, 0x84) != nullptr);
+  CHECK(field(sh, 0x84)->last == 64);
+  CHECK(field(sh, 0x88) == nullptr);
+  CHECK(field(sh, 0x8C) == nullptr);
+  CHECK(sh.text_fields == 11);
+  REQUIRE(sh.texts.size() == 4);
+  CHECK(sh.texts[0].offset == 0x60);
+  CHECK(sh.texts[0].fields == 1);
+  CHECK(sh.texts[1].offset == 0x70);
+  CHECK(sh.texts[1].fields == 2);
+  CHECK(sh.texts[2].offset == 0x88);
+  CHECK(sh.texts[2].fields == 2);
+  CHECK(sh.texts[3].offset == 0x9C);
+  CHECK(sh.texts[3].fields == 6);
+  for (const lodestar::SheetField& r : sh.fields) {
+    // No told number is made of two letters, in any script, or is a lone letter's code from the texts above.
+    const std::uint16_t low = static_cast<std::uint16_t>(r.last), high = static_cast<std::uint16_t>(r.last >> 16);
+    CHECK_FALSE((low >= 0x20 && low < 0xFFFE && high >= 0x20 && high < 0xFFFE));
+    CHECK(r.last != 0x062A);
+  }
+  REQUIRE(field(sh, 0xB8) != nullptr);
+  CHECK(field(sh, 0xB8)->last == 77);
+  for (const lodestar::SheetField& r : sh.fields) {
+    CHECK(r.first <= lodestar::SheetScan::kMost);
+    CHECK(r.last <= lodestar::SheetScan::kMost);
+  }
+}

@@ -702,4 +702,45 @@ class CharSurvey {
   std::unique_ptr<Impl> impl_;
 };
 
+// The sheet scan (lodestar.hpp's SheetFound; the twentieth read-only round, the owner's O121 and O122). Every two
+// seconds: the main player's address from the characters manager, the sheet's address from the main player, and the
+// two objects (the save data's, whose address its static holds, and the sheet) in pieces of 16 KiB, 64 KiB of each
+// at most and less where memory ends sooner. One guarded read a step. A pass that reads less than an earlier one
+// (the world going as the tester quits or dies) changes nothing of what the earlier passes told.
+class SheetScan {
+ public:
+  static constexpr std::uint32_t kSpan = 0x10000, kPiece = 0x4000;
+  static constexpr std::size_t kObjects = 2, kListed = 1024, kListedTexts = 32;
+  static constexpr std::uint32_t kPhases = 6;
+  static constexpr std::uint32_t kMaxChanges = 8;        // a number that changed in more passes is not listed
+  static constexpr std::uint32_t kMost = 99'999'999;     // a number above it is not told (nor is nothing)
+  static constexpr std::uint64_t kEveryUs = 2'000'000;
+
+  struct Options {
+    std::uint64_t base = 0;
+    std::uint64_t image_size = 0;
+    const ByteSource* image = nullptr;
+    std::uint32_t save_slot = 0;          // the save data's static
+    std::uint32_t manager_slot = 0;       // the characters manager's static
+    std::uint32_t main_player_word = 0;   // in the manager's object
+    std::uint32_t sheet_at = 0;           // in the main player's object: the sheet's address (the round's lead)
+    std::uint32_t save_sheet_word = 0;    // or, with sheet_at 0, in the save data's object (the layout's own field)
+    std::uint32_t save_first_word = 0;    // in the save data's object: two words the sheet may be behind (leads)
+    std::uint32_t save_second_word = 0;
+  };
+  explicit SheetScan(Options options);
+  ~SheetScan();
+  SheetScan(const SheetScan&) = delete;
+  SheetScan& operator=(const SheetScan&) = delete;
+
+  void mark(std::uint64_t now_us) noexcept;  // the next phase begins; from one thread
+  [[nodiscard]] bool due(std::uint64_t now_us) const noexcept;  // the stepping thread's
+  bool step(const proto::GameThread& gt, GuardedReader& reader, std::uint64_t now_us);  // whether a pass ended
+  [[nodiscard]] SheetFound found() const;
+
+ private:
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
+};
+
 }  // namespace en::gal::lodestar

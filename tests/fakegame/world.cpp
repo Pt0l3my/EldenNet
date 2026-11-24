@@ -91,6 +91,8 @@ struct WorldState {
   float clock_s = 0.0f;
   float world_s = 0.0f;  // seconds in the world
   bool retitled = false; // the game went back to its title once (--retitle-at-s)
+  bool died = false;     // the player died (--die-at-s) and the world has not loaded again yet
+  bool reborn = false;   // and it has
   bool online = false;
   WorldStats stats;
   FG::ClockTask clock_task;
@@ -542,6 +544,9 @@ void world_frame_begin(std::uint64_t frame) {
       if (o.retitle_at_s != 0 && !w.retitled && w.world_s >= static_cast<float>(o.retitle_at_s)) {
         w.retitled = true;
         enter(Phase::Title, frame);
+      } else if (w.died && !w.reborn && w.world_s >= static_cast<float>(o.die_at_s) + 3.0f) {
+        w.reborn = true;  // the dead player's world goes, and a new one loads with a new player
+        enter(Phase::Loading, frame);
       } else if (o.reload_every != 0 && w.world_frames % o.reload_every == 0) {
         enter(Phase::Loading, frame);
       } else if (o.move_every != 0 && w.world_frames % o.move_every == 0) {
@@ -688,6 +693,19 @@ void FG::ClockTask::run(const FrameInfo* frame) {
     if (!w.npcs.empty() && crossed(fakegame::options().kill_at_s)) {
       w.npcs[0]->a.parts->vitals->hp = 0;
       w.npcs[0]->a.flags = static_cast<std::uint8_t>(w.npcs[0]->a.flags | (1u << FG::kActorDeadBit));
+    }
+    // --block-at-s: the player crosses into another block.
+    if (w.player != nullptr && crossed(fakegame::options().block_at_s)) w.player->a.block_id = 0x0A1C0000u;
+    // --die-at-s: the player dies. The ledger counts it and the sheet's runes are lost at once; the world loads
+    // again three seconds on (step_phase).
+    if (w.player != nullptr && crossed(fakegame::options().die_at_s)) {
+      w.player->a.parts->vitals->hp = 0;
+      w.player->a.flags = static_cast<std::uint8_t>(w.player->a.flags | (1u << FG::kActorDeadBit));
+      if (auto* ledger = static_cast<SaveLedgerImp*>(fg_static_save_ledger)) {
+        ++ledger->f.death_count;
+        if (ledger->f.hero != nullptr) ledger->f.hero->h.runes = 0;
+      }
+      w.died = true;
     }
   }
   if (auto* sky = static_cast<SkyClockImp*>(fg_get_sky())) {

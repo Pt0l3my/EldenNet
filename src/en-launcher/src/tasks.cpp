@@ -1,6 +1,8 @@
 // The tester's task list: see tasks.hpp.
 #include "en/launcher/tasks.hpp"
 
+#include "en/proto/watch.hpp"
+
 #include <utility>
 
 namespace en::launcher {
@@ -59,9 +61,11 @@ TaskList::Change TaskList::end(std::uint64_t now_ms) noexcept {
 std::vector<TaskRow> TaskList::rows(std::uint64_t now_ms) const {
   std::vector<TaskRow> out;
   out.reserve(tasks_.size());
+  std::uint32_t marks = 0;
   for (std::size_t i = 0; i < tasks_.size(); ++i) {
     const Task& t = tasks_[i];
     TaskRow r;
+    if (t.mark && (t.kind == TaskKind::Do || t.kind == TaskKind::Wait)) r.mark = ++marks;
     r.title = t.title;
     r.detail = t.detail;
     r.kind = t.kind;
@@ -72,6 +76,7 @@ std::vector<TaskRow> TaskList::rows(std::uint64_t now_ms) const {
     } else if (i < current_) {
       r.state = TaskState::Done;
       r.elapsed_s = took_s_[i];
+      r.gathered = proto::watch::gathered_of(gathered_, r.mark);
     } else {
       r.state = TaskState::Now;
       r.elapsed_s = static_cast<std::uint32_t>((now_ms - began_ms_) / 1000);
@@ -109,6 +114,33 @@ std::string timer_text(const TaskRow& row) {
   return {};
 }
 
+std::string gathered_text(const TaskRow& row) {
+  if (row.state != TaskState::Done) return {};
+  if (row.gathered == proto::watch::kGathered) return "Got it.";
+  if (row.gathered == proto::watch::kNotGathered) return "Not gathered.";
+  return {};
+}
+
+std::string gathered_footer(const std::vector<TaskRow>& rows) {
+  std::vector<std::size_t> missed;
+  std::size_t judged = 0;
+  for (std::size_t i = 0; i < rows.size(); ++i) {
+    if (rows[i].mark == 0) continue;
+    if (rows[i].state != TaskState::Done || rows[i].gathered == proto::watch::kGatherUntold) return {};
+    ++judged;
+    if (rows[i].gathered == proto::watch::kNotGathered) missed.push_back(i + 1);
+  }
+  if (judged == 0) return {};
+  if (missed.empty()) return "This run is usable: send it.";
+  std::string which = missed.size() == 1 ? "Task " : "Tasks ";
+  for (std::size_t k = 0; k < missed.size(); ++k) {
+    if (k != 0) which += k + 1 == missed.size() ? " and " : ", ";
+    which += std::to_string(missed[k]);
+  }
+  return which + (missed.size() == 1 ? " was" : " were") +
+         " not gathered: send the files all the same; run again only if you have the time.";
+}
+
 namespace {
 
 // The eighteenth read-only round, the character survey (the owner agreed to its reading and its tasks on
@@ -138,10 +170,41 @@ std::vector<Task> survey_tasks() {
   };
 }
 
+// The sheet's plan (the twentieth read-only round; the owner agreed to its tasks, 2026-11-24): one character,
+// somewhere quiet and no standing near enemies. A short stand, then a ride or a run in one direction (the position
+// moving, and the block as the tester crosses into another), then the tester's own death (a count that rises by
+// one, and how the game marks the main player's death), and a short stand once they are back. Five marks.
+std::vector<Task> sheet_tasks() {
+  using K = TaskKind;
+  return {
+      {K::Round, "Wait at the title screen",
+       "EldenNet is reading the game. Do not load a save yet: this row turns grey when it is time.", 0, false, ""},
+      {K::Do, "Load your usual character",
+       "Go somewhere quiet, with no enemy near, and get off your horse. When you stand there, press Pause, and "
+       "let go of the controls.",
+       0, true, "I stand somewhere quiet"},
+      {K::Wait, "Stand still", "On foot. Hands off the keyboard and the mouse until the time is up.", 20, true, ""},
+      {K::Wait, "Ride or run in one direction",
+       "Mount if you like, and keep going one way until the time is up: the further the better. Go round enemies "
+       "rather than through them.",
+       60, true, ""},
+      {K::Do, "Let an enemy kill you, once",
+       "Find any enemy and let it kill you. Wait until you are back in the world and can move, then press Pause. "
+       "If you died sooner than you meant to, that counts too: carry on.",
+       0, true, "I died and I am back"},
+      {K::Wait, "Stand still again", "Where you came back. Hands off the keyboard and the mouse.", 20, true, ""},
+      {K::End, "Quit the game",
+       "Quit as you usually do. Whatever happened on the way, send the files: the round's own line below says "
+       "what it gathered.",
+       0, false, ""},
+  };
+}
+
 }  // namespace
 
 std::vector<Task> read_tasks(std::uint32_t plan) {
   if (plan == 1) return survey_tasks();
+  if (plan == 2) return sheet_tasks();
   // The fourteenth read-only round. First the save's slot, by the two numbers it must read: the last character of
   // the tester's list is loaded, then the usual one (the owner agreed, 2026-11-23, and the owner's save file gave
   // their slots). Then, with the usual character, the parts watch's phases: standing, walking, standing, one hit,

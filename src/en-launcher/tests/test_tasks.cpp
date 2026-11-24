@@ -2,6 +2,7 @@
 #include <doctest.h>
 
 #include "en/launcher/tasks.hpp"
+#include "en/proto/watch.hpp"
 
 using namespace en::launcher;
 
@@ -185,6 +186,87 @@ TEST_CASE("tasks: the survey's list (plan 1): one character, a stand, a look aro
   // A plan the launcher does not know is the rounds' list, as its option refuses any other number first.
   CHECK(read_tasks(0).size() == 14);
   CHECK(read_tasks().size() == 14);
+}
+
+TEST_CASE("tasks: the sheet's list (plan 2): a stand, a ride or a run, the tester's own death; five marks") {
+  const std::vector<Task> tasks = read_tasks(2);
+  REQUIRE(tasks.size() == 7);
+  CHECK(tasks[0].kind == TaskKind::Round);
+  CHECK(tasks[1].kind == TaskKind::Do);    // the load, somewhere quiet
+  CHECK(tasks[2].kind == TaskKind::Wait);  // standing, on foot
+  CHECK(tasks[3].kind == TaskKind::Wait);  // the ride or the run
+  CHECK(tasks[4].kind == TaskKind::Do);    // the death, confirmed once the tester is back
+  CHECK(tasks[5].kind == TaskKind::Wait);
+  CHECK(tasks[6].kind == TaskKind::End);
+  std::size_t marks = 0, seconds = 0;
+  for (const Task& t : tasks) {
+    CHECK_FALSE(t.title.empty());
+    CHECK_FALSE(t.detail.empty());
+    CHECK(t.title.size() <= 40);
+    CHECK(t.detail.size() <= 180);
+    marks += t.mark ? 1 : 0;
+    seconds += t.seconds;
+    if (t.kind == TaskKind::Do) CHECK_FALSE(t.button.empty());
+  }
+  CHECK(marks == 5);
+  CHECK(seconds == 100);  // no standing within sight of enemies, and little standing at all (the nineteenth's lesson)
+  // A run in which the tester is attacked or killed early still counts, and the steps say so themselves.
+  CHECK(tasks[4].detail.find("counts too") != std::string::npos);
+  CHECK(tasks[6].detail.find("send the files") != std::string::npos);
+}
+
+TEST_CASE("tasks: a done task says what the round gathered, and the run's own line comes once all are judged") {
+  namespace w = en::proto::watch;
+  TaskList list(read_tasks(2));
+  list.start(0);
+  const auto rows = list.rows(0);
+  // The marks number the tasks that stamp one, in order: the load 1, the stand 2, the ride 3, the death 4, the
+  // last stand 5; the round's own task and the quit stamp none.
+  CHECK(rows[0].mark == 0);
+  CHECK(rows[1].mark == 1);
+  CHECK(rows[3].mark == 3);
+  CHECK(rows[5].mark == 5);
+  CHECK(rows[6].mark == 0);
+  CHECK(gathered_footer(rows).empty());
+  (void)list.round_step(1000);
+  (void)list.confirm(2000);     // the load is done
+  (void)list.tick(2000 + 20000);  // the stand
+  std::uint32_t word = w::with_gathered(0, 1, w::kGathered);
+  list.set_gathered(word);
+  auto now = list.rows(25000);
+  CHECK(now[1].state == TaskState::Done);
+  CHECK(now[1].gathered == w::kGathered);
+  CHECK(gathered_text(now[1]) == "Got it.");
+  CHECK(now[2].state == TaskState::Done);
+  CHECK(gathered_text(now[2]).empty());  // done, and the round has not said yet
+  CHECK(gathered_text(now[3]).empty());  // under way: nothing, whatever the word holds
+  CHECK(gathered_footer(now).empty());   // not every marked task is done and judged
+  // All done: one task missed.
+  (void)list.tick(22000 + 60000);
+  (void)list.confirm(90000);
+  (void)list.tick(90000 + 20000);
+  word = w::with_gathered(word, 2, w::kGathered);
+  word = w::with_gathered(word, 3, w::kNotGathered);
+  word = w::with_gathered(word, 4, w::kGathered);
+  list.set_gathered(word);
+  now = list.rows(110000);
+  CHECK(now[5].state == TaskState::Done);
+  CHECK(gathered_footer(now).empty());  // the last stand is not judged yet
+  word = w::with_gathered(word, 5, w::kGathered);
+  list.set_gathered(word);
+  now = list.rows(110000);
+  CHECK(gathered_text(now[3]) == "Not gathered.");
+  CHECK(gathered_footer(now) ==
+        "Task 4 was not gathered: send the files all the same; run again only if you have the time.");
+  list.set_gathered(w::with_gathered(word, 5, w::kNotGathered));
+  CHECK(gathered_footer(list.rows(110000)) ==
+        "Tasks 4 and 6 were not gathered: send the files all the same; run again only if you have the time.");
+  list.set_gathered(w::with_gathered(word, 3, w::kGathered));
+  CHECK(gathered_footer(list.rows(110000)) == "This run is usable: send it.");
+  // A round that judges nothing (the earlier plans) leaves the rows and the line as they were.
+  TaskList old(read_tasks(1));
+  old.start(0);
+  CHECK(gathered_footer(old.rows(0)).empty());
 }
 
 TEST_CASE("tasks: the read-only round's list starts with the round's own task and marks each change it asks for") {

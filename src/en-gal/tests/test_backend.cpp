@@ -523,7 +523,7 @@ TEST_CASE("backend: the world's leads alone read through a layout that places th
     return layout;
   };
   const std::string layout = cut({"characters", "near_entry", "character", "character_parts", "vitals", "motion",
-                                  "game_state", "event_flags", "flag_node"});
+                                  "game_state", "event_flags", "flag_node", "world_clock", "save_data"});
   REQUIRE(layout.find("[class.vitals]") != std::string::npos);
   REQUIRE(layout.find("[class.player_character]") == std::string::npos);
   REQUIRE(layout.find("[class.menus]") == std::string::npos);
@@ -572,8 +572,8 @@ TEST_CASE("backend: the world's leads alone read through a layout that places th
   // A character's other fields, where asked for (the nineteenth round): each through the layout's own field, counted
   // over the list's characters that are not the main player, and none kept.
   using WA = ErBackend::WorldAlone;
-  CHECK(a.fields_bound ==
-        (WA::kHandle | WA::kParam | WA::kModel | WA::kEntity | WA::kTeam | WA::kDead | WA::kOnScreen));
+  CHECK(a.fields_bound == (WA::kHandle | WA::kParam | WA::kModel | WA::kEntity | WA::kTeam | WA::kDead |
+                           WA::kOnScreen | WA::kType | WA::kBlock));
   CHECK_FALSE(a.fields);
   CHECK(a.near_object == 0);
   for (std::uint32_t i = 0; i < n; ++i) {
@@ -585,7 +585,11 @@ TEST_CASE("backend: the world's leads alone read through a layout that places th
     w.mem.put<std::uint32_t>(c + 0x18, i == 1 ? 0 : 5000 + i);       // one placed by no map
     w.mem.put<std::uint8_t>(c + 0x20, i == 0 ? 3 : 6);
     w.mem.put<std::uint8_t>(c + 0x21, static_cast<std::uint8_t>((i == 2 ? 0x20 : 0) | (i < 2 ? 0x02 : 0)));
+    w.mem.put<std::int32_t>(c + 0x1C, i == 0 ? 9 : 5);                     // the type: one of another
+    w.mem.put<std::uint32_t>(c + 0x24, i == 0 ? 0x3C2C'2500u : i == 1 ? 0xFFFF'FFFFu : 0x3C2C'2400u);  // the block
   }
+  w.mem.put<std::int32_t>(w.player + 0x1C, 0);
+  w.mem.put<std::uint32_t>(w.player + 0x24, 0x3C2C'2400u);
   w.mem.put<std::uint64_t>(w.player + 0x8, 0x00FF'0000'0000'0001ull);
   w.mem.put<std::uint32_t>(w.player + 0x10, 0);
   w.mem.put<std::uint8_t>(w.player + 0x20, 1);
@@ -611,6 +615,29 @@ TEST_CASE("backend: the world's leads alone read through a layout that places th
   CHECK_FALSE(f.self_param);
   CHECK_FALSE(f.self_dead);
   CHECK(f.self_team_alone);
+  // The type and the block: two types with all but one of one; a block that reads as one in all but the character
+  // that has none, and the main player's own in the rest but one.
+  CHECK(f.near_types == 2);
+  CHECK(f.near_type_most == n - 1);
+  CHECK(f.near_block == n - 1);
+  CHECK(f.near_block_self == n - 2);
+  CHECK(f.self_type_none);
+  REQUIRE(f.self_block.has_value());
+  CHECK(*f.self_block == 0x3C2C'2400u);
+  // The clock and the play time, in every call, asked for the fields or not.
+  const std::uint64_t clock_at = w.instance("world_clock"), save_at = w.instance("save_data");
+  w.mem.put<std::uint8_t>(clock_at + 0x10, 21);
+  w.mem.put<std::uint8_t>(clock_at + 0x11, 47);
+  w.mem.put<std::uint32_t>(save_at + 0x10, 3'600'123);
+  const WA timed = backend.world_alone(gt);
+  REQUIRE(timed.clock.has_value());
+  CHECK(timed.clock->h == 21);
+  CHECK(timed.clock->m == 47);
+  REQUIRE(timed.play_time.has_value());
+  CHECK(*timed.play_time == 3'600'123);
+  w.mem.put<std::uint8_t>(clock_at + 0x10, 24);  // an hour that is none: no clock, and no fault
+  CHECK_FALSE(backend.world_alone(gt).clock.has_value());
+  w.mem.put<std::uint8_t>(clock_at + 0x10, 21);
   REQUIRE(f.hp.has_value());  // the rest reads as before
   CHECK(f.hp->cur == 812);
   // Two characters with one handle show as one handle fewer; the main player in the list is counted apart, and a
@@ -738,7 +765,9 @@ TEST_CASE("backend: the world's leads alone read nothing of a part the layout do
     w.layout = whole.substr(0, from) + fields + whole.substr(to);
     backend_of({"characters", "near_entry", "character", "character_parts", "vitals", "motion", "game_state"},
                [&](const WA& a, ErBackend& backend) {
-                 CHECK(a.lacks == WA::kFields);
+                 CHECK(a.lacks == (WA::kFields | WA::kClock | WA::kPlay));
+                 CHECK_FALSE(a.clock.has_value());
+                 CHECK_FALSE(a.play_time.has_value());
                  CHECK(a.fields_bound == 0);
                  CHECK(a.hp.has_value());
                  const auto gt = en::proto::GameThread::issue();
@@ -753,7 +782,7 @@ TEST_CASE("backend: the world's leads alone read nothing of a part the layout do
   // No vitals: the parts are not read; the slot, the player's class and the list are.
   backend_of({"characters", "near_entry", "character", "character_parts", "motion", "game_state"},
              [&](const WA& a, ErBackend&) {
-               CHECK(a.lacks == WA::kParts);
+               CHECK(a.lacks == (WA::kParts | WA::kClock | WA::kPlay));
                CHECK(a.player);
                CHECK_FALSE(a.hp.has_value());
                CHECK_FALSE(a.pos.has_value());
@@ -762,7 +791,7 @@ TEST_CASE("backend: the world's leads alone read nothing of a part the layout do
              });
   // No state and no element: the slot and the list are not read.
   backend_of({"characters", "character", "character_parts", "vitals", "motion"}, [&](const WA& a, ErBackend&) {
-    CHECK(a.lacks == (WA::kSlot | WA::kNear));
+    CHECK(a.lacks == (WA::kSlot | WA::kNear | WA::kClock | WA::kPlay));
     CHECK_FALSE(a.state);
     CHECK(a.player);
     CHECK(a.hp.has_value());
@@ -770,7 +799,7 @@ TEST_CASE("backend: the world's leads alone read nothing of a part the layout do
   });
   // Nothing of it at all (the flags' layout): nothing is read, not even the statics.
   backend_of({"event_flags", "flag_node"}, [&](const WA& a, ErBackend& backend) {
-    CHECK(a.lacks == (WA::kSlot | WA::kPlayer | WA::kParts | WA::kNear | WA::kFields));
+    CHECK(a.lacks == (WA::kSlot | WA::kPlayer | WA::kParts | WA::kNear | WA::kFields | WA::kClock | WA::kPlay));
     CHECK_FALSE(a.characters);
     CHECK(backend.reader().copies() == 0);
   });

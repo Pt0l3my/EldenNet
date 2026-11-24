@@ -122,7 +122,8 @@ proto::Expected<Options, std::string> parse_options(const std::vector<std::strin
           o.read_plan = *n;
           o.read_plan_given = true;
         } else {
-          ok = proto::Unexpected{std::string("--read-plan is 0 (the rounds up to the seventeenth) or 1 (the survey)")};
+          ok = proto::Unexpected{
+              std::string("--read-plan is 0 (the rounds up to the seventeenth), 1 (the survey) or 2 (the sheet)")};
         }
       }
     } else if (arg == "--read-pace-s") {
@@ -274,7 +275,8 @@ std::string usage_text() {
          "                       names the managers it reads and tries its reader, and calls nothing in the game;\n"
          "                       a panel beside the game lists the tester's tasks, each with its timer, and the\n"
          "                       Pause key confirms the task under way (--read-pace-s S: the tests' pace;\n"
-         "                       --read-plan N: which tasks, 0 the rounds up to the seventeenth, 1 the survey)\n"
+         "                       --read-plan N: which tasks, 0 the rounds up to the seventeenth, 1 the survey,\n"
+         "                       2 the sheet)\n"
          "  --spike s0a|s0b|s0c|s0d|s0d-crash  [--runs N] [--run-timeout S]   the S0 spikes: each run's folder\n"
          "                       spikes\\<word>-<n> holds EldenNet's report of it, and a panel beside the game lists\n"
          "                       the tester's tasks (--spike-pace-s S: the tests' pace)\n"
