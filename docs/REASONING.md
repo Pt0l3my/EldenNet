@@ -8566,6 +8566,10 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   for the input detours' stalls; asked of the owner: A1 once more.
 - Every one of the six runs ended at the quit with the game's teardown fault (the overlay tool of WHY§562 loaded),
   each after the window had gone and kept quietly (O115).
+- Later (2026-11-24): the owner ran A1 again (folder s0e-12) and missed no press. Its start was quick (the
+  GraceUI check 22 ms, the injections 2 ms apart), its Marks came at once, and play held 58-59 fps. So the
+  first A1's drops came with the first run of new files, not with A1's path; GraceUI's focus and press
+  counters, coming in its test build, are to place one if it comes back.
 
 ### 567. The game's state is named by a round's own checks: one of 22 fields that read the two saves' slots lies in an object of the class the leads give
 
