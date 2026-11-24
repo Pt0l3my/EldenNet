@@ -619,6 +619,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 594 | 2026-11-24 | Rounded corners as Dear ImGui draws them, on EldenNet's white texel, at GraceUI's radius tokens | METHOD | #overlay |
 | 595 | 2026-11-24 | Under Wine, a cursor put back before each key press reads as a mouse move, and G42 hides GraceUI's ring again | FACT | #graceui #wine #fakegame |
 | 596 | 2026-11-24 | GraceUI 0.2.38 draws on a 10-bit swap chain under Wine as on an 8-bit one | FACT | #graceui #wine #fakegame |
+| 597 | 2026-11-24 | A character's dead bit, by one death among 64 characters followed: bits 0 and 1 of the byte 0x1C6 | FACT | #lodestar #l6 |
+| 598 | 2026-11-24 | A summary recomputed every pass must not be overwritten by a pass that saw nothing, and a case must end as a run ends | METHOD | #lodestar #tests |
 
 ## Entries
 
@@ -8713,6 +8715,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   thousandth of another (a parameter and its model); a bit that flips at a death and holds in every other
   character, living or dead; a bit that flips while the tester looks around (on screen). The report holds places
   and counts, no value of any character.
+- Later (2026-11-24): the first run found the dead bit (0x1C6, bits 0 and 1) and on-screen candidates (WHY§597);
+  its still fields were lost at the quit (WHY§598), so the round repeats.
 
 ### 578. A read round's plan travels in the watch block (probe_plan, version 2); a plan the round does not know is a refusal
 
@@ -8853,6 +8857,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - graceui.h's GRACEUI_FACES_PER_MOD is 2, and the fake answered full past it for every mod; D139 gives the id eldennet
   eight. With the italic as EldenNet's third face the fake counts eight for eldennet and two for any other id, as
   GraceUI's registry does. Asked of Grace (low): a constant or a comment in graceui.h naming EldenNet's eight.
+- Later (2026-11-24): graceui.h now names GRACEUI_FACES_ELDENNET (8) and GRACEUI_FACES_ALL_MODS (24), and GraceUI's
+  registry takes its limits from them (GraceUI feat/foundations 8d30ac3); header only, no value changed.
 
 ### 592. Only the box's history carries the Tarnished's lines, so only it takes the italic
 
@@ -8902,3 +8908,23 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   talk, events and pages runs pass. The chat box read back at format 24 (10-bit channels taken to 8) and at format 28
   differ by at most 2 levels, on 13 of 2,073,600 pixels (the backdrop's dither); mean difference 0.20 levels. The
   showcase's in-game previews were taken so, on a backdrop of our own, with the invented stand-in persona.
+
+### 597. A character's dead bit, by one death among 64 characters followed: bits 0 and 1 of the byte 0x1C6
+
+`2026-11-24` · FACT · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md ("The eighteenth round in game"), engine bf36cbe (merged at 88aaa16), WHY§577, O117
+
+- In the eighteenth round's first run (29 passes, 49 characters a pass, 64 followed, one death), of 74 bits that
+  flipped at the death and never before, two held in every sighting since: bits 0 and 1 of the byte 0x1C6 into the
+  character's object, clear in all 328 sightings of the living, set in all 14 of the dead, none against (the next
+  best had 7 against). The on-screen bit's first candidate is bit 4 of the byte 0x1C4 (80 flips in all 8 looking
+  passes, 4 while standing), then bits 2 to 4 of 0xB4 (a small number, not a flag). Leads, to be confirmed: the
+  still fields, the handle and the pairs wait for the rerun (package 0.1.0-lodestar.23).
+
+### 598. A summary recomputed every pass must not be overwritten by a pass that saw nothing, and a case must end as a run ends
+
+`2026-11-24` · METHOD · `#lodestar` `#tests` · refs: docs/ops/probes/2026-11-22-l5.md ("The eighteenth round in game"), engine bf36cbe (merged at 88aaa16)
+
+- The survey told its fields, handles and pairs from each pass's characters and published them; as the owner quit,
+  five passes found no character and the report kept the last (fields_total 0), while the log a pass earlier held
+  273. The unit case and the fake game's case both ended with characters present. Mended: only a pass with two
+  characters or more tells them, and both cases now end at the title. The listed fields grow from 160 to 512.

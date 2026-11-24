@@ -1247,6 +1247,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The eighteenth round built the same day (engine b365148, merged at 067b725; package 0.1.0-lodestar.22; WHY§577
     to §579, O117, O118): the character survey under plan 1, for a character's other fields. Reviewed by
     Engine; the package (README at 02b0f27) is with the owner. Awaiting the owner's run.
+    The eighteenth round's first run (2026-11-24; WHY§597, §598): the dead bit found (0x1C6, bits 0 and 1), and
+    on-screen candidates (first, bit 4 of 0x1C4); the still fields lost to a fault of the survey's at the quit,
+    mended (engine bf36cbe, merged at 88aaa16). Package 0.1.0-lodestar.23 repeats the round; its README read by
+    Engine (bf36cbe). Awaiting the owner's run.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
