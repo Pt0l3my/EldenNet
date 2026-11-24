@@ -1727,11 +1727,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the footer's hints in a cap, its label beside it, so every golden's footer moves. EldenNet pins 0.2.40 once
     GraceUI's full run is green, regenerates its goldens once, and reads a whole hints line from
     GraceUiTestMenu.footer instead of the screen.
-- bd The key caps' arrows drawn (GraceUI 0.2.41) [active]
+- bd The key caps' arrows drawn (GraceUI 0.2.41) [done]
   - refs: GraceUI:D247, GraceUI:D246
-  - gives: built on 2026-11-24 (GraceUI feat/foundations 94284d7): each arrow in a footer's key cap drawn as a shaft
-    and a head, centred, instead of the mono face's glyph. EldenNet's footers with arrows move at its next pin, after
-    S11.2.bc; GraceUiTestMenu.footer is unchanged. Done when GraceUI's full run reports.
+  - gives: built on 2026-11-24 (GraceUI feat/foundations 94284d7, with the gap after "Shift+" and its run in 0ed0e61):
+    each arrow in a footer's key cap drawn as a shaft and a head, centred, instead of the mono face's glyph.
+    EldenNet's footers with arrows move at its next pin after S11.2.bc, which takes 0.2.41 and 0.2.42 (S11.2.be)
+    together; GraceUiTestMenu.footer is unchanged.
 - be The rail's foot for a mod's categories, and empty words without "yet" (GraceUI 0.2.42, protocol 1.10) [planned]
   - refs: GraceUI:D246, PAGES§4.2.1, PAGES§4.6.9, O119
   - gives: asked by Engine from Content packs on 2026-11-24; Grace builds both as framework details of the design
