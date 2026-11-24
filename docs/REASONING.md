@@ -588,6 +588,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 563 | 2026-11-23 | An object no accessor reaches is named by a search for what its field must read and the class the leads give, checked on each hit | METHOD | #lodestar #l6 #gal |
 | 564 | 2026-11-23 | A search with a fixed number of candidates tries the place the layout gives first, and a run's own elements last | METHOD | #lodestar |
 | 565 | 2026-11-23 | A stop that a test package makes by design is shown as the test's own plain note, never as the product's warning | DECIDED | #engine #tests #graceui |
+| 566 | 2026-11-24 | spikes.6: the pointer and the typing test hold; in A1 alone, presses dropped now and then that GraceUI's counters do not show | FACT | #graceui #input #spikes #crash |
 
 ## Entries
 
@@ -8544,3 +8545,20 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   the test run's banner ("EldenNet test run: it makes no call into the game", GraceUI's normal tone) at any stop of
   the reading's own (unknown build, discovery, register, inert); the log and the init keep the real reason, and
   anti-cheat, the session and a game that did not start show their own. Read rounds are not observer runs.
+
+### 566. spikes.6: the pointer and the typing test hold; in A1 alone, presses dropped now and then that GraceUI's counters do not show
+
+`2026-11-24` · FACT · `#graceui` `#input` `#spikes` `#crash` · refs: WHY§559, WHY§562, WHY§565, GraceUI:D235, GraceUI:D236, GraceUI:G42
+
+- The owner's six runs of 0.1.0-spikes.6 (GraceUI 0.2.33): the menu's pointer no longer snaps to the centre (D236);
+  no stray ring round items (G42); the typing test held the keyboard 60 s, saw 45 characters and passed none to the
+  game, and the Tarnished stood still; the heap guard found no breach in any run; own_p99 88-106 us, detour_p99
+  145-180 us, no frame skipped.
+- In A1 only, the owner's presses (Pause twice, attacks in play) were missed now and then and went through when
+  pressed again, with no click. A1 was the first run after unzipping (the launcher's GraceUI check and the second
+  injection took 10 s each, likely the PC's scanner on new files). In its two minutes of play the game held 58-59
+  fps and GraceUI masked nothing and held nothing, so whatever dropped them is not in its counters: a short stall
+  of an input path once every few seconds would not show in a p99 or a 200 ms fps window. Asked of Grace: maxima
+  for the input detours' stalls; asked of the owner: A1 once more.
+- Every one of the six runs ended at the quit with the game's teardown fault (the overlay tool of WHY§562 loaded),
+  each after the window had gone and kept quietly (O115).
