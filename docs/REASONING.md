@@ -603,6 +603,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 578 | 2026-11-24 | A read round's plan travels in the watch block (probe_plan, version 2); a plan the round does not know is a refusal | DECIDED | #lodestar #launcher |
 | 579 | 2026-11-24 | Two neighbouring 32-bit numbers often pass for an address by size alone | METHOD | #lodestar |
 | 580 | 2026-11-24 | The capture plans for a normal playthrough: 25 checkpoints, nine S1 routes, three of them v0.1's golden routes | DECIDED | #design #spikes #roster |
+| 581 | 2026-11-24 | With the hook library linked statically, only where each hooked function leads shows which copy holds the hooks | FACT | #graceui #hooks |
+| 582 | 2026-11-24 | Under Wine, GetModuleHandleW of a name two loaded copies share answered the copy asked first; Windows may differ | FACT | #graceui #wine |
 
 ## Entries
 
@@ -8725,3 +8727,22 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   boss fight, mirroring Augur's synthetic routes (WHY§225). It lists 19 open points (S6.3.v) and found the
   design still speaking of prepared saves in MEM §12.12, DESIGN §7.8 and DATA §3.2 risk 6, which now carry dated
   notes. The goldens may carry the character's game numbers by the owner's standing word on uploads.
+
+### 581. With the hook library linked statically, only where each hooked function leads shows which copy holds the hooks
+
+`2026-11-24` · FACT · `#graceui` `#hooks` · refs: GraceUI:D240, GraceUI:D72, S10.3.d
+
+- Every copy of graceui.dll carries MinHook's code and only the active one initialises it, so a list of the loaded
+  modules cannot show which holds the process's hooks. Where each hooked function's entry leads, followed through
+  MinHook's jump and relay, shows it (GraceUI_Test_GetHookLead, GraceUI 0.2.35's test build); a hook laid over one
+  of GraceUI's shows as leading into its own module. With dll_checks.py (static) and an idle copy's
+  hooks_installed 0, that is the whole of "one hook library in the process".
+
+### 582. Under Wine, GetModuleHandleW of a name two loaded copies share answered the copy asked first; Windows may differ
+
+`2026-11-24` · FACT · `#graceui` `#wine` · refs: GraceUI:D240
+
+- Under Wine 9.0, with two copies of graceui.dll from two folders, GetModuleHandleW(L"graceui.dll") answered the
+  copy first asked for GraceUI's table, in both orders; why is not known. Windows may answer the one loaded first,
+  idle or not, so graceui-sys's scan past an idle copy holding the name is tested by itself, and EldenNet's case
+  allows either way of finding and asserts the table and the module.

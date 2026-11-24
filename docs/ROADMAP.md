@@ -1678,6 +1678,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     300 ms gap between reads, the detours' longest calls). The owner's A1 run again showed the first A1's drops a
     first-run effect (WHY§566); for a next one, the owner's rough time of a missed press is set against the state
     line near it. For spikes.7.
+- ax S10.3.d's GraceUI side: where each hooked function leads, in GraceUI's test build, and a mod of EldenNet's kind beside a second copy each way round (GraceUI 0.2.35) [done]
+  - refs: GraceUI:D240, GraceUI:D72, GraceUI:D102, WHY§581, WHY§582
+  - gives: built on 2026-11-24 (GraceUI feat/foundations f368290) at Engine's request; GraceUI_Test_GetHookLead says,
+    per hook, whether its entry leads to the active copy's detour and into which module. Left for S10.3.d: EldenNet's
+    own case against GraceUI's test build (a second copy beside the game while EldenNet runs; every hook leading into
+    the active copy).
+- ay S11.4.c's italic face: EB Garamond Italic in GraceUI's fonts folder for mods' faces (GraceUI 0.2.36) [done]
+  - refs: GraceUI:D241, GraceUI:D139
+  - gives: built on 2026-11-24 (GraceUI feat/foundations 9f536a0); EldenNet registers it as a third scaled face for
+    the Tarnished's lines. Rounded corners need no change in GraceUI (GraceUI's docs/eldennet-changes.md §69).
 
 ### S11.3 EldenNet v0.2
 
