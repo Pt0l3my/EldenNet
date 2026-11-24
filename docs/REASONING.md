@@ -632,6 +632,11 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 607 | 2026-11-24 | No check of the fake game's harness reads a whole hints line | FACT | #graceui #fakegame |
 | 608 | 2026-11-24 | A field found by how numbers behave is confirmed by two readers in one run | METHOD | #lodestar #l6 #gal |
 | 609 | 2026-11-24 | A pin's goldens can be regenerated before any EldenNet build | METHOD | #pages #goldens |
+| 610 | 2026-11-24 | EldenNet's own reader read a character's seven fields through the layout in the game | FACT | #lodestar #l6 #gal |
+| 611 | 2026-11-24 | chr_type is at 0x68 and block_id at 0x38; 0x70 is the map a character belongs to | LIKELY | #lodestar #l6 #gal |
+| 612 | 2026-11-24 | Bit 1 of 0x1C6 reads as the dead bit everywhere; the team is one byte | FACT | #lodestar #l6 |
+| 613 | 2026-11-24 | At the main player's own death the dead bit may not flip when its health reaches nothing | SPECULATION | #lodestar #l6 |
+| 614 | 2026-11-24 | When a layout entry stops being a lead | DECIDED | #lodestar #gal #method |
 
 ## Entries
 
@@ -9021,6 +9026,9 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   character is now, the block its position is measured from, so the moving candidate fits it; the fixed one is the
   map a character belongs to. The dead bit has two rivals, bit 1 of 0x1C6 and bit 4 of 0x53B, that one death a run
   does not tell apart. The nineteenth round reads all of them through EldenNet's own reader on the near list.
+- Later (2026-11-24): the nineteenth round's reader agreed on all seven (WHY§610), and its checks told chr_type at
+  0x68 and block_id at 0x38 (WHY§611); bit 1 of 0x1C6 is not told apart from bit 0, and bit 4 of 0x53B is out
+  (WHY§612).
 
 ### 606. GraceUI 0.2.40's key caps moved EldenNet's goldens by their footer alone
 
@@ -9061,3 +9069,56 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   regenerate EldenNet's goldens (`EN_UPDATE_GOLDENS=1 python3 -I tests/pages/preview.py --grace-dev <grace-dev>
   --pages src/en-overlay/pages --fixtures tests/pages --work <scratch>`); the GCC tree's en_pages_preview then checks
   the same files.
+
+### 610. EldenNet's own reader read a character's seven fields through the layout in the game
+
+`2026-11-24` · FACT · `#lodestar` `#l6` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md ("The nineteenth round in game"), engine cef6833
+
+- In the nineteenth round (130 frames, 65 with the fields, 58 with a world; no fault; about 3 µs a reading at the
+  median) the reader read 2,784 characters, 48 a frame, through the layout: every handle its own in every frame; a
+  kind of an id's size in 2,726, with the model the kind over 10,000 in 2,652; an entity's id in 2,053, each its own;
+  9 teams at most, 32 in the largest; the dead 2 of 48 from the first frame and 4 from the kill on; on screen 242 of
+  912 while the owner faced the enemies, 132 of 960 looking around, 10 of 480 in the last standing task. The main
+  player is never an element of the near list; its own reads a handle, no kind, not dead, a team no other shares.
+  The survey of the same run counts the same.
+
+### 611. chr_type is at 0x68 and block_id at 0x38; 0x70 is the map a character belongs to
+
+`2026-11-24` · LIKELY · `#lodestar` `#l6` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md ("The nineteenth round in game"), engine cef6833
+
+- chr_type: the four bytes at 0x68 read nothing for the main player in 24 of 24 passes and 5, NPC §1.4's number for a
+  character of the world, in 1,127 of 1,151 sightings of the others (one character a pass reads another number), and
+  never changed; 0x40 is never 5. block_id: 0x38 is block-shaped for the main player in 24 of 24 and for the others in
+  856, the 295 others matching the characters with no entity's id; it is the main player's own in 9 characters a pass
+  and changed in 5 sightings of moving characters, never for the standing player. 0x70 and the handle's upper half are
+  one number in every character, the player included: the map a character belongs to. Leads in the layout.
+
+### 612. Bit 1 of 0x1C6 reads as the dead bit everywhere; the team is one byte
+
+`2026-11-24` · FACT · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md ("The nineteenth round in game"), engine cef6833
+
+- Bit 1 of the byte 0x1C6 read as bit 0 (the dead bit) in all 1,175 sightings, the two dead from the start
+  included, so nothing tells them apart and bit 0 stays; bit 4 of 0x53B read otherwise in 7 and is out. The four
+  bytes at 0x6C took 23 values where the one byte the layout reads takes 9: the team is the byte.
+
+### 613. At the main player's own death the dead bit may not flip when its health reaches nothing
+
+`2026-11-24` · SPECULATION · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md ("The nineteenth round in game"), engine cef6833
+
+- In one session's log every dead-bit candidate was dropped at a death after which the followed characters jumped
+  from 53 to 121, as a world loaded again does; if that was the main player's death, its dead bit did not flip in the
+  pass in which its health reached nothing. From log lines alone; snapshot() reads the player's dead from this bit, so
+  the twentieth round is to see a death of the player's own.
+
+### 614. When a layout entry stops being a lead
+
+`2026-11-24` · DECIDED · `#lodestar` `#gal` `#method` · refs: DESIGN§4.2, ARCH§6.3, O4, WHY§608, WHY§610
+
+- The design's rule (O4, DESIGN §4.2): a research fact is a lead until it is confirmed in game or by a self-test.
+  Applied to the layout, an entry is `confirmed` for a build, with that build in its `builds` and the round's record
+  as its evidence, once three things hold: EldenNet's own reader has read it through the layout in the game on that
+  build; a second, independent reading in the same run agrees (the survey's counts); and the behaviour that gives
+  the field its meaning has been seen at least once (a death for the dead bit, the look around for on screen, a move
+  for the block). Startup self-tests still run every session and stop a field that fails them, whatever its status.
+  By the nineteenth round: handle, npc_param_id, model, entity_id, team and on_screen qualify; dead waits for a
+  death of the main player's own (WHY§613); chr_type and block_id wait for the reader.

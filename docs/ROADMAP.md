@@ -1258,7 +1258,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The nineteenth round built the same day (engine 20825c7, merged at 274ab87; WHY§608): EldenNet's own reader reads
     the near characters' handle, kind, model, entity, team and the dead and on-screen bits through the layout, beside
     the survey; twenty checks for the type, the block and the dead bit's rivals. Within O117 (behaviour only), so no
-    new question to the owner; README read by Engine. Package 0.1.0-lodestar.24. Awaiting the owner's run.
+    new question to the owner; README read by Engine. Package 0.1.0-lodestar.24.
+    The nineteenth round reviewed (2026-11-24; WHY§610 to §614): EldenNet's own reader and the survey agree on a
+    character's seven fields in the game; the type (0x68) and the block (0x38) told by the checks and entered as leads
+    (engine cef6833); a layout entry is confirmed once the reader, a second reading and the field's own behaviour agree
+    in one run (WHY§614). Next: the save data's deaths and the sheet's level, with the player's block at a crossing and
+    the player's own death.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
