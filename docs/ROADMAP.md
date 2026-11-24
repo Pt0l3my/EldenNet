@@ -1819,7 +1819,6 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     History, Playthrough and Named NPCs.
     GraceUI 0.2.48 (D255, feat/foundations b9eb970): four fixes to D254's paging found by a review of 0.2.47; EldenNet's
     0.3 pin takes 0.2.48, and publishes its History pages' changes topic when a character loads.
-
 - bi What is out of view costs nothing, pages open at their top, a row drawer and a header switch (GraceUI 0.2.49, protocol 1.15) [done]
   - refs: GraceUI:D256, GraceUI:D253, WHY§633, WHY§635, WHY§636, WHY§637
   - gives: built on 2026-11-24 (GraceUI feat/foundations b5b7204; GraceUI's docs/eldennet-changes.md §82) from
