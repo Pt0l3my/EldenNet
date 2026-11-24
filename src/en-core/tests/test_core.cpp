@@ -296,7 +296,7 @@ TEST_CASE("T1's banners: L1, the banner kept, the gate's effects off; the texts"
   CHECK(banner_text(BannerReason::TaskTripped, "", "") ==
         "EldenNet stopped reading the game after an error. Your game is not affected.");
   CHECK(banner_text(BannerReason::NotStarted, "", "") == "EldenNet inactive: the game did not finish starting");
-  CHECK(banner_text(BannerReason::SpikeRun, "2.0.0.1", "s0e") == "Spike run: EldenNet makes no call into the game");
+  CHECK(banner_text(BannerReason::SpikeRun, "2.0.0.1", "s0e") == "EldenNet test run: it makes no call into the game");
   CHECK(std::string(to_string(BannerReason::SpikeRun)) == "spike_run");
 }
 

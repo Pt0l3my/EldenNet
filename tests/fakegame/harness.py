@@ -2799,12 +2799,13 @@ case("launcher-eldennet-graceui-spike-s0e", LGAME + ["--dll", "{eldennetdll}", "
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=GRACE_ENV, timeout=200,
      prepare=install_eldennet(EN_PANEL, then=install_graceui),
      check=lambda r: (check_en_spike("s0e", grace=True)(r) +
-                      # The spike run's banner: one notice under EldenNet's key, in the banners' tone; F11's view on it.
+                      # The spike run's banner: one notice under EldenNet's key, a plain note (not a warning,
+                      # boot.cpp's show_banner); F11's view on it.
                       want_grace(r, 420, found=1, eldennet=1, notice_only=0,
-                                 banner="Spike_run:_EldenNet_makes_no_call_into_the_game", banner_tone=1, badge="none",
+                                 banner="EldenNet_test_run:_it_makes_no_call_into_the_game", banner_tone=0, badge="none",
                                  shown=0) +
                       want_grace(r, 600, shown=1, refused=0, panel_frames=(1, 1e9), probe=(VIEW_AREA // 2, VIEW_AREA),
-                                 banner="Spike_run:_EldenNet_makes_no_call_into_the_game") +
+                                 banner="EldenNet_test_run:_it_makes_no_call_into_the_game") +
                       any_line(r, "ELDENNET", "view", presses=1, open=1) +
                       # The owner's Pause once EldenNet's own Mark holds the ring: the launcher has no key, and the
                       # Mark in the ring confirms the task under way.
@@ -2813,6 +2814,38 @@ case("launcher-eldennet-graceui-spike-s0e", LGAME + ["--dll", "{eldennetdll}", "
                       check_observer_panel("s0e", launcher_marks=False, by="mark")(r)),
      what="S0-E with GraceUI installed: the connect on T1, the spike_run banner as GraceUI's notice, F11's view, and "
           "still no call into the game; the owner's Pause, EldenNet's Mark in the ring, confirms the panel's task")
+
+
+def drop_layout(gal):
+    # The build's layout gone from gal/, as the owner's S0-E and S4 package lacks the reader's data for the real game:
+    # the start stops before discovery for want of its files.
+    os.remove(os.path.join(gal, "layouts", "fakegame.toml"))
+
+
+def check_spike_stopped(r):
+    """An observer run whose start stopped on the way (here for want of the layout): the log and the init keep the real
+    reason, while the banner EldenNet shows is the test run's, a plain note (boot.cpp's show_banner); no call."""
+    failures = check_spike_folder("s0e")(r) + check_lines(
+        ("ELDENNET", "safety", {"spike": "s0e", "watched": 1}),
+        ("ELDENNET", "banner", {"reason": "discovery_failed", "detail": "files"}),
+        ("ELDENNET", "init", {"state": "banner"}),
+        ("LAUNCHER", "run", {"outcome": "banner"}),
+        ("LAUNCHER", "end", {"kind": "clean", "init": "banner"}))(r)
+    failures += any_line(r, "ELDENNET", "change", what="banner", to="spike_run")
+    failures += any_line(r, "ELDENNET", "notice", what="banner", reason="spike_run", status=0)
+    failures += want(r, "ELDENNET", "connect", ok=1, outcome="connected")
+    failures += want_grace(r, 420, found=1, eldennet=1, notice_only=0, banner=SPIKE_BANNER, banner_tone=0)
+    need(not r.events("ELDENNET", "discovery"), "discovery ran without the layout", failures)
+    return failures + no_call(r) + en_log_is_clean(r)
+
+
+case("launcher-eldennet-graceui-spike-s0e-stopped", LGAME + ["--dll", "{eldennetdll}", "--console", "--spike", "s0e"] +
+     game("--d3d12", "--grace-report", "420", frames=600),
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=GRACE_ENV, timeout=200,
+     prepare=install_eldennet(EN_PANEL, gal_change=drop_layout, then=install_graceui),
+     check=check_spike_stopped,
+     what="S0-E with GraceUI installed and no layout in gal/ (the owner's package carries no reader data): the start "
+          "stops before discovery, its log keeps the reason, and GraceUI shows the test run's banner as a plain note")
 
 
 # --- The owner's package for S0-E and S4 (tools/spikepkg's s0e-s4 kind), each run as its .cmd file runs it -------------
@@ -2835,7 +2868,7 @@ PKG_RUNS = {
 # README-SPIKES.txt's two PowerShell lines write this (Set-Content: one line each, CRLF): F11's view on.
 OWNER_SETTINGS = "schema = 2\r\ndebug = { panel = true }\r\n"
 PKG_NEEDS = ("engine", "leads", "gallayout", "pkg")
-SPIKE_BANNER = "Spike_run:_EldenNet_makes_no_call_into_the_game"
+SPIKE_BANNER = "EldenNet_test_run:_it_makes_no_call_into_the_game"
 
 
 def pkg_options(run):
@@ -2953,8 +2986,8 @@ def check_pkg_run(run):
             failures += check_en_spike(word, grace=True)(r)
             how = "name" if "GraceUI\\graceui.dll" in also else "path"
             failures += want(r, "ELDENNET", "connect", ok=1, how=how)
-            # The banner as GraceUI's notice under EldenNet's key, in the banners' tone (the notices' export reads).
-            failures += want_grace(r, 900, found=1, eldennet=1, banner=SPIKE_BANNER, banner_tone=1,
+            # The banner as GraceUI's notice under EldenNet's key, a plain note (the notices' export reads).
+            failures += want_grace(r, 900, found=1, eldennet=1, banner=SPIKE_BANNER, banner_tone=0,
                                    probe=(0, VIEW_AREA // 100))
             if word == "s0e":
                 # F11 (frames 960 and 1140), as the README's step 4: the view's ground read back from the game's frame

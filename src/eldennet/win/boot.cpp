@@ -159,6 +159,25 @@ bool wait_window(std::uint64_t limit_ms) {
   return true;
 }
 
+// The banner a start that stops shows. A run of GraceUI's observer (S0-E, S4) reads nothing in the game, so a stop of
+// the reading's own on the way (a build or files its test package does not carry) shows the test's banner, in plain
+// words and not as a warning: the reader's words read as a fault to the tester. The log and the run's report keep the
+// real reason. Anti-cheat, the session and a game that did not start are shown as they are.
+void show_banner(Shell& s, BannerReason reason, const char* detail) {
+  if (w::observer_run(block::spike())) {
+    switch (reason) {
+      case BannerReason::UnknownBuild:
+      case BannerReason::DiscoveryFailed:
+      case BannerReason::RegisterFaulted:
+      case BannerReason::Inert:
+        return push_banner(s, BannerReason::SpikeRun, w::to_string(block::spike()));
+      default:
+        break;
+    }
+  }
+  push_banner(s, reason, detail);
+}
+
 // The banner path (ARCH §3.2's WaitWindow_B and ConnectB): the window waited for, the crash filter, the banner, end.
 void banner_path(Shell& s, BannerReason reason, const char* detail) {
   enter(w::InitState::WaitWindow);
@@ -167,7 +186,7 @@ void banner_path(Shell& s, BannerReason reason, const char* detail) {
   if (window) block::install_filter();
   connect_overlay(s, true);  // ConnectB: the banner reaches GraceUI's notice through T6 (overlay.cpp)
   log(Line("banner").word("reason", en::core::to_string(reason)).word("detail", detail), LogLevel::Warn);
-  push_banner(s, reason, detail);
+  show_banner(s, reason, detail);
   finish(w::InitState::Banner, reason, detail);
 }
 
@@ -178,7 +197,7 @@ bool g_window_seen = false;
 void stop_at(Shell& s, BannerReason reason, const char* detail) {
   if (g_window_seen) block::install_filter();
   log(Line("banner").word("reason", en::core::to_string(reason)).word("detail", detail), LogLevel::Warn);
-  push_banner(s, reason, detail);
+  show_banner(s, reason, detail);
   finish(w::InitState::Banner, reason, detail);
 }
 

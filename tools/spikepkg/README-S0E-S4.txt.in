@@ -107,9 +107,9 @@ Runs A1 to A4: S0-E with EldenNet (about 4 minutes each)
 
 In the game (the panel lists these steps; press Pause after each one of yours, as the panel says):
 
-  1. At the title screen, check that GraceUI's notice "GraceUI spike: recording" and a banner of EldenNet's both show.
-     On your game EldenNet's banner says it is inactive: that is expected in this test, which calls nothing in the
-     game.
+  1. At the title screen, check that GraceUI's notice "GraceUI spike: recording" and EldenNet's notice "EldenNet test
+     run: it makes no call into the game" both show. EldenNet's is a plain note, not a warning: this test calls nothing
+     in the game, and on your game EldenNet stops early, as this package carries no data for reading it.
   2. Load a save.
   3. Press F5: GraceUI's menu opens, with GraceUI's own pointer (a gold-edged arrow). Move the mouse and stop: the
      pointer should stay where you left it. No gold ring shows round an item until you press a key (an arrow key, say);
@@ -183,8 +183,9 @@ What it does
   - Loads the run's DLLs into the game, in the order its file gives: GraceUI and its observer, and EldenNet (not in run
     A5). In runs A3, A4 and B, EldenNet loads GraceUI from the game's folder itself.
   - EldenNet reads the game's code and data as they are loaded, read-only and through guarded copies, to check that
-    your game is the build it knows, then stops before its reader starts and shows its banner, "Spike run: EldenNet
-    makes no call into the game". It makes no call into the game at any time.
+    your game is the build it knows, then stops before its reader starts (on your game sooner, as this package carries
+    no data for reading it) and shows its banner, "EldenNet test run: it makes no call into the game". It makes no
+    call into the game at any time.
   - GraceUI puts itself between the game and Windows' own functions for drawing a frame and for reading the keyboard,
     the mouse and the pad, draws its notices, menu and panels over the game, and keeps input from the game while one
     of its panels holds it.
