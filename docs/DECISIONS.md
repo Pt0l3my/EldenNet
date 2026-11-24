@@ -2432,3 +2432,76 @@ answers Conversation. The self-test checks your provider meanwhile." (3) Drop it
 "Drop it for v0.2 (Recommended)" (question dialog, 2026-11-24).
 
 **Follows from.** O110, O114; PAGES §4.5, §4.6.9; S11.4.a.
+
+## O121
+
+**The twentieth read-only round reads the save data's object and the character's sheet** · *2026-11-24 · Decided by the owner, as recommended*
+
+**Question.** Asked by Lodestar in its chat, in these words: "For the next round (the twentieth), may EldenNet read two
+more objects of the game about your own character: the save data's object and your character's 'sheet' (where the game
+keeps your level and attributes)? It would read up to 64 KiB of each every two seconds, looking only for a number that
+goes up by one when you die, and for your level. It never reads or writes your character's name." **Options:** read
+both; or not.
+
+**Recommendation.** Read both.
+
+**Decision.** Read both, up to 64 KiB of each every two seconds; the name is never read as text or written.
+
+**Owner's words.** "Yes, read both (Recommended)" (Lodestar's question dialog, 2026-11-24).
+
+**Follows from.** O111, O116, O117; WHY§460, WHY§614.
+
+## O122
+
+**How the twentieth round finds the level: the round writes the numbers it scans, the owner shares the menus' screens** · *2026-11-24 · Decided by the owner: an option of their own*
+
+**Question.** Asked by Lodestar: how the round should find the character's level: the owner types it at the start
+(recommended), the round writes the sheet's small numbers, or the level is left out. **Options:** typed; written; left
+out.
+
+**Recommendation.** Typed (only where the number lies is written).
+
+**Decision.** Written: the round scans the sheet and the save data's object for numbers by its own methods and writes
+them with their places, as 32-bit numbers (nothing that reads as letters); the owner shares the status screen and other
+pages of the game's menus, in chat, for Lodestar to read the numbers from. The report goes from the owner to Lodestar
+and no further: no number of the owner's character goes into a repository, a record, a message or a page, and the
+screens stay in chat. No typed number, so the launcher takes none.
+
+**Owner's words.** "We should be to read level of player and NPCs, and enemies if possible." and, asked again for the
+form alone, "let's scan numbers with methods you can think of, then I will share status and other UI pages where you can
+read those numbers from." (Lodestar's question dialog, 2026-11-24.)
+
+**Follows from.** O111, O116, O121; O124 for the wish in the first answer.
+
+## O123
+
+**The twentieth round's tasks: somewhere quiet, a minute in one direction, one death** · *2026-11-24 · Decided by the owner, as recommended*
+
+**Question.** Asked by Lodestar: new tasks with no standing near enemies: load the usual character somewhere quiet;
+ride or walk in one direction for about a minute; let an enemy kill you once, then wait until you stand again; quit;
+dying drops the runes, so spend them first or die where they are easy to pick up. **Options:** those tasks; or others.
+
+**Recommendation.** Those tasks.
+
+**Decision.** Those tasks, with a mark per task on the launcher's panel ("got it" or "not gathered", and at the end
+whether the run is usable), which the owner asked for the same day.
+
+**Owner's words.** "Yes, both (Recommended)" (Lodestar's question dialog, 2026-11-24).
+
+**Follows from.** O118, O121.
+
+## O124
+
+**EldenNet reads the level of the player, and of NPCs and enemies where the game keeps one** · *2026-11-24 · Decided by the owner: a wish for the design*
+
+**Question.** None was put: the owner said it in answer to O122's question.
+
+**Decision.** A wish for the design: EldenNet should read the level of the player, and of NPCs and enemies where the
+game keeps one. For the player it is the sheet's (the twentieth round looks for it); whether a character of the world
+has a level of its own, or only its kind's row, is to be found, and nothing is promised for it yet. Placed as DATA §2.5's
+D-16, a gap until a round finds the field and a consumer is designed.
+
+**Owner's words.** "We should be to read level of player and NPCs, and enemies if possible." (Lodestar's question
+dialog, 2026-11-24.)
+
+**Follows from.** O122; DATA §2.5.

@@ -1258,7 +1258,17 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The nineteenth round built the same day (engine 20825c7, merged at 274ab87; WHY§608): EldenNet's own reader reads
     the near characters' handle, kind, model, entity, team and the dead and on-screen bits through the layout, beside
     the survey; twenty checks for the type, the block and the dead bit's rivals. Within O117 (behaviour only), so no
-    new question to the owner; README read by Engine. Package 0.1.0-lodestar.24. Awaiting the owner's run.
+    new question to the owner; README read by Engine. Package 0.1.0-lodestar.24.
+    The nineteenth round reviewed (2026-11-24; WHY§610 to §614): EldenNet's own reader and the survey agree on a
+    character's seven fields in the game; the type (0x68) and the block (0x38) told by the checks and entered as leads
+    (engine cef6833); a layout entry is confirmed once the reader, a second reading and the field's own behaviour agree
+    in one run (WHY§614). Next: the save data's deaths and the sheet's level, with the player's block at a crossing and
+    the player's own death.
+    WHY§614 applied the same day (engine 95a4f73, merged with cef6833 at dcceedf; WHY§615): a field may state its own
+    status, and fifteen fields of rounds 17 and 19 are confirmed for 2.7.2.0-ww; every class stays a lead. The merged
+    tip passed the fake game's suite under Wine, 140 of 140, GraceUI's cases included. The twentieth round (the save
+    data's deaths, the sheet's level, the player's block at a crossing and its own death, with a mark per task on the
+    panel at the owner's request) is being prepared, its reading and tasks to be asked of the owner outright.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1759,8 +1769,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     first_token_ms, total_ms, tokens, a memory's time and weight; "names as shown" is the search over the name column.
     Built the same day as GraceUI 0.2.43 (D250, feat/foundations 72f77a0, its run there; GraceUI's
     docs/eldennet-changes.md §76). EldenNet's next pin takes 0.2.41 to 0.2.43 together, and AI › Requests uses it.
-- bg A document block, a prose form field and the report preview (GraceUI's proposal 0013, G44 (a)) [next]
-  - refs: G44, PAGES§4.6.8, PAGES§4.6.9, G16
+- bg A document block, a prose form field and the report preview (GraceUI's proposal 0013, G44 (a)) [done]
+  - refs: G44, GraceUI:D251, PAGES§4.6.8, PAGES§4.6.9, G16
   - gives: GraceUI's answer to Docs and Tools › Bug report (2026-11-24): a document block on a master page (headings,
     paragraphs, lists, code, tables, spans with links to other documents, never a URL); `"prose": true` on a form
     field (2000 characters); the report preview drawn at last (parts with their fields, an optional part's switch
@@ -1769,6 +1779,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     same day and decided as recommended (G44 (a), "(a) All three (Recommended)"): the three together, in the protocol
     minor after the filter bar's. Until then the bug report's preview is built from a table with a switch column and
     a key-value list per part; Docs' documents are drafted in our own words for the owner's review meanwhile.
+    Built the same day as GraceUI 0.2.44 (D251, protocol 1.12, feat/foundations 3fac29b; GraceUI's
+    docs/eldennet-changes.md §77), in both views, the demo's Handbook, lamp report and Notes field as examples: Docs a
+    master page whose list's own filter-bar search covers titles and headings only; "What happened" a form field with
+    `"prose": true`; `report_preview` sending the space's command for a part's switch. EldenNet's Docs and Bug report
+    drop their stand-ins with its next pin, which takes 0.2.41 to 0.2.44 together.
 
 ### S11.3 EldenNet v0.2
 
@@ -1918,6 +1933,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     turns off personas alone and ships no card, so those rows stay empty in game; a layer's problem names its field
     but no line. Left: Docs and Tools › Bug report, waiting on GraceUI's answers (a document page, a multi-line field
     and a preview). Its readings and words accepted as written by the owner the same day (O119), PAGES §4.6.9 noted.
+    Docs' ten documents drafted in our own words the same day (engine ad4b82b, merged at 164f00a), sent to the owner
+    for review; O120's words merged with them (the refused-key toast, Home's Observing reason; Writing content without
+    its own-profile section). Next: GraceUI 0.2.44's pin with the Docs page and Tools › Bug report on its document
+    block, prose field and report preview (S11.2.bg).
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
