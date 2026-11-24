@@ -1,6 +1,6 @@
 #pragma once
 // A fake GraceUI of our own for en-overlay's tests (the Windows builds): ABI 1.7's table, as graceui.h declares it at
-// GraceUI c53f414, with the calls en-overlay makes answered as GraceUI 0.2.40 answers them (eldennet-changes §14 to
+// GraceUI 3fac29b, with the calls en-overlay makes answered as GraceUI 0.2.44 answers them (eldennet-changes §14 to
 // §50; not 1.6's uploaded files, D226, since EldenNet's space has no file command) and checked as GraceUI checks them:
 // connect's answers, notices under keys (replaced in place, withdrawn by an empty text, at most four), textures in the
 // registration window, faces before warm-up and the glyph tables after it, panels hidden until shown, hotkeys (a
@@ -47,7 +47,7 @@ struct Grace {
   // How it answers.
   GraceUiStatus connect_status = GRACEUI_OK;
   std::uint32_t connect_reason = 0;
-  std::uint32_t version = GRACEUI_VERSION_PACK(0, 2, 40);
+  std::uint32_t version = GRACEUI_VERSION_PACK(0, 2, 44);
   std::vector<std::string> caps = {"notices", "panels",        "textures", "faces",      "input",           "world-state",
                                    "hotkeys", "pages",         "holder-events", "display", "pad-chords",
                                    "hotkey-bindings", "wake", "hotkey-by"};

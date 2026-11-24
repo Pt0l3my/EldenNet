@@ -38,11 +38,15 @@ import browser  # noqa: E402
 # Content packs (PAGES §4.6.9) over the title (the start's load: a layer of the player's refused alone, a persona and a
 # card turned off), over the world (a reload refused at a line, the other files waiting, one left out) and over the
 # starting state (nothing loaded yet: each section's own words).
+# Docs (PAGES §4.6.9) over the title (its list and the first document, Getting started, chosen: GraceUI D251's reader);
+# Tools › Bug report (PAGES §4.6.8) over the title (nothing typed: the five parts) and over the world (the player's
+# words of the fixture's own, and the content left out: drawn in the muted ink, its fields hidden).
 PAGES = (("home", "title"), ("system.status", "title"), ("system.logs", "title"), ("settings.developer", "title"),
          ("ai.providers", "title"), ("ai.models", "title"), ("ai.selftest", "title"), ("ai.selftest", "banner"),
          ("ai.providers", "starting"), ("home", "banner"), ("ai.providers", "world"), ("ai.models", "world"),
          ("characters.named", "title"), ("characters.named", "world"), ("characters.named", "starting"),
-         ("content", "title"), ("content", "world"), ("content", "starting"))
+         ("content", "title"), ("content", "world"), ("content", "starting"), ("docs", "title"),
+         ("tools.report", "title"), ("tools.report", "world"))
 SIZE = "1920x1080"
 INCREMENT = "0.2"  # en-overlay's kIncrement: the AI pages'
 
@@ -82,8 +86,10 @@ def serve(grace_dev, folder, state, topics, failures):
             failures.append("%s: the welcome names no eldennet space at %s: %s" % (state, INCREMENT, sorted(spaces)))
         for topic, want in topics.items():
             # GraceUI's server counts every message of a connection, a sub too, against 20 a second (its §6.8) and drops
-            # the rest unread: with the AI pages' topics there are more than 20, so they go no faster than 16 a second.
-            time.sleep(1 / 16)
+            # the rest unread: with the AI pages' topics there are more than 20, so a sub and its unsub go no faster
+            # than 16 messages a second. Each topic is let go once read: a connection watches 32 at most (its limits'
+            # `subscriptions`), and the fixtures hold more since Docs and Bug report.
+            time.sleep(1 / 8)
             view.sub("eldennet", topic)
             got = view.state("eldennet", topic)
             have = got.get("body") if got["t"] == "state" else [
@@ -92,6 +98,7 @@ def serve(grace_dev, folder, state, topics, failures):
                 want = [{k: v for k, v in row.items() if k != "seq"} for row in want]
             if have != want:
                 failures.append("%s: %s came back otherwise than its fixture" % (state, topic))
+            view.unsub("eldennet", topic)
         view.sub("eldennet", "settings")
         settings = view.state("eldennet", "settings")["body"]
         if settings.get("values", {}).get("debug.log_level") != "info":

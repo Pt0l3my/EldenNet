@@ -14,9 +14,13 @@ text    gold.hi        50, 243   84x25   glyphs 9 "Named NPCs"
 line    rule           30, 275  240x1   
 text    ink.mute       30, 285   64x30   glyphs 6 "System"
 line    rule           30, 325  240x1   
-text    ink.mute       30, 335   85x30   glyphs 8 "Settings"
-line    rule           30, 375  240x1   
-text    ink.mute       30, 385  138x30   glyphs 12 "Content packs"
+text    ink.mute       30, 335   53x30   glyphs 5 "Tools"
+line    rule           30, 900  240x1   
+text    ink.mute       30, 910   85x30   glyphs 8 "Settings"
+line    rule           30, 950  240x1   
+text    ink.mute       30, 960   42x30   glyphs 4 "Docs"
+line    rule           30,1000  240x1   
+text    ink.mute       30,1010  138x30   glyphs 12 "Content packs"
 fill    ground.well   340,  10  350x35   r3
 text    ink.faint     353,  15   51x25   glyphs 6 "Search"
 text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
@@ -123,17 +127,21 @@ text    ink.hi        934,1860   38x28   clip1 glyphs 4 "Home"
 text    ink.mute     1231,1860  565x25   clip1 glyphs 53 "Whether EldenNet is working on this game, and what to do if it is not."
 text    gold         1820,1860    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
-fill    ground.well   340,1044   42x28   r3
-stroke  edge          340,1044   42x28   r3 w1
-text    ink.body      348,1046   26x25   glyphs 2 "↑ ↓"
-text    ink.faint     389,1045   51x25   glyphs 6 "Choose"
-fill    ground.well   465,1044   25x28   r3
-stroke  edge          465,1044   25x28   r3 w1
-text    ink.body      473,1046    9x25   glyphs 1 "→"
-text    ink.faint     497,1045   34x25   glyphs 4 "Open"
-fill    ground.well   555,1044   42x28   r3
-stroke  edge          555,1044   42x28   r3 w1
-text    ink.body      563,1046   26x25   glyphs 3 "Esc"
-text    ink.faint     605,1045   34x25   glyphs 4 "Back"
+fill    ground.well   340,1044   53x28   r3
+stroke  edge          340,1044   53x28   r3 w1
+fill    ink.body      354,1057    2x9   
+tri     ink.body      348,1051   14x7    ^
+fill    ink.body      377,1051    2x9   
+tri     ink.body      371,1059   14x7    v
+text    ink.faint     400,1045   51x25   glyphs 6 "Choose"
+fill    ground.well   475,1044   31x28   r3
+stroke  edge          475,1044   31x28   r3 w1
+fill    ink.body      483,1057    9x2   
+tri     ink.body      491,1051    7x14   >
+text    ink.faint     513,1045   34x25   glyphs 4 "Open"
+fill    ground.well   572,1044   42x28   r3
+stroke  edge          572,1044   42x28   r3 w1
+text    ink.body      580,1046   26x25   glyphs 3 "Esc"
+text    ink.faint     621,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi       347, 248  510x76   r5 w3 clip1
-# 137 items, 7412 vertices, 14652 indices, 4 commands; check_draw_list: passes
+# 145 items, 7474 vertices, 14781 indices, 4 commands; check_draw_list: passes

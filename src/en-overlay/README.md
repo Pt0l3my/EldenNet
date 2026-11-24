@@ -9,14 +9,15 @@ moved it to GraceUI 0.2.5's ABI 1.2 (§19, §23, §24, §26 to §29, §33, §34 
 C; WHY§364) adds EldenNet's own surfaces on GraceUI 0.2.20's ABI 1.5 (§31, §33, §47 to §50): the lower third, the chat
 box, the hint and the toasts. Later increments add the call-out box (v0.6) and the rest of its pages.
 
-It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at c53f414, GraceUI
-0.2.40, ABI 1.7, protocol 1.9, whose uploads it does not use; its floor, 0.2.22, for the profile editor's families, slow
-commands, editor block and chosen row, on 0.2.17's wait handle; 0.2.36's italic face where GraceUI's folder has it,
-and 0.2.38's word for what pressed a hotkey behind its cap): its look for GraceUI and `GraceUI_RequestApi(1)`
-(`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size (`graceui_sys.hpp`), and the headless
-Dear ImGui helper (`graceui_imgui.hpp`). It links no hook library and no Dear ImGui backend and hooks nothing (R12,
-GraceUI's invariant 16); it never links en-core or en-gal, so it can never reach the game's memory (ARCH §2.3, checked
-by `en_link_rule`); and nothing in it waits but the look, on T1 (R6).
+It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 3fac29b, GraceUI
+0.2.44, ABI 1.7, protocol 1.12, whose uploads it does not use; its floor, 0.2.44, for Docs' document block and Bug
+report's prose field and preview, which an older GraceUI refuses, with the profile editor's families, slow commands,
+editor block and chosen row, on 0.2.17's wait handle; 0.2.36's italic face where GraceUI's folder has it, and 0.2.38's
+word for what pressed a hotkey behind its cap): its look for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI
+1's calls, each behind `has_cap` and the table's size (`graceui_sys.hpp`), and the headless Dear ImGui helper
+(`graceui_imgui.hpp`). It links no hook library and no Dear ImGui backend and hooks nothing (R12, GraceUI's invariant
+16); it never links en-core or en-gal, so it can never reach the game's memory (ARCH §2.3, checked by `en_link_rule`);
+and nothing in it waits but the look, on T1 (R6).
 
 ## Two parts
 
@@ -43,7 +44,7 @@ On T1, after WaitWindow (ARCH §3.2's Connect, and ConnectB on the banner path):
    GraceUI loaded before EldenNet is found by its name, and GraceUI installed in the game's folder but not yet loaded is
    loaded by EldenNet (and found by its name if a loader loads it later).
 2. **`Overlay::connect`** as `eldennet` (its id and its space's), display name `EldenNet`, its version, its GraceUI floor
-   (0.2.22, `en/proto/graceui_pin.hpp`) and the caps it uses: `notices world-state hotkeys`, and with the view
+   (0.2.44, `en/proto/graceui_pin.hpp`) and the caps it uses: `notices world-state hotkeys`, and with the view
    `panels textures`. The answers: `connected`; `notices_only` (inactive for the anti-cheat, with a handle: the banner
    through `notice` alone, D88); or a failed connect, `absent`, `too_old`, `duplicate_id`, `inactive` (the overlay
    could not start or turned itself off), `refused` or `not_yet`, which leave EldenNet headless (ARCH §10.3's "Overlay
@@ -273,10 +274,11 @@ edited now) and served by the space, which owns a `Characters` for them:
 
 ## Content packs (`content`; PAGES §4.6.9; S11.4.a)
 
-At the rail's foot after Settings, a category of its own (PAGES §4.2.1), increment 0.2, both views; read-only: no
-command, no header action (no content editors, D2). One topic, `content`, a member per section (GraceUI D185's
-`props.field`), built from `SpaceFacts::content`, en-proto's `ContentView`, which en-core's `record_load` fills on each
-load of the content and the DLL keeps on T6 (null before the first load: an empty body, each section's own words):
+At the rail's foot after Settings, a category of its own marked `foot` (PAGES §4.2.1; protocol 1.10, GraceUI D248),
+pinned under the rule there in both views; increment 0.2, both views; read-only: no command, no header action (no
+content editors, D2). One topic, `content`, a member per section (GraceUI D185's `props.field`), built from
+`SpaceFacts::content`, en-proto's `ContentView`, which en-core's `record_load` fills on each load of the content and the
+DLL keeps on T6 (null before the first load: an empty body, each section's own words):
 
 - **Shipped content** (`shipped`, a key-value list): the name, EldenNet's version and the credit, our fixed words (the
   shipped pack carries no manifest of its own yet); the shipped cast's persona count and its card count (v0.2 ships
@@ -294,6 +296,54 @@ load of the content and the DLL keeps on T6 (null before the first load: an empt
 
 The Plugins page, and Content packs' link to it, wait for 1.1 (D104): absent until then.
 
+## Docs (`docs`; PAGES §4.6.9; S11.4.a)
+
+At the rail's foot between Settings and Content packs, marked `foot`; increment 0.2, so drawn in game too (PAGES has it
+in the browser at 0.2 and in game at 0.6, but the page format cannot keep a page out of one view: GraceUI's
+eldennet-changes §77). A master page (D215): the list `docs.list` (columns Document and Covers, a row a document,
+`{id, title, headings}`, the headings joined by " · ") with the list's own search on its titles and headings (D250), so
+no body is ever searched; and one section holding the chosen row's document, `{ kind = "document", topic = "docs" }`
+(D251), the member `docs/<id>`, `{title, blocks}`. No command.
+
+The ten documents are the drafts in `docs/`, in `docs/README.md`'s Markdown subset, converted by `tools/docs/build.py`
+into `src/docs_data.cpp` (`docs.hpp`'s `bundled_docs()`: each one's id, title, headings and body as nlohmann/json writes
+it), so nothing reads them from disk at run time and nothing is fetched (PV6). The converter fails, naming the draft and
+its line, on anything outside the subset (HTML or angle brackets outside code, an image, an address, another emphasis, a
+nested list, a block with no blank line before it, a mark in a table's cell or a heading, a line over 120 characters),
+on GraceUI's limits (64 KiB a document, 400 blocks, 2000 characters a paragraph, item or note, 120 a heading, 16 KiB a
+code block, 100 items, 8 columns, 200 rows) and on a link to a document or a heading that does not exist; CTest runs it
+(`en_docs_build`, `--check`: the file is what the drafts build) and its tests (`en_docs_tests`, invented drafts each
+outside the subset its own way). About's slots are filled when the space publishes: `{eldennet_version}` EldenNet's
+version, `{graceui_version}` the GraceUI connected, `{build}` the build's label (`SpaceFacts::label`, EN_VERSION_LABEL);
+a row whose slot has no value is left out. The list and each document are published when watched and not again (they are
+bundled), About again when its slots' values change.
+
+## Tools › Bug report (`tools.report`; PAGES §4.6.8; S11.4.a)
+
+Tools' one page in 0.2 (Event monitor and Workshop come later), increment 0.2, both views: a preview, with no copy or
+save until 0.6, after EldenNet's scan. Two sections:
+
+- **What happened**: a form (`report.build` {what}) with one prose field (D251), 2000 characters at most, its caution
+  in the section's description. The space keeps the words in memory for the preview alone (`Space::report_what_`):
+  spaces round them taken off, a CR LF as a line break, scrubbed as the log is (a SteamID64's shape, a word shaped like
+  a path or a local address "redacted"); a control character other than a line break or a tab, or more than 2000
+  characters, is refused in words and the words kept as they were; an empty field clears them. Every copy but the
+  preview's is overwritten, the frame's too. The command's note names the command alone, so the log never holds them;
+  they reach no recording (the pages' commands never reach the core), no other topic and no file.
+- **The report**: `report_preview` on the topic `report`, `{parts: [{id, label, optional, included, fields}]}`, in our
+  words and numbers, from what EldenNet already has in plain data: What happened (once there are words); Versions
+  (EldenNet's, the build's label, GraceUI's and the floor, the game's build, what started it); State (the lamp's word
+  and why, the start, the offline gate, the reading, the read groups' self-tests and those stopped, Home's problems,
+  the AI's lead, the log, the recording, the session's length); and three optional parts, switched by `report.part`
+  {id, on} (declared, never a file command): Settings (whether settings.toml was read, and each setting's value as the
+  file would hold it, in the mono face; never a secret, and a value shaped like a path left out, PV5), Content (the
+  counts of Content packs: personas, cards, the overrides' files by state, what is turned off, the loads and the last
+  one's result, the player's own notes on characters counted, never shown) and Recent log (its newest 30 lines with
+  their clock, scrubbed again, in the mono face). A part left out stays in the body, its `included` false: GraceUI draws
+  it in the muted ink with its fields hidden. Never chat or model text, a key, a SteamID, a path, the Windows user
+  name, the character's name or a local address (PV5, PV7). Published at most once a second (its readings' count and
+  its log's lines change at every wake), and at once after either command.
+
 ## Tests
 
 `en_overlay_tests` (doctest): in every build, the Characters pages (`test_characters.cpp`: the page data with its
@@ -310,10 +360,16 @@ with each refusal, a secret's status alone, the AI pages' topics, commands, pres
 or note), what is published and when, the logs stream's batches and ring, the words
 (no lamp while starting, the banner's own, absence silent, nothing personal), Content packs' topic from invented content
 (`tests/content_fixture.hpp`: each section's member, a layer refused alone and a reload refused at a line, a card turned
-off, no count of nothing, and no path that is not relative to the folder, PV5), and in the Linux builds the five fixture
-states' `tests/pages/<state>/topics.json` (EN_UPDATE_FIXTURES=1 writes them anew). In the
+off, no count of nothing, and no path that is not relative to the folder, PV5), Docs (its master page and search, the
+ten documents in PAGES' order, each within GraceUI's limits, its links to documents and headings that exist and no
+address, About's slots filled or their rows left out, the list and the documents published once and About again when a
+slot changes), Bug report (its form and preview, the parts in plain data, the player's words leading the preview and in
+no other topic, answer, note or log row, scrubbed, refused in words over 2000 characters or with a control character,
+cleared by an empty field, the optional parts' switches and an always part's refusal, the log's newest 30 lines
+scrubbed again, settings without a secret or a path), and in the Linux builds the five fixture states'
+`tests/pages/<state>/topics.json` (EN_UPDATE_FIXTURES=1 writes them anew). In the
 Windows builds, under Wine, the connection against a fake GraceUI of our own (`tests/fake_grace.hpp`; graceui-sys has no
-C mock): ABI 1.7's table, answering as GraceUI 0.2.40 answers and checking as it checks (connect's answers, notices
+C mock): ABI 1.7's table, answering as GraceUI 0.2.44 answers and checking as it checks (connect's answers, notices
 under keys, the registration window, hidden panels, hotkeys, poll's events by the event's size, the space's slots, and
 submit's draw-list checks: counts, bounds, ranges, indices, clip rectangles inside the panel, known textures, the
 stride). The cases: the space registered once for its views, or not without the cap or beside anti-cheat; watched
