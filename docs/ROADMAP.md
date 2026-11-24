@@ -1784,8 +1784,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     master page whose list's own filter-bar search covers titles and headings only; "What happened" a form field with
     `"prose": true`; `report_preview` sending the space's command for a part's switch. EldenNet's Docs and Bug report
     drop their stand-ins with its next pin, which takes 0.2.41 to 0.2.44 together.
-- bh Quick switches and live updates, then a space's scope and paged tables (GraceUI's proposal 0014, G45 (a)) [next]
-  - refs: G45, PAGES§4.6.1, PAGES§4.6.4, PAGES§4.9
+- bh Quick switches and live updates, then a space's scope and paged tables (GraceUI's proposal 0014, G45 (a)) [active]
+  - refs: G45, GraceUI:D252, PAGES§4.6.1, PAGES§4.6.4, PAGES§4.9
   - gives: decided by the owner on 2026-11-24 (G45 (a), "All four, in two steps (Recommended)"): quick switches (a
     setting's shortcut or a session switch with its state) and live updates (Live, every 5 s, Paused) first, as
     protocol 1.13, for EldenNet 0.2's Home, Requests and Pause AI; then a space's scope (the Journey) and paged tables,
@@ -1793,6 +1793,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     own, `journeys`, since its labels carry the character's name (PV); a family member per journey for Playthrough and
     Memories; 200 rows a page and a total of perceived events only (SP7); Pause AI as `ai.pause` with {"on"}, its state
     `status.ai_paused`; Named NPCs scoped, its list a family per journey, Nearby only on the current journey.
+    Step one built the same day as GraceUI 0.2.45 (D252, protocol 1.13, feat/foundations 385d80e; GraceUI's
+    docs/eldennet-changes.md §78): quick switches (a setting's shortcut, or a session switch reading a boolean field
+    of a state topic; pad Start opens them in game, the power button in the browser) and live updates (Live, every
+    5 s, Paused; Paused keeps watching and counts what came). EldenNet's Pause AI binds as `ai.pause` with
+    `status.ai_paused`. Step two (the scope and paged tables, protocol 1.14) takes Engine's answers.
 
 ### S11.3 EldenNet v0.2
 
