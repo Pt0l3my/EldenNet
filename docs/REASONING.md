@@ -599,6 +599,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 574 | 2026-11-24 | EldenNet's own reader read the world's leads in the game through the build's layout, with no fault | FACT | #lodestar #gal #backend |
 | 575 | 2026-11-24 | The save's slot keeps its number at the title: it does not tell the title from the world | FACT | #lodestar #design |
 | 576 | 2026-11-24 | Of 12,720 near-list elements read in a session, 8 held no plain distance, and none fell below the one before | FACT | #lodestar |
+| 577 | 2026-11-24 | A character's other fields are sought by how numbers stand among the near characters and over a session | METHOD | #lodestar #l6 |
+| 578 | 2026-11-24 | A read round's plan travels in the watch block (probe_plan, version 2); a plan the round does not know is a refusal | DECIDED | #lodestar #launcher |
+| 579 | 2026-11-24 | Two neighbouring 32-bit numbers often pass for an address by size alone | METHOD | #lodestar |
 
 ## Entries
 
@@ -8682,3 +8685,31 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - With up to 95 elements in the list, the reader found a character behind every address it read, a plain distance
   in all but 8 elements, and no distance below the one before it: the list is kept by distance, and the reader's
   element-by-element reading of the distance (982f09a) fits the few that are not a number yet.
+
+### 577. A character's other fields are sought by how numbers stand among the near characters and over a session
+
+`2026-11-24` · METHOD · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the eighteenth round"), WHY§460, O117, O118
+
+- The eighteenth round (package 0.1.0-lodestar.22, engine b365148, merged at 067b725) reads, every two seconds, the
+  first 2 KiB of the main player's object and of the near list's first 48 characters, with their health, and notes
+  per place: still in nearly all, shared by a kind, different in each, the player's alone; one field a ten-
+  thousandth of another (a parameter and its model); a bit that flips at a death and holds in every other
+  character, living or dead; a bit that flips while the tester looks around (on screen). The report holds places
+  and counts, no value of any character.
+
+### 578. A read round's plan travels in the watch block (probe_plan, version 2); a plan the round does not know is a refusal
+
+`2026-11-24` · DECIDED · `#lodestar` `#launcher` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the eighteenth round")
+
+- The launcher's --read-plan N (0 or 1, with --read only) writes probe_plan, appended to the watch block (offset
+  464; kVersion 2, so a launcher and a DLL of different blocks refuse each other) before the game starts; the
+  round reads it once and logs it, and a number it does not know stops the round before any reading. Plan 0 is the
+  rounds up to the seventeenth, plan 1 the character survey; read.cmd names its plan. boot.cpp is untouched, and
+  GraceUI opens no watch block, so its builds are not affected. Settled by Engine on Lodestar's proposal (a).
+
+### 579. Two neighbouring 32-bit numbers often pass for an address by size alone
+
+`2026-11-24` · METHOD · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the eighteenth round")
+
+- Read as one eight-byte word, a kind's number beside its model's looks like an address by its size. The survey
+  takes a word for an address only if it lies in the image or near where the game's objects were met.
