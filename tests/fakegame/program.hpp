@@ -45,6 +45,10 @@ struct Options {
   // only from walk_from_s to walk_to_s (always, where both are 0), loses health at hit_at_s and has it back at
   // heal_at_s (never, where 0).
   std::uint32_t walk_from_s = 0, walk_to_s = 0, hit_at_s = 0, heal_at_s = 0;
+  // The character survey's world (the eighteenth read-only round), by the world's seconds: from screen_from_s to
+  // screen_to_s the characters near pass on and off the screen, each every two seconds (the tester looks around;
+  // outside it they are on screen by their distance, as always); at kill_at_s the first of them dies (never, where 0).
+  std::uint32_t screen_from_s = 0, screen_to_s = 0, kill_at_s = 0;
   std::uint32_t clock_rate = 60;       // game seconds a second of real time in the world (a game minute a second)
   bool day_book = false;               // the first decoy static holds a plain block that keeps the clock's packed word
                                        // twice (0x10 and 0x18 bytes in): a clock behind a static no lead names

@@ -201,6 +201,11 @@ w::ProbeRequest probe_request() noexcept {
   return p == static_cast<std::uint32_t>(w::ProbeRequest::Read) ? w::ProbeRequest::Read : w::ProbeRequest::None;
 }
 
+std::uint32_t probe_plan() noexcept {
+  const w::Block* b = opened();
+  return b == nullptr ? 0 : b->probe_plan.load(std::memory_order_acquire);
+}
+
 void probe_answer(w::ProbeRequest answer) noexcept {
   if (w::Block* b = opened()) b->control.probe.store(static_cast<std::uint32_t>(answer), std::memory_order_release);
 }

@@ -666,6 +666,63 @@ struct CharFound {
 // the slots of the characters (one fact read offline), so the save's slot is sought as the field that reads the first
 // loaded character's slot in the first world and the second's in the second, over the data's slots in use in the
 // world, with no rule about the title and none about the object behind a slot staying the same.
+// The character survey (in game; the eighteenth round): the characters the near list holds, and the main player,
+// read for the first 2 KiB of their objects every two seconds, for a character's other fields. Behaviour only: where
+// a number lies and how it stands among the characters and over the session; no value of any character is written.
+struct SurveyField {             // a 32-bit field that keeps still in nearly every character
+  std::uint32_t offset = 0;
+  std::uint32_t seen = 0;        // characters seen at the last pass
+  std::uint32_t changed_for = 0; // characters, of all followed, in which it ever changed
+  std::uint32_t distinct = 0;    // different values among the characters seen
+  std::uint32_t most = 0;        // the largest group of them that shares one value
+  std::uint32_t zeros = 0;       // of them, zero
+  std::uint32_t small = 0;       // of them, 1 to 255
+  std::uint32_t addresses = 0;   // of them, half of a word that is an address
+  std::uint32_t block_like = 0;  // of them, shaped as a map block's id (a low byte of 0, a top byte of 10 to 61)
+  std::uint32_t id_like = 0;     // of them, 10,000,000 or more and under 2^31
+  bool player_alone = false;     // the main player's value is no other character's
+};
+struct SurveyPair {              // two such fields: one is the other divided by 10,000
+  std::uint32_t a = 0;           // the larger number's field
+  std::uint32_t b = 0;           // the smaller's
+  std::uint32_t holds = 0;       // characters for which a / 10,000 == b, with a at least 10,000
+  std::uint32_t of = 0;          // characters seen, the main player aside
+};
+struct SurveyDead {              // a bit that flipped as a character's health went to nothing
+  std::uint32_t offset = 0;      // the byte
+  std::uint32_t bit = 0;
+  bool set = false;              // it went from 0 to 1 (else from 1 to 0)
+  std::uint32_t agree_alive = 0; // sightings of a living character with the bit as it was before
+  std::uint32_t agree_dead = 0;  // sightings of a dead one with the bit as it became
+  std::uint32_t against = 0;     // sightings that say otherwise
+};
+struct SurveyFlip {              // a bit that flips while the tester looks around and not while they stand
+  std::uint32_t offset = 0;
+  std::uint32_t bit = 0;
+  std::uint32_t look = 0;        // flips in the looking phase, over the characters
+  std::uint32_t passes = 0;      // passes of that phase in which it flipped in some character
+  std::uint32_t still = 0;       // and in the standing phase
+  std::uint32_t flipped_in = 0;  // characters it flipped in (counted when another character than the last flips)
+};
+struct SurveyFound {
+  std::uint32_t passes = 0;
+  std::uint32_t absent = 0;         // passes with no main player or no list
+  std::uint32_t tracked = 0;        // characters followed over the session (128 at most)
+  std::uint32_t most_listed = 0;    // the most characters read in one pass
+  std::uint32_t phase = 0;
+  std::vector<std::uint32_t> phase_passes;
+  std::uint32_t deaths = 0;         // characters whose health went from more than nothing to nothing
+  std::uint32_t fields_total = 0;
+  std::vector<SurveyField> fields;  // at most 160, by offset
+  std::vector<std::uint32_t> handles;  // 8-byte fields that never changed, differ in every character seen and are
+                                       // no address: at most 16
+  std::vector<SurveyPair> pairs;    // at most 16, the best first
+  std::uint32_t dead_total = 0;
+  std::vector<SurveyDead> dead_bits;    // at most 32, the best first
+  std::uint32_t screen_total = 0;
+  std::vector<SurveyFlip> screen_bits;  // at most 32, the most flips first
+};
+
 // EldenNet's own reader on the world's leads (in game; ErBackend::world_alone, the seventeenth round): the game's
 // state's slot, the main player with its health and position, and the near list, read through the build's layout
 // once a second. Counts over the frames, and what the first frame after each of the tester's marks read. The
@@ -830,6 +887,7 @@ struct Found {
   std::optional<PairFound> pair;
   std::optional<PartsFound> parts;
   std::optional<WorldRead> world;
+  std::optional<SurveyFound> survey;
   std::vector<InvariantFound> invariants;
 };
 

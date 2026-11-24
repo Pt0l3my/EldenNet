@@ -160,6 +160,33 @@ TEST_CASE("tasks: with a pace every wait is that long and the tester's tasks con
   CHECK(list.finished());
 }
 
+TEST_CASE("tasks: the survey's list (plan 1): one character, a stand, a look around, a kill; five marks") {
+  const std::vector<Task> tasks = read_tasks(1);
+  REQUIRE(tasks.size() == 7);
+  CHECK(tasks[0].kind == TaskKind::Round);
+  CHECK(tasks[1].kind == TaskKind::Do);    // the load: the first mark, in the world
+  CHECK(tasks[2].kind == TaskKind::Wait);  // standing: marked at its end
+  CHECK(tasks[3].kind == TaskKind::Wait);  // looking around: marked at its end
+  CHECK(tasks[4].kind == TaskKind::Do);    // the kill
+  CHECK(tasks[5].kind == TaskKind::Wait);
+  CHECK(tasks[6].kind == TaskKind::End);
+  std::size_t marks = 0, seconds = 0;
+  for (const Task& t : tasks) {
+    CHECK_FALSE(t.title.empty());
+    CHECK_FALSE(t.detail.empty());
+    CHECK(t.title.size() <= 40);
+    CHECK(t.detail.size() <= 180);
+    marks += t.mark ? 1 : 0;
+    seconds += t.seconds;
+    if (t.kind == TaskKind::Do) CHECK_FALSE(t.button.empty());
+  }
+  CHECK(marks == 5);
+  CHECK(seconds == 100);
+  // A plan the launcher does not know is the rounds' list, as its option refuses any other number first.
+  CHECK(read_tasks(0).size() == 14);
+  CHECK(read_tasks().size() == 14);
+}
+
 TEST_CASE("tasks: the read-only round's list starts with the round's own task and marks each change it asks for") {
   const std::vector<Task> tasks = read_tasks();
   REQUIRE(tasks.size() == 14);

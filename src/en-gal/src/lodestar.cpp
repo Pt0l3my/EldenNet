@@ -843,7 +843,7 @@ bool complete(const Found& found) {
   return !a.pattern || a.only_shape == 0;
 }
 
-// ---- The report: schema 17, kind `lodestar`. No key takes a pattern, and there is no free string. ----
+// ---- The report: schema 18, kind `lodestar`. No key takes a pattern, and there is no free string. ----
 
 namespace {
 
@@ -951,10 +951,16 @@ constexpr auto kKeys = std::to_array<Key>({
     U("pos_frames"), U("list_frames"), U("near_most"), U("near_read"), U("near_chr"), U("near_distance"),
     U("near_rising"), AU("pos_frames_by"), AU("pos_moved_by"), AO("at_marks"), B("there"), B("loaded"), B("has_hp"),
     U("hp"), U("max_hp"), U("near"),
+    // The character survey (in game): behaviour only, no value of any character.
+    O("survey"), U("tracked"), U("most_listed"), U("deaths"), U("fields_total"), AO("survey_fields"), U("seen"),
+    U("changed_for"), U("most"), U("zeros"), U("small"), U("block_like"), U("id_like"), B("player_alone"),
+    AU("handles"), AO("pairs"), U("a"), U("b"), U("holds_for"), U("of"), U("dead_total"), AO("dead_bits"),
+    U("agree_alive"), U("agree_dead"), U("against"), U("screen_total"), AO("screen_bits"), U("look"),
+    U("flipped_in"),
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 17, kKeys};
+constexpr report::Vocabulary kVocabulary{"lodestar", 18, kKeys};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -1781,6 +1787,78 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     w.end_object();
   }
   w.end_array();
+
+  if (found.survey) {
+    const SurveyFound& f = *found.survey;
+    w.begin_object("survey");
+    w.number("passes", f.passes);
+    w.number("absent", f.absent);
+    w.number("tracked", f.tracked);
+    w.number("most_listed", f.most_listed);
+    w.number("phase", f.phase);
+    w.begin_array("phase_passes");
+    for (const std::uint32_t v : f.phase_passes) w.number(v);
+    w.end_array();
+    w.number("deaths", f.deaths);
+    w.number("fields_total", f.fields_total);
+    w.begin_array("survey_fields");
+    for (const SurveyField& r : f.fields) {
+      w.begin_object();
+      w.number("offset", r.offset);
+      w.number("seen", r.seen);
+      w.number("changed_for", r.changed_for);
+      w.number("distinct", r.distinct);
+      w.number("most", r.most);
+      w.number("zeros", r.zeros);
+      w.number("small", r.small);
+      w.number("addresses", r.addresses);
+      w.number("block_like", r.block_like);
+      w.number("id_like", r.id_like);
+      w.boolean("player_alone", r.player_alone);
+      w.end_object();
+    }
+    w.end_array();
+    w.begin_array("handles");
+    for (const std::uint32_t v : f.handles) w.number(v);
+    w.end_array();
+    w.begin_array("pairs");
+    for (const SurveyPair& r : f.pairs) {
+      w.begin_object();
+      w.number("a", r.a);
+      w.number("b", r.b);
+      w.number("holds_for", r.holds);
+      w.number("of", r.of);
+      w.end_object();
+    }
+    w.end_array();
+    w.number("dead_total", f.dead_total);
+    w.begin_array("dead_bits");
+    for (const SurveyDead& r : f.dead_bits) {
+      w.begin_object();
+      w.number("offset", r.offset);
+      w.number("bit", r.bit);
+      w.boolean("set", r.set);
+      w.number("agree_alive", r.agree_alive);
+      w.number("agree_dead", r.agree_dead);
+      w.number("against", r.against);
+      w.end_object();
+    }
+    w.end_array();
+    w.number("screen_total", f.screen_total);
+    w.begin_array("screen_bits");
+    for (const SurveyFlip& r : f.screen_bits) {
+      w.begin_object();
+      w.number("offset", r.offset);
+      w.number("bit", r.bit);
+      w.number("look", r.look);
+      w.number("passes", r.passes);
+      w.number("still", r.still);
+      w.number("flipped_in", r.flipped_in);
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
 
   if (found.world) {
     const WorldRead& f = *found.world;

@@ -343,6 +343,8 @@ Run run_once(const Ctx& c, std::uint32_t run, std::uint32_t runs, const fs::path
     // it answers.
     wb->block().control.spike.store(static_cast<std::uint32_t>(c.o.spike), std::memory_order_release);
     if (c.o.read) {
+      // The round's plan first: the round reads it once, after it has seen the request.
+      wb->block().probe_plan.store(c.o.read_plan, std::memory_order_release);
       wb->block().control.probe.store(static_cast<std::uint32_t>(w::ProbeRequest::Read), std::memory_order_release);
     }
   }
@@ -411,6 +413,7 @@ Run run_once(const Ctx& c, std::uint32_t run, std::uint32_t runs, const fs::path
   plan.console = c.o.console;
   plan.read = c.o.read && inject_dll;
   plan.read_pace_s = c.o.read_pace_s;
+  plan.read_plan = c.o.read_plan;
   plan.spike = c.o.spike;
   if (c.o.spike == w::Spike::S0a || c.o.spike == w::Spike::S0dCrash) plan.run_timeout_s = c.o.run_timeout_s;
   plan.crash_when_ready = c.o.spike == w::Spike::S0dCrash;

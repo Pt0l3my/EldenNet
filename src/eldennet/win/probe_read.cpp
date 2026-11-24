@@ -96,6 +96,7 @@ constexpr std::size_t kFlagHopsDeeper = 4;      // objects one step more, from e
 constexpr std::size_t kFlagHopsDeeperAll = 32;  // and of those in all
 constexpr std::uint64_t kBackendEveryUs = 10'000'000;  // EldenNet's own reader on the flags: every ten seconds
 constexpr std::uint64_t kWorldEveryUs = 1'000'000;     // and on the world's leads: once a second
+constexpr std::uint32_t kSurveyMark = 1;               // plan 1: the mark at which the tester stands in the world
 constexpr std::size_t kBackendFlags = 64;              // flags it is asked for at most
 constexpr std::uint64_t kSearchShareUs = 4'000;  // of each step of the reader's thread, for all the searches together
 
@@ -290,6 +291,20 @@ class Body final : public en::gal::TaskBody {
       watch = nullptr;
       sweep = nullptr;
       tree = nullptr;
+    } else if (auto* survey = survey_.load(std::memory_order_acquire);
+               survey != nullptr && survey->due(quiet_.now_us())) {
+      // The character survey's pass (plan 1), every two seconds: some hundred and fifty reads.
+      const std::uint64_t start = quiet_.now_us();
+      for (;;) {
+        const bool ended = survey->step(gt, reader_, quiet_.now_us());
+        if (ended || reader_.spent() || quiet_.now_us() - start >= kSearchShareUs) break;
+      }
+      slots = nullptr;
+      members = nullptr;
+      rising = nullptr;
+      watch = nullptr;
+      sweep = nullptr;
+      tree = nullptr;
     } else if (tree != nullptr) {
       // The tree's walk, likewise, until it is through: it is read once, and what the round compares waits for it.
       // With a share among the others it took seven minutes, and the eleventh round's session ended 47 records
@@ -394,6 +409,7 @@ class Body final : public en::gal::TaskBody {
   void set_chars(lodestar::CharSearch* chars) noexcept { chars_.store(chars, std::memory_order_release); }
   void set_pair(lodestar::PairSearch* pair) noexcept { pair_.store(pair, std::memory_order_release); }
   void set_parts(lodestar::PartsWatch* parts) noexcept { parts_.store(parts, std::memory_order_release); }
+  void set_survey(lodestar::CharSurvey* survey) noexcept { survey_.store(survey, std::memory_order_release); }
   // EldenNet's own reader: built by T1 over this thread's careful reads, stepped here. A list of flags is handed
   // over by its address; T1 keeps every list it ever handed over.
   struct FlagList {
@@ -443,6 +459,7 @@ class Body final : public en::gal::TaskBody {
   std::atomic<lodestar::CharSearch*> chars_{nullptr};
   std::atomic<lodestar::PairSearch*> pair_{nullptr};
   std::atomic<lodestar::PartsWatch*> parts_{nullptr};
+  std::atomic<lodestar::CharSurvey*> survey_{nullptr};
   std::atomic<en::gal::ErBackend*> backend_{nullptr};
   std::atomic<const FlagList*> flag_list_{nullptr};
   en::proto::WorldSnapshot snapshot_;  // the backend's, of which only the flags are filled
@@ -560,6 +577,12 @@ class Round {
   void run(const en::gal::Gated& gated) {
     gated_ = &gated;
     (void)make_dirs(folder_);
+    // The round's plan, as the launcher wrote it with its request: which tasks its panel lists, and so what the
+    // tester's marks mean. A plan this build does not know is a refusal: nothing is read.
+    plan_ = block::probe_plan();
+    log(Line("read").word("stage", "plan").num("plan", plan_).flag("known", plan_ < w::kPlanCount),
+        plan_ < w::kPlanCount ? LogLevel::Info : LogLevel::Error);
+    if (plan_ >= w::kPlanCount) return stop("plan");
     state(w::InitState::Discover);
     log(Line("read").word("stage", "settle").num("s", s_.settings.probe.settle_s));
     Sleep(s_.settings.probe.settle_s * 1000);
@@ -649,14 +672,15 @@ class Round {
     // The state search (WHY§460: the game state's static, by a field that reads -1 at the title and the save's slot
     // in the world): over the data's slots that point at live memory now, at the title. Its first pass is asked for
     // at once; the later ones at the tester's marks (in the world, at the title again, in the world again).
-    {
+    // Both are the rounds' up to the seventeenth (plan 0); the survey's plan has neither.
+    if (plan_ == w::kPlanRounds) {
       en::gal::probe::HeapSlots slots = live_slots(kMaxSlotCandidates);
       state_ = new lodestar::StateSearch(s_.sys->module_base(), std::move(slots.slots), &s_.sys->image());
       state_->ask();
       body_->set_state(state_);
       log(Line("read").word("stage", "state").num("candidates", state_->found().candidates));
+      make_chars();
     }
-    make_chars();
     block::ready_ms(static_cast<std::uint32_t>(since_ms()));
     state(w::InitState::Ready);
     report_loop();
@@ -834,6 +858,61 @@ class Round {
   // The parts watch, once the character search's look in the second world is through: it gives where in the manager
   // the main player's address stands, and which of the player's addresses is the holder of its parts (the one whose
   // target begins with the most addresses of classed objects).
+  // The character survey (plan 1), from the build's layout: the characters manager's item, the main player's word,
+  // the near list and its element, and the way to a character's health. Made at the tester's first mark, or as soon
+  // after it as discovery is through; whatever the layout lacks is said, and the survey is then not made.
+  void make_survey() {
+    if (survey_ != nullptr || survey_tried_ || body_ == nullptr || discovery_ == nullptr) return;
+    survey_tried_ = true;
+    namespace roles = en::gal::roles;
+    const en::gal::roles::Bound& b = discovery_->bound();
+    const std::uint32_t manager = roles::info(roles::Item::Characters).id;
+    const auto held = std::find_if(held_.managers.begin(), held_.managers.end(), [&](const lodestar::ManagerFound& m) {
+      return m.id == manager && m.status == en::gal::derive::Status::Derived;
+    });
+    lodestar::CharSurvey::Options o;
+    for (const lodestar::ClassFound& c : found_.classes) {
+      const en::gal::IdEntry* id = ids_.find(c.label, true);
+      if (id != nullptr && id->label == "character" && c.status == en::gal::derive::Status::Derived) {
+        o.character_vtables = c.vtables;
+      }
+    }
+    const en::gal::FieldLayout* main = b.field(roles::Fld::MainPlayer);
+    const en::gal::FieldLayout* list = b.field(roles::Fld::ByDistance);
+    const en::gal::FieldLayout* chr = b.field(roles::Fld::NearChr);
+    const en::gal::FieldLayout* parts = b.field(roles::Fld::ChrParts);
+    const en::gal::FieldLayout* vitals = b.field(roles::Fld::PartsVitals);
+    const en::gal::FieldLayout* hp = b.field(roles::Fld::Hp);
+    const std::uint32_t stride = b.stride_of(roles::Cls::NearEntry);
+    const bool no_list = list == nullptr || chr == nullptr || stride == 0;
+    const std::uint32_t lacks = (held == held_.managers.end() ? 1u : 0u) | (o.character_vtables.empty() ? 2u : 0u) |
+                                (main == nullptr ? 4u : 0u) | (no_list ? 8u : 0u);
+    if (lacks != 0) {
+      log(Line("read").word("stage", "survey").flag("made", false).num("lacks", lacks), LogLevel::Warn);
+      return;
+    }
+    o.base = s_.sys->module_base();
+    o.image_size = s_.sys->image().size();
+    o.manager_slot = held->rva;
+    o.main_player_word = main->off;
+    o.list_word = list->off;
+    o.stride = stride;
+    o.chr_at = chr->off;
+    // The health, where the layout has the way to it; without it the survey sees no death.
+    const bool health = parts != nullptr && vitals != nullptr && hp != nullptr;
+    o.parts_at = health ? parts->off : 0;
+    o.vitals_at = health ? vitals->off : 0;
+    o.hp_at = health ? hp->off : 0;
+    o.image = &s_.sys->image();
+    const std::size_t classes = o.character_vtables.size();
+    survey_ = new lodestar::CharSurvey(std::move(o));  // lives for the process
+    // Marks that came before discovery was through are phases gone by.
+    for (std::uint32_t m = kSurveyMark; m < marks_seen_; ++m) survey_->mark(s_.sys->now_us());
+    body_->set_survey(survey_);
+    log(Line("read").word("stage", "survey").flag("made", true).num("classes", classes).flag("health", health)
+            .num("mark", marks_seen_));
+  }
+
   // The parts watch from the build's layout alone (the main player's word and the holder's place), at the second
   // world's mark: the tester's standing task is then the watch's from its start.
   void make_parts_by_layout() {
@@ -1516,7 +1595,7 @@ class Round {
       }
       found_.state = std::move(f);
     }
-    if (chars_ == nullptr) make_chars();
+    if (chars_ == nullptr && plan_ == w::kPlanRounds) make_chars();
     if (chars_ != nullptr) {
       lodestar::CharFound f = chars_->found();
       for (; chars_looks_said_ < f.looks.size(); ++chars_looks_said_) {
@@ -1598,6 +1677,19 @@ class Round {
                 .num("falls", f.falls_total));
       }
       found_.parts = std::move(f);
+    }
+    if (plan_ == w::kPlanSurvey && survey_ == nullptr && marks_seen_ >= kSurveyMark) make_survey();
+    if (survey_ != nullptr) {
+      lodestar::SurveyFound f = survey_->found();
+      if (f.phase != survey_phase_said_ || (f.deaths != survey_deaths_said_)) {
+        survey_phase_said_ = f.phase;
+        survey_deaths_said_ = f.deaths;
+        log(Line("read").word("stage", "survey_phase").num("phase", f.phase).num("passes", f.passes)
+                .num("absent", f.absent).num("tracked", f.tracked).num("listed", f.most_listed)
+                .num("deaths", f.deaths).num("fields", f.fields_total).num("dead_bits", f.dead_total)
+                .num("screen_bits", f.screen_total));
+      }
+      found_.survey = std::move(f);
     }
     if (backend_ != nullptr && body_ != nullptr) {
       // EldenNet's own reader on the world's leads: the spans the tester's marks have opened so far.
@@ -1707,17 +1799,24 @@ class Round {
       for (const std::uint32_t n = block::marks(); marks_seen_ < n;) {
         ++marks_seen_;
         marks_kept_.push_back(s_.sys->now_us());
-        if (state_ != nullptr) state_->ask();  // the tester says the game is in the next state
-        if (marks_seen_ == kFirstWorldMark) make_pair();
-        if (marks_seen_ == kSecondWorldMark) {
-          if (pair_ != nullptr) pair_->ask();
-          if (chars_ == nullptr) make_chars();
-          if (chars_ != nullptr) chars_->ask(marks_seen_);
+        if (plan_ == w::kPlanRounds) {
+          if (state_ != nullptr) state_->ask();  // the tester says the game is in the next state
+          if (marks_seen_ == kFirstWorldMark) make_pair();
+          if (marks_seen_ == kSecondWorldMark) {
+            if (pair_ != nullptr) pair_->ask();
+            if (chars_ == nullptr) make_chars();
+            if (chars_ != nullptr) chars_->ask(marks_seen_);
+          }
+          if (parts_ != nullptr) parts_->mark(marks_kept_.back());  // the tester's next phase
+          // The second world's mark opens the parts watch's first phase (the standing task), where the layout can
+          // start it; the marks after it move it on.
+          if (marks_seen_ == kSecondWorldMark) make_parts_by_layout();
+        } else {
+          // The survey's plan: its first mark (the tester stands in the world) starts the survey, in its standing
+          // phase; each mark after it moves the survey on.
+          if (survey_ != nullptr) survey_->mark(marks_kept_.back());
+          if (marks_seen_ == kSurveyMark) make_survey();
         }
-        if (parts_ != nullptr) parts_->mark(marks_kept_.back());  // the tester's next phase
-        // The second world's mark opens the parts watch's first phase (the standing task), where the layout can
-        // start it; the marks after it move it on.
-        if (marks_seen_ == kSecondWorldMark) make_parts_by_layout();
         if (body_ != nullptr) body_->world_mark();
         log(Line("read").word("stage", "mark").num("n", marks_seen_).flag("sweep", sweep_ != nullptr));
       }
@@ -1813,6 +1912,11 @@ class Round {
   bool parts_tried_ = false;
   std::uint32_t parts_phase_said_ = 0;
   bool world_said_ = false;
+  std::uint32_t plan_ = 0;                          // the round's plan (watch.hpp's kPlan*), read once at its start
+  lodestar::CharSurvey* survey_ = nullptr;          // plan 1
+  bool survey_tried_ = false;
+  std::uint32_t survey_phase_said_ = 0;
+  std::uint32_t survey_deaths_said_ = 0;
   std::size_t chars_looks_said_ = 0;                // looks whose end the log has told
   std::size_t state_looks_said_ = 0;                // looks whose end the log has told
   std::map<std::uint32_t, std::uint32_t> state_sites_;  // by slot: the code's references to it

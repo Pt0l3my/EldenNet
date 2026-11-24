@@ -18,8 +18,26 @@ TEST_CASE("watch block: the creator constructs and initialises it, magic last; a
   CHECK(valid(*b));
   CHECK(b->header.game_pid == 4321);
   CHECK(b->header.size == sizeof(Block));
-  b->header.version = 2;
+  b->header.version = kVersion + 1;
   CHECK_FALSE(valid(*b));  // another layout: refused, read no further
+  b->header.version = 1;
+  CHECK_FALSE(valid(*b));  // the block before the read round's plan was appended: refused as well
+}
+
+TEST_CASE("watch block: the read round's plan is appended, zero until the launcher writes it") {
+  CHECK(kVersion == 2);
+  CHECK(offsetof(Block, probe_plan) == 464);  // after the Marks: no field moved
+  CHECK(offsetof(Block, marks) == 200);
+  CHECK(sizeof(Block) == 472);
+  alignas(Block) unsigned char page[kBlockSize] = {};
+  Block* b = ::new (page) Block();
+  initialise(*b, 1);
+  CHECK(b->probe_plan.load() == kPlanRounds);
+  CHECK(b->header.size == 472);
+  b->probe_plan.store(kPlanSurvey);
+  CHECK(valid(*b));
+  CHECK(b->probe_plan.load() == 1);
+  CHECK(kPlanCount == 2);
 }
 
 TEST_CASE("watch block: a module's file name is kept as ASCII, anything else '?', cut to fit") {

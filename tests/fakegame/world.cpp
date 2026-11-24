@@ -319,13 +319,20 @@ void rebuild_near() {
   std::size_t n = 0;
   if (w.player != nullptr) {
     const float* pp = w.player->a.parts->motion->pos;
+    // --screen-from-s, --screen-to-s: while the tester looks around, a character is on screen for two seconds and
+    // off for two, each in its own turn; at any other time by its distance.
+    const bool looking = options().screen_to_s != 0 && w.world_s >= static_cast<float>(options().screen_from_s) &&
+                         w.world_s < static_cast<float>(options().screen_to_s);
+    std::uint32_t index = 0;
     for (FG::Actor* npc : w.npcs) {
       const float* p = npc->a.parts->motion->pos;
       const float dx = p[0] - pp[0], dy = p[1] - pp[1], dz = p[2] - pp[2];
       const float d = std::sqrt(dx * dx + dy * dy + dz * dz);
       begin[n++] = FG::NearEntry{npc, d, 0};
-      npc->a.flags = static_cast<std::uint8_t>(d < 30.0f ? (npc->a.flags | (1u << FG::kActorOnScreenBit))
-                                                         : (npc->a.flags & ~(1u << FG::kActorOnScreenBit)));
+      const bool on = looking ? (static_cast<std::uint32_t>(w.world_s / 2.0f) + index) % 2 == 0 : d < 30.0f;
+      npc->a.flags = static_cast<std::uint8_t>(on ? (npc->a.flags | (1u << FG::kActorOnScreenBit))
+                                                  : (npc->a.flags & ~(1u << FG::kActorOnScreenBit)));
+      ++index;
     }
   }
   std::sort(begin, begin + n, [](const FG::NearEntry& l, const FG::NearEntry& r) { return l.distance < r.distance; });
@@ -677,6 +684,11 @@ void FG::ClockTask::run(const FrameInfo* frame) {
     };
     if (w.player != nullptr && crossed(fakegame::options().hit_at_s)) w.player->a.parts->vitals->hp -= 200;
     if (w.player != nullptr && crossed(fakegame::options().heal_at_s)) w.player->a.parts->vitals->hp += 200;
+    // --kill-at-s: the first character near dies: its health goes to nothing and its dead bit is set.
+    if (!w.npcs.empty() && crossed(fakegame::options().kill_at_s)) {
+      w.npcs[0]->a.parts->vitals->hp = 0;
+      w.npcs[0]->a.flags = static_cast<std::uint8_t>(w.npcs[0]->a.flags | (1u << FG::kActorDeadBit));
+    }
   }
   if (auto* sky = static_cast<SkyClockImp*>(fg_get_sky())) {
     const auto total = static_cast<std::uint64_t>(w.clock_s) + 9 * 3600;
