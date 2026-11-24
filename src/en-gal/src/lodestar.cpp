@@ -843,7 +843,7 @@ bool complete(const Found& found) {
   return !a.pattern || a.only_shape == 0;
 }
 
-// ---- The report: schema 16, kind `lodestar`. No key takes a pattern, and there is no free string. ----
+// ---- The report: schema 17, kind `lodestar`. No key takes a pattern, and there is no free string. ----
 
 namespace {
 
@@ -945,10 +945,16 @@ constexpr auto kKeys = std::to_array<Key>({
     O("parts"), U("player_word"), U("holder_at"), U("absent"), U("restarts"), U("phase"), AU("phase_passes"),
     AO("part_list"), U("part"), B("fraction"), AU("changed"), U("moves_total"), AO("moves"), U("falls_total"),
     AO("falls"), U("fell"), B("has_max"), U("max_at"),
+    // EldenNet's own reader on the world's leads (in game). hp, max_hp and slot are numbers of the tester's own
+    // character, written with the owner's word; no key holds a position.
+    O("world"), U("lacks"), U("state_frames"), U("slot_frames"), U("player_frames"), U("hp_frames"), U("hp_over"),
+    U("pos_frames"), U("list_frames"), U("near_most"), U("near_read"), U("near_chr"), U("near_distance"),
+    U("near_rising"), AU("pos_frames_by"), AU("pos_moved_by"), AO("at_marks"), B("there"), B("loaded"), B("has_hp"),
+    U("hp"), U("max_hp"), U("near"),
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 16, kKeys};
+constexpr report::Vocabulary kVocabulary{"lodestar", 17, kKeys};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -1775,6 +1781,47 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     w.end_object();
   }
   w.end_array();
+
+  if (found.world) {
+    const WorldRead& f = *found.world;
+    w.begin_object("world");
+    w.number("lacks", f.lacks);
+    w.number("calls", f.calls);
+    w.number("state_frames", f.state_frames);
+    w.number("slot_frames", f.slot_frames);
+    w.number("player_frames", f.player_frames);
+    w.number("hp_frames", f.hp_frames);
+    w.number("hp_over", f.hp_over);
+    w.number("pos_frames", f.pos_frames);
+    w.number("list_frames", f.list_frames);
+    w.number("near_most", f.near_most);
+    w.number("near_read", f.near_read);
+    w.number("near_chr", f.near_chr);
+    w.number("near_distance", f.near_distance);
+    w.number("near_rising", f.near_rising);
+    w.begin_array("pos_frames_by");
+    for (const std::uint32_t v : f.pos_frames_by) w.number(v);
+    w.end_array();
+    w.begin_array("pos_moved_by");
+    for (const std::uint32_t v : f.pos_moved_by) w.number(v);
+    w.end_array();
+    w.begin_array("at_marks");
+    for (const WorldAt& a : f.at_marks) {
+      w.begin_object();
+      w.number("mark", a.mark);
+      w.boolean("there", a.there);
+      w.boolean("loaded", a.loaded);
+      w.number("slot", a.slot);
+      w.boolean("player", a.player);
+      w.boolean("has_hp", a.has_hp);
+      w.number("hp", a.hp);
+      w.number("max_hp", a.max_hp);
+      w.number("near", a.near_all);
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
 
   w.begin_object("table");
   w.word("status", status_word(found.table.status));
