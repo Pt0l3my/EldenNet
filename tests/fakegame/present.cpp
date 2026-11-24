@@ -6,10 +6,12 @@
 // GraceUI's.
 #include <d3d12.h>
 #include <dxgi1_4.h>
+#include <tlhelp32.h>
 
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <vector>
 
 #include "graceui_sys.hpp"
 #include "graceui_test.h"
@@ -144,6 +146,159 @@ std::string word_of(const char* text) {
     out += c == ' ' ? '_' : (c < 0x21 || c > 0x7E) ? '?' : static_cast<char>(c);
   }
   return out.empty() ? "none" : out;
+}
+
+// --- Copies of GraceUI (D72, D83; GraceUI's invariant 18) ------------------------------------------------------------
+struct GraceCopy {
+  HMODULE module = nullptr;
+  std::string name;  // relative to the game's folder, as GraceUI's own notice names a copy; else its file name
+};
+
+// A module's name relative to the folder of the process's executable (the game's), in ASCII ('?' for anything else);
+// outside it, its file name after "outside:". Never a whole path.
+std::string name_in_game(HMODULE module) {
+  wchar_t path[1024];
+  wchar_t program[1024];
+  const DWORD n = GetModuleFileNameW(module, path, 1024);
+  DWORD folder = GetModuleFileNameW(nullptr, program, 1024);
+  if (n == 0 || n >= 1024 || folder == 0 || folder >= 1024) return "unknown";
+  while (folder > 0 && program[folder - 1] != L'\\' && program[folder - 1] != L'/') --folder;
+  const wchar_t* from = path;
+  std::string out;
+  if (folder > 0 && n > folder &&
+      CompareStringOrdinal(path, static_cast<int>(folder), program, static_cast<int>(folder), TRUE) == CSTR_EQUAL) {
+    from = path + folder;
+  } else {
+    from = path + n;
+    while (from > path && from[-1] != L'\\' && from[-1] != L'/') --from;
+    out = "outside:";
+  }
+  for (; *from != L'\0'; ++from) out += *from > 0x20 && *from < 0x7F ? static_cast<char>(*from) : '?';
+  return out;
+}
+
+// Every module that exports GraceUI_RequestApi, in load order (as graceui-sys's scan and GraceUI's own look find them).
+// A copy is never unloaded while the fake game runs: the launcher's load keeps its reference, and an asked copy pins
+// itself (GraceUI D107).
+std::vector<GraceCopy> grace_copies() {
+  std::vector<GraceCopy> out;
+  const HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, 0);
+  if (snapshot == INVALID_HANDLE_VALUE) return out;
+  MODULEENTRY32W entry{};
+  entry.dwSize = sizeof entry;
+  for (BOOL more = Module32FirstW(snapshot, &entry); more; more = Module32NextW(snapshot, &entry)) {
+    if (GetProcAddress(entry.hModule, "GraceUI_RequestApi") != nullptr) {
+      out.push_back(GraceCopy{entry.hModule, name_in_game(entry.hModule)});
+    }
+  }
+  CloseHandle(snapshot);
+  return out;
+}
+
+// A copy's host state (GRACEUI_TEST_HOST_*), or false where it is no test build.
+bool state_of(HMODULE module, GraceUiTestState& st) {
+  const auto get_state = export_of<uint32_t (*)(GraceUiTestState*)>(module, "GraceUI_Test_GetState");
+  st = GraceUiTestState{};
+  st.size = sizeof st;
+  return get_state != nullptr && get_state(&st) != 0;
+}
+
+// The copy the report reads: the module named graceui.dll, as before, unless it idles behind another copy (D72); then
+// the first copy that does not.
+HMODULE reported_copy() {
+  HMODULE named = GetModuleHandleW(L"graceui.dll");
+  GraceUiTestState st{};
+  if (named == nullptr || !state_of(named, st) || st.host != GRACEUI_TEST_HOST_IDLE_COPY) return named;
+  for (const GraceCopy& c : grace_copies()) {
+    if (state_of(c.module, st) && st.host != GRACEUI_TEST_HOST_IDLE_COPY) return c.module;
+  }
+  return named;
+}
+
+// In one copy: GraceUI's own notices (owner 0) that name another copy, the last one's text and tone, and the log lines
+// still kept that do (GraceUI's abi.cpp words both).
+struct CopyNames {
+  std::uint32_t notices = 0;
+  std::uint32_t logs = 0;
+  std::string notice = "none";
+  std::uint32_t tone = 0;
+};
+
+CopyNames copy_names(HMODULE module) {
+  CopyNames out;
+  const auto get_notice = export_of<uint32_t (*)(uint32_t, GraceUiTestNotice*)>(module, "GraceUI_Test_GetNotice");
+  const auto get_log = export_of<uint32_t (*)(uint32_t, char*, uint32_t)>(module, "GraceUI_Test_GetLogLine");
+  for (uint32_t i = 0; get_notice != nullptr; ++i) {
+    GraceUiTestNotice n{};
+    n.size = sizeof n;
+    if (get_notice(i, &n) == 0) break;
+    if (n.owner == 0 && std::strstr(n.text, "A second copy of GraceUI") != nullptr) {
+      ++out.notices;
+      out.notice = word_of(n.text);
+      out.tone = n.tone;
+    }
+  }
+  char line[512];
+  for (uint32_t i = 0; get_log != nullptr && get_log(i, line, sizeof line) != 0; ++i) {
+    if (std::strstr(line, "a second copy of GraceUI is loaded, and idle") != nullptr) ++out.logs;
+  }
+  return out;
+}
+
+// --grace-report's line of every copy, where more than one is loaded: for each, in load order, its name, host state,
+// init threads, hook installs, hooks, mods connected and other copies named; then the reported copy's notices and log
+// lines naming a copy, and the last such notice's text and tone.
+void report_copies(std::uint64_t frame, HMODULE reported) {
+  const std::vector<GraceCopy> copies = grace_copies();
+  if (copies.size() < 2) return;
+  std::string line;
+  char part[256];
+  for (std::size_t i = 0; i < copies.size() && i < 4; ++i) {
+    GraceUiTestState st{};
+    const bool test = state_of(copies[i].module, st);
+    std::snprintf(part, sizeof part, " c%zu=%s c%zu_test=%d c%zu_host=%u c%zu_threads=%u c%zu_installs=%u c%zu_hooks=%u"
+                  " c%zu_consumers=%u c%zu_named=%u", i + 1, copies[i].name.c_str(), i + 1, test ? 1 : 0, i + 1,
+                  st.host, i + 1, st.init_threads_started, i + 1, st.hook_install_runs, i + 1, st.hooks_installed,
+                  i + 1, st.consumers, i + 1, st.copies_named);
+    line += part;
+  }
+  std::size_t reported_index = 0;
+  for (std::size_t i = 0; i < copies.size(); ++i) {
+    if (copies[i].module == reported) reported_index = i + 1;
+  }
+  const CopyNames names = copy_names(reported);
+  status("grace_copies frame=%llu copies=%zu reported=%zu%s copy_notices=%u copy_logs=%u copy_tone=%u copy_notice=%s",
+         static_cast<unsigned long long>(frame), copies.size(), reported_index, line.c_str(), names.notices,
+         names.logs, names.tone, names.notice.c_str());
+}
+
+// --- The chat box's pad chord (--pad-chord-at; GraceUI D204) ---------------------------------------------------------
+constexpr std::uint32_t kPadUp = 0x0001;    // XINPUT_GAMEPAD_DPAD_UP
+constexpr std::uint32_t kPadView = 0x0020;  // XINPUT_GAMEPAD_BACK
+constexpr std::uint32_t kPadPacket = 40;    // the pad's own packet number, which these reads never change
+constexpr double kChordAnchorS = 0.25;      // Up alone (GraceUI holds the key back 150 ms after the anchor at least)
+constexpr double kChordBothS = 0.65;        // then both (400 ms complete the chord)
+
+using PadReadFn = uint32_t (*)(uint32_t, uint32_t, uint32_t*);  // graceui_test.h's GraceUI_Test_PadRead
+
+struct ChordRun {
+  bool on = false;
+  PadReadFn pad_read = nullptr;
+  std::uint64_t frame = 0;  // the frame it began at
+  double started = 0.0;
+  std::uint32_t reads = 0;
+  std::uint32_t up_seen = 0;      // reads in which the game saw Up
+  std::uint32_t view_seen = 0;    // ... View
+  std::uint32_t view_reads = 0;   // reads with View down on the pad
+  std::uint32_t packets = 0;      // reads whose packet number GraceUI changed
+};
+ChordRun g_chord;
+
+double seconds_now() {
+  LARGE_INTEGER f{}, c{};
+  QueryPerformanceFrequency(&f);
+  QueryPerformanceCounter(&c);
+  return f.QuadPart == 0 ? 0.0 : static_cast<double>(c.QuadPart) / static_cast<double>(f.QuadPart);
 }
 
 }  // namespace
@@ -344,7 +499,8 @@ void grace_lan() {
 }
 
 void grace_report(std::uint64_t frame) {
-  HMODULE grace = GetModuleHandleW(L"graceui.dll");
+  HMODULE grace = reported_copy();
+  report_copies(frame, grace);
   const auto get_state = export_of<uint32_t (*)(GraceUiTestState*)>(grace, "GraceUI_Test_GetState");
   const auto get_consumer = export_of<uint32_t (*)(uint32_t, GraceUiTestConsumer*)>(grace, "GraceUI_Test_GetConsumer");
   const auto get_notice = export_of<uint32_t (*)(uint32_t, GraceUiTestNotice*)>(grace, "GraceUI_Test_GetNotice");
@@ -457,6 +613,82 @@ void grace_report(std::uint64_t frame) {
          input.window_filter, static_cast<unsigned long long>(st.presents),
          input.holder_owner == 0 ? 0u : input.holder_owner == owner ? 2u : 1u, input.holder_kind, input.closes,
          input.last_close_reason, game_keys(), game_chars(), menu_part, server_part, shows_part, pairing_part, tail);
+}
+
+void grace_copy(std::uint64_t frame) {
+  // Another mod's private copy: the first copy loaded that is not the game's own GraceUI\graceui.dll. Asked for ABI 1's
+  // table as that mod would ask it (an idle copy answers null, D72); the mod then connects once, to that table if it
+  // answered, else to the GraceUI graceui-sys finds (by name, then its scan), as the other mod of --grace-take-pause.
+  static bool connected = false;
+  const std::vector<GraceCopy> copies = grace_copies();
+  const GraceCopy* own = nullptr;
+  for (const GraceCopy& c : copies) {
+    if (own == nullptr && lstrcmpiA(c.name.c_str(), "GraceUI\\graceui.dll") != 0) own = &c;
+  }
+  if (own == nullptr) {
+    status("grace_copy frame=%llu found=0 copies=%zu", static_cast<unsigned long long>(frame), copies.size());
+    return;
+  }
+  const auto request = export_of<GraceUiRequestApiFn>(own->module, "GraceUI_RequestApi");
+  const void* table = request != nullptr ? request(GRACEUI_ABI_MAJOR) : nullptr;
+  const char* look = "none";
+  char connect[16] = "none";  // the connection's status, where this ask made one
+  if (!connected) {
+    GraceUiSysFound found{};
+    found.size = sizeof found;
+    const GraceUiApi1* api = static_cast<const GraceUiApi1*>(table);
+    look = "own";
+    if (api == nullptr) {
+      api = graceui_sys_find_once(0, &found);
+      look = found.how == GRACEUI_SYS_BY_NAME ? "name" : found.how == GRACEUI_SYS_BY_SCAN ? "scan" : "none";
+    }
+    const graceui::Api grace(api);
+    GraceUiConnectAnswer answer{};
+    const graceui::Mod mod{"fakegame-other", "Another mod", GRACEUI_VERSION_PACK(1, 0, 0), 0, "notices"};
+    const GraceUiStatus st = grace ? grace.connect(mod, answer) : GRACEUI_NOT_CONNECTED;
+    connected = st == GRACEUI_OK;
+    std::snprintf(connect, sizeof connect, "%u", st);
+  }
+  status("grace_copy frame=%llu found=1 name=%s table=%d look=%s connect=%s copies=%zu",
+         static_cast<unsigned long long>(frame), own->name.c_str(), table != nullptr ? 1 : 0, look, connect,
+         copies.size());
+}
+
+void pad_chord_frame(std::uint64_t frame) {
+  const Options& o = options();
+  if (!g_chord.on) {
+    bool starts = false;
+    for (const std::uint64_t at : o.pad_chord_at) starts = starts || at == frame;
+    if (!starts) return;
+    g_chord = ChordRun{};
+    g_chord.on = true;
+    g_chord.frame = frame;
+    g_chord.started = seconds_now();
+    g_chord.pad_read = export_of<PadReadFn>(reported_copy(), "GraceUI_Test_PadRead");
+    if (g_chord.pad_read == nullptr) {
+      status("pad_chord frame=%llu found=0", static_cast<unsigned long long>(frame));
+      g_chord.on = false;
+      return;
+    }
+  }
+  // One read a frame, as a game reads XInput once a frame: Up alone, then Up and View, then neither, which ends it.
+  const double elapsed = seconds_now() - g_chord.started;
+  const std::uint32_t buttons = elapsed < kChordAnchorS                ? kPadUp
+                                : elapsed < kChordAnchorS + kChordBothS ? kPadUp | kPadView
+                                                                         : 0u;
+  std::uint32_t packet = kPadPacket;
+  const std::uint32_t seen = g_chord.pad_read(0, buttons, &packet);
+  ++g_chord.reads;
+  g_chord.up_seen += (seen & kPadUp) != 0 ? 1u : 0u;
+  g_chord.view_seen += (seen & kPadView) != 0 ? 1u : 0u;
+  g_chord.view_reads += (buttons & kPadView) != 0 ? 1u : 0u;
+  g_chord.packets += packet != kPadPacket ? 1u : 0u;
+  if (buttons == 0) {
+    status("pad_chord frame=%llu end_frame=%llu reads=%u view_reads=%u up_seen=%u view_seen=%u packets=%u ms=%.0f",
+           static_cast<unsigned long long>(g_chord.frame), static_cast<unsigned long long>(frame), g_chord.reads,
+           g_chord.view_reads, g_chord.up_seen, g_chord.view_seen, g_chord.packets, elapsed * 1000.0);
+    g_chord.on = false;
+  }
 }
 
 }  // namespace fakegame

@@ -48,6 +48,9 @@ offset, enum value and number is invented here, shaped only by what the design d
 | `--press-keys F:KEY,…`: one of GraceUI's menu keys (`f5`, `next`, `prior`, `up`, `down`, `left`, `right`, `return`, `escape`) pressed and released into the window at each frame listed, as F11 is | The player in GraceUI's menu (F5, D167, D171) |
 | `--grace-take-pause`: at boot, before the window, the GraceUI already loaded (the launcher's `--also`) found by its name through graceui-sys, a connection as `fakegame-other` with the `hotkeys` cap, and Pause registered as its hotkey; one `FAKEGAME grace_other found=… connect=… hotkey=… id=…` line | Another mod that took Pause in GraceUI first, so that EldenNet's Mark registers unbound (GraceUI D164) |
 | `--grace-lan`: at boot, the GraceUI already loaded (the launcher's `--also`) given 127.0.0.2 alone as its home listener's address (its test build's `GraceUI_Test_SetNetworkAddresses`), before any mod registers pages; one `FAKEGAME grace_lan found=… set=…` line; each `--grace-report` then names the pairing sheet's code while one shows (`pairing=`) | A PC on a home network, for a device paired at home (GraceUI's G9), never a real address of the machine |
+| `--grace-copy-at F,F…` (0: at boot, before the window), with a second copy of GraceUI that the launcher's `--also` loaded from a folder other than the game's `GraceUI`: at each frame listed, the first copy loaded that is not `GraceUI\graceui.dll` asked for ABI 1's table (`GraceUI_RequestApi`), then one connection as `fakegame-other` to the table that answered, else to the GraceUI graceui-sys finds; one `FAKEGAME grace_copy name=… table=… look=own\|name\|scan connect=…` line each. Where more than one copy is loaded, each `--grace-report` adds a `grace_copies` line: each copy in load order (`c1`, `c2`: its name relative to the game's folder, its host state, init threads, hook installs, hooks, mods connected and copies named) and the reported copy's notices and kept log lines that name another copy; the report reads the copy named `graceui.dll` unless it idles, and then the first copy that does not | Another mod that carries a private copy of GraceUI (GraceUI's D72, D83 and invariant 18) |
+| `--pad-chord-at F,F…`: from each frame listed, one read of pad 0 a frame through a test build's XInput filter (`GraceUI_Test_PadRead`): D-pad Up alone for 250 ms, then with View (XInput's BACK) for 650 ms, then neither; one `FAKEGAME pad_chord frame=… reads=… view_reads=… up_seen=… view_seen=… packets=…` line of what the game was given | The player pressing the chat box's pad chord (GraceUI D204), as a game reads XInput once a frame; Wine has no pad |
+| `--lock-on-at F[,G]`: in the world the player locked on to the first NPC from frame F (until frame G); one `lock_on` line at each change | The player locking on to a target, which EldenNet's world-state provider claims as danger in v0.1 |
 | `vehprobe.dll`: `VEHPROBE_MODE=pass\|swallow\|off`, `VEHPROBE_FIRST`, `VEHPROBE_EXIT`, `VEHPROBE_LOG` | A crash reporter's vectored handler that passes faults on, or ends the process at the first (S0-D, ARCH §6.5) |
 
 The version resource is invented too: FileVersion 3.14.15.0 (the fourth field 0: "ww"), ProductName
@@ -194,6 +197,25 @@ read groups, Compatibility, the logs stream from its first line, the settings) a
 one value refused, a page's reset refused without its confirmation. settings.toml then holds both changes, written
 once by T11. The banner path's case also checks that EldenNet's space is registered for the game's view alone there,
 so GraceUI's server does not start for it.
+
+v0.1's coexistence check (S10.3.d) and the chat box's last parts against GraceUI's test build (S11.4.c) have four
+cases. `launcher-eldennet-graceui-second-copy` and `-second-copy-first`: a second copy of the same test build in
+another mod's folder beside the game (`OtherMod\GraceUI\`), loaded by the launcher's `--also` after the game's own, and
+asked for its table by the fake game standing in for that mod (`--grace-copy-at`), which then connects to the GraceUI
+that answers; on the banner path, as `-before`. Asked after EldenNet (the game's order), that copy answers null each
+time, idles with no thread and no hook, and is named once in GraceUI's own notice and its log, while EldenNet stays on
+the game's copy with its banner and F11's view; asked at boot before EldenNet, that copy is the active one, the game's
+copy idles once EldenNet asks it, and EldenNet's look finds the active one. Which way graceui-sys found it (by name or
+by its scan) is left open, since Windows may answer `GetModuleHandleW` with another copy than Wine does; the mods each
+copy holds tell that EldenNet is on the active one. Both check that the active copy's hooks stay as they were and the
+idle copy has none (a test build with GraceUI's `GraceUI_Test_GetHookLead`, from 0.2.35, can name the module each hook
+leads into). With the other mod's connection, they are also two mods connected each way round.
+`launcher-eldennet-graceui-talk-chord`: the talk hotkey's pad chord read through GraceUI's XInput filter
+(`--pad-chord-at`) opens the chat box with no key pressed, the game seeing the anchor and never View; a line typed and
+sent, none of it the game's; Esc closes the box. `launcher-eldennet-graceui-talk-danger`: the box open with a draft,
+the player locks on (`--lock-on-at`), which EldenNet claims as danger, and GraceUI ends the box's holder at once
+(danger, which EldenNet takes as input lost and keeps the draft, while its own conversation's rules do not count a
+lock-on); nothing typed reaches the game, and once the lock-on ends T gives the draft back, which is sent.
 
 The derivation's offline round (part 3) joined it so: `probe-exe`, `probe-exe-slots` and `probe-exe-lint` run the
 Windows `eldennet-engine.exe` under Wine on `fakegame.exe` with `derive-leads.toml` (the fake game's own names under our

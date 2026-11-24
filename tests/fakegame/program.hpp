@@ -117,6 +117,20 @@ struct Options {
   };
   std::vector<Typed> type_at;
   std::vector<std::uint64_t> grace_report_at;
+  // v0.1's coexistence check (S10.3.d) and the chat box against GraceUI's test build (S11.4.c):
+  // --grace-copy-at F,F... stands in for another mod that carries a private copy of GraceUI (one the launcher's --also
+  // loaded from a folder other than the game's GraceUI): at each frame listed (0: at boot, before the window) it asks
+  // that copy for ABI 1's table, as such a mod would, and connects once, to the table that answered, else to the
+  // GraceUI graceui-sys finds; one `grace_copy` line each. Each --grace-report then adds a `grace_copies` line of every
+  // copy loaded, wherever there is more than one.
+  // --pad-chord-at F,F... presses the chat box's pad chord (D-pad Up, then View: GraceUI D204) from each frame listed,
+  // one read of pad 0 a frame through the test build's XInput filter (GraceUI_Test_PadRead; Wine has no pad): Up alone
+  // for 250 ms, then both for 650 ms, then neither; one `pad_chord` line of what the game read.
+  // --lock-on-at F[,G]: in the world the player locks on to the first NPC from frame F (until frame G): what EldenNet's
+  // world-state provider claims as danger in v0.1 (en-overlay's world.hpp), while its conversation's own rules do not.
+  std::vector<std::uint64_t> grace_copy_at;
+  std::vector<std::uint64_t> pad_chord_at;
+  std::vector<std::uint64_t> lock_on_at;
   struct Probe {
     std::uint32_t rect[4] = {0, 0, 0, 0};  // x0, y0, x1, y1 in the back buffer's pixels
     std::uint32_t colour[3] = {0, 0, 0};
@@ -149,6 +163,10 @@ void grace_report(std::uint64_t frame);
 void grace_take_pause();
 // --grace-lan: GraceUI's network listener on 127.0.0.2 alone, with one status line.
 void grace_lan();
+// --grace-copy-at: another mod's private copy of GraceUI asked for its table, and the mod's connection, with one line.
+void grace_copy(std::uint64_t frame);
+// --pad-chord-at: called every frame; reads pad 0 through GraceUI's filter while a chord is being pressed.
+void pad_chord_frame(std::uint64_t frame);
 
 // Parses the command line. On an error, writes the reason to `error` and answers false.
 bool parse_options(int argc, wchar_t** argv, Options& out, std::string& error);

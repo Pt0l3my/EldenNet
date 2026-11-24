@@ -387,6 +387,15 @@ bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
       }
     }
     else if (n == L"--grace-report") ok = p.numbers(o.grace_report_at);
+    else if (n == L"--grace-copy-at") ok = p.numbers(o.grace_copy_at);
+    else if (n == L"--pad-chord-at") ok = p.numbers(o.pad_chord_at);
+    else if (n == L"--lock-on-at") {
+      ok = p.numbers(o.lock_on_at);
+      if (ok && (o.lock_on_at.size() > 2 || (o.lock_on_at.size() == 2 && o.lock_on_at[1] <= o.lock_on_at[0]))) {
+        error = "--lock-on-at is F or F,G with G after F";
+        ok = false;
+      }
+    }
     else if (n == L"--grace-probe") {
       std::vector<std::uint32_t> v;
       ok = p.numbers(v);
@@ -495,7 +504,7 @@ void print_usage() {
       "  --selftest-object-size N  --selftest-group N  --press-pause-at F  --status-file PATH  --exit-code N",
       "  --d3d12  --press-f11-at F,F...  --grace-report F,F...  --grace-probe x0,y0,x1,y1,r,g,b[,tol] (up to 3 times)",
       "  --grace-take-pause  --grace-lan  --press-keys F:f5|next|prior|up|down|left|right|return|escape|t|tab|f11,...",
-      "  --calm  --type-at F:TEXT,...",
+      "  --calm  --type-at F:TEXT,...  --grace-copy-at F,...  --pad-chord-at F,...  --lock-on-at F[,G]",
       "  --describe  --verbose"};
   for (const char* line : kUsage) status("usage %s", line);
 }
@@ -519,6 +528,9 @@ int run(HINSTANCE instance) {
   load_dlls(LoadMoment::Boot);
   if (o.grace_take_pause) grace_take_pause();
   if (o.grace_lan) grace_lan();
+  for (const std::uint64_t at : o.grace_copy_at) {
+    if (at == 0) grace_copy(0);  // at boot, before the window: before EldenNet asks for GraceUI
+  }
   if (o.selftest_task) selftest_start(g_game_thread);
   if (o.game_filter) install_game_filter();
   if (o.boot_delay_ms != 0) Sleep(o.boot_delay_ms);
@@ -588,6 +600,10 @@ int run(HINSTANCE instance) {
     for (const Options::Typed& t : o.type_at) {
       if (t.frame == frame && window != nullptr) type_into(window, t.text);
     }
+    for (const std::uint64_t at : o.grace_copy_at) {
+      if (at == frame) grace_copy(frame);
+    }
+    if (!o.pad_chord_at.empty()) pad_chord_frame(frame);
     if (o.crash != Crash::None && frame == o.crash_at) {
       if (o.crash_on_worker) {
         crash_on_worker(o.crash);

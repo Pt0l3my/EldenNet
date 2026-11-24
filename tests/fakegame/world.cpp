@@ -723,6 +723,16 @@ void FG::MotionTask::run(const FrameInfo* frame) {
     p[1] = pp[1];
     p[2] = pp[2] + m.radius * std::sin(m.angle);
   }
+  // --lock-on-at F[,G]: the player locked on to the first NPC from frame F, until frame G; a line at each change.
+  if (!o.lock_on_at.empty()) {
+    const bool on = !w.npcs.empty() && frame->frame >= o.lock_on_at[0] &&
+                    (o.lock_on_at.size() < 2 || frame->frame < o.lock_on_at[1]);
+    const std::uint64_t target = on ? w.npcs.front()->a.handle : 0;
+    if (w.player->p.locked_on != target) {
+      w.player->p.locked_on = target;
+      fakegame::status("lock_on frame=%llu on=%d", static_cast<unsigned long long>(frame->frame), on ? 1 : 0);
+    }
+  }
   fakegame::rebuild_near();
 }
 
