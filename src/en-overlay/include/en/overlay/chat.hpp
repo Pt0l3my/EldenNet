@@ -41,6 +41,7 @@ inline constexpr std::string_view kNameSkip = "Skip the page";
 // The chat box's pad chord (NPC §5.6, O11; GraceUI D204): D-pad Up, the anchor, then View (XInput's BACK).
 inline constexpr std::uint32_t kTalkChord = GRACEUI_PAD_CHORD(0x0001u, 0x0020u);
 inline constexpr float kSerifDesignPx = 30.0f;  // EldenNet's serif face, baked for the page's text (the rest scale down)
+                                                // and its italic, at the same size, for the Tarnished's lines
 inline constexpr float kSansDesignPx = 18.0f;   // its sans face: the box's header and the hint
 
 // The box's input line, on its own headless Dear ImGui context (GraceUI §31 item 3): fed one holder event at a time,
@@ -80,7 +81,8 @@ class Editor {
 // What the surfaces registered at connect, for the log.
 struct SurfacesReport {
   const char* state = "off";  // "ready", "no_caps", "texture", "hotkey"
-  std::uint32_t faces = 0;    // EldenNet's faces registered (0 to 2)
+  std::uint32_t faces = 0;    // EldenNet's faces registered (0 to 3)
+  bool italic = false;        // the italic among them (GraceUI's folder has it from 0.2.36)
   GraceUiStatus face_status = GRACEUI_NOT_YET;  // the last register_face's answer (too_late after GraceUI's warm-up)
   const char* talk = "off";   // "bound", "unbound"
   const char* chord = "off";  // "asked" (with the key), "no_cap", "refused"
@@ -92,6 +94,7 @@ class Surfaces {
   struct Fonts {
     std::span<const unsigned char> serif;  // GraceUI's own EB Garamond Regular, as the DLL read it from GraceUI's folder
     std::span<const unsigned char> sans;   // GraceUI's own Noto Sans Regular
+    std::span<const unsigned char> italic;  // GraceUI's own EB Garamond Italic (0.2.36, D241); empty below it
   };
   // On T1 at connect, before any submit: null when the caps it needs are missing or a step fails (`report` says why).
   [[nodiscard]] static std::unique_ptr<Surfaces> make(const graceui::Api& api, GraceUiConsumer me, const Fonts& fonts,
@@ -154,6 +157,7 @@ class Surfaces {
   std::uint64_t white_ = 0;
   std::uint32_t serif_face_ = 0;
   std::uint32_t sans_face_ = 0;
+  std::uint32_t italic_face_ = 0;  // 0: none, and the Tarnished's lines are drawn upright
   surfaces::Faces faces_;
   std::uint32_t talk_ = 0;
   std::uint32_t skip_ = 0;

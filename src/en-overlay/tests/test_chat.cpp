@@ -23,12 +23,15 @@ namespace {
 
 const std::vector<unsigned char> kSerif(64, 0x5A);  // invented bytes: the fake reads no font
 const std::vector<unsigned char> kSans(48, 0x5B);
+const std::vector<unsigned char> kItalic(56, 0x5C);
 
-Options options(bool fonts = true) {
+// GraceUI's fonts as the DLL reads them: from 0.2.36 its folder holds EB Garamond Italic too (D241).
+Options options(bool fonts = true, bool italic = true) {
   Options o;
   o.version = {0, 2, 0};
   o.surfaces = true;
-  if (fonts) o.fonts = Surfaces::Fonts{kSerif, kSans};
+  if (fonts) o.fonts = Surfaces::Fonts{kSerif, kSans, kItalic};
+  if (!italic) o.fonts.italic = {};
   return o;
 }
 
@@ -102,13 +105,18 @@ TEST_CASE("chat: connect registers the surfaces' texture, faces, hotkeys and wai
   CHECK(std::string(r.surfaces.state) == "ready");
   CHECK(g.textures.size() == 1);  // the white texture, in the registration window
   CHECK_FALSE(g.window_closed);
-  // Both faces, GraceUI's own files as the DLL read them, scaled, before warm-up (eldennet-changes §33).
-  REQUIRE(g.faces.size() == 2);
-  CHECK(r.surfaces.faces == 2);
+  // The three faces, GraceUI's own files as the DLL read them, scaled, before warm-up (eldennet-changes §33, §69): the
+  // serif, the sans and the serif's italic, at the serif's size (the Tarnished's lines scale down from it).
+  REQUIRE(g.faces.size() == 3);
+  CHECK(r.surfaces.faces == 3);
+  CHECK(r.surfaces.italic);
   CHECK(g.faces[0].pixel_height == 30);
   CHECK(g.faces[0].flags == GRACEUI_FACE_SCALED);
   CHECK(g.faces[0].bytes == kSerif.size());
   CHECK(g.faces[1].pixel_height == 18);
+  CHECK(g.faces[2].pixel_height == 30);
+  CHECK(g.faces[2].flags == GRACEUI_FACE_SCALED);
+  CHECK(g.faces[2].bytes == kItalic.size());
   // The hotkeys by their stable ids and players' names (§48): talk on T with the pad chord, D-pad Up then View (§47),
   // and skip on Tab.
   REQUIRE(g.hotkeys.size() == 2);
@@ -135,8 +143,9 @@ TEST_CASE("chat: faces after warm-up are too late, and the surfaces draw GraceUI
   auto o = connect(g, options(), r);
   REQUIRE(o != nullptr);
   CHECK(r.surfaces.faces == 0);
+  CHECK_FALSE(r.surfaces.italic);
   CHECK(r.surfaces.face_status == GRACEUI_TOO_LATE);
-  CHECK(g.faces_too_late == 2);
+  CHECK(g.faces_too_late == 3);
   g.display();
   (void)o->step(status(), nullptr, nullptr, 1000);
   proto::UiModel m;
@@ -147,6 +156,35 @@ TEST_CASE("chat: faces after warm-up are too late, and the surfaces draw GraceUI
   bool shown = false;
   for (const auto& [id, p] : g.panels) shown = shown || (p.shown && p.lists == 1);
   CHECK(shown);  // the hint, drawn from face 1's glyphs
+}
+
+TEST_CASE("chat: the italic face read for each show where GraceUI's folder has it; none registered below 0.2.36") {
+  // With it (GraceUI 0.2.36, D241): its glyph table read with the serif's for each show that draws, so that the box
+  // draws the Tarnished's lines with it (surfaces.hpp's Faces::tarnished; test_surfaces.cpp checks the quads).
+  constexpr std::uint32_t kItalicFace = 18;  // the fake's ids: the mod's faces from 16, in registration order
+  {
+    Session s;
+    s.open();
+    CHECK(s.g.glyph_tables_of[kItalicFace] >= 1);
+    CHECK(s.g.refused_lists == 0);
+  }
+  // Without the file (an older GraceUI): two faces, no third asked for, and the box drawn all the same.
+  fake::Grace g;
+  Report r;
+  auto o = connect(g, options(true, false), r);
+  REQUIRE(o != nullptr);
+  CHECK(std::string(r.surfaces.state) == "ready");
+  CHECK(g.faces.size() == 2);
+  CHECK(r.surfaces.faces == 2);
+  CHECK_FALSE(r.surfaces.italic);
+  g.warm_up();
+  (void)o->step(status(), nullptr, nullptr, 10'000);
+  proto::UiModel m = open_box();
+  m.chat.history = {{proto::HistoryLine::Who::Tarnished, "", "Good evening.", false}};
+  CHECK(o->show(m, 10'000).empty());
+  CHECK(g.holding);
+  CHECK(g.refused_lists == 0);
+  CHECK(g.glyph_tables_of.count(kItalicFace) == 0);
 }
 
 TEST_CASE("chat: older GraceUIs: no chord without the cap, and no surfaces without the holder's events") {

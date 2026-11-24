@@ -372,10 +372,12 @@ void apply_changes(Shell& s, SpaceState& st, std::uint64_t now) {
 }
 
 // GraceUI's own font files, from the folder its graceui.dll was loaded from (Game\GraceUI\fonts\): the surfaces'
-// faces are GraceUI's (WHY§364 (2)), registered by EldenNet as its scaled faces. Empty where GraceUI ships none.
+// faces are GraceUI's (WHY§364 (2)), registered by EldenNet as its scaled faces. Empty where GraceUI ships none: the
+// italic below GraceUI 0.2.36 (D241), when the Tarnished's lines are drawn upright.
 struct GraceFonts {
   std::string serif;
   std::string sans;
+  std::string italic;
 };
 GraceFonts grace_fonts() {
   GraceFonts f;
@@ -390,6 +392,7 @@ GraceFonts grace_fonts() {
   folder.resize(at);
   f.serif = read_text(folder + L"\\fonts\\EBGaramond-Regular.ttf", GRACEUI_FACE_BYTES_MAX).value_or(std::string());
   f.sans = read_text(folder + L"\\fonts\\NotoSans-Regular.ttf", GRACEUI_FACE_BYTES_MAX).value_or(std::string());
+  f.italic = read_text(folder + L"\\fonts\\EBGaramond-Italic.ttf", GRACEUI_FACE_BYTES_MAX).value_or(std::string());
   return f;
 }
 
@@ -441,7 +444,7 @@ void connect_overlay(Shell& s, bool banner_path) noexcept {
     if (!banner_path && found.api) {
       options.surfaces = true;
       fonts = grace_fonts();
-      options.fonts = en::overlay::Surfaces::Fonts{bytes_of(fonts.serif), bytes_of(fonts.sans)};
+      options.fonts = en::overlay::Surfaces::Fonts{bytes_of(fonts.serif), bytes_of(fonts.sans), bytes_of(fonts.italic)};
     }
     en::overlay::Report r;
     en::overlay::Overlay* o = en::overlay::Overlay::connect(found.api, options, r);
@@ -456,7 +459,8 @@ void connect_overlay(Shell& s, bool banner_path) noexcept {
     if (options.surfaces) {
       const en::overlay::SurfacesReport& sr = r.surfaces;
       log(Line("surfaces").word("state", sr.state).num("faces", sr.faces).num("face_status", sr.face_status)
-              .flag("fonts", !fonts.serif.empty()).word("talk", sr.talk).word("chord", sr.chord).flag("wake", sr.wake),
+              .flag("fonts", !fonts.serif.empty()).flag("italic", sr.italic).word("talk", sr.talk)
+              .word("chord", sr.chord).flag("wake", sr.wake),
           std::string_view(sr.state) == "ready" ? LogLevel::Info : LogLevel::Warn);
     }
     // F11 taken first (D164): the view is made, but nothing opens it until the player binds its hotkey in GraceUI.

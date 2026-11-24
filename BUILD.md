@@ -135,10 +135,11 @@ cmake --build build-cl
   ```
 
   Every Windows build of GraceUI lays out its `GraceUI` folder beside `bin` (GraceUI D165): `graceui.dll` (here with its
-  test exports), `LICENSE.txt`, `NOTICE.txt` and the `graceui.toml` that GraceUI's `tools/release/manifest.py` writes of
-  them. Each case installs that folder as it is, so the launcher's pre-flight checks GraceUI's own version file; it
-  holds no fonts yet, so GraceUI's notices use Dear ImGui's own font. Without `EN_GRACEUI_DIR` (or with a folder that
-  holds no `graceui.dll` and `graceui.toml`) they are left out, with a line saying so. They need Mesa's lavapipe
+  test exports), `LICENSE.txt`, `NOTICE.txt`, the `fonts` folder (GraceUI's faces, of which EldenNet's surfaces
+  register EB Garamond Regular, Noto Sans Regular and, from GraceUI 0.2.36, EB Garamond Italic) and the `graceui.toml`
+  that GraceUI's `tools/release/manifest.py` writes of them all. Each case installs that folder as it is, so the
+  launcher's pre-flight checks GraceUI's own version file. Without `EN_GRACEUI_DIR` (or with a folder that holds no
+  `graceui.dll` and `graceui.toml`) they are left out, with a line saying so. They need Mesa's lavapipe
   (`mesa-vulkan-drivers`) for Wine's Direct3D 12, as GraceUI's harness does. Build GraceUI at the commit
   third_party/graceui-sys comes from (3ea17b6, GraceUI 0.2.38), so the space and the surfaces meet the checks they will
   meet. The page lint and the preview are pinned to the same commit (`tests/pages/lint.py`): the page data is protocol

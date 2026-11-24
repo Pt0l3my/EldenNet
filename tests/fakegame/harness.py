@@ -2393,8 +2393,13 @@ def check_talk(r):
         server.close()
     failures = []
     version, _ = graceui_version(r)
+    # GraceUI's own faces as EldenNet's: EB Garamond and Noto Sans and, where GraceUI's folder has it (0.2.36, D241),
+    # EB Garamond Italic for the Tarnished's lines.
+    italic = tuple(int(n) for n in version.split(".")) >= (0, 2, 36)
     failures += check_lines(("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main", "graceui": version}),
-                            ("ELDENNET", "surfaces", {"state": "ready", "talk": "bound", "chord": "asked", "wake": 1}),
+                            ("ELDENNET", "surfaces", {"state": "ready", "faces": 3 if italic else 2,
+                                                      "italic": int(italic), "talk": "bound", "chord": "asked",
+                                                      "wake": 1}),
                             ("ELDENNET", "realm", {"asked": "eval", "accepted": 1}),
                             ("ELDENNET", "content", {"overrides": 1, "files": 1, "realm": "eval"}),
                             ("ELDENNET", "content_load", {"ok": 1, "personas": 1, "bound": 1}),

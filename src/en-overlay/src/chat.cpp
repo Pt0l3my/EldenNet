@@ -207,6 +207,8 @@ std::unique_ptr<Surfaces> Surfaces::make(const graceui::Api& api, GraceUiConsume
   };
   face(fonts.serif, kSerifDesignPx, s->serif_face_);
   face(fonts.sans, kSansDesignPx, s->sans_face_);
+  face(fonts.italic, kSerifDesignPx, s->italic_face_);  // the third of the eight a mod may register (D139)
+  report.italic = s->italic_face_ != 0;
   // The hotkeys (§48, §49): stable action ids, players' names; the chord with the talk key where GraceUI has chords.
   const GraceUiApi1* t = api.table();
   GraceUiHotkeyDesc talk{};
@@ -436,6 +438,11 @@ bool Surfaces::faces() {
   // Read each show: a table is GraceUI's, valid while its generation is current, and a list names the generation.
   const bool serif = read(serif_face_, faces_.serif);
   const bool sans = read(sans_face_, faces_.sans);
+  // The italic has no stand-in: without its own table the Tarnished's lines take the serif's (Faces::tarnished).
+  GraceUiGlyphTable t{};
+  faces_.italic = italic_face_ != 0 && api_.glyph_table(me_, italic_face_, t) == GRACEUI_OK && t.glyph_count != 0
+                      ? surfaces::Face::of(t)
+                      : surfaces::Face{};
   return serif && sans && faces_.usable();
 }
 

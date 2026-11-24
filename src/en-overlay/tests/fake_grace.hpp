@@ -78,6 +78,7 @@ struct Grace {
   std::uint32_t faces_too_late = 0;
   bool warmed = false;              // the atlas baked: faces too late, glyph tables ready
   std::uint32_t glyph_tables = 0;   // glyph_table calls answered ok
+  std::map<std::uint32_t, std::uint32_t> glyph_tables_of;  // the same, by face id
   // Input (D77, D176).
   std::uint32_t requests = 0;
   GraceUiInputRequest last_request{};

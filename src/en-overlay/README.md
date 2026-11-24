@@ -82,19 +82,25 @@ The view takes no input (D142): F11 shows it and hides it.
   Dear ImGui's vertex layout, 16-bit indices, a command per texture and clip, within ABI 1's bounds). The text is
   GraceUI's faces only: each glyph's quad from a glyph table, emitted on the shared atlas's texture id and scaled from
   the size GraceUI baked it at to the surface's size at the content scale (NPC §10.1's sizes at 1080 lines); solid
-  shapes on a 4 by 4 white texture of EldenNet's own. The lower third (a name line in gold, upper case, +0.08 em, and
-  two wrapped lines, with a shadow; the card's "…"), the box (its header "Speak to … — heard by: …", the history
-  strip's newest lines, a waiting line greyed, the input with its selection and caret, scrolled so the caret shows, or
-  the strip alone), and the hint ("[T] Speak — …", its key boxed in the words describe_hotkey gives, under the
+  shapes on a 4 by 4 white texture of EldenNet's own, the box's ground and frame and the hint's key box with rounded
+  corners (GraceUI's own radii from its token file, a card's 4 px and a control's 2 px, scaled: a fan of points a
+  corner and a half-pixel fringe each side fading to nothing, as Dear ImGui's anti-aliased shapes; the sides cover the
+  pixels a square rectangle does). The lower third (a name line in gold, upper case, +0.08 em, and two wrapped lines,
+  with a shadow; the card's "…"; no ground, as NPC §10.1 has it), the box (its header "Speak to … — heard by: …", the
+  history strip's newest lines, the Tarnished's in EB Garamond Italic where GraceUI has it and upright otherwise, a
+  waiting line greyed, the input with its selection and caret, scrolled so the caret shows, or the strip alone), and
+  the hint ("[T] Speak — …", its key boxed in the words describe_hotkey gives, under the
   marker's diamond, at (0.50 W, 0.68 H): no render feed yet). The fades are stepped at T6's pace (120 ms in, a 120 ms
   cross-fade, 350 ms out), and a Speech page's first submitted frame, never transparent, is the one PageShown names
   (WHY§364 (3)). Toasts are GraceUI notices under EldenNet's keys 3 and 4, each id posted once and let go when the
   model no longer lists it. The box's input mapping: Enter and the pad's A send, Esc and the pad's B close, Tab skips,
   the rest goes to the editor; the holder's end by its reason; the opening key's own character within 100 ms
   swallowed (NPC §5.1).
-- **Through GraceUI, on T6** (`chat.hpp`, Windows): at connect, in the registration window, the white texture and two
+- **Through GraceUI, on T6** (`chat.hpp`, Windows): at connect, in the registration window, the white texture and
   GRACEUI_FACE_SCALED faces, GraceUI's own EB Garamond (30 px) and Noto Sans (18 px) as the DLL reads them from
-  GraceUI's folder (too late after warm-up: then GraceUI's notices' face); the hotkeys `talk` (T, with the pad chord
+  GraceUI's folder (too late after warm-up: then GraceUI's notices' face), and its EB Garamond Italic (30 px) where the
+  folder has it (GraceUI 0.2.36, D241; three of the eight faces EldenNet may register, D139; none below it, and the
+  Tarnished's lines are drawn upright); the hotkeys `talk` (T, with the pad chord
   D-pad Up then View behind `has_cap("pad-chords")`) and `skip-page` (Tab), named "Talk" and "Skip the page";
   `wake_event`'s handle behind `has_cap("wake")`. Then, from poll: the talk key opens (OpenChat), Tab skips, the
   display's event sizes the three panels (made for it, at most one set per display), and a hotkey changed is described
