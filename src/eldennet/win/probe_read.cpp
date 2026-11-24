@@ -1175,40 +1175,43 @@ class Round {
   // from the reader's own frames once the task's mark has come, and again at every report, so that a verdict may
   // still mend. The spans are the marks so far: 1 the stand, 2 the ride, 3 the death, 4 the last stand.
   void judge() {
-    if (plan_ != w::kPlanSheet || body_ == nullptr || backend_ == nullptr || marks_seen_ == 0) return;
-    const lodestar::WorldRead f = body_->world_read();
-    const auto by = [](const std::vector<std::uint32_t>& v, std::size_t span) {
-      return span < v.size() ? v[span] : 0u;
-    };
-    const auto at = [&](std::size_t span) { return span < f.at_marks.size() ? f.at_marks[span] : lodestar::WorldAt{}; };
     std::uint32_t word = 0;
-    const auto say = [&](std::uint32_t mark, bool ok) {
-      word = w::with_gathered(word, mark, ok ? w::kGathered : w::kNotGathered);
-    };
-    // The load: at its mark a save was loaded and the main player was there.
-    if (marks_seen_ >= 1 && by(f.calls_by, 1) != 0) say(1, at(1).loaded && at(1).player);
-    // The stand: the main player was there, and its position kept still.
-    if (marks_seen_ >= 2) say(2, by(f.player_by, 1) >= 5 && by(f.pos_frames_by, 1) >= 5 && by(f.pos_moved_by, 1) == 0);
-    // The ride: the position moved in a third of its seconds or more, and the block changed once at least.
-    if (marks_seen_ >= 3) {
-      const std::uint32_t moved = by(f.pos_moved_by, 2);
-      say(3, moved >= 5 && moved * 3 >= by(f.calls_by, 2) && by(f.self_block_changes_by, 2) >= 1);
-    }
-    // The death: the main player's health read nothing in some frame up to its mark, and it is back with health.
-    if (marks_seen_ >= 4 && by(f.calls_by, 4) != 0) {
-      std::uint32_t zero = 0;
-      for (std::size_t span = 0; span <= 3; ++span) zero += by(f.hp_zero_by, span);
-      say(4, zero != 0 && at(4).player && at(4).has_hp && at(4).hp != 0);
-    }
-    // The last stand: the main player was there, and the sheet scan made two passes or more in it.
-    if (marks_seen_ >= 5) {
-      std::uint32_t passes = 0;
-      if (sheet_ != nullptr) {
-        const lodestar::SheetFound sheet = sheet_->found();
-        passes = sheet.phase_passes.size() > 3 ? sheet.phase_passes[3] : 0;
+    if (plan_ == w::kPlanSheet && body_ != nullptr && backend_ != nullptr && marks_seen_ != 0) {
+      const lodestar::WorldRead f = body_->world_read();
+      const auto by = [](const std::vector<std::uint32_t>& v, std::size_t span) {
+        return span < v.size() ? v[span] : 0u;
+      };
+      const auto at = [&](std::size_t span) { return span < f.at_marks.size() ? f.at_marks[span] : lodestar::WorldAt{}; };
+      const auto say = [&](std::uint32_t mark, bool ok) {
+        word = w::with_gathered(word, mark, ok ? w::kGathered : w::kNotGathered);
+      };
+      // The load: at its mark a save was loaded and the main player was there.
+      if (marks_seen_ >= 1 && by(f.calls_by, 1) != 0) say(1, at(1).loaded && at(1).player);
+      // The stand: the main player was there, and its position kept still.
+      if (marks_seen_ >= 2) say(2, by(f.player_by, 1) >= 5 && by(f.pos_frames_by, 1) >= 5 && by(f.pos_moved_by, 1) == 0);
+      // The ride: the position moved in a third of its seconds or more, and the block changed once at least.
+      if (marks_seen_ >= 3) {
+        const std::uint32_t moved = by(f.pos_moved_by, 2);
+        say(3, moved >= 5 && moved * 3 >= by(f.calls_by, 2) && by(f.self_block_changes_by, 2) >= 1);
       }
-      say(5, by(f.player_by, 4) >= 5 && passes >= 2);
+      // The death: the main player's health read nothing in some frame up to its mark, and it is back with health.
+      if (marks_seen_ >= 4 && by(f.calls_by, 4) != 0) {
+        std::uint32_t zero = 0;
+        for (std::size_t span = 0; span <= 3; ++span) zero += by(f.hp_zero_by, span);
+        say(4, zero != 0 && at(4).player && at(4).has_hp && at(4).hp != 0);
+      }
+      // The last stand: the main player was there, and the sheet scan made two passes or more in it.
+      if (marks_seen_ >= 5) {
+        std::uint32_t passes = 0;
+        if (sheet_ != nullptr) {
+          const lodestar::SheetFound sheet = sheet_->found();
+          passes = sheet.phase_passes.size() > 3 ? sheet.phase_passes[3] : 0;
+        }
+        say(5, by(f.player_by, 4) >= 5 && passes >= 2);
+      }
     }
+    // Whatever the tasks gathered: a report the round could not write at its last try holds none of it.
+    if (report_failed_) word |= w::kGatherReportFailed;
     if (word == gathered_said_) return;
     gathered_said_ = word;
     block::probe_gathered(word);
@@ -2042,7 +2045,15 @@ class Round {
                 .flag("too_large", text.error().problem.find("larger") != std::string::npos),
             LogLevel::Error);
       }
-      if (!found_.watch && !found_.sweep && !found_.tree && !found_.backend && !found_.state) break;
+      // The sheet scan's numbers go last of all, half of the longer list at a time from its far end (the round is
+      // after them), and the list says that it was cut.
+      lodestar::SheetObject* cut = nullptr;
+      if (found_.sheet) {
+        for (lodestar::SheetObject& o : found_.sheet->objects) {
+          if (o.fields.size() > 64 && (cut == nullptr || o.fields.size() > cut->fields.size())) cut = &o;
+        }
+      }
+      if (!found_.watch && !found_.sweep && !found_.tree && !found_.backend && !found_.state && cut == nullptr) break;
       lodestar::WatchObject* most = nullptr;
       if (found_.watch) {
         const auto ahead = [&](const lodestar::WatchObject& a, const lodestar::WatchObject& b) {
@@ -2088,12 +2099,32 @@ class Round {
         found_.tree.reset();
       } else if (found_.backend) {
         found_.backend.reset();
-      } else {
+      } else if (found_.state) {
         found_.state.reset();
+      } else {
+        cut->fields.resize(cut->fields.size() / 2);
+        cut->cut = true;
+        log(Line("read").word("report", "sheet_cut").num("which", cut->which).num("numbers", cut->fields.size()),
+            LogLevel::Warn);
       }
       text = lodestar::write_report(found_);
     }
-    if (text) (void)write_text(folder_ + L"\\lodestar-found.json", *text);
+    // A report that could not be written, however small it was made, or that the file refused: said in the log
+    // (every thirtieth time, a minute apart) and to the launcher's panel, for the files then stand still while the
+    // round goes on (the twentieth round's two runs).
+    const bool wrote = text.has_value() && write_text(folder_ + L"\\lodestar-found.json", *text);
+    if (!wrote) {
+      if (report_failures_++ % 30 == 0) {
+        log(Line("read").word("report", "lost").num("failures", report_failures_).flag("written", text.has_value()),
+            LogLevel::Error);
+      }
+    } else if (report_failed_) {
+      log(Line("read").word("report", "back").num("failures", report_failures_));
+    }
+    if (report_failed_ != !wrote) {
+      report_failed_ = !wrote;
+      judge();
+    }
     const std::uint64_t placed = held_.named + found_.invariants.size();
     if (!table && placed == tabled_) return;
     tabled_ = placed;
@@ -2264,6 +2295,8 @@ class Round {
   std::uint32_t sheet_phase_said_ = 0;
   std::uint32_t gathered_said_ = 0;                 // the verdicts as last written for the launcher's panel
   bool marks_judged_ = true;                        // the newest mark's task has had its first verdict
+  bool report_failed_ = false;                      // the last report could not be written
+  std::uint64_t report_failures_ = 0;
   std::uint32_t survey_phase_said_ = 0;
   std::uint32_t survey_deaths_said_ = 0;
   std::size_t chars_looks_said_ = 0;                // looks whose end the log has told

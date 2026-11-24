@@ -215,6 +215,26 @@ TEST_CASE("report: the lint refuses every other kind of value or key outside the
   CHECK(problems(written() + "{}") == std::vector<std::string>{"is not JSON"});
   CHECK(problems("") == std::vector<std::string>{"is not JSON"});
   CHECK(problems(std::string(300 << 10, ' ')) == std::vector<std::string>{"is larger than 256 KiB"});
+  // A kind may say a larger limit of its own (1 MiB at most). A report of such a kind may be as large as that; one
+  // of a kind that says nothing is refused past 256 KiB even when it is read beside the larger kind.
+  {
+    static constexpr Vocabulary kLarge{"large", 1, kKeys, en::gal::report::kMaxLargeReportBytes};
+    const Vocabulary* both[] = {&kVocabulary, &kLarge};
+    const auto told = [&](const std::string& text) {
+      std::vector<std::string> out;
+      if (const auto r = lint(text, both); !r) {
+        for (const auto& p : r.error()) out.push_back(en::gal::report::describe(p));
+      }
+      return out;
+    };
+    const std::string padding(300 << 10, ' ');
+    CHECK(told("{\"report\": \"large\", \"schema\": 1" + padding + "}").empty());
+    CHECK(told("{\"report\": \"sample\", \"schema\": 1" + padding + "}") ==
+          std::vector<std::string>{"is larger than 256 KiB"});
+    CHECK(told(std::string((1 << 20) + 1, ' ')) == std::vector<std::string>{"is larger than 1024 KiB"});
+    CHECK(kLarge.max_bytes == std::size_t{1} << 20);
+    CHECK(kVocabulary.max_bytes == en::gal::report::kMaxReportBytes);
+  }
   std::string deep = "{\"report\": \"sample\", \"schema\": 1, \"part\": ";
   for (int i = 0; i < 20; ++i) deep += "{\"part\": ";
   deep += "{}";

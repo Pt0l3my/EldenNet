@@ -68,6 +68,14 @@ a dynamic initialiser or an exit-time destructor (ARCH §3.1, §1.7).
   and 720 bytes, a page's 116 chars and 180 bytes, a name's 48 bytes and a toast's 160) are constants beside them.
 - **The model client's health** (`llm.hpp`'s `NetHealth`): whether the dialogue slot has a model it can use now, as
   the shell reads it from en-llm's handle, for the core's ladder (ARCH §6.8); it names no provider, model or key.
+- **The model calls' record and Pause AI** (`calls.hpp`; PAGES §4.6.1, §4.6.2; D15, D18): `CallsView`, the rows
+  (`CallRow`: when it was sent, the slot, the purpose, the speaker as shown, the provider and model that answered, the
+  first token, the total, tokens in and out and a cost where reported, the attempts, the outcome, the error class and
+  HTTP status, and the displayed text once shown) newest first, 20 kept or 200 in developer mode, and `CallUsage`;
+  PAGES' words for the purposes and outcomes and ours for the error classes (`words`, `error_words`), the check on a
+  model id a row may show (`shown_model`, PV5), and Pause AI's reason and refusals in words. Plain data that en-core
+  builds and en-overlay's space publishes: never a prompt, an unshown answer, a key, a base URL or a server's message.
+  `Usage` carries `cost` (-1: not reported) since the record came.
 - **The JSON caps** (`json.hpp`, ARCH §10.2): `parse_json(text)` parses a JSON text only once it is at most 256 KB
   and nested at most 32 deep, both checked before nlohmann/json sees it (`within_depth` counts brackets outside
   strings, without parsing), and never throws for what the text holds. `read_json<T>(text)` parses within the caps

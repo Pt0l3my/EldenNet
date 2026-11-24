@@ -220,7 +220,7 @@ void check_read_reports(const Paths& p) {
   const gal::report::Vocabulary* kinds[] = {&gal::lodestar::vocabulary()};
   bool missing = false;
   bool refused = false;
-  if (const auto text = read_text(folder / "lodestar-found.json", gal::report::kMaxReportBytes)) {
+  if (const auto text = read_text(folder / "lodestar-found.json", gal::lodestar::vocabulary().max_bytes)) {
     const auto result = gal::report::lint(*text, kinds);
     refused = refused || !result;
     say("read report=lodestar-found.json lint=%s problems=%zu bytes=%zu", result ? "clean" : "refused",

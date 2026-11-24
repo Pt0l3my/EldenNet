@@ -54,6 +54,9 @@ struct Options {
   // the save ledger counts the death and the sheet's runes are lost, and three seconds on the world loads again,
   // with a new player in it. Never, where 0.
   std::uint32_t block_at_s = 0, die_at_s = 0;
+  bool wide_sheet = false;             // the save ledger and the hero sheet each lie at the start of 68 KiB of memory
+                                       // full of small numbers, as an object of the game's lies among others: the
+                                       // sheet scan then tells as many numbers as it does in the game
   std::uint32_t clock_rate = 60;       // game seconds a second of real time in the world (a game minute a second)
   bool day_book = false;               // the first decoy static holds a plain block that keeps the clock's packed word
                                        // twice (0x10 and 0x18 bytes in): a clock behind a static no lead names

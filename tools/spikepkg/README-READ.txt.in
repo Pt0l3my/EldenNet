@@ -8,10 +8,28 @@ so on), without knowing which is which. This round starts the game with EldenNet
 the game as it runs, which of those places holds which of the eleven managers EldenNet needs. Then it tries, for a few
 minutes, the way EldenNet v1 will read the game: from a thread of its own, about ten times a second.
 
-This is the twentieth round. The nineteenth worked: EldenNet's own reader and the survey agreed on seven things the
-game keeps for every character near you (its handle, kind, model, the map's id, its side, whether it is on screen,
-whether it is dead), and those places are now known. Two more were found, most likely: a character's type, and the
-block of the map it is in.
+This is the twentieth round once more, and the repeat is our mistake, not yours. Both of your runs went as they should
+on the screen: the round read what it was after, and the panel judged your tasks rightly. But the report has a limit
+on its size, the numbers of your character's sheet took it past that limit a few seconds after your first
+confirmation, and from then on the round could not write its report: the file you sent held the run only up to there.
+The panel went on saying "Got it." and "This run is usable" of what it had read, not of what it had written. We had
+never tried the scan with as many numbers as your game has.
+
+What is mended. The report of this round may now be four times as large (1 MiB; you said so), and it is tried at the
+game's sizes. If it ever grows past that all the same, the sheet's list is shortened from its far end and says so,
+rather than nothing being written. And if the round cannot write its report at all, the panel says it at once: "The
+round cannot write its report: the files will not hold this run." So "This run is usable" now also means the files
+hold it.
+
+What your two runs did give us, from the part of the file that was written and from the logs: your block does change
+as you move (twice on your way to the quiet spot, and once at least in the second run's ride, which is why the first
+ride read "Not gathered" and the second "Got it."); a character's type, the time of day and the play time read rightly
+through EldenNet's own reader; and a character the map did not place holds "none" where the block is kept. What they
+could not give is what the round is for: the numbers of your character's sheet, how the game marks your own death, and
+the second reading of your position. The tasks are the same.
+
+The nineteenth round before it worked: EldenNet's own reader and the survey agreed on seven things the game keeps for
+every character near you, and those places are known.
 
 This round is about your own character. It is after four things. The count of your deaths, which the game keeps and
 EldenNet must know. How the game marks your own character as dead: the first run of the last package hinted that it is
@@ -19,12 +37,12 @@ not as for an enemy. Your level and the other numbers of your character's sheet.
 at the moment you cross into another. On the way EldenNet's own reader reads the time of day, the play time and your
 position beside a second reader, which is what makes those places facts too.
 
-NEW IN THIS ROUND: THE PANEL TELLS YOU WHAT IT GATHERED. You asked for it. When a task is done, the panel says under
-it "Got it." or "Not gathered.", a second or two later. When all are done it says, at its foot and in the console,
-either "This run is usable: send it." or which tasks were not gathered. You never need to start again: whatever
-happens on the way (attacked, killed sooner than you meant), carry on and send the files. "Not gathered" may be the
-round's fault and not yours. The ride above all: it says "Got it." only if the round saw your block change, and where
-the game keeps the block is still our guess.
+THE PANEL TELLS YOU WHAT IT GATHERED, as in your last two runs. When a task is done, the panel says under it "Got it."
+or "Not gathered.", a second or two later. When all are done it says, at its foot and in the console, either "This run
+is usable: send it." or which tasks were not gathered. You never need to start again: whatever happens on the way
+(attacked, killed sooner than you meant), carry on and send the files. "Not gathered" may be the round's fault and not
+yours. If the ride reads "Not gathered" again, as in your first run, do not run again for it: your second run has
+shown what the ride is for.
 
 New reading, which you agreed to on 24 November: the 64 KiB of memory from where the game's save data's object begins,
 and the 64 KiB from where your character's sheet begins, every two seconds or a little slower. Each object is smaller
@@ -328,7 +346,7 @@ What it does
     (two letters or more in a row, as the game stores them, in any script) it writes where the run lies and how many
     fields it covers, never a letter; a number standing right after a text, a fraction or an id is dropped with it,
     and so is a number of two million or more whose lower half could be a letter. It also writes whether the sheet is
-    the object the save data's own words lead to. A thousand numbers an object at most, from its start.
+    the object the save data's own words lead to. Two thousand numbers an object at most, from its start.
   - The watch on your character's parts, back for this round, from your first confirmation to the end of the ride:
     once a second or so, your character's address, the holder of its parts, and the first 4 KiB of each of its thirty
     or so parts. It writes which 32-bit fields of which part changed in most looks of the ride and in none while you
@@ -341,12 +359,14 @@ What it does
     pressed Pause. The last stand: your character was there and the sheet scan made two looks or more. The launcher
     shows it under the task, and writes it into its log.
   - Every two seconds it writes lodestar-found.json into %APPDATA%\EldenNet\probe, and lodestar-table.toml when
-    another manager is named. If the report ever grows past its limit, it is written without the detail of the
-    watched object that has the most, then of the next, and says which were left out. They hold only numbers
-    (offsets, sizes, counts, the jumps' numbers named above, your character's health, maximum health and save
-    slot, and in this round the numbers of the sheet scan: your level, attributes, runes and count of deaths
-    among them) and EldenNet's own labels: no names of the game's or of your character, no text, no paths, and
-    nothing of your PC.
+    another manager is named. This round's report may be up to 1 MiB (it was 256 KiB, which the sheet's numbers passed
+    in your two runs). If it ever grows past that, it is written without the detail of the watched object that has the
+    most, then of the next, and at the last with half of the longer list of the sheet's numbers, and says what was
+    left out. If it cannot be written at all, the round says so in its log and on the panel. The files hold only
+    numbers (offsets, sizes, counts, the jumps' numbers named above, your character's health, maximum health and save
+    slot, and in this round the numbers of the sheet scan: your level, attributes, runes and count of deaths among
+    them) and EldenNet's own labels: no names of the game's or of your character, no text, no paths, and nothing of
+    your PC.
   - Watches the game until it ends, and keeps a short record if it ends badly: the error's code, which module it was
     in and the time, never a memory dump.
 

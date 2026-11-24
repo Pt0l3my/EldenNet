@@ -40,7 +40,11 @@ inline constexpr std::uint32_t kPlanCount = 3;
 inline constexpr std::uint32_t kGatherUntold = 0;  // the round has not said (or cannot tell)
 inline constexpr std::uint32_t kGathered = 1;      // what the task was for was read
 inline constexpr std::uint32_t kNotGathered = 2;   // it was not
-inline constexpr std::uint32_t kGatherMarks = 16;  // marks the word has room for
+inline constexpr std::uint32_t kGatherMarks = 15;  // marks the word has room for
+// The word's highest bit: the round could not write its report at its last try (too large, or the file refused).
+// Whatever the tasks' verdicts say, the files then do not hold the run (the twentieth round's two runs: the panel
+// said "usable" while the report stood still).
+inline constexpr std::uint32_t kGatherReportFailed = 1u << 31;
 // The verdict for the mark `n` (1 the first) in the word; kGatherUntold past the word's room.
 [[nodiscard]] constexpr std::uint32_t gathered_of(std::uint32_t word, std::uint32_t n) noexcept {
   return n == 0 || n > kGatherMarks ? kGatherUntold : (word >> ((n - 1) * 2)) & 3u;

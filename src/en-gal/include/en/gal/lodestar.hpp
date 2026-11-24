@@ -773,7 +773,8 @@ struct SheetObject {
   std::uint32_t text_fields = 0;     // fields left out for being text
   std::uint32_t address_fields = 0;  // fields left out for being half of an address
   std::uint32_t restless = 0;        // numbers left out for changing in more than eight passes
-  std::vector<SheetField> fields;    // by offset, 1,024 at most
+  std::vector<SheetField> fields;    // by offset, 2,048 at most
+  bool cut = false;                  // the round wrote fewer of them than it had, for the report's size
   std::vector<SheetText> texts;      // by offset, 32 at most
 };
 struct SheetFound {

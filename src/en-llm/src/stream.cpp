@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 
 #include "en/llm/secret.hpp"
 #include "en/proto/json.hpp"
@@ -55,6 +56,14 @@ int int_field(const json& object, const char* key) {
   auto it = object.find(key);
   if (it == object.end() || !it->is_number_integer()) return -1;
   return it->get<int>();
+}
+
+// A cost the provider reported (OpenRouter's `usage.cost`): a finite number, 0 or more, below a sanity bound; else -1.
+double cost_field(const json& object) {
+  auto it = object.find("cost");
+  if (it == object.end() || !it->is_number()) return -1;
+  const double cost = it->get<double>();
+  return std::isfinite(cost) && cost >= 0 && cost < 1e6 ? cost : -1;
 }
 
 // The longest prefix of `text` of at most `max` bytes that ends at a character's boundary.
@@ -215,6 +224,7 @@ ReplyAssembler::Step ReplyAssembler::on_chunk(const json& chunk, bool whole) {
     usage_.prompt_tokens = int_field(*usage, "prompt_tokens");
     usage_.completion_tokens = int_field(*usage, "completion_tokens");
     usage_.cached_tokens = int_field(*usage, "prompt_cache_hit_tokens");
+    usage_.cost = cost_field(*usage);
     if (auto details = usage->find("prompt_tokens_details"); details != usage->end() && details->is_object()) {
       const int cached = int_field(*details, "cached_tokens");
       if (cached >= 0) usage_.cached_tokens = cached;

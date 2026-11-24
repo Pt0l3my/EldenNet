@@ -255,7 +255,9 @@ Expected<std::string, Problem> Writer::finish() {
     done_ = true;
     levels_.clear();
   }
-  if (out_.size() > kMaxReportBytes) return Unexpected{Problem{"", "the report is larger than 256 KiB"}};
+  if (out_.size() > vocabulary_.max_bytes) {
+    return Unexpected{Problem{"", "the report is larger than " + std::to_string(vocabulary_.max_bytes >> 10) + " KiB"}};
+  }
   return out_;
 }
 
@@ -495,11 +497,29 @@ class Linter {
 
 }  // namespace
 
+namespace {
+
+// The most a report of any of these kinds may be, and the words for a report that is larger than `limit`.
+std::size_t largest(std::span<const Vocabulary* const> vocabularies) {
+  std::size_t most = kMaxReportBytes;
+  for (const Vocabulary* v : vocabularies) most = std::max(most, v != nullptr ? v->max_bytes : std::size_t{0});
+  return std::min(most, kMaxLargeReportBytes);
+}
+std::string too_large(std::size_t limit) { return "is larger than " + std::to_string(limit >> 10) + " KiB"; }
+
+}  // namespace
+
 Expected<void, std::vector<Problem>> lint(std::string_view text, std::span<const Vocabulary* const> vocabularies) {
-  if (text.size() > kMaxReportBytes) return Unexpected{std::vector<Problem>{{"", "is larger than 256 KiB"}}};
+  // Unread where it is larger than any of the kinds allows; and, once its kind is known, where it is larger than
+  // that kind allows.
+  if (text.size() > largest(vocabularies)) {
+    return Unexpected{std::vector<Problem>{{"", too_large(largest(vocabularies))}}};
+  }
   Linter linter(vocabularies);
   const bool parsed = json::sax_parse(text, &linter, json::input_format_t::json, true, false);
+  const Vocabulary* const kind = linter.kind();
   std::vector<Problem> problems = linter.take();
+  if (kind != nullptr && text.size() > kind->max_bytes) problems.push_back(Problem{"", too_large(kind->max_bytes)});
   if (problems.empty() && (!parsed || !linter.complete())) problems.push_back(Problem{"", "is not one JSON object"});
   if (!problems.empty()) return Unexpected{std::move(problems)};
   return {};
@@ -520,8 +540,8 @@ Expected<void, std::vector<Problem>> lint_lines(std::string_view text,
     if (line.empty()) continue;
     ++lines;
     const std::string at = "line " + std::to_string(number);
-    if (line.size() > kMaxReportBytes) {
-      problems.push_back(Problem{at, "is larger than 256 KiB"});
+    if (line.size() > largest(vocabularies)) {
+      problems.push_back(Problem{at, too_large(largest(vocabularies))});
       continue;
     }
     Linter linter(vocabularies);

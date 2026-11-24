@@ -411,6 +411,7 @@ Outputs Core::step(CoreInput input, Mono now) {
                  [&](proto::UiEvent& e) { ui = &e; },
                  [&](proto::LlmEvent& e) { llm = &e; },
                  [&](proto::NetHealth& h) { net_ = h; },
+                 [&](CoreInput::Pause& p) { state_.ai_paused = p.on; },
              },
              input.payload);
   if (watch_pending_) {  // the watch list of the last load (MEM §6.2): sent once, shared, never copied
@@ -432,10 +433,10 @@ Outputs Core::step(CoreInput input, Mono now) {
 }
 
 // ARCH §6.8: L2, then L4 with a healthy dialogue model and every group up, L3 with one optional group tripped, and
-// back to L2 when the model is not healthy. L1 stays for the session (set_level).
+// back to L2 when the model is not healthy or AI is paused. L1 stays for the session (set_level).
 void Core::climb(Mono at, Outputs& out) {
   if (state_.level < Level::L2) return;
-  const Level to = !net_.dialogue ? Level::L2 : (optional_tripped_ ? Level::L3 : Level::L4);
+  const Level to = !net_.dialogue || state_.ai_paused ? Level::L2 : (optional_tripped_ ? Level::L3 : Level::L4);
   set_level(to, at, out);
 }
 
@@ -484,10 +485,16 @@ void Core::run_conversation(Mono at, bool fresh, const proto::UiEvent* ui, const
   for (const Commit& c : co.commits) log_.apply(c);  // in the same step (NPC §8.7 item 5; the store, v0.3)
   out.ui = std::move(co.ui);
   out.requests = std::move(co.requests);
+  out.calls = std::move(co.calls);
   out.cancels = std::move(co.cancels);
   out.commits = std::move(co.commits);
   out.ended = co.ended;
-  if (!out.ai_allowed) out.requests.clear();  // C4: nothing goes out while gated (the conversation sends none then)
+  // C4: nothing goes out while gated, nor while AI is paused (D15); the conversation sends none then (below L3), and
+  // a request dropped here takes its note with it.
+  if (!out.ai_allowed || state_.ai_paused) {
+    out.requests.clear();
+    std::erase_if(out.calls, [](const CallNote& n) { return n.what == CallNote::What::Sent; });
+  }
 }
 
 void Core::enter(Phase to, Mono at, Outputs& out) {

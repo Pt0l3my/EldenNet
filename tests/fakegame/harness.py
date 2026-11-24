@@ -2571,10 +2571,59 @@ def check_talk(r):
     return failures
 
 
+# Pause AI for this session (D15; S11.4.a), the DLL's side without the pages: the tests' switch ELDENNET_TEST_PAUSE=on,
+# which the probe build alone takes, pauses AI from the start, and the first conversation's set-up then sends nothing.
+# The ladder stays at L2 though the model is ready, the talk key reaches EldenNet and opens no box, and the fake model
+# server is asked nothing at all, neither a chat nor a model list.
+PAUSED_KEYS = "1500:t,1700:return"
+
+
+def check_talk_paused(r):
+    server = TALK_RUNS.pop(r.paths["case"], None)
+    counts = server.snapshot() if server is not None else {}
+    if server is not None:
+        server.close()
+    failures = check_lines(("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main"}),
+                           ("ELDENNET", "surfaces", {"state": "ready", "talk": "bound"}),
+                           ("ELDENNET", "realm", {"asked": "eval", "accepted": 1}),
+                           ("ELDENNET", "content_load", {"ok": 1, "personas": 1, "bound": 1}),
+                           ("LAUNCHER", "end", {"kind": "clean"}))(r)
+    failures += any_line(r, "ELDENNET", "ai_pause", asked="test", accepted=1)
+    failures += any_line(r, "ELDENNET", "ai_pause", on=1, changed=1)
+    failures += any_line(r, "ELDENNET", "net", dialogue=1)  # the model is ready: the pause alone holds the ladder
+    failures += any_line(r, "ELDENNET", "change", what="level", to="L2")
+    levels = [e.get("to") for e in r.events("ELDENNET", "change") if e.get("what") == "level"]
+    need("L3" not in levels and "L4" not in levels, "the ladder climbed while AI was paused: %s" % levels, failures)
+    failures += any_line(r, "ELDENNET", "chat", what="open_key", via="talk_key")
+    for what in ("opened", "submit"):
+        need(not [e for e in r.events("ELDENNET", "chat") if e.get("what") == what],
+             "a chat %s line while AI was paused" % what, failures)
+    need(not r.events("ELDENNET", "commit"), "a commit while AI was paused", failures)
+    need(not [e for e in r.events("ELDENNET", "llm") if e.get("what") == "submit"],
+         "a request submitted while AI was paused", failures)
+    need(server is not None and sum(counts.values()) == 0, "the model server was asked: %s" % counts, failures)
+    return failures + en_log_is_clean(r)
+
+
+case("launcher-eldennet-graceui-talk-paused", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--calm", "--press-keys", PAUSED_KEYS, "--type-at", "1560:" + TALK_TYPED, frames=2100),
+     program="{launcher}", needs=GRACE_NEEDS + ("eldennet_probe",), toolchains=("clang-cl",),
+     env=dict(GRACE_ENV, ELDENNET_TEST_REALM="eval", ELDENNET_TEST_PAUSE="on"), timeout=240,
+     prepare=install_eldennet(TALK_SETTINGS, probe=True, then=install_talk), check=check_talk_paused,
+     what="Pause AI from the start (the tests' switch, a probe build's alone): the first conversation's set-up with "
+          "the model ready, the ladder held at L2, the talk key opening no box, and the local model server asked "
+          "nothing")
+
+
 def check_realm_release(r):
-    return (check_lines(("ELDENNET", "realm", {"asked": "eval", "accepted": 0, "probe_build": 0}),
-                        ("ELDENNET", "content", {"overrides": 1, "files": 1, "realm": "game"}),
-                        ("ELDENNET", "content_load", {"ok": 1, "bound": 0}))(r) + en_log_is_clean(r))
+    failures = check_lines(("ELDENNET", "realm", {"asked": "eval", "accepted": 0, "probe_build": 0}),
+                           ("ELDENNET", "content", {"overrides": 1, "files": 1, "realm": "game"}),
+                           ("ELDENNET", "content_load", {"ok": 1, "bound": 0}),
+                           ("ELDENNET", "ai_pause", {"asked": "test", "accepted": 0}))(r)
+    # The tests' pause switch refused likewise: no pause was ever taken.
+    need(not [e for e in r.events("ELDENNET", "ai_pause") if e.get("on") is not None],
+         "the release DLL took the tests' pause", failures)
+    return failures + en_log_is_clean(r)
 
 
 case("launcher-eldennet-graceui-talk", LGAME + ["--dll", "{eldennetdll}", "--console"] +
@@ -2756,10 +2805,10 @@ case("launcher-eldennet-graceui-talk-danger", LGAME + ["--dll", "{eldennetdll}",
           "the game")
 case("launcher-eldennet-realm-release", LGAME + ["--dll", "{eldennetdll}", "--console"] + game(frames=600),
      program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",),
-     env=dict(EN_ENV, ELDENNET_TEST_REALM="eval"), timeout=120,
+     env=dict(EN_ENV, ELDENNET_TEST_REALM="eval", ELDENNET_TEST_PAUSE="on"), timeout=120,
      prepare=install_eldennet(TALK_SETTINGS, then=install_overrides), check=check_realm_release,
      what="The release DLL refuses the tests' realm: asked for it, it logs the refusal and keeps the game's, and the "
-          "test persona of the overrides folder stays out (NPC 2.1)")
+          "test persona of the overrides folder stays out (NPC 2.1); it refuses the tests' pause switch likewise")
 case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--console"] +
      game("--d3d12", "--stay-title", "--press-keys", AI_KEYS, "--grace-report", AI_REPORTS, frames=5520),
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),
@@ -3661,7 +3710,7 @@ def check_read(result, by_flag=False, events=False, marks=False):
     with open(table) as f:
         draft = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 20, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
+    need(d["report"] == "lodestar" and d["schema"] == 21, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
          failures)
     # Numbers and the catalogue's labels: no name of the fake game's, in either file.
     for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["SaveLedger", "FG::", "Imp", "task_loom", "Fg_"]:
@@ -4217,7 +4266,7 @@ def check_read_survey(result):
     need(code == 0, "lint --report lodestar-found.json: exit %s %s" % (code, out[-400:]), failures)
     with open(report) as f:
         d = json.load(f)
-    need(d["report"] == "lodestar" and d["schema"] == 20,
+    need(d["report"] == "lodestar" and d["schema"] == 21,
          "the report's kind: %s %s" % (d.get("report"), d.get("schema")), failures)
     need(all(k not in d for k in ("state", "pair", "chars", "parts")),
          "the survey's report holds an earlier round's section: %s" % sorted(d.keys()), failures)
@@ -4328,7 +4377,7 @@ def check_read_sheet(result):
     # that the run is usable.
     failures += any_line(result, "ELDENNET", "read", stage="gathered", word=0x155, mark=5)
     failures += any_line(result, "LAUNCHER", "gathered", word=0x155)
-    failures += any_line(result, "LAUNCHER", "gathered", line=1, usable=1)
+    failures += any_line(result, "LAUNCHER", "gathered", line=1, usable=1, report_failed=0)
     for stage in ("state", "pair", "chars", "chars_look"):
         need(not [e for e in result.events("ELDENNET", "read") if e.get("stage") == stage],
              "the sheet's plan ran the earlier rounds' %s" % stage, failures)
@@ -4340,7 +4389,7 @@ def check_read_sheet(result):
     need(code == 0, "lint --report lodestar-found.json: exit %s %s" % (code, out[-400:]), failures)
     with open(report) as f:
         d = json.load(f)
-    need(d["report"] == "lodestar" and d["schema"] == 20,
+    need(d["report"] == "lodestar" and d["schema"] == 21,
          "the report's kind: %s %s" % (d.get("report"), d.get("schema")), failures)
     # The sheet scan. The ledger: the count of deaths rose by one, once, in the death's phase (the third); the play
     # time never keeps still and is left out; its two words to objects are addresses, and left out.
@@ -4365,6 +4414,19 @@ def check_read_sheet(result):
          numbers[0x8]["changes"] == 0 and 0xC in numbers and numbers[0xC]["first"] == 4321 and
          numbers[0xC]["last"] == 0 and numbers[0xC]["changes"] == 1 and numbers[0xC]["phases"] == 4,
          "the sheet's level and runes: %s" % sorted(numbers.items())[:6], failures)
+    # At the game's sizes (--wide-sheet): each object is followed by 64 KiB of small numbers, so each tells its
+    # 2,048 and counts some sixteen thousand, and the report is far larger than the 256 KiB other kinds may be. It
+    # was written all the same, to the end: the twentieth round's two runs in the game lost theirs to that limit.
+    size = os.path.getsize(report)
+    need(all(len(o["numbers"]) == 2048 and o["fields_total"] > 10000 and o["bytes"] == 0x10000
+             for o in objects.values()) and 256 * 1024 < size < 1024 * 1024,
+         "the sheet scan at the game's sizes: %s, the report %d bytes" %
+         ({k: (len(o["numbers"]), o["fields_total"], o["bytes"]) for k, o in objects.items()}, size), failures)
+    failures += any_line(result, "LAUNCHER", "read", report="lodestar-found.json", lint="clean")
+    need(not [e for e in result.events("ELDENNET", "read") if e.get("report") in ("refused", "lost")],
+         "the round could not write its report at some time", failures)
+    need(not [e for e in result.events("LAUNCHER", "gathered") if e.get("report_failed") == 1],
+         "the launcher was told the report could not be written", failures)
     need(not [o for o in numbers if 0x18 <= o < 0x34] and runs.get(0x18) == 7 and hero.get("text_fields", 0) >= 7,
          "the name is never told, only where it lies: numbers %s runs %s" %
          ([hex(o) for o in numbers if 0x18 <= o < 0x34], sorted(runs.items())[:4]), failures)
@@ -4422,7 +4484,7 @@ def check_read_sheet(result):
 case("launcher-eldennet-read-sheet", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
                                               "--read", "--read-plan", "2", "--read-pace-s", "12"] +
      game("--field-mirror", "--title-frames", "720", "--walk-from-s", "25", "--walk-to-s", "32", "--block-at-s", "28",
-          "--die-at-s", "38", "--retitle-at-s", "63", "--retitle-for-s", "100", frames=5400),
+          "--die-at-s", "38", "--wide-sheet", "--retitle-at-s", "63", "--retitle-for-s", "100", frames=5400),
      program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
      # The fake game's seconds of the world against the launcher's tasks at twelve seconds each, the load's mark at
      # about 10 of the world's seconds: the stand runs to 22, the ride to 34 (the player moves from 25 to 32 and
