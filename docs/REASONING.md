@@ -637,6 +637,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 612 | 2026-11-24 | Bit 1 of 0x1C6 reads as the dead bit everywhere; the team is one byte | FACT | #lodestar #l6 |
 | 613 | 2026-11-24 | At the main player's own death the dead bit may not flip when its health reaches nothing | SPECULATION | #lodestar #l6 |
 | 614 | 2026-11-24 | When a layout entry stops being a lead | DECIDED | #lodestar #gal #method |
+| 615 | 2026-11-24 | A layout field may state its own status; a class stays a lead until all its fields are confirmed | METHOD | #lodestar #gal |
+| 616 | 2026-11-24 | Following a document link in game kept the link's focus index | FACT | #graceui #pages |
 
 ## Entries
 
@@ -9122,3 +9124,23 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   for the block). Startup self-tests still run every session and stop a field that fails them, whatever its status.
   By the nineteenth round: handle, npc_param_id, model, entity_id, team and on_screen qualify; dead waits for a
   death of the main player's own (WHY§613); chr_type and block_id wait for the reader.
+
+### 615. A layout field may state its own status; a class stays a lead until all its fields are confirmed
+
+`2026-11-24` · METHOD · `#lodestar` `#gal` · refs: WHY§614, gal/layouts/2.7.2.0-ww.toml, engine 95a4f73 (merged at dcceedf)
+
+- The layout's status was per class, while WHY§614 confirms field by field, so a field may now state its own status
+  (an optional key; schema 2): where it states none, its class's is its own. A release build refuses a lead class
+  whole, whatever its fields say, and in a confirmed class refuses each field that says lead, by its name;
+  has_leads() counts such a field. Fifteen fields are confirmed for 2.7.2.0-ww (rounds 17 and 19); every class and
+  item stays a lead, so a release build's refusal of this file is unchanged.
+
+### 616. Following a document link in game kept the link's focus index
+
+`2026-11-24` · FACT · `#graceui` `#pages` · refs: GraceUI D251, docs/eldennet-changes.md §77 (GraceUI), GraceUI feat/foundations 2355289
+
+- Found by Grace while building G44: in game, choosing a link to another document first kept the link's focus index,
+  so focus fell on whatever stop sat at that index in the new document (often a related link at the page's foot) and
+  the page scrolled there. Fixed before 0.2.44's release: focus goes to the chosen document's row, and the scroll is the
+  link's until a key moves focus. In both views a heading a link named is let go once its document is drawn, found or
+  not, so a later document with that heading no longer jumps to it.

@@ -1264,6 +1264,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     (engine cef6833); a layout entry is confirmed once the reader, a second reading and the field's own behaviour agree
     in one run (WHY§614). Next: the save data's deaths and the sheet's level, with the player's block at a crossing and
     the player's own death.
+    WHY§614 applied the same day (engine 95a4f73, merged with cef6833 at dcceedf; WHY§615): a field may state its own
+    status, and fifteen fields of rounds 17 and 19 are confirmed for 2.7.2.0-ww; every class stays a lead. The merged
+    tip passed the fake game's suite under Wine, 140 of 140, GraceUI's cases included. The twentieth round (the save
+    data's deaths, the sheet's level, the player's block at a crossing and its own death, with a mark per task on the
+    panel at the owner's request) is being prepared, its reading and tasks to be asked of the owner outright.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1928,6 +1933,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     turns off personas alone and ships no card, so those rows stay empty in game; a layer's problem names its field
     but no line. Left: Docs and Tools › Bug report, waiting on GraceUI's answers (a document page, a multi-line field
     and a preview). Its readings and words accepted as written by the owner the same day (O119), PAGES §4.6.9 noted.
+    Docs' ten documents drafted in our own words the same day (engine ad4b82b, merged at 164f00a), sent to the owner
+    for review; O120's words merged with them (the refused-key toast, Home's Observing reason; Writing content without
+    its own-profile section). Next: GraceUI 0.2.44's pin with the Docs page and Tools › Bug report on its document
+    block, prose field and report preview (S11.2.bg).
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
