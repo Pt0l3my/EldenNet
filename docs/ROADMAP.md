@@ -1222,6 +1222,19 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     and entered in the build's table, with save_slot (engine 8441e8d, merged at b1b2e2b); the near list
     confirmed at the layout's place; health and position as leads in the layout. Next: the seventeenth round
     reads them through EldenNet's own reader (a backend entry beside flags_alone, Lodestar's).
+    The seventeenth round built the same day (engine 1a262a7, merged at 5c07157; package 0.1.0-lodestar.21; WHY§571,
+    O116): EldenNet's own reader on the world's leads (ErBackend::world_alone): the slot, the main player,
+    health, position, the near list, once a second through the layout; the report holds the slot, the health
+    and its maximum by the owner's word, never the position. Reviewed by Engine; the package is with the owner.
+    Awaiting the owner's run.
+    Before a ready start: snapshot() must walk a near list longer than 48 in part, not fault (WHY§572).
+    Done the same day (engine 982f09a; WHY§573): the first 48 walked, the whole length kept, only bounds that make
+    no sense a fault.
+    The seventeenth round reviewed the same day (WHY§574 to §576): EldenNet's own reader read the slot, the main
+    player, the health, the position and the near list through the build's layout in the game, with no fault.
+    Open: the owner's check of the maximum HP. Next: the rest of the world's and the player's fields, in
+    WHY§460's order (the character's other fields, the save data's deaths and the sheet's level and name, then
+    field_area, the menus' screen and the session).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates

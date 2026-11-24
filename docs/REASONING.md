@@ -593,6 +593,12 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 568 | 2026-11-24 | A character's parts by two rounds: the holder at 0x190, health in the first part, position in the fourteenth | LIKELY | #lodestar #l6 |
 | 569 | 2026-11-24 | The near list's elements do not all hold a fraction 8 bytes in: the reader takes the distance element by element | FACT | #lodestar |
 | 570 | 2026-11-24 | A press a player says did not register is placed by maxima and gaps, not by percentiles | METHOD | #graceui #input |
+| 571 | 2026-11-24 | The world's leads are read through EldenNet's own reader before the world's group can be: ErBackend::world_alone | METHOD | #lodestar #gal #backend |
+| 572 | 2026-11-24 | The game's near list held 119 elements in the open world; snapshot() takes more than 48 for a fault of the world's group | FACT | #lodestar #design #gal |
+| 573 | 2026-11-24 | A near list longer than a snapshot walks is read for its nearest 48, and only bounds that make no sense are a fault | DECIDED | #gal #design #engine |
+| 574 | 2026-11-24 | EldenNet's own reader read the world's leads in the game through the build's layout, with no fault | FACT | #lodestar #gal #backend |
+| 575 | 2026-11-24 | The save's slot keeps its number at the title: it does not tell the title from the world | FACT | #lodestar #design |
+| 576 | 2026-11-24 | Of 12,720 near-list elements read in a session, 8 held no plain distance, and none fell below the one before | FACT | #lodestar |
 
 ## Entries
 
@@ -8582,6 +8588,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   eight witnesses, placement and witness), and it is in the build's layout with save_slot as a far field (engine
   8441e8d, merged at b1b2e2b): the place the fifteenth round and the offline study gave, with no number from the
   executable given to the round.
+- Later (2026-11-24): EldenNet's own reader read it in the game through the build's layout (WHY§574).
 
 ### 568. A character's parts by two rounds: the holder at 0x190, health in the first part, position in the fourteenth
 
@@ -8591,6 +8598,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   fourteenth the object with the position (three fractions from 0x70: x, height, z). By the main player's
   behaviour alone, and nine other fields fell and rose as the health did (copies or other numbers). They are leads
   in the build's layout until EldenNet's own reader reads them (the seventeenth round).
+- Later (2026-11-24): EldenNet's own reader read it in the game through the build's layout (WHY§574).
 
 ### 569. The near list's elements do not all hold a fraction 8 bytes in: the reader takes the distance element by element
 
@@ -8610,3 +8618,67 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   the times at which they rose, beside the window's focus and the presses that reached the game. In spikes.6's
   first A1, GraceUI's allocation count did not move during play (188 before and after), so its heap guard never
   ran on the game's threads then.
+
+### 571. The world's leads are read through EldenNet's own reader before the world's group can be: ErBackend::world_alone
+
+`2026-11-24` · METHOD · `#lodestar` `#gal` `#backend` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the seventeenth round"), WHY§457, WHY§567 to §569, O116
+
+- ErBackend::world_alone (engine 1a262a7, merged at 5c07157), a sibling of flags_alone, reads each part only where
+  the layout binds all of it (the save's slot, the main player by its class, its parts with the health and the
+  position, the near list), says in `lacks` which it does not, and counts no group's fault: a failed read leaves
+  its part empty. Nothing bound means no read at all, not even the statics. The near list's length is told whole,
+  48 elements at most are looked at, and the distance is judged element by element (WHY§569). The seventeenth
+  round calls it once a second and writes the save's slot, the health and its maximum after each of the tester's
+  marks, with the owner's word (O116), and never the position, only whether it moved. Reviewed by Engine.
+- Later (2026-11-24): EldenNet's own reader read it in the game through the build's layout (WHY§574).
+
+### 572. The game's near list held 119 elements in the open world; snapshot() takes more than 48 for a fault of the world's group
+
+`2026-11-24` · FACT · `#lodestar` `#design` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the seventeenth round"), ARCH §6.6
+
+- read_world() counts a list longer than kWalkEntries (48) as a hard fault of the world's group (ARCH §6.6 #4), but
+  the sixteenth round found 119 elements with the owner standing in the open world. As it stands the world's group
+  would trip on its first snapshot there. To change before a ready start on the real game: a long list is walked
+  in part (its first 48, the nearest), its length told, and only bounds that make no sense are a fault. Engine's.
+
+### 573. A near list longer than a snapshot walks is read for its nearest 48, and only bounds that make no sense are a fault
+
+`2026-11-24` · DECIDED · `#gal` `#design` `#engine` · refs: WHY§572, WHY§569, ARCH §6.6
+
+- read_world() (engine 982f09a) faults the world's group only for bounds that make no
+  sense: a misaligned start, the end before it, a remainder, more than 1 MiB of entries, or a start of null with an
+  end that is not (an empty list may be two nulls, as at the title). A longer list than 48 walks its first 48, the
+  nearest, and keeps its whole length (`near_all`). The rest of the walk is as it was: each entry checked, the
+  distance element by element (WHY§569), the snapshot's 32 within 40 m. A unit case with 119 entries failed on the
+  old reader (the world's group tripped) and passes now. ARCH §6.6 #4 and game-data's B-1 carry a dated note.
+
+### 574. EldenNet's own reader read the world's leads in the game through the build's layout, with no fault
+
+`2026-11-24` · FACT · `#lodestar` `#gal` `#backend` · refs: docs/ops/probes/2026-11-22-l5.md ("The seventeenth round in game"), WHY§567, WHY§568, WHY§571, O116
+
+- The seventeenth round (package 0.1.0-lodestar.21, 6.4 minutes): discovery took the layout's new entries (13 items,
+  14 from the table, none refused, the game's state's item by its placement and witnesses); ErBackend::world_alone
+  lacked nothing and made 323 frames, one a second, with no fault. It read the save's slot (6, then 2), an object of
+  the player's class at the main player's word in all 270 frames with a save loaded, the health (lower after the
+  hit, the maximum after the heal, never above it), the position (moving in 26 of the walk's 29 seconds and in none
+  of the 107 standing ones) and the near list (a character behind every address read). The game ended clean.
+  Open: the owner's check of the maximum against the status screen.
+- Later (2026-11-24): the owner checked the reader's maximum health against the game's status screen: the same
+  number, and the health at rest equals it; the one point below the maximum through the standing was a point
+  the owner had not noticed missing from the bar. vitals.hp and vitals.max_hp are read from the right place.
+
+### 575. The save's slot keeps its number at the title: it does not tell the title from the world
+
+`2026-11-24` · FACT · `#lodestar` `#design` · refs: docs/ops/probes/2026-11-22-l5.md ("The seventeenth round in game")
+
+- After a quit to the title the game's state's object stays and its slot still reads the last save's number; before
+  the first load the object is not there at all. Nothing may read "no save loaded" from the slot: the main
+  player's presence tells the world from the title. Phase B's check of the slot's range is unaffected.
+
+### 576. Of 12,720 near-list elements read in a session, 8 held no plain distance, and none fell below the one before
+
+`2026-11-24` · FACT · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md ("The seventeenth round in game"), WHY§569, WHY§573
+
+- With up to 95 elements in the list, the reader found a character behind every address it read, a plain distance
+  in all but 8 elements, and no distance below the one before it: the list is kept by distance, and the reader's
+  element-by-element reading of the distance (982f09a) fits the few that are not a number yet.
