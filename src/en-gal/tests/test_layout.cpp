@@ -220,6 +220,24 @@ TEST_CASE("a release build refuses leads; a dev build reads them and says so") {
   const auto dev = load_layout(gated(), lead, kNeeds, LayoutMode::Dev);
   REQUIRE(dev.has_value());
   CHECK(dev->has_leads());
+  // A field may state its own status (WHY§614): a confirmed field in a lead class leaves the class a lead, and
+  // the release build refuses the class; a lead field in a confirmed class is refused by its own name.
+  const std::string level = "level = { off = 0x4, ty = \"u16\", group = \"player\", range = [1, 999]";
+  const auto sure = load_layout(gated(), changed(level + " }", level + ", status = \"confirmed\" }"), kNeeds,
+                                LayoutMode::Release);
+  REQUIRE(sure.has_value());
+  CHECK_FALSE(sure->has_leads());
+  const std::string one_lead = changed(level + " }", level + ", status = \"lead\" }");
+  CHECK(has_error(refusal(one_lead), "layout.toml: class.Inner.fields.level", "is a lead, which a release build refuses"));
+  const auto dev_field = load_layout(gated(), one_lead, kNeeds, LayoutMode::Dev);
+  REQUIRE(dev_field.has_value());
+  CHECK(dev_field->has_leads());
+  std::string in_lead = changed(level + " }", level + ", status = \"confirmed\" }");
+  const std::string_view inner = "[class.Inner]\ncopy_size = 0x20\nstatus = \"confirmed\"";
+  REQUIRE(in_lead.find(inner) != std::string::npos);
+  in_lead.replace(in_lead.find(inner), inner.size(), "[class.Inner]\ncopy_size = 0x20");
+  CHECK(has_error(refusal(in_lead), "layout.toml: class.Inner", "is a lead, which a release build refuses"));
+  CHECK(has_error(refusal(changed(level + " }", level + ", status = \"sure\" }")), "layout.toml: class.Inner.fields.level.status", "must be one of lead, confirmed"));
   CHECK(has_error(refusal(changed("place_names = [41]\nstatus = \"confirmed\"",
                                   "place_names = [41]\nstatus = \"lead\"")),
                   "layout.toml: fmg", "is a lead"));

@@ -75,6 +75,9 @@ struct FieldLayout {
   // address plus `off` by a copy of its own. `far_at` is where the reader keeps those bytes: past the class's copy,
   // in the object's buffer.
   bool is_far = false;  // (`far` itself is a word of the Windows headers)
+  // The field's own status, where it states one: a field the rounds have confirmed in a class that is still a
+  // lead (WHY§614), or a lead in a confirmed class. Where it states none, the class's status is the field's.
+  std::optional<LayoutStatus> status;
   std::uint32_t far_at = 0;
 
   // Where the field's bytes lie in the reader's buffer of its object.
