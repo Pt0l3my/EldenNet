@@ -1694,6 +1694,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: GraceUI:D241, GraceUI:D139
   - gives: built on 2026-11-24 (GraceUI feat/foundations 9f536a0); EldenNet registers it as a third scaled face for
     the Tarnished's lines. Rounded corners need no change in GraceUI (GraceUI's docs/eldennet-changes.md §69).
+- az The in-game menu's pad mode: the key hints as the pad's buttons, Y for search, View for the hints, the right stick to scroll; a pad-only walkthrough in the harness (GraceUI 0.2.37) [done]
+  - refs: GraceUI:D242, GraceUI:D33, GraceUI:D237
+  - gives: built on 2026-11-24 (GraceUI feat/foundations a9755cb); the menu-pad scenario is the first of v1.0's
+    pad-only walkthrough. Left for later: §3.8's key caps for the keyboard (they would move every golden), a 44 px
+    floor for smaller rows, and Start's quick switches. Nothing for EldenNet to change (GraceUI's
+    docs/eldennet-changes.md §70).
 
 ### S11.3 EldenNet v0.2
 
