@@ -157,7 +157,27 @@ TEST_CASE("assembler: bad chunks are counted, error objects classified, a whole 
   CHECK(whole.text() == "Short answer.");
   CHECK(whole.done_seen());
   CHECK(whole.raw_text() == "<think>x</think>Short answer.");
+  CHECK(whole.usage().cost == -1);  // no cost reported: none (D18)
+}
 
+TEST_CASE("assembler: a cost the provider's usage reports is kept, anything else is none (D18)") {
+  const auto cost_of = [](const json& cost) {
+    ReplyAssembler r;
+    (void)r.on_whole_body(json{{"choices", {{{"message", {{"content", "Short answer."}}}, {"finish_reason", "stop"}}}},
+                               {"usage", {{"prompt_tokens", 5}, {"completion_tokens", 2}, {"cost", cost}}}}
+                              .dump());
+    r.finish();
+    return r.usage().cost;
+  };
+  CHECK(cost_of(0.00042) == doctest::Approx(0.00042));
+  CHECK(cost_of(0) == 0);
+  CHECK(cost_of(-0.5) == -1);
+  CHECK(cost_of("0.1") == -1);
+  CHECK(cost_of(nullptr) == -1);
+  CHECK(cost_of(1e9) == -1);
+}
+
+TEST_CASE("assembler: error objects are classified") {
   CHECK(classify_error_object(json{{"code", 502}}) == ErrorClass::Server);
   CHECK(classify_error_object(json{{"code", 401}}) == ErrorClass::Auth);
   CHECK(classify_error_object(json{{"code", 400}}) == ErrorClass::BadRequest);

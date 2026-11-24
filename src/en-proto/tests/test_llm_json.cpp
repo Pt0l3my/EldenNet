@@ -82,7 +82,7 @@ ChatResult sample_result() {
   r.provider = "invented-cloud-1";
   r.model = "invented-model";
   r.served_model = "invented-model-2026";
-  r.usage = Usage{1200, 140, 1024};
+  r.usage = Usage{1200, 140, 1024, 0.0021};
   r.logprobs = {TokenLogprob{"The", -0.125, {{"The", -0.125}, {"A", -2.5}}}, TokenLogprob{" lantern", -0.0625, {}}};
   r.used_schema = true;
   r.used_logprobs = true;

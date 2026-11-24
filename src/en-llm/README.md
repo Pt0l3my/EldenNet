@@ -39,7 +39,9 @@ names.
   not connect, timed out, TLS, reset), never with the address, a header or a key. A scripted fake serves the other
   tests.
 - **Streaming** (`sse.hpp`, `stream.hpp`): our own SSE parser, the reply assembled from its deltas, `<think>` stripped
-  (split tags and a lone closing tag too), usage, the finish reason and logprobs recorded.
+  (split tags and a lone closing tag too), usage, the finish reason and logprobs recorded. A cost the usage reports
+  (`usage.cost`, as OpenRouter sends it, in the provider's own unit) is kept where it is a finite number from 0 on;
+  no cost is ever worked out from a price table (D18).
 - **Errors and health** (`errors.hpp`, `health.hpp`): ARCH §11.2's classes and the client's part of their actions.
   A rejected request is retried once without the optional fields, never without the reasoning switch or the floor; a
   model that refuses reasoning off is retried once at the lowest effort and starts there for the rest of the session.
