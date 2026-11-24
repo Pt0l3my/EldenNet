@@ -1883,7 +1883,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 - S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs [active]
   - needs: S11.2.h
-  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, O99, O104, O119, G34, G36
+  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, O99, O104, O119, O120, O125, G34, G36
   - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format. The
     allowances' and reactions' inherit tri-states (PAGES) use GraceUI's third = "inherit" and the settings topic's
     `inherited` list, added on 2026-11-20 at EldenNet's request (GraceUI feat/foundations ac4bc39). Since GraceUI
@@ -1961,8 +1961,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     SteamIDs, paths and local addresses, the typed words kept in memory for the preview alone; Settings, Docs and
     Content packs as the rail's foot. EldenNet's GraceUI floor is 0.2.44 (WHY§619). Docs shows in game too, since a
     page cannot yet be kept out of one view; in game its documents show "Nothing to show." until GraceUI watches a
-    document's member (WHY§621), and a preview field is one line (both asked of Grace). The pages' new words, for the
-    owner's review. Copy and save of the report stay 0.6's.
+    document's member (WHY§621), and a preview field is one line (both asked of Grace). The pages' new words accepted
+    as built by the owner the same day (O125). Copy and save of the report stay 0.6's.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2

@@ -2505,3 +2505,24 @@ D-16, a gap until a round finds the field and a consumer is designed.
 dialog, 2026-11-24.)
 
 **Follows from.** O122; DATA §2.5.
+
+## O125
+
+**The Docs and Tools › Bug report pages' words, and Docs in game from 0.2** · *2026-11-24 · Decided by the owner, as recommended*
+
+**Question.** Docs and Tools › Bug report were built at GraceUI 0.2.44 (S11.4.a; engine 0538221). Their new words: the
+pages' names, descriptions and help; Docs' list ("Documents", "Find a document", "Choose a document to read it."); the
+Bug report's caution under "What happened" ("In your own words. Leave out personal details: your name, your accounts
+and where you live."), its button ("Add to the report"), the preview's section words, its parts (What happened,
+Versions, State, Settings, Content, Recent log) and their fields' words, and the refusals ("That is over 2000
+characters: shorten it.", "Only words, numbers and line breaks: type it again.", "That part is always in the report.").
+One reading: Docs shows in the in-game menu from 0.2, where PAGES §4.6.9 had it from 0.6, because a page cannot yet be
+kept out of one view. **Options:** accept them as built, or change any of them.
+
+**Recommendation.** Accept as built.
+
+**Decision.** The words and the reading as built, as PAGES §4.6.8's and §4.6.9's dated notes of 2026-11-24 hold them.
+
+**Owner's words.** "Accept as built (Recommended)" (question dialog, 2026-11-24).
+
+**Follows from.** O119, O120, G44; PAGES §4.6.8, §4.6.9; S11.4.a.
