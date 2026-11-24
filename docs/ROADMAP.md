@@ -1764,8 +1764,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     first_token_ms, total_ms, tokens, a memory's time and weight; "names as shown" is the search over the name column.
     Built the same day as GraceUI 0.2.43 (D250, feat/foundations 72f77a0, its run there; GraceUI's
     docs/eldennet-changes.md §76). EldenNet's next pin takes 0.2.41 to 0.2.43 together, and AI › Requests uses it.
-- bg A document block, a prose form field and the report preview (GraceUI's proposal 0013, G44 (a)) [next]
-  - refs: G44, PAGES§4.6.8, PAGES§4.6.9, G16
+- bg A document block, a prose form field and the report preview (GraceUI's proposal 0013, G44 (a)) [done]
+  - refs: G44, GraceUI:D251, PAGES§4.6.8, PAGES§4.6.9, G16
   - gives: GraceUI's answer to Docs and Tools › Bug report (2026-11-24): a document block on a master page (headings,
     paragraphs, lists, code, tables, spans with links to other documents, never a URL); `"prose": true` on a form
     field (2000 characters); the report preview drawn at last (parts with their fields, an optional part's switch
@@ -1774,6 +1774,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     same day and decided as recommended (G44 (a), "(a) All three (Recommended)"): the three together, in the protocol
     minor after the filter bar's. Until then the bug report's preview is built from a table with a switch column and
     a key-value list per part; Docs' documents are drafted in our own words for the owner's review meanwhile.
+    Built the same day as GraceUI 0.2.44 (D251, protocol 1.12, feat/foundations 3fac29b; GraceUI's
+    docs/eldennet-changes.md §77), in both views, the demo's Handbook, lamp report and Notes field as examples: Docs a
+    master page whose list's own filter-bar search covers titles and headings only; "What happened" a form field with
+    `"prose": true`; `report_preview` sending the space's command for a part's switch. EldenNet's Docs and Bug report
+    drop their stand-ins with its next pin, which takes 0.2.41 to 0.2.44 together.
 
 ### S11.3 EldenNet v0.2
 
