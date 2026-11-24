@@ -1983,6 +1983,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     46705d3, 05f13d4, merged at c9f35cb; WHY§627 to §629): a row per call v0.2 makes, its displayed text only if shown,
     the session's usage, the cost only where reported; Pause AI as a core input that holds the ladder at L2 and sends
     nothing. Next: GraceUI 0.2.46's pin, wiring AI › Requests, Home's Model calls card and the Pause AI quick switch.
+    Built the same day at GraceUI 0.2.46 (engine 9f1befc and 3e80305, merged at 2f27925; WHY§633 to §637): AI › Requests
+    (tiles, the table with its filter bar on job, purpose and outcome, sorted on time, first token, total and tokens;
+    live), Home's Model calls card (the last 20; Home live), and Pause AI for this session as GraceUI's quick switch
+    (`ai.pause`, `status.ai_paused`, not sensitive; the Status card's line; the self-test and model lists refused).
+    Left: a row drawer for Why and Text shown, and Pause AI's chip in Home's header, both asked of Grace; the new words
+    for the owner's review. The fake game's suite under Wine: 144 of 144.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
