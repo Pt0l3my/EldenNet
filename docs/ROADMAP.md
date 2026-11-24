@@ -1713,9 +1713,17 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     cases; EldenNet reads hotkey_by for the chat box's via and its swallow, with its pin moving to 0.2.38. Pinned the
     same day (engine 678b313, merged at 6930988; WHY§585, §590).
 - bb The preview's three findings in GraceUI's menu: the links back by the space's increment, the rail's ring whole, a related row's words clear of its ring (GraceUI 0.2.39) [done]
-  - refs: GraceUI:D245, GraceUI:D173, WHY§595
+  - refs: GraceUI:D245, GraceUI:D173, WHY§595, WHY§599
   - gives: built on 2026-11-24 (GraceUI feat/foundations c9d699e) from Engine's preview shots (S11.4.c); EldenNet
-    regenerates its goldens with a Related card at 0.2.39, with its next pin.
+    regenerates its goldens with a Related card at 0.2.39, with its next pin. Pinned the same day with Content packs
+    (engine 7773f47, merged at 86d3991): every golden moved by its Related rows alone (WHY§599); the faces by name
+    (GRACEUI_FACES_ELDENNET, D139).
+- bc The menu's keyboard hints as key caps (GraceUI 0.2.40) [active]
+  - refs: GraceUI:D246, GraceUI:D242
+  - gives: built on 2026-11-24 (GraceUI feat/foundations c53f414; GraceUI's docs/eldennet-changes.md §73): each key of
+    the footer's hints in a cap, its label beside it, so every golden's footer moves. EldenNet pins 0.2.40 once
+    GraceUI's full run is green, regenerates its goldens once, and reads a whole hints line from
+    GraceUiTestMenu.footer instead of the screen.
 
 ### S11.3 EldenNet v0.2
 
@@ -1857,6 +1865,14 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     review with the level the pages give them.
     L3 and L4 are speaking levels on the pages since 2026-11-23 (WHY§496), their words approved (O110). Left:
     L2's words still say NPCs speak from a later version, which a v0.2 build makes untrue (fixtures and goldens).
+    Content packs on 2026-11-24 (engine 7bfe283, merged at 86d3991), at GraceUI 0.2.39 (S11.2.bb): a category of its own
+    after Settings, both views, read-only, as PAGES §4.6.9 has it: the shipped content (fixed words for its name and
+    credit, since the pack has no manifest yet; the personas counted, knowledge and event rules as Included), the
+    overrides folder's files each Loaded, Refused, Not loaded (another file refused the load) or Not read, with a row
+    per problem, what disable.toml turns off, and the session's reloads (WHY§600 to §604). In v0.2 the content layer
+    turns off personas alone and ships no card, so those rows stay empty in game; a layer's problem names its field
+    but no line. Left: Docs and Tools › Bug report, waiting on GraceUI's answers (a document page, a multi-line field
+    and a preview); the page's words, for the owner's review.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2

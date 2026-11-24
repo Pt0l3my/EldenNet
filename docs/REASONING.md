@@ -621,6 +621,12 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 596 | 2026-11-24 | GraceUI 0.2.38 draws on a 10-bit swap chain under Wine as on an 8-bit one | FACT | #graceui #wine #fakegame |
 | 597 | 2026-11-24 | A character's dead bit, by one death among 64 characters followed: bits 0 and 1 of the byte 0x1C6 | FACT | #lodestar #l6 |
 | 598 | 2026-11-24 | A summary recomputed every pass must not be overwritten by a pass that saw nothing, and a case must end as a run ends | METHOD | #lodestar #tests |
+| 599 | 2026-11-24 | GraceUI 0.2.39's Related rows moved EldenNet's goldens by those rows alone | FACT | #graceui #pages #goldens |
+| 600 | 2026-11-24 | Each category added to EldenNet's rail adds a ↓ to the in-game route to GraceUI's own pages | FACT | #graceui #fakegame |
+| 601 | 2026-11-24 | A page's blocks as TOML tables of their own keep space.toml's lines short | METHOD | #pages |
+| 602 | 2026-11-24 | Content packs' projection is en-proto's ContentView, its paths checked twice | DECIDED | #content #pages #privacy |
+| 603 | 2026-11-24 | The DLL names the overrides files it leaves out, the first 64 | FACT | #content |
+| 604 | 2026-11-24 | A file past 64 KB that nothing reads shows as Loaded | FACT | #content |
 
 ## Entries
 
@@ -8932,3 +8938,60 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   three left as the world goes would still replace a full pass's fields and clear the handles. A pass now tells them
   only with four characters or more and at least half as many as the fullest pass so far; the unit case adds a pass
   with three of ten left.
+
+### 599. GraceUI 0.2.39's Related rows moved EldenNet's goldens by those rows alone
+
+`2026-11-24` · FACT · `#graceui` `#pages` `#goldens` · refs: GraceUI D245, docs/eldennet-changes.md §72 (GraceUI), engine 7773f47 (merged at 86d3991)
+
+- All 15 of EldenNet's page goldens moved at GraceUI 0.2.39 by their Related card's rows alone: each row's label,
+  description and arrow (six lines a page; the label 15 px right, the words 6 to 10 px lower, the arrow 15 px left),
+  the focus ring unchanged. In the three Characters › Named NPCs goldens, whose Related card is the narrow one beside
+  the master list, Home's description loses two glyphs to its ellipsis (55 to 53), and the draw list's summary falls by
+  exactly those glyphs (8 vertices, 12 indices). Checked line by line with a script of our own: every changed line a
+  text line after "Related", same colour and text, and the summary's change equal to the glyphs lost.
+
+### 600. Each category added to EldenNet's rail adds a ↓ to the in-game route to GraceUI's own pages
+
+`2026-11-24` · FACT · `#graceui` `#fakegame` · refs: tests/fakegame/harness.py, tools/preview/shoot.py (engine 7bfe283)
+
+- The in-game rail's route from System › Status to GraceUI's own pages at its foot takes one ↓ per category between:
+  the editor case (`EDITOR_KEYS`) and tools/preview/shoot.py's pages run each needed a fourth once Content packs
+  joined. Any later category (Docs, Plugins) moves both again.
+
+### 601. A page's blocks as TOML tables of their own keep space.toml's lines short
+
+`2026-11-24` · METHOD · `#pages` · refs: src/en-overlay/pages/space.toml (engine 7bfe283)
+
+- space.toml's page sections can write a block as `[[page.sections.blocks]]`, a table of its own, instead of an inline
+  table on one line: tomllib and GraceUI's lint read the same data, and the lines stay within 120 characters (an inline
+  table cannot span lines in TOML 1.0). Content packs is written so.
+
+### 602. Content packs' projection is en-proto's ContentView, its paths checked twice
+
+`2026-11-24` · DECIDED · `#content` `#pages` `#privacy` · refs: PAGES§4.6.9, PV5, SP1, SP5; engine 7bfe283 (merged at 86d3991)
+
+- The page's projection is en-proto's `ContentView`, plain data: counts, the ids disable.toml turned off, paths
+  relative to the overrides folder, lines, and the content layer's fixed words. en-core's `record_load` builds it after
+  each `Core::load_content` and `record_left_out` adds what the shell left out; the DLL keeps it on T6, and
+  en-overlay's space publishes it as one topic, `content`, a member per section. A path passes en-proto's `shown_path`
+  twice (in en-core and in the space): relative, '/'-separated, with no drive, colon, backslash, leading '/' or '~',
+  and no "." or ".." part; one that fails goes on a row of its own as "Other files". Knowledge and event rules are
+  "Included", never counted, and an empty list or count is left out.
+
+### 603. The DLL names the overrides files it leaves out, the first 64
+
+`2026-11-24` · FACT · `#content` · refs: src/eldennet/win/conversation.cpp (engine 7bfe283)
+
+- The DLL used to count the overrides folder's files it left out (a link, a folder past four levels, a file past the
+  256 read, or one it could not read) without naming them. It now keeps the first 64 by relative path, in fixed words,
+  for Content packs ("Not read"), and still counts the rest.
+
+### 604. A file past 64 KB that nothing reads shows as Loaded
+
+`2026-11-24` · FACT · `#content` · refs: src/eldennet/win/platform.cpp, src/en-core/src/content/content.cpp (`others`; engine 7bfe283)
+
+- The DLL's read_text gives a file past 64 KB as 64 KB and one byte of NULs, for the reader to refuse by its size. The
+  content layer refuses it where it reads it (a record, the index, a layer, prompts, the lexicon), but one it does not
+  read, such as a note under a folder of the player's own, is kept unread among the pack's `others` and reads Loaded on
+  Content packs. Found when the pages case's first try put a 72 KB file under `notes/`. Left as it is for v0.2: nothing
+  reads such a file.
