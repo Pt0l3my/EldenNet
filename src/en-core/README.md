@@ -233,8 +233,8 @@ Content, identity, the conversation and the core's wiring; the eval is en-tools'
   "(Name does not stir.)", "Not now: danger is near.", "The moment has passed.", "No answer: provider timed out", "API
   key rejected: paste it again on AI › Providers" (O120), "Provider rate limit, try again shortly", "No answer: the
   provider failed", "No answer: the conversation's prompt could not be made", "No answer: no model is ready", "Chat
-  cannot take the keyboard just now.", "Conversation paused: part of the game EldenNet reads stopped working.", "Conversation closed after a
-  fault in EldenNet." A box GraceUI refused names the holder by the id GraceUI gives (WHY§442): "Chat cannot take the
+  cannot take the keyboard just now.", "Conversation paused: part of the game EldenNet reads stopped working.",
+  "Conversation closed after a fault in EldenNet." A box GraceUI refused names the holder by the id GraceUI gives (WHY§442): "Chat cannot take the
   keyboard: GraceUI's menu has the controls." (`graceui`), "Chat cannot take the keyboard: another mod (‹id›) has the
   controls." (an id as GraceUI checks one: 3 to 32 of a-z, 0-9 and '-'), "Chat cannot take the keyboard: another mod
   has the controls." (anything else); a not-now box its reason: "Chat cannot take the keyboard: danger is near.",
