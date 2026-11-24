@@ -25,7 +25,14 @@
 namespace en::proto::watch {
 
 inline constexpr std::uint32_t kMagic = 0x42574E45u;  // "ENWB"
-inline constexpr std::uint32_t kVersion = 1;
+inline constexpr std::uint32_t kVersion = 2;  // 2: probe_plan appended (2026-11-24)
+// The read round's plans (Block::probe_plan): which tasks the launcher's panel lists, and so what the tester's marks
+// mean to the round. 0: the rounds up to the seventeenth (two characters; a stand, a walk, a hit, a heal). 1: the
+// character survey (one character; a stand, a look around, a kill). The DLL takes a number it does not know for a
+// refusal of the round, never for plan 0.
+inline constexpr std::uint32_t kPlanRounds = 0;
+inline constexpr std::uint32_t kPlanSurvey = 1;
+inline constexpr std::uint32_t kPlanCount = 2;
 inline constexpr std::size_t kBlockSize = 4096;      // one page: what the creator maps
 inline constexpr std::size_t kModuleNameBytes = 64;  // a module's file name, ASCII, NUL-padded
 inline constexpr std::size_t kMarkRing = 32;         // the newest marks the block keeps
@@ -178,6 +185,9 @@ struct Block {
   Status status;
   Crash crash;
   Marks marks;
+  // Appended (version 2): the read round's plan (kPlan*), written by the launcher with its --read request before the
+  // game starts, read once by the round.
+  std::atomic<std::uint32_t> probe_plan;
 };
 
 static_assert(std::atomic<std::uint32_t>::is_always_lock_free && std::atomic<std::uint64_t>::is_always_lock_free,
@@ -188,7 +198,8 @@ static_assert(offsetof(Block, control) == 16);
 static_assert(offsetof(Block, status) == 32);
 static_assert(offsetof(Block, crash) == 104);
 static_assert(offsetof(Block, marks) == 200);
-static_assert(sizeof(Block) == 464);
+static_assert(offsetof(Block, probe_plan) == 464);
+static_assert(sizeof(Block) == 472);
 static_assert(sizeof(Block) <= kBlockSize);
 
 // The creator's part, on memory it has just mapped (zero-filled): every field zero, then the header, magic last.

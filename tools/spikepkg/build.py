@@ -35,7 +35,8 @@ It holds no launcher and no DLL: nothing in it starts or enters the game.
 `read` is Lodestar's read-only round in game (proposal 0005, step L5): the clang-cl Release tree's
 eldennet-launcher.exe, the probe build of eldennet.dll (EN_PROBE on, a 0.1.0-lodestar.N label) and
 eldennet-engine.exe, gal/ (with recipes.toml and ids.toml and no patterns.toml), read.cmd, which starts the launcher
-with --read, and README-READ.txt, in one folder, EldenNet-Read/. The round calls nothing in the game.
+with --read and the round's plan (READ_PLAN), and README-READ.txt, in one folder, EldenNet-Read/. The round calls
+nothing in the game.
 
 Nothing is read from outside the repository and the build trees (GraceUI's commit from its own source tree), and the
 package holds nothing personal: no path of this PC (each text file is checked), no key. The privacy sweep still runs
@@ -410,16 +411,21 @@ def find(a):
     return pack(files, "EldenNet-Find", a.out, label)
 
 
+# The read round's plan this package's read.cmd names (the launcher's --read-plan; watch.hpp's kPlan*): 1, the
+# character survey (the eighteenth round). It goes with README-READ.txt.in, which lists that plan's tasks.
+READ_PLAN = 1
+
+
 def read_cmd(label):
-    """read.cmd: from the package's own folder, the launcher with --read, then a pause so that its console stays
-    readable. It names nothing outside the package's folder."""
+    """read.cmd: from the package's own folder, the launcher with --read and the round's plan, then a pause so that
+    its console stays readable. It names nothing outside the package's folder."""
     return crlf("\n".join([
         "@echo off",
         "rem EldenNet's package %s: the read-only round. README-READ.txt has the steps." % label,
         "rem It starts the game offline with EldenNet loaded. EldenNet only reads: it calls nothing in the game.",
         "setlocal",
         "cd /d \"%~dp0\"",
-        "eldennet-launcher.exe --read",
+        "eldennet-launcher.exe --read --read-plan %d" % READ_PLAN,
         "echo.",
         "echo The round has ended (the launcher's exit code: %ERRORLEVEL%). README-READ.txt says what to send back.",
         "pause", ""]))
@@ -457,8 +463,8 @@ def read(a):
         if name == "eldennet.dll" and b"lodestar-found.json" not in data and \
                 "lodestar-found.json".encode("utf-16-le") not in data:
             fail("eldennet.dll has no read-only round")
-        if name == "eldennet-launcher.exe" and b"--read" not in data:
-            fail("eldennet-launcher.exe has no --read")
+        if name == "eldennet-launcher.exe" and (b"--read" not in data or b"--read-plan" not in data):
+            fail("eldennet-launcher.exe has no --read with --read-plan")
         launcher_checks(name, data, label)
         files.append((name, data))
     files.append(("read.cmd", read_cmd(label)))
@@ -467,6 +473,8 @@ def read(a):
         title = "EldenNet, the read-only round (package %s)" % label
         readme = (f.read().replace("@LABEL@", label).replace("@UNDERLINE@", "=" * len(title))
                   .replace("@COMMIT@", git_commit()).replace("@DISCLOSURE@", disclosure()))
+    if "--read --read-plan %d)" % READ_PLAN not in readme:
+        fail("README-READ.txt.in does not name read.cmd's plan (--read --read-plan %d)" % READ_PLAN)
     if re.search(r"@[A-Z]+@", readme):
         fail("README-READ.txt has a placeholder left")
     files.append(("README-READ.txt", crlf(readme)))

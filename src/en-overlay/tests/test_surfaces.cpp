@@ -2,6 +2,7 @@
 // layout from an invented glyph table, the fades and PageShown, the toasts' notice keys and the box's input mapping.
 #include <doctest.h>
 
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -16,11 +17,11 @@ constexpr std::uint64_t kAtlas = 0xA71A5;
 constexpr std::uint64_t kWhite = 0x7E01;
 
 // An invented face: every printable ASCII glyph and a few more, 10 px wide at a baked 20 px, its quad 1 to 9 across
-// and 2 to 18 down from the pen; the space has no quad.
+// and 2 to 18 down from the pen, on the atlas from u = `u0`; the space has no quad.
 struct FakeFace {
   std::vector<GraceUiGlyph> glyphs;
   GraceUiGlyphTable table{};
-  explicit FakeFace(bool with_fallback = true, std::uint32_t generation = 1) {
+  explicit FakeFace(bool with_fallback = true, std::uint32_t generation = 1, float u0 = 0.1f) {
     std::vector<char32_t> cps;
     for (char32_t c = 0x20; c < 0x7F; ++c) cps.push_back(c);
     for (const char32_t c : {U'É', U'é', U'—', U'…'}) cps.push_back(c);
@@ -34,9 +35,9 @@ struct FakeFace {
         g.y0 = 2;
         g.x1 = 9;
         g.y1 = 18;
-        g.u0 = 0.1f;
+        g.u0 = u0;
         g.v0 = 0.2f;
-        g.u1 = 0.3f;
+        g.u1 = u0 + 0.2f;
         g.v1 = 0.4f;
       }
       glyphs.push_back(g);
@@ -51,12 +52,42 @@ struct FakeFace {
     table.atlas = kAtlas;
     table.glyphs = glyphs.data();
   }
-  Faces faces() const { return Faces{Face::of(table), Face::of(table)}; }
+  Faces faces() const {
+    Faces f;  // no italic: the Tarnished's lines upright
+    f.serif = Face::of(table);
+    f.sans = Face::of(table);
+    return f;
+  }
 };
 
 const Display kHd{1920, 1080, 1.0f, 1.0f};
 
 // GraceUI's checks on a list (graceui.h's submit, D76), as the fake GraceUI makes them.
+// The alpha a list's triangles give the centre of pixel (x, y), as a renderer interpolates it: the first triangle that
+// holds the point, by its vertices' alphas (0 to 1); 0 where none does.
+float alpha_at(const Painter& p, int x, int y) {
+  const float px = static_cast<float>(x) + 0.5f;
+  const float py = static_cast<float>(y) + 0.5f;
+  const auto& v = p.vertices();
+  const auto& idx = p.indices();
+  for (const GraceUiDrawCommand& c : p.commands()) {
+    for (std::uint32_t k = 0; k + 2 < c.index_count; k += 3) {
+      const GraceUiDrawVert& a = v[c.vertex_offset + idx[c.index_offset + k]];
+      const GraceUiDrawVert& b = v[c.vertex_offset + idx[c.index_offset + k + 1]];
+      const GraceUiDrawVert& d = v[c.vertex_offset + idx[c.index_offset + k + 2]];
+      const float area = (b.x - a.x) * (d.y - a.y) - (d.x - a.x) * (b.y - a.y);
+      if (std::abs(area) < 1e-6f) continue;
+      const float wb = ((px - a.x) * (d.y - a.y) - (d.x - a.x) * (py - a.y)) / area;
+      const float wd = ((b.x - a.x) * (py - a.y) - (px - a.x) * (b.y - a.y)) / area;
+      const float wa = 1.0f - wb - wd;
+      if (wa < -1e-4f || wb < -1e-4f || wd < -1e-4f) continue;
+      const auto alpha = [](const GraceUiDrawVert& q) { return static_cast<float>(q.colour >> 24) / 255.0f; };
+      return wa * alpha(a) + wb * alpha(b) + wd * alpha(d);
+    }
+  }
+  return 0.0f;
+}
+
 bool valid(const Painter& p, float w, float h, std::string& why) {
   const GraceUiDrawList l = p.view();
   if (l.command_count == 0 || l.command_count > GRACEUI_DRAW_COMMANDS_MAX) return why = "commands", false;
@@ -230,8 +261,8 @@ TEST_CASE("surfaces: the box: header, history, input, selection and the caret, s
   CHECK_MESSAGE(valid(p, panel.width, panel.height, why), why);
   CHECK(scroll == 0);  // the line fits
   CHECK(caret.height > 0);
-  // The caret after the last glyph: the field's left, its inner pad, then 16 glyphs of 24 px (12 px each).
-  CHECK(caret.x == doctest::Approx(10 + 6 + 16 * 12).epsilon(0.01));
+  // The caret after the last glyph: the field's left, its inner pad, 16 glyphs of 24 px (12 px each), a pixel clear.
+  CHECK(caret.x == doctest::Approx(10 + 6 + 16 * 12 + 1).epsilon(0.01));
   bool white = false;
   bool atlas = false;
   for (const GraceUiDrawCommand& c : p.commands()) {
@@ -273,6 +304,104 @@ TEST_CASE("surfaces: the box: header, history, input, selection and the caret, s
   big.reset(panel.width, panel.height, kWhite, 0.5f, 0.5f);
   (void)paint_box(big, faces, kHd, box, edit, nullptr, 0, scroll);
   CHECK_MESSAGE(valid(big, panel.width, panel.height, why), why);
+}
+
+TEST_CASE("surfaces: the Tarnished's lines in the italic face, the NPCs' upright; upright alone with no italic") {
+  // NPC §10.1: the history's player lines italic. The italic's glyphs are told by their place on the atlas (u 0.6).
+  const FakeFace serif;
+  const FakeFace italic(true, 1, 0.6f);
+  const GraceUiPanelDesc panel = box_panel(kHd);
+  proto::ChatBox box;
+  box.view = proto::BoxView::Strip;  // the strip alone: no header, no input, only the history's glyphs
+  box.conv = 3;
+  box.history = {{proto::HistoryLine::Who::Tarnished, "", "Good evening.", false},
+                 {proto::HistoryLine::Who::Npc, "Lantern-Keeper", "Hm.", false},
+                 {proto::HistoryLine::Who::Tarnished, "", "And the lamp?", true}};
+  const std::size_t tarnished = std::string("Goodevening.").size() + std::string("Andthelamp?(waiting)").size();
+  const std::size_t npc = std::string("Lantern-Keeper:Hm.").size();
+  // The glyph quads drawn from each face: two of a quad's four vertices carry its u0.
+  const auto quads = [](const Painter& p, float u0) {
+    std::size_t n = 0;
+    for (const GraceUiDrawVert& v : p.vertices()) n += std::abs(v.u - u0) < 1e-6f ? 1 : 0;
+    return n / 2;
+  };
+  float scroll = 0;
+  Painter with;
+  with.reset(panel.width, panel.height, kWhite, 0.5f, 0.5f);
+  Faces f = serif.faces();
+  f.italic = Face::of(italic.table);
+  CHECK(&f.tarnished() == &f.italic);
+  (void)paint_box(with, f, kHd, box, EditView{}, nullptr, 0, scroll);
+  std::string why;
+  CHECK_MESSAGE(valid(with, panel.width, panel.height, why), why);
+  CHECK(quads(with, 0.6f) == tarnished);
+  CHECK(quads(with, 0.1f) == npc);
+  // No italic (GraceUI below 0.2.36): the same lines, every one from the serif.
+  Painter without;
+  without.reset(panel.width, panel.height, kWhite, 0.5f, 0.5f);
+  const Faces upright = serif.faces();
+  CHECK(&upright.tarnished() == &upright.serif);
+  (void)paint_box(without, upright, kHd, box, EditView{}, nullptr, 0, scroll);
+  CHECK(quads(without, 0.6f) == 0);
+  CHECK(quads(without, 0.1f) == tarnished + npc);
+}
+
+TEST_CASE("surfaces: rounded corners: the corner's pixels faded, the sides' as rect() and edge() draw them") {
+  // GraceUI's token radius.card (4 px at a content scale of 1), on the white texel; the probe reads pixels' centres.
+  Painter fill;
+  fill.reset(40, 20, kWhite, 0.5f, 0.5f);
+  fill.round_rect(0, 0, 40, 20, 4, rgba(0, 0, 0, 0xFF));
+  std::string why;
+  CHECK_MESSAGE(valid(fill, 40, 20, why), why);
+  REQUIRE(fill.commands().size() == 1);
+  CHECK(fill.commands()[0].texture == kWhite);
+  for (const GraceUiDrawVert& v : fill.vertices()) CHECK((v.u == 0.5f && v.v == 0.5f));
+  CHECK(alpha_at(fill, 20, 10) == doctest::Approx(1));  // inside
+  CHECK(alpha_at(fill, 20, 0) == doctest::Approx(1));   // the top side's row, whole as rect()'s
+  CHECK(alpha_at(fill, 0, 10) == doctest::Approx(1));   // the left side's column
+  CHECK(alpha_at(fill, 39, 19) == doctest::Approx(0));  // the corner's own pixel, outside the arc
+  CHECK(alpha_at(fill, 0, 0) == doctest::Approx(0));
+  const float near = alpha_at(fill, 0, 1);              // beside it, on the arc's fringe: partly covered
+  CHECK(near > 0.05f);
+  CHECK(near < 0.6f);
+  CHECK(alpha_at(fill, 1, 1) > 0.5f);
+  CHECK(alpha_at(fill, 3, 3) == doctest::Approx(1));
+  // The frame: one pixel wide along the sides, as edge(); hollow inside; the corner faded likewise.
+  Painter frame;
+  frame.reset(40, 20, kWhite, 0.5f, 0.5f);
+  frame.round_edge(0, 0, 40, 20, 4, 1, rgba(0xC8, 0xB2, 0x7A, 0xFF));
+  CHECK_MESSAGE(valid(frame, 40, 20, why), why);
+  CHECK(alpha_at(frame, 20, 0) == doctest::Approx(1));
+  CHECK(alpha_at(frame, 20, 1) == doctest::Approx(0));
+  CHECK(alpha_at(frame, 39, 10) == doctest::Approx(1));
+  CHECK(alpha_at(frame, 38, 10) == doctest::Approx(0));
+  CHECK(alpha_at(frame, 20, 10) == doctest::Approx(0));
+  CHECK(alpha_at(frame, 0, 0) == doctest::Approx(0));
+  CHECK(alpha_at(frame, 1, 1) > 0.5f);
+  // A radius under half a pixel: rect() and edge() themselves.
+  Painter square;
+  square.reset(40, 20, kWhite, 0.5f, 0.5f);
+  square.round_rect(0, 0, 40, 20, 0.25f, rgba(0, 0, 0, 0xFF));
+  CHECK(square.vertices().size() == 4);
+  square.round_edge(0, 0, 40, 20, 0, 1, rgba(0, 0, 0, 0xFF));
+  CHECK(square.vertices().size() == 4 + 16);
+  // The box: its ground and frame rounded with the card's radius; its list within GraceUI's bounds at every scale.
+  for (const Display& d : {kHd, Display{3840, 2160, 2.4f, 2.4f}, Display{1280, 720, 0.6f, 0.6f}}) {
+    const FakeFace ff;
+    const GraceUiPanelDesc panel = box_panel(d);
+    proto::ChatBox box;
+    box.view = proto::BoxView::Open;
+    box.partner = "Lantern-Keeper";
+    Painter p;
+    p.reset(panel.width, panel.height, kWhite, 0.5f, 0.5f);
+    float scroll = 0;
+    (void)paint_box(p, ff.faces(), d, box, EditView{}, nullptr, 0, scroll);
+    CHECK_MESSAGE(valid(p, panel.width, panel.height, why), why);
+    const float side = alpha_at(p, static_cast<int>(panel.width / 2), 0);  // the ground's #000 at 0.70
+    CHECK(side > 0.6f);
+    CHECK(alpha_at(p, 0, 0) < side);  // the corner faded (at 1080 lines and above, not drawn at all)
+    if (d.content_scale >= 1.0f) CHECK(alpha_at(p, 0, 0) == doctest::Approx(0));
+  }
 }
 
 TEST_CASE("surfaces: the hint, its key boxed, and the marker") {

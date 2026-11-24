@@ -302,28 +302,45 @@ GraceUiDrawCommand& Painter::command_for(std::uint64_t texture, std::size_t vert
   return commands_.back();
 }
 
-void Painter::poly(std::uint64_t texture, const GraceUiDrawVert* v, std::size_t n) {
+GraceUiDrawCommand* Painter::room(std::uint64_t texture, std::size_t vertices, std::size_t indices) {
   // GraceUI's bounds (D76): within them, or nothing more is drawn; a command never starts that would pass the count.
   const bool new_command = commands_.empty() || commands_.back().texture != texture;
-  if ((vertices_.size() + n) * sizeof(GraceUiDrawVert) > GRACEUI_DRAW_VERTEX_BYTES_MAX ||
-      (indices_.size() + 3 * (n - 2)) * sizeof(std::uint16_t) > GRACEUI_DRAW_INDEX_BYTES_MAX ||
+  if ((vertices_.size() + vertices) * sizeof(GraceUiDrawVert) > GRACEUI_DRAW_VERTEX_BYTES_MAX ||
+      (indices_.size() + indices) * sizeof(std::uint16_t) > GRACEUI_DRAW_INDEX_BYTES_MAX ||
       (new_command && commands_.size() >= GRACEUI_DRAW_COMMANDS_MAX)) {
-    return;
+    return nullptr;
   }
-  GraceUiDrawCommand& c = command_for(texture, n);
+  GraceUiDrawCommand& c = command_for(texture, vertices);
   if (commands_.size() > GRACEUI_DRAW_COMMANDS_MAX) {
     commands_.pop_back();
-    return;
+    return nullptr;
   }
-  const auto base = static_cast<std::uint16_t>(c.vertex_count);
+  return &c;
+}
+
+void Painter::poly(std::uint64_t texture, const GraceUiDrawVert* v, std::size_t n) {
+  GraceUiDrawCommand* c = room(texture, n, 3 * (n - 2));
+  if (c == nullptr) return;
+  const auto base = static_cast<std::uint16_t>(c->vertex_count);
   for (std::size_t i = 0; i < n; ++i) vertices_.push_back(v[i]);
   for (std::size_t i = 1; i + 1 < n; ++i) {
     indices_.push_back(base);
     indices_.push_back(static_cast<std::uint16_t>(base + i));
     indices_.push_back(static_cast<std::uint16_t>(base + i + 1));
   }
-  c.vertex_count += static_cast<std::uint32_t>(n);
-  c.index_count += static_cast<std::uint32_t>(3 * (n - 2));
+  c->vertex_count += static_cast<std::uint32_t>(n);
+  c->index_count += static_cast<std::uint32_t>(3 * (n - 2));
+}
+
+void Painter::mesh(std::uint64_t texture, const GraceUiDrawVert* v, std::size_t n, const std::uint16_t* idx,
+                   std::size_t m) {
+  GraceUiDrawCommand* c = room(texture, n, m);
+  if (c == nullptr) return;
+  const auto base = static_cast<std::uint16_t>(c->vertex_count);
+  for (std::size_t i = 0; i < n; ++i) vertices_.push_back(v[i]);
+  for (std::size_t i = 0; i < m; ++i) indices_.push_back(static_cast<std::uint16_t>(base + idx[i]));
+  c->vertex_count += static_cast<std::uint32_t>(n);
+  c->index_count += static_cast<std::uint32_t>(m);
 }
 
 void Painter::quad(std::uint64_t texture, float x0, float y0, float x1, float y1, float u0, float v0, float u1,
@@ -344,6 +361,87 @@ void Painter::edge(float x0, float y0, float x1, float y1, float t, std::uint32_
   rect(x0, y1 - t, x1, y1, colour);
   rect(x0, y0 + t, x0 + t, y1 - t, colour);
   rect(x1 - t, y0 + t, x1, y1 - t, colour);
+}
+
+namespace {
+
+constexpr float kPi = 3.14159265f;
+constexpr float kFringe = 0.5f;  // each side of an outline: a pixel's width in all, as Dear ImGui's AA fringe
+
+// A corner's points: enough segments that the arc strays at most a quarter of a pixel from the circle, 1 to 16.
+std::size_t corner_points(float radius) noexcept {
+  const float step = std::acos(std::clamp(1.0f - 0.25f / std::max(radius, 0.25f), -1.0f, 1.0f));
+  const float segments = step > 0 ? std::ceil(0.5f * kPi / step) : 16.0f;
+  return static_cast<std::size_t>(std::clamp(segments, 1.0f, 16.0f)) + 1;
+}
+
+// Strips joining ring `a` to ring `b` (each `n` points, closed), appended as triangles' indices.
+void join(std::vector<std::uint16_t>& idx, std::size_t a, std::size_t b, std::size_t n) {
+  for (std::size_t i = 0; i < n; ++i) {
+    const std::size_t j = (i + 1) % n;
+    for (const std::size_t k : {a + i, a + j, b + j, a + i, b + j, b + i}) idx.push_back(static_cast<std::uint16_t>(k));
+  }
+}
+
+}  // namespace
+
+void Painter::outline(float x0, float y0, float x1, float y1, float radius, float inset, std::size_t per_corner,
+                      std::uint32_t colour, std::vector<GraceUiDrawVert>& out) const {
+  // Moved in by `inset`, a corner keeps its centre while the radius lasts, then becomes the inset rectangle's corner.
+  const float at = std::max(radius, inset);
+  const float r = std::max(radius - inset, 0.0f);
+  const float cx[4] = {x0 + at, x1 - at, x1 - at, x0 + at};
+  const float cy[4] = {y0 + at, y0 + at, y1 - at, y1 - at};
+  for (std::size_t k = 0; k < 4; ++k) {
+    const float from = kPi * (1.0f + 0.5f * static_cast<float>(k));  // top left: from the left, clockwise on screen
+    for (std::size_t i = 0; i < per_corner; ++i) {
+      const float a = from + 0.5f * kPi * static_cast<float>(i) / static_cast<float>(per_corner - 1);
+      out.push_back(GraceUiDrawVert{cx[k] + r * std::cos(a), cy[k] + r * std::sin(a), u_, v_, colour});
+    }
+  }
+}
+
+void Painter::round_rect(float x0, float y0, float x1, float y1, float radius, std::uint32_t colour) {
+  if (x1 <= x0 || y1 <= y0 || (colour >> 24) == 0) return;
+  radius = std::min({radius, (x1 - x0) / 2.0f, (y1 - y0) / 2.0f});
+  if (radius < kFringe) {
+    rect(x0, y0, x1, y1, colour);
+    return;
+  }
+  const std::size_t per = corner_points(radius);
+  const std::size_t n = 4 * per;
+  shape_.clear();
+  shape_indices_.clear();
+  outline(x0, y0, x1, y1, radius, kFringe, per, colour, shape_);              // the ground, its colour whole
+  outline(x0, y0, x1, y1, radius, -kFringe, per, faded(colour, 0), shape_);  // the fringe's outer side, clear
+  for (std::size_t i = 1; i + 1 < n; ++i) {
+    for (const std::size_t k : {std::size_t{0}, i, i + 1}) shape_indices_.push_back(static_cast<std::uint16_t>(k));
+  }
+  join(shape_indices_, 0, n, n);
+  mesh(white_, shape_.data(), shape_.size(), shape_indices_.data(), shape_indices_.size());
+}
+
+void Painter::round_edge(float x0, float y0, float x1, float y1, float radius, float t, std::uint32_t colour) {
+  if (x1 <= x0 || y1 <= y0 || t <= 0 || (colour >> 24) == 0) return;
+  radius = std::min({radius, (x1 - x0) / 2.0f, (y1 - y0) / 2.0f});
+  if (radius < kFringe) {
+    edge(x0, y0, x1, y1, t, colour);
+    return;
+  }
+  const std::size_t per = corner_points(radius);
+  const std::size_t n = 4 * per;
+  shape_.clear();
+  shape_indices_.clear();
+  // Four rings, from the outline outwards by half a pixel to `t` inwards and half a pixel more: clear, whole, whole,
+  // clear. A frame inside the rect, as edge() draws it.
+  outline(x0, y0, x1, y1, radius, -kFringe, per, faded(colour, 0), shape_);
+  outline(x0, y0, x1, y1, radius, kFringe, per, colour, shape_);
+  outline(x0, y0, x1, y1, radius, std::max(kFringe, t - kFringe), per, colour, shape_);
+  outline(x0, y0, x1, y1, radius, t + kFringe, per, faded(colour, 0), shape_);
+  join(shape_indices_, 0, n, n);
+  join(shape_indices_, n, 2 * n, n);
+  join(shape_indices_, 2 * n, 3 * n, n);
+  mesh(white_, shape_.data(), shape_.size(), shape_indices_.data(), shape_indices_.size());
 }
 
 void Painter::diamond(float cx, float cy, float r, std::uint32_t colour) {
@@ -426,8 +524,9 @@ Caret paint_box(Painter& p, const Faces& f, const Display& d, const proto::ChatB
   const float h = panel.height;
   const float pad = std::round(10.0f * s);
   const bool input = box.view == proto::BoxView::Open;
-  p.rect(0, 0, w, h, kBoxGround);
-  p.edge(0, 0, w, h, std::max(1.0f, std::round(s)), kBoxEdge);
+  const float radius = std::round(kCardRadius * s);
+  p.round_rect(0, 0, w, h, radius, kBoxGround);
+  p.round_edge(0, 0, w, h, radius, std::max(1.0f, std::round(s)), kBoxEdge);
   float top = pad;
   // The header (NPC §5.1, O97): the partner, and who hears.
   if (input) {
@@ -450,14 +549,16 @@ Caret paint_box(Painter& p, const Faces& f, const Display& d, const proto::ChatB
   const float field_h = lh(kInputPx * s) + 6.0f * s;
   const float bottom = input ? h - pad - field_h - 4.0f * s : h - pad;
   // The history strip, newest at the bottom: as many of the newest lines as fit (each wrapped to two at most).
+  // The Tarnished's lines in the italic face (NPC §10.1), the serif's where GraceUI has none.
   struct Line {
     std::u32string text;
     std::uint32_t colour;
+    const Face* face;
   };
   std::vector<Line> strip;
-  const auto add = [&](const std::u32string& t, std::uint32_t colour) {
-    for (std::u32string& l : wrap(f.serif, kHistoryPx * s, t, w - 2 * pad, 2)) {
-      strip.push_back(Line{std::move(l), colour});
+  const auto add = [&](const Face& face, const std::u32string& t, std::uint32_t colour) {
+    for (std::u32string& l : wrap(face, kHistoryPx * s, t, w - 2 * pad, 2)) {
+      strip.push_back(Line{std::move(l), colour, &face});
     }
   };
   const std::size_t from = box.history.size() > kHistoryShown ? box.history.size() - kHistoryShown : 0;
@@ -470,8 +571,9 @@ Caret paint_box(Painter& p, const Faces& f, const Display& d, const proto::ChatB
     }
     append(t, l.text);
     if (l.waiting) t += U" (waiting)";
-    const std::uint32_t colour = l.who == proto::HistoryLine::Who::Npc ? kTextInk : kPlayerLine;
-    add(t, l.waiting ? faded(colour, 0.6f) : colour);
+    const bool npc = l.who == proto::HistoryLine::Who::Npc;
+    const std::uint32_t colour = npc ? kTextInk : kPlayerLine;
+    add(npc ? f.serif : f.tarnished(), t, l.waiting ? faded(colour, 0.6f) : colour);
   }
   if (strip_page != nullptr && strip_page->surface == proto::Surface::HistoryStrip) {
     std::u32string t;
@@ -482,13 +584,13 @@ Caret paint_box(Painter& p, const Faces& f, const Display& d, const proto::ChatB
     } else {
       t += kEllipsis;
     }
-    add(t, faded(kTextInk, strip_alpha));
+    add(f.serif, t, faded(kTextInk, strip_alpha));
   }
   const float line = lh(kHistoryPx * s);
   float y = bottom - line;
   p.clip(pad, top, w - pad, bottom);
   for (std::size_t i = strip.size(); i-- > 0 && y >= top - 0.5f;) {
-    p.text(f.serif, kHistoryPx * s, pad, y, strip[i].text, strip[i].colour);
+    p.text(*strip[i].face, kHistoryPx * s, pad, y, strip[i].text, strip[i].colour);
     y -= line;
   }
   p.clip_all();
@@ -504,8 +606,10 @@ Caret paint_box(Painter& p, const Faces& f, const Display& d, const proto::ChatB
   const float inner = 6.0f * s;
   const float room = std::max(1.0f, fx1 - fx0 - 2 * inner);
   const std::size_t cursor = std::min(edit.cursor, edit.text.size());
-  const float caret_at = measure(f.serif, px, u32(edit.text.substr(0, cursor)));
-  const float total = measure(f.serif, px, u32(edit.text));
+  // The caret stands a pixel clear of the glyph before it (the preview shots showed it touching the last letter).
+  const float gap = cursor > 0 ? std::max(1.0f, std::round(s)) : 0.0f;
+  const float caret_at = measure(f.serif, px, u32(edit.text.substr(0, cursor))) + gap;
+  const float total = measure(f.serif, px, u32(edit.text)) + (cursor == edit.text.size() ? gap : 0.0f);
   if (caret_at - scroll > room - 2.0f * s) scroll = caret_at - room + 2.0f * s;
   if (caret_at - scroll < 0) scroll = caret_at;
   scroll = std::clamp(scroll, 0.0f, std::max(0.0f, total - room + 2.0f * s));
@@ -554,7 +658,8 @@ void paint_hint(Painter& p, const Faces& f, const Display& d, const proto::TalkH
   const float total = key_w + measure(f.sans, px, words);
   float x = std::floor((panel.width - total) / 2.0f);
   if (!boxed.empty()) {
-    p.edge(x, y - 2.0f * s, x + key_w, y + lh(px) + 1.0f * s, std::max(1.0f, std::round(s)), kHintInk);
+    p.round_edge(x, y - 2.0f * s, x + key_w, y + lh(px) + 1.0f * s, std::round(kControlRadius * s),
+                 std::max(1.0f, std::round(s)), kHintInk);
     p.text(f.sans, px, x + key_pad, y, boxed, kHintInk);
     x += key_w;
   }

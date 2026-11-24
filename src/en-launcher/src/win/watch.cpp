@@ -163,11 +163,11 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
     tell_task(at);
   };
   if (plan.read) {
-    tasks.emplace(read_tasks());
+    tasks.emplace(read_tasks(plan.read_plan));
     tasks->set_pace(plan.read_pace_s);
     tasks->start(mono_ms());
     const bool opened = panel.open(nullptr);
-    say("tasks count=%zu panel=%d pace_s=%u", tasks->size(), opened ? 1 : 0, plan.read_pace_s);
+    say("tasks count=%zu panel=%d pace_s=%u plan=%u", tasks->size(), opened ? 1 : 0, plan.read_pace_s, plan.read_plan);
   } else if (s0 || observer) {
     // The S0 kind's own list (s0.hpp), or the observer's runs' (observer_tasks.hpp); Lodestar's read round keeps its
     // list.

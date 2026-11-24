@@ -170,6 +170,7 @@ struct WatchPlan {
   bool read = false;     // --read: the read-only round's steps in plain words (the block's probe request was written
                          // before loading), and the tester's panel with the round's tasks
   std::uint32_t read_pace_s = 0;  // --read-pace-s: the tests' pace for the tasks (tasks.hpp); 0 none
+  std::uint32_t read_plan = 0;    // --read-plan: which of the read round's task lists (watch.hpp's kPlan*)
   proto::watch::Spike spike = proto::watch::Spike::None;
   // A run with a folder of its own (spikes.hpp): the folder, where the launcher says whether the panel was shown. An S0
   // run (s0.hpp): eldennet.dll's report of it there, the S0 kind's tasks for this run of the launcher's runs; a run of

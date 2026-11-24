@@ -17,7 +17,7 @@ offset, enum value and number is invented here, shaped only by what the design d
 | The sky clock's hour of the day as a fraction beside its packed word; with `--pass-time` the clock jumps twice in the world (five hours 14 s in, three hours 26 s in); with `--flag-set` one flag of the store's fourth block is set 30 s in | What the read-only round looks for in step L6: a clock told by its jumps when time is let pass, and a flag's bit told by its flipping once (the watch's rises and jumps, the sweep) |
 | With `--day-book`, a plain block in the first decoy static's place that keeps the clock's packed word twice (0x10 and 0x18 bytes in); `--clock-rate N` sets the game seconds a second of real time (60 unless asked) | A clock behind a static no lead names, as in the game: the read-only round finds it by what the object holds (minutes that go round twice with hours beside them) and names the static the world's clock by the invariant recipe |
 | With `--walk-from-s N` and `--walk-to-s N` the player moves only between those seconds of the world (always, unless asked); with `--hit-at-s N` and `--heal-at-s N` it loses 200 of its health and has it back; an actor's parts block holds eleven further addresses of classed objects | What the read-only round's parts watch looks for: a position told by its moving while the tester walks and standing while they stand, health by a hit and a heal, and the holder of parts by the classed objects it points at |
-| With `--slot-by-state` the run warden's save slot reads -1 outside the world and 2 in it (with `--first-slot N`, N in the world before the game has gone back to its title: another save loaded first); with `--retitle-at-s N` (and `--retitle-for-s N`) the game goes back to its title once, N seconds into the world, and loads the world again | The game's state, as our notes give it: a field that tells the title from a loaded save. The read-only round finds its static by that field over four passes (title, world, title, world) marked by the launcher's tasks. With `--slot-copy` the field plot keeps a copy of the slot's number while in the world: a second object that reads both numbers, which the class the leads give for the game's state tells from the first |
+| With `--slot-by-state` the run warden's save slot reads -1 outside the world and 2 in it (with `--first-slot N`, N in the world before the game has gone back to its title: another save loaded first); with `--retitle-at-s N` (and `--retitle-for-s N`) the game goes back to its title once, N seconds into the world, and loads the world again | The game's state, as our notes give it: a field that tells the title from a loaded save. The read-only round finds its static by that field over four passes (title, world, title, world) marked by the launcher's tasks. With `--slot-copy` the field plot keeps a copy of the slot's number while in the world: a second object that reads both numbers, which the class the leads give for the game's state tells from the first. With `--screen-from-s`, `--screen-to-s` the characters near pass on and off the screen between those seconds of the world, two seconds on and two off, each in its turn, and with `--kill-at-s` the first of them dies (its health to nothing, its dead bit set): the character survey's world (the launcher's `--read-plan 1`) |
 | The frame loop on the main thread: ten groups (`Fg_FrameOpen` … `Fg_FrameClose`) run in order every frame at `--fps`, with `--hitch-every`/`--hitch-ms` and `--stall-at`/`--stall-ms` | The game thread and its task groups; `Fg_ActorSettle` (index 5) stands for the group where positions are final (`ChrIns_PostPhysics`) |
 | The group names in a static table of 16-byte entries `{ index, flags, name }` | A table of groups wider than a pointer (R0's review), found at its stride |
 | The hub's live tasks in a table its instance points at (`TaskLoomFields.live`, +0x28) | A game's hub holding its task lists, which lead to the tasks' classes and their base (part 6) |
@@ -44,15 +44,40 @@ offset, enum value and number is invented here, shaped only by what the design d
 | `--press-pause-at F`: Pause pressed and released (`SendInput`) at frame F | The player pressing the launcher's Mark, a system hotkey (O90) |
 | `--d3d12`: a Direct3D 12 device, queue and flip-model swap chain (960 by 540) on the window, cleared and presented every frame; `d3d12.dll` and `dxgi.dll` loaded by name with this option alone | A game's swap chain, which GraceUI's overlay binds and draws on (part 12) |
 | `--press-f11-at F,F…`: F11 pressed and released into the window at each frame listed, the cursor in it and the window in front and holding the focus (as GraceUI's harness found Wine needs); with `--d3d12`, `--press-pause-at` presses Pause the same way | The player pressing GraceUI's hotkeys: F11 for EldenNet's debug view, Pause for its Mark |
-| `--grace-report F,F…` with `--grace-probe x0,y0,x1,y1,r,g,b` (given up to three times, reported as `probe`, `probe2` and `probe3`): at each frame listed, one `FAKEGAME grace` line of what a test build of GraceUI says through its test exports (`graceui_test.h`, read through `GetProcAddress`, never linked): the host's state, the mods connected and EldenNet's caps, its notices under keys 1 and 2 (spaces written as `_`), the panels made, shown and drawn, the lists, the textures, the world-state providers and their flags, the window's filter; where the test build has them, the menu (open, the page open, the element focused, its refusals) and the browser view's server (running, its port, the spaces, the commands pending); and, with `--d3d12`, the pixels within 3 of each probe's colour in its rectangle of the frame just presented, read back after GraceUI drew on it | GraceUI's harness reports, from inside the game's process |
+| `--grace-report F,F…` with `--grace-probe x0,y0,x1,y1,r,g,b` (given up to three times, reported as `probe`, `probe2` and `probe3`): at each frame listed, one `FAKEGAME grace` line of what a test build of GraceUI says through its test exports (`graceui_test.h`, read through `GetProcAddress`, never linked): the host's state, the mods connected and EldenNet's caps, its notices under keys 1 and 2 (spaces written as `_`), the panels made, shown and drawn, the lists, the textures, the world-state providers and their flags, the window's filter; where the test build has them, the menu (open, the page open, the element focused, its refusals and, from GraceUI 0.2.33, whether its focus ring is drawn: `menu_ring`, G42) and the browser view's server (running, its port, the spaces, the commands pending); and, with `--d3d12`, the pixels within 3 of each probe's colour in its rectangle of the frame just presented, read back after GraceUI drew on it | GraceUI's harness reports, from inside the game's process |
 | `--press-keys F:KEY,…`: one of GraceUI's menu keys (`f5`, `next`, `prior`, `up`, `down`, `left`, `right`, `return`, `escape`) pressed and released into the window at each frame listed, as F11 is | The player in GraceUI's menu (F5, D167, D171) |
 | `--grace-take-pause`: at boot, before the window, the GraceUI already loaded (the launcher's `--also`) found by its name through graceui-sys, a connection as `fakegame-other` with the `hotkeys` cap, and Pause registered as its hotkey; one `FAKEGAME grace_other found=… connect=… hotkey=… id=…` line | Another mod that took Pause in GraceUI first, so that EldenNet's Mark registers unbound (GraceUI D164) |
 | `--grace-lan`: at boot, the GraceUI already loaded (the launcher's `--also`) given 127.0.0.2 alone as its home listener's address (its test build's `GraceUI_Test_SetNetworkAddresses`), before any mod registers pages; one `FAKEGAME grace_lan found=… set=…` line; each `--grace-report` then names the pairing sheet's code while one shows (`pairing=`) | A PC on a home network, for a device paired at home (GraceUI's G9), never a real address of the machine |
+| `--grace-copy-at F,F…` (0: at boot, before the window), with a second copy of GraceUI that the launcher's `--also` loaded from a folder other than the game's `GraceUI`: at each frame listed, the first copy loaded that is not `GraceUI\graceui.dll` asked for ABI 1's table (`GraceUI_RequestApi`), then one connection as `fakegame-other` to the table that answered, else to the GraceUI graceui-sys finds; one `FAKEGAME grace_copy name=… table=… look=own\|name\|scan connect=…` line each. Where more than one copy is loaded, each `--grace-report` adds a `grace_copies` line: each copy in load order (`c1`, `c2`: its name relative to the game's folder, its host state, init threads, hook installs, hooks, mods connected and copies named, and, from GraceUI 0.2.35, where its hooks lead in `GraceUI_Test_GetHookName`'s order: how many it answers, how many lead into its own detour and module, the jumps each followed and which is the window procedure's: `leads`, `leads_here`, `jumps`, `window_procedure`) and the reported copy's notices and kept log lines that name another copy; the report reads the copy named `graceui.dll` unless it idles, and then the first copy that does not | Another mod that carries a private copy of GraceUI (GraceUI's D72, D83 and invariant 18) |
+| `--pad-chord-at F,F…`: from each frame listed, one read of pad 0 a frame through a test build's XInput filter (`GraceUI_Test_PadRead`): D-pad Up alone for 250 ms, then with View (XInput's BACK) for 650 ms, then neither; one `FAKEGAME pad_chord frame=… reads=… view_reads=… up_seen=… view_seen=… packets=…` line of what the game was given | The player pressing the chat box's pad chord (GraceUI D204), as a game reads XInput once a frame; Wine has no pad |
+| `--lock-on-at F[,G]`: in the world the player locked on to the first NPC from frame F (until frame G); one `lock_on` line at each change | The player locking on to a target, which EldenNet's world-state provider claims as danger in v0.1 |
+| The preview options, below (`--backdrop`, `--swap-*`, `--shot-at`, `--cursor-once`) | A game's own picture |
 | `vehprobe.dll`: `VEHPROBE_MODE=pass\|swallow\|off`, `VEHPROBE_FIRST`, `VEHPROBE_EXIT`, `VEHPROBE_LOG` | A crash reporter's vectored handler that passes faults on, or ends the process at the first (S0-D, ARCH §6.5) |
 
 The version resource is invented too: FileVersion 3.14.15.0 (the fourth field 0: "ww"), ProductName
 `EldenNet Fake Game` followed by a trademark sign (U+2122), which the derivation and the gate compare without, and
 translation 0x0809 and 1200.
+
+## Preview shots
+
+`tools/preview/shoot.py` takes screenshots of EldenNet in GraceUI with these options, which change nothing when they
+are absent. All but the last need `--d3d12`.
+
+- `--backdrop`: a backdrop of our own copied into the back buffer each frame in place of the flat clear, standing in
+  for a game's own picture: a dark vertical gradient (slate at the top, near black at the foot) with one soft warm
+  light above and right of the centre, computed for each pixel when the swap chain is made (no image file, nothing of
+  a game's), with a 4 by 4 ordered dither against banding.
+- `--swap-size WxH` (each from 64, at most 3840 by 2160) and `--swap-format 28|24`: the swap chain at that size and
+  DXGI format (24 is `R10G10B10A2_UNORM`; unless asked, 960 by 540 and 28, `R8G8B8A8_UNORM`). The window keeps its
+  own size and the frame is stretched to it; GraceUI lays out by the swap chain's size. The `d3d12` line names the
+  format and whether the backdrop is on, and `--grace-probe` reads a 10-bit frame's channels taken to 8 as below.
+- `--shot-at F,F…` with `--shot-dir DIR`: the frame as presented at each frame listed, read back once GraceUI has
+  drawn on it, written to `DIR\frame-F.bmp` (24 bits a pixel, bottom-up, as GraceUI's harness writes its shots; a
+  10-bit format's channels taken to the nearest of 256 levels), with one `shot frame=… ok=… width=… height=… format=…`
+  line and never the folder's path.
+- `--cursor-once`: the cursor put in the window at the first key press alone, as GraceUI's harness puts it once.
+  Under Wine the cursor put there again before each press reached GraceUI as a mouse move and put its focus ring away
+  again after the key had shown it (G42), so a shot of the ring needs it.
 
 ## Status lines and `--describe`
 
@@ -194,6 +219,32 @@ read groups, Compatibility, the logs stream from its first line, the settings) a
 one value refused, a page's reset refused without its confirmation. settings.toml then holds both changes, written
 once by T11. The banner path's case also checks that EldenNet's space is registered for the game's view alone there,
 so GraceUI's server does not start for it.
+
+v0.1's coexistence check (S10.3.d) and the chat box's last parts against GraceUI's test build (S11.4.c) have four
+cases. `launcher-eldennet-graceui-second-copy` and `-second-copy-first`: a second copy of the same test build in
+another mod's folder beside the game (`OtherMod\GraceUI\`), loaded by the launcher's `--also` after the game's own, and
+asked for its table by the fake game standing in for that mod (`--grace-copy-at`), which then connects to the GraceUI
+that answers; on the banner path, as `-before`. Asked after EldenNet (the game's order), that copy answers null each
+time, idles with no thread and no hook, and is named once in GraceUI's own notice and its log, while EldenNet stays on
+the game's copy with its banner and F11's view; asked at boot before EldenNet, that copy is the active one, the game's
+copy idles once EldenNet asks it (its notice, from GraceUI 0.2.38's D244, naming the copy in use as the one to remove),
+and EldenNet's look finds the active one. Which way graceui-sys found it (by name or
+by its scan) is left open, since Windows may answer `GetModuleHandleW` with another copy than Wine does; the mods each
+copy holds tell that EldenNet is on the active one. Both check that the active copy's hooks stay as they were and the
+idle copy has none, and, by GraceUI's `GraceUI_Test_GetHookLead` (0.2.35, D240), that at every report each hook of the
+active copy leads into its own detour in its own module, MinHook's two jumps for each but the window procedure's filter,
+which takes none ("2,2,2,2,2,0" under Wine: the render half's five and the window procedure, the fake game loading no
+DirectInput or XInput in these runs), and that the idle copy answers no hook: one hook holder in the process (GraceUI's
+invariant 16). With the other mod's connection, they are also two mods connected each way round.
+`launcher-eldennet-graceui-talk-chord`: the talk hotkey's pad chord read through GraceUI's XInput filter
+(`--pad-chord-at`) opens the chat box with no key pressed, by the chord (`via=pad_chord`, GraceUI 0.2.38's
+`hotkey_by`), the game seeing the anchor and never View; a line typed and sent, none of it the game's; Esc closes the
+box. `launcher-eldennet-graceui-talk-danger`: the box open with a draft,
+the player locks on (`--lock-on-at`), which EldenNet claims as danger, and GraceUI ends the box's holder at once
+(danger, which EldenNet takes as input lost and keeps the draft, while its own conversation's rules do not count a
+lock-on); T pressed during the lock-on reopens the box in EldenNet's core, GraceUI answers not now (danger) and the
+conversation ends with no line said, the draft still kept (WHY§586); nothing typed reaches the game, and once the
+lock-on ends T gives the draft back, which is sent.
 
 The derivation's offline round (part 3) joined it so: `probe-exe`, `probe-exe-slots` and `probe-exe-lint` run the
 Windows `eldennet-engine.exe` under Wine on `fakegame.exe` with `derive-leads.toml` (the fake game's own names under our

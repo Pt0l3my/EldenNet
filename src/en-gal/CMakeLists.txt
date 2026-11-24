@@ -56,7 +56,7 @@ set(EN_GAL_GAME_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/task.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/lodestar_trial.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/lodestar_chars.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/lodestar_parts.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/lodestar_parts.cpp src/lodestar_survey.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/probe.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_memory.cpp)
 if(MSVC)

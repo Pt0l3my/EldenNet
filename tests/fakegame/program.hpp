@@ -45,6 +45,10 @@ struct Options {
   // only from walk_from_s to walk_to_s (always, where both are 0), loses health at hit_at_s and has it back at
   // heal_at_s (never, where 0).
   std::uint32_t walk_from_s = 0, walk_to_s = 0, hit_at_s = 0, heal_at_s = 0;
+  // The character survey's world (the eighteenth read-only round), by the world's seconds: from screen_from_s to
+  // screen_to_s the characters near pass on and off the screen, each every two seconds (the tester looks around;
+  // outside it they are on screen by their distance, as always); at kill_at_s the first of them dies (never, where 0).
+  std::uint32_t screen_from_s = 0, screen_to_s = 0, kill_at_s = 0;
   std::uint32_t clock_rate = 60;       // game seconds a second of real time in the world (a game minute a second)
   bool day_book = false;               // the first decoy static holds a plain block that keeps the clock's packed word
                                        // twice (0x10 and 0x18 bytes in): a clock behind a static no lead names
@@ -113,6 +117,20 @@ struct Options {
   };
   std::vector<Typed> type_at;
   std::vector<std::uint64_t> grace_report_at;
+  // v0.1's coexistence check (S10.3.d) and the chat box against GraceUI's test build (S11.4.c):
+  // --grace-copy-at F,F... stands in for another mod that carries a private copy of GraceUI (one the launcher's --also
+  // loaded from a folder other than the game's GraceUI): at each frame listed (0: at boot, before the window) it asks
+  // that copy for ABI 1's table, as such a mod would, and connects once, to the table that answered, else to the
+  // GraceUI graceui-sys finds; one `grace_copy` line each. Each --grace-report then adds a `grace_copies` line of every
+  // copy loaded, wherever there is more than one, with where each copy's hooks lead (GraceUI_Test_GetHookLead, D240).
+  // --pad-chord-at F,F... presses the chat box's pad chord (D-pad Up, then View: GraceUI D204) from each frame listed,
+  // one read of pad 0 a frame through the test build's XInput filter (GraceUI_Test_PadRead; Wine has no pad): Up alone
+  // for 250 ms, then both for 650 ms, then neither; one `pad_chord` line of what the game read.
+  // --lock-on-at F[,G]: in the world the player locks on to the first NPC from frame F (until frame G): what EldenNet's
+  // world-state provider claims as danger in v0.1 (en-overlay's world.hpp), while its conversation's own rules do not.
+  std::vector<std::uint64_t> grace_copy_at;
+  std::vector<std::uint64_t> pad_chord_at;
+  std::vector<std::uint64_t> lock_on_at;
   struct Probe {
     std::uint32_t rect[4] = {0, 0, 0, 0};  // x0, y0, x1, y1 in the back buffer's pixels
     std::uint32_t colour[3] = {0, 0, 0};
@@ -120,6 +138,20 @@ struct Options {
   };
   static constexpr std::size_t kProbes = 3;
   std::vector<Probe> grace_probes;
+  // Preview shots (tools/preview/shoot.py), with --d3d12 alone: --backdrop draws a backdrop of our own in place of the
+  // flat clear (a dark vertical gradient with one soft warm light, computed here, no image file); --swap-size WxH and
+  // --swap-format 28|24 make the swap chain at that size and DXGI format (24 is R10G10B10A2_UNORM; unless asked, 960 by
+  // 540 and 28, R8G8B8A8_UNORM); --shot-at F,F... with --shot-dir DIR writes the frame as presented at each frame
+  // listed to DIR\frame-F.bmp (24 bits a pixel, a 10-bit format's channels taken to 8); one `shot` line each, no path.
+  bool backdrop = false;
+  std::uint32_t swap_width = 960;  // wide enough for EldenNet's F11 view at the top left (680 by 500 at 24, 24)
+  std::uint32_t swap_height = 540;
+  std::uint32_t swap_format = 28;  // DXGI_FORMAT_R8G8B8A8_UNORM; 24, DXGI_FORMAT_R10G10B10A2_UNORM, on request
+  std::vector<std::uint64_t> shot_at;
+  std::wstring shot_dir;
+  // --cursor-once: the cursor put in the window at the first key press alone (as GraceUI's harness puts it), so that
+  // the later presses move no mouse; otherwise it is put there before every press.
+  bool cursor_once = false;
   std::wstring status_file;
   std::uint32_t exit_code = 0;
   bool describe = false;
@@ -130,8 +162,11 @@ struct Options {
 // The Direct3D 12 device, queue and flip-model swap chain on the window, d3d12.dll and dxgi.dll loaded by name only
 // with --d3d12; false (with a status line) if they cannot be made.
 bool present_start(HWND window);
-// One frame: the back buffer cleared to the fake game's colour, then presented.
+// One frame: the back buffer cleared to the fake game's colour (or, with --backdrop, the backdrop copied in), then
+// presented.
 void present_frame();
+// --shot-at: the frame just presented, read back once GraceUI has drawn on it, written to --shot-dir as a BMP.
+void shot(std::uint64_t frame);
 // F11 pressed and released into the window (SendInput, the virtual key and its scan code), the window in front.
 void press_key_into(HWND window, unsigned vk, unsigned scan);
 // The keys (WM_KEYDOWN, WM_SYSKEYDOWN) and characters (WM_CHAR) that reached the game's own window procedure.
@@ -145,6 +180,10 @@ void grace_report(std::uint64_t frame);
 void grace_take_pause();
 // --grace-lan: GraceUI's network listener on 127.0.0.2 alone, with one status line.
 void grace_lan();
+// --grace-copy-at: another mod's private copy of GraceUI asked for its table, and the mod's connection, with one line.
+void grace_copy(std::uint64_t frame);
+// --pad-chord-at: called every frame; reads pad 0 through GraceUI's filter while a chord is being pressed.
+void pad_chord_frame(std::uint64_t frame);
 
 // Parses the command line. On an error, writes the reason to `error` and answers false.
 bool parse_options(int argc, wchar_t** argv, Options& out, std::string& error);

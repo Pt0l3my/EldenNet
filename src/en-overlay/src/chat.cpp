@@ -207,6 +207,8 @@ std::unique_ptr<Surfaces> Surfaces::make(const graceui::Api& api, GraceUiConsume
   };
   face(fonts.serif, kSerifDesignPx, s->serif_face_);
   face(fonts.sans, kSansDesignPx, s->sans_face_);
+  face(fonts.italic, kSerifDesignPx, s->italic_face_);  // the third of the eight a mod may register (D139)
+  report.italic = s->italic_face_ != 0;
   // The hotkeys (§48, §49): stable action ids, players' names; the chord with the talk key where GraceUI has chords.
   const GraceUiApi1* t = api.table();
   GraceUiHotkeyDesc talk{};
@@ -240,6 +242,7 @@ std::unique_ptr<Surfaces> Surfaces::make(const graceui::Api& api, GraceUiConsume
     if (t->wake_event(me, &event) == GRACEUI_OK && event != nullptr) s->wake_ = event;
   }
   report.wake = s->wake_ != nullptr;
+  s->hotkey_by_ = api.has_cap(GRACEUI_CAP_HOTKEY_BY);  // ABI 1.7 (D243): what pressed a hotkey
   if (answer.display_width != 0 && answer.display_height != 0 && answer.ui_scale_default > 0) {
     s->display_.width = static_cast<float>(answer.display_width);
     s->display_.height = static_cast<float>(answer.display_height);
@@ -275,8 +278,14 @@ bool Surfaces::take(const GraceUiEvent& e, std::uint64_t now, std::vector<proto:
   switch (e.kind) {
     case GRACEUI_EVENT_HOTKEY:
       if (e.hotkey_id != 0 && e.hotkey_id == talk_) {
+        // What pressed it (ABI 1.7, D243): the chord alone opens by the chord, and arms no swallow (it types nothing);
+        // the key, or both, by the key. 0, as an older GraceUI writes, is taken as the key, as before.
+        const std::uint32_t by = hotkey_by_ ? e.hotkey_by : 0u;
+        const bool chord = (by & GRACEUI_HOTKEY_BY_KEY) == 0 && (by & GRACEUI_HOTKEY_BY_CHORD) != 0;
         pressed_ = now;
-        out.push_back(proto::UiEvent{proto::UiEvent::OpenChat{proto::OpenVia::TalkKey}});
+        pressed_by_key_ = by == 0 || (by & GRACEUI_HOTKEY_BY_KEY) != 0;
+        out.push_back(proto::UiEvent{proto::UiEvent::OpenChat{chord ? proto::OpenVia::PadChord
+                                                                    : proto::OpenVia::TalkKey}});
         return true;
       }
       if (e.hotkey_id != 0 && e.hotkey_id == skip_) {
@@ -436,6 +445,11 @@ bool Surfaces::faces() {
   // Read each show: a table is GraceUI's, valid while its generation is current, and a list names the generation.
   const bool serif = read(serif_face_, faces_.serif);
   const bool sans = read(sans_face_, faces_.sans);
+  // The italic has no stand-in: without its own table the Tarnished's lines take the serif's (Faces::tarnished).
+  GraceUiGlyphTable t{};
+  faces_.italic = italic_face_ != 0 && api_.glyph_table(me_, italic_face_, t) == GRACEUI_OK && t.glyph_count != 0
+                      ? surfaces::Face::of(t)
+                      : surfaces::Face{};
   return serif && sans && faces_.usable();
 }
 
@@ -519,7 +533,7 @@ std::vector<proto::UiEvent> Surfaces::show(const proto::UiModel& model, std::uin
       box_conv_ = box.conv;
       scroll_ = 0;
       // The talk key's own character is swallowed if it follows the open (NPC §5.1); the chord types nothing.
-      input_.open(now, pressed_ != 0 && now <= pressed_ + 1000 ? talk_vk_ : 0u);
+      input_.open(now, pressed_ != 0 && now <= pressed_ + 1000 && pressed_by_key_ ? talk_vk_ : 0u);
     }
     const auto strip_frame = strip_.frame(now);
     const bool changed = opening || !last_box_ || *last_box_ != box || editor_.edits() != box_edits_ ||
