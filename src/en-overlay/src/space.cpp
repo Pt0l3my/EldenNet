@@ -843,8 +843,6 @@ json space_state_body(const SpaceFacts& f) {
   return json{{"greyed", std::move(greyed)}};
 }
 
-// A watch's note for the DLL's log: a family's member (GraceUI D215, `profiles/persona.kale`) as its family and its key,
-// since the log takes words alone (no '/').
 // ---- Content packs (PAGES §4.6.9): one topic, a member per section (GraceUI D185's props.field), read-only. What
 // en-core's projection holds, in our words: counts, the ids disable.toml turned off, paths relative to the overrides
 // folder (PV5, checked again here), lines and the content layer's fixed words; never a file's text (SP1). Knowledge and
@@ -937,6 +935,8 @@ json content_body(const SpaceFacts& f) {
               {"reloads", json{{"columns", std::move(reload_columns)}, {"rows", std::move(reloads)}}}};
 }
 
+// A watch's note for the DLL's log: a family's member (GraceUI D215, `profiles/persona.kale`) as its family and its key,
+// since the log takes words alone (no '/').
 SpaceNote note_of(SpaceNote::What what, const std::string& topic) {
   const std::size_t slash = topic.find('/');
   if (slash == std::string::npos) return SpaceNote{what, topic, {}, {}};
