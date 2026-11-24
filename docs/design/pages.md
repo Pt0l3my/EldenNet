@@ -776,6 +776,12 @@ a later version (O41, EldenNet DESIGN §13); v1 is dialogue only and never write
 - **Rules.** Never chat or model text, keys, SteamID, paths, the Windows user name, the character's name or local
   addresses (PV5, PV7).
 - **Related.** System › Logs, Docs › Troubleshooting.
+- *Since 2026-11-24, as built at 0.2 (engine 0538221; GraceUI D251):* "What happened" is a prose form field
+  (`report.build` {what}, 2000 characters at most) under the caution; the preview's parts are What happened, Versions
+  and State, always in, and Settings, Content and the recent log, each switched by `report.part` {id, on}; every
+  value is scrubbed of a SteamID's, a path's and a local address's shape, and the typed words stay in memory for the
+  preview alone. Related is System › Logs and Docs (Related names a page, not one document). `report.save` and
+  `report.copy` come at 0.6, marked sensitive.
 
 **Workshop** (`tools.workshop`; 0.2; the browser only, with `debug.panel` on).
 
@@ -818,6 +824,9 @@ a later version (O41, EldenNet DESIGN §13); v1 is dialogue only and never write
 - **Layout.** The document list at the left, the reader at the right; in game, plain styled text.
 - **Rules.** Written to name no late-game person, place or event, and reviewed like content. Search indexes titles and
   headings only.
+- *Since 2026-11-24, as built (engine 0538221; GraceUI D250, D251):* a master page, its list's own search over titles
+  and headings; each document a family member with one document block; the ten bundled in the DLL. It shows in game
+  from 0.2 too, since a page cannot yet be kept out of one view.
 
 **Content packs** (`content`; 0.2).
 
@@ -837,6 +846,8 @@ a later version (O41, EldenNet DESIGN §13); v1 is dialogue only and never write
   fixed words; cards and the turned-off knowledge, triggers and rules stay empty while the content layer gives none, and
   a layer's problem names its field without a line. The page is a category of its own after Settings, with no rule
   above it, until GraceUI draws a foot for a mod's categories.
+- *Since 2026-11-24, at GraceUI 0.2.44 (D248; engine 0538221):* Settings, Docs and Content packs are the rail's foot,
+  under its rule, in that order.
 
 **Plugins** (`plugins`; 1.1 for content plugins, code plugins after v1.0; D104).
 

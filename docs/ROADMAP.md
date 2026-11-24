@@ -1269,6 +1269,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     tip passed the fake game's suite under Wine, 140 of 140, GraceUI's cases included. The twentieth round (the save
     data's deaths, the sheet's level, the player's block at a crossing and its own death, with a mark per task on the
     panel at the owner's request) is being prepared, its reading and tasks to be asked of the owner outright.
+    The twentieth round built the same day (engine a9d0649 and 5ffdf5a; WHY§623 to §626; O121 to O124): the sheet scan
+    for the count of deaths and the level, the main player's block at a crossing and its own death, the clock and the
+    play time through the reader; the launcher's panel says what each task gathered. Engine's review asked for a text
+    test that holds in every script; any 16-bit unit from U+0020 is now a letter. Package 0.1.0-lodestar.26, README
+    read by Engine. Awaiting the owner's run.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1748,7 +1753,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: built on 2026-11-24 (GraceUI feat/foundations 94284d7, with the gap after "Shift+" and its run in 0ed0e61):
     each arrow in a footer's key cap drawn as a shaft and a head, centred, instead of the mono face's glyph.
     EldenNet's footers with arrows move at its next pin after S11.2.bc, which takes 0.2.41 and 0.2.42 (S11.2.be)
-    together; GraceUiTestMenu.footer is unchanged.
+    together; GraceUiTestMenu.footer is unchanged. Pinned with 0.2.42 to 0.2.44 (engine c9832bb, merged at 0538221;
+    WHY§617).
 - be The rail's foot for a mod's categories, and empty words without "yet" (GraceUI 0.2.42, protocol 1.10) [done]
   - refs: GraceUI:D248, GraceUI:D249, PAGES§4.2.1, PAGES§4.6.9, O119
   - gives: asked by Engine from Content packs on 2026-11-24; Grace builds both as framework details of the design
@@ -1756,7 +1762,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     bottom under a rule; a block with no items and no words of its own reads "Nothing to show." in both views (no
     "yet", which SP5 and GraceUI's invariant 2 both forbid for anything not reached). EldenNet then marks Settings,
     Content packs and Docs as its foot. Built the same day (GraceUI feat/foundations 9157984, its run in b36bd2a);
-    foot categories come after every other. EldenNet takes 0.2.41 and 0.2.42 in one pin after S11.2.bc.
+    foot categories come after every other. EldenNet takes 0.2.41 and 0.2.42 in one pin after S11.2.bc. Pinned at
+    0.2.44 (engine c9832bb, merged at 0538221): Settings, Docs and Content packs are EldenNet's foot.
 - bf A table's own filter bar and sort, done in the view (GraceUI's proposal 0012, G43 (a); protocol 1.11) [done]
   - refs: G43, GraceUI:D250, PAGES§4.6.2
   - gives: put to the owner on 2026-11-24 and decided as recommended (G43 (a), the owner's words "(a) Filter bar now,
@@ -1783,9 +1790,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     docs/eldennet-changes.md §77), in both views, the demo's Handbook, lamp report and Notes field as examples: Docs a
     master page whose list's own filter-bar search covers titles and headings only; "What happened" a form field with
     `"prose": true`; `report_preview` sending the space's command for a part's switch. EldenNet's Docs and Bug report
-    drop their stand-ins with its next pin, which takes 0.2.41 to 0.2.44 together.
-- bh Quick switches and live updates, then a space's scope and paged tables (GraceUI's proposal 0014, G45 (a)) [next]
-  - refs: G45, PAGES§4.6.1, PAGES§4.6.4, PAGES§4.9
+    drop their stand-ins with its next pin, which takes 0.2.41 to 0.2.44 together. Done the same day (engine
+    0538221; S11.4.a).
+- bh Quick switches and live updates, then a space's scope and paged tables (GraceUI's proposal 0014, G45 (a)) [active]
+  - refs: G45, GraceUI:D252, PAGES§4.6.1, PAGES§4.6.4, PAGES§4.9
   - gives: decided by the owner on 2026-11-24 (G45 (a), "All four, in two steps (Recommended)"): quick switches (a
     setting's shortcut or a session switch with its state) and live updates (Live, every 5 s, Paused) first, as
     protocol 1.13, for EldenNet 0.2's Home, Requests and Pause AI; then a space's scope (the Journey) and paged tables,
@@ -1793,6 +1801,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     own, `journeys`, since its labels carry the character's name (PV); a family member per journey for Playthrough and
     Memories; 200 rows a page and a total of perceived events only (SP7); Pause AI as `ai.pause` with {"on"}, its state
     `status.ai_paused`; Named NPCs scoped, its list a family per journey, Nearby only on the current journey.
+    Step one built the same day as GraceUI 0.2.45 (D252, protocol 1.13, feat/foundations 385d80e; GraceUI's
+    docs/eldennet-changes.md §78): quick switches (a setting's shortcut, or a session switch reading a boolean field
+    of a state topic; pad Start opens them in game, the power button in the browser) and live updates (Live, every
+    5 s, Paused; Paused keeps watching and counts what came). EldenNet's Pause AI binds as `ai.pause` with
+    `status.ai_paused`. Step two (the scope and paged tables, protocol 1.14) takes Engine's answers.
+    GraceUI 0.2.46 the same day (D253, feat/foundations fe7d9db, its run in b83ec41): fixes from EldenNet's 0.2.44 pin,
+    a document's member watched in game, so Docs shows, and a preview's fields wrapped with their line breaks kept.
 
 ### S11.3 EldenNet v0.2
 
@@ -1875,7 +1890,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 - S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs [active]
   - needs: S11.2.h
-  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, O99, O104, O119, G34, G36
+  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, O99, O104, O119, O120, O125, G34, G36
   - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format. The
     allowances' and reactions' inherit tri-states (PAGES) use GraceUI's third = "inherit" and the settings topic's
     `inherited` list, added on 2026-11-20 at EldenNet's request (GraceUI feat/foundations ac4bc39). Since GraceUI
@@ -1946,6 +1961,19 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     for review; O120's words merged with them (the refused-key toast, Home's Observing reason; Writing content without
     its own-profile section). Next: GraceUI 0.2.44's pin with the Docs page and Tools › Bug report on its document
     block, prose field and report preview (S11.2.bg).
+    Built the same day at GraceUI 0.2.44 (engine c9832bb, 6abc997 and faf9e43, merged at 0538221; WHY§617 to §622):
+    Docs, a master page with its list's search over titles and headings and the ten documents bundled in the DLL by a
+    checked build step; Tools › Bug report, the "What happened" prose field and the report's preview (What happened,
+    Versions and State always in; Settings, Content and the recent log switchable by `report.part`), scrubbed of
+    SteamIDs, paths and local addresses, the typed words kept in memory for the preview alone; Settings, Docs and
+    Content packs as the rail's foot. EldenNet's GraceUI floor is 0.2.44 (WHY§619). Docs shows in game too, since a
+    page cannot yet be kept out of one view; in game its documents show "Nothing to show." until GraceUI watches a
+    document's member (WHY§621), and a preview field is one line (both asked of Grace). The pages' new words accepted
+    as built by the owner the same day (O125). Copy and save of the report stay 0.6's.
+    The model calls' record and Pause AI for this session built on the engine's side the same day (engine b8371f3,
+    46705d3, 05f13d4, merged at c9f35cb; WHY§627 to §629): a row per call v0.2 makes, its displayed text only if shown,
+    the session's usage, the cost only where reported; Pause AI as a core input that holds the ladder at L2 and sends
+    nothing. Next: GraceUI 0.2.46's pin, wiring AI › Requests, Home's Model calls card and the Pause AI quick switch.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2

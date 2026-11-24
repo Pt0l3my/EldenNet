@@ -639,6 +639,19 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 614 | 2026-11-24 | When a layout entry stops being a lead | DECIDED | #lodestar #gal #method |
 | 615 | 2026-11-24 | A layout field may state its own status; a class stays a lead until all its fields are confirmed | METHOD | #lodestar #gal |
 | 616 | 2026-11-24 | Following a document link in game kept the link's focus index | FACT | #graceui #pages |
+| 617 | 2026-11-24 | At GraceUI 0.2.44 the foot moves every rail and the drawn arrows only footers with an arrow | FACT | #pages #goldens #graceui |
+| 618 | 2026-11-24 | A fixture state may hold more topics than one connection may watch | FACT | #pages #graceui |
+| 619 | 2026-11-24 | EldenNet's GraceUI floor rises to 0.2.44 with Docs' document block | DECIDED | #graceui #pages #launcher |
+| 620 | 2026-11-24 | Docs' documents are converted at build time, the output committed and checked | DECIDED | #docs #pages |
+| 621 | 2026-11-24 | GraceUI 0.2.44's menu never watches a document block's member | FACT | #graceui #docs |
+| 622 | 2026-11-24 | A command's wait for its result can pass over a state frame the case then waits for | FACT | #fakegame #pages |
+| 623 | 2026-11-24 | Numbers of an object nobody has mapped are told by a scan of every 32-bit field, named afterwards by the tester's screens | METHOD | #lodestar #l6 |
+| 624 | 2026-11-24 | The launcher's panel tells, task by task, whether the round read what the task was for | METHOD | #lodestar #launcher |
+| 625 | 2026-11-24 | The parts watch starts over when the main player's object changes, as a death makes a new one in the fake game | FACT | #lodestar #tests |
+| 626 | 2026-11-24 | To keep a text out of a scan of numbers, every 16-bit unit from U+0020 up is a letter | METHOD | #lodestar #privacy |
+| 627 | 2026-11-24 | The model calls' record holds only what the DLL sends, the client's events and the commits on display | DECIDED | #engine #pages #privacy |
+| 628 | 2026-11-24 | Pause AI for this session is a core input, not the handle's gate | DECIDED | #engine |
+| 629 | 2026-11-24 | A reply's cost is kept only where the provider reports it | LIKELY | #engine #llm |
 
 ## Entries
 
@@ -8974,6 +8987,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - The in-game rail's route from System › Status to GraceUI's own pages at its foot takes one ↓ per category between:
   the editor case (`EDITOR_KEYS`) and tools/preview/shoot.py's pages run each needed a fourth once Content packs
   joined. Any later category (Docs, Plugins) moves both again.
+- Later (2026-11-24): with Tools and Docs the route takes six ↓, two more again (engine 6abc997).
 
 ### 601. A page's blocks as TOML tables of their own keep space.toml's lines short
 
@@ -9144,3 +9158,116 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   the page scrolled there. Fixed before 0.2.44's release: focus goes to the chosen document's row, and the scroll is the
   link's until a key moves focus. In both views a heading a link named is let go once its document is drawn, found or
   not, so a later document with that heading no longer jumps to it.
+
+### 617. At GraceUI 0.2.44 the foot moves every rail and the drawn arrows only footers with an arrow
+
+`2026-11-24` · FACT · `#pages` `#goldens` `#graceui` · refs: tests/pages/golden, GraceUI D247 to D249, engine c9832bb and 6abc997 (merged at 0538221)
+
+- Regenerated once with 3fac29b's grace-dev and classified by a script of our own (each golden's rail, footer and body
+  compared item by item): all 18 moved by their rail alone, Settings and Content packs (marked `foot`) with their rules
+  moved to the rail's bottom (D248); the four whose footer holds an arrow also by the footer, each arrow a fill and a
+  triangle, the words in order unchanged (D247). No golden showed the default empty words, so D249 moved none, and
+  every golden's body is unchanged. Docs and Bug report then moved every older golden by its rail alone (Tools after
+  System, Docs in the foot) and added three goldens.
+
+### 618. A fixture state may hold more topics than one connection may watch
+
+`2026-11-24` · FACT · `#pages` `#graceui` · refs: tests/pages/preview.py, tests/pages/browser.py, GraceUI protocol.toml `[limits]`
+
+- GraceUI's server takes 32 subscriptions a connection and ignores the 33rd. Once Docs and Bug report brought four
+  fixture states to 32 topics, preview.py's last subscription never came back. preview.py now lets each fixture topic
+  go once it is read (a new `unsub` in tests/pages/browser.py), within the server's message rate.
+
+### 619. EldenNet's GraceUI floor rises to 0.2.44 with Docs' document block
+
+`2026-11-24` · DECIDED · `#graceui` `#pages` `#launcher` · refs: src/en-proto/include/en/proto/graceui_pin.hpp, GraceUI D251, engine c9832bb and 6abc997 (merged at 0538221)
+
+- An older GraceUI's decoder refuses an enum value it does not know, and a block's `kind` is an enum, so GraceUI 0.2.43
+  or older would refuse EldenNet's whole page data once Docs has its `document` block. kFloor is 0.2.44 for the
+  connect and the launcher's pre-flight alike. The foot, the filter bar, `prose` and the preview's `command` are fields
+  an older decoder skips; they alone would not have raised the floor.
+
+### 620. Docs' documents are converted at build time, the output committed and checked
+
+`2026-11-24` · DECIDED · `#docs` `#pages` · refs: tools/docs/build.py, tools/docs/test_build.py, src/en-overlay/src/docs_data.cpp, engine c9832bb and 6abc997 (merged at 0538221)
+
+- As the page data is: tools/docs/build.py writes src/en-overlay/src/docs_data.cpp, committed; CTest's en_docs_build
+  checks the drafts against the Markdown subset and GraceUI's limits, every link against the documents and headings
+  that exist, and the file against what they build; en_docs_tests feeds it 33 invented drafts, each outside the subset
+  in its own way. The body is compact JSON in raw-string pieces of 96 characters, well under MSVC's literal limit. All
+  ten drafts converted as they are, and GraceUI's own parser keeps every block (268 blocks, 47 links).
+
+### 621. GraceUI 0.2.44's menu never watches a document block's member
+
+`2026-11-24` · FACT · `#graceui` `#docs` · refs: GraceUI 3fac29b src/grace-view/page_view.cpp (component_topics), src/grace-host/menu.cpp (watch_topics)
+
+- The in-game menu watches the topics PageView::component_topics() names: the master's list, the components' topics
+  and an editor's document, but not a `document` block's member, so in game Docs' reader says "Nothing to show." for
+  every document; grace-dev's dump uses the same list, so EldenNet's docs golden records it. The browser view watches
+  it. Asked of Grace the same day; EldenNet needs only its docs golden regenerated once GraceUI watches it.
+
+### 622. A command's wait for its result can pass over a state frame the case then waits for
+
+`2026-11-24` · FACT · `#fakegame` `#pages` · refs: tests/fakegame/harness.py (browse_eldennet), tests/pages/browser.py
+
+- The pages case sent three commands and then waited for the next `settings` state; the first command's change can be
+  published before the third command's result, and the wait for a result consumes every other frame, so the state wait
+  timed out. Reading the newest state seen of a watched topic, or the next, has no such race; the case uses it since.
+  The fake game's AI case also checks the page data's protocol minor, so a pin that moves it moves that check too.
+
+### 623. Numbers of an object nobody has mapped are told by a scan of every 32-bit field, named afterwards by the tester's screens
+
+`2026-11-24` · METHOD · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the twentieth round"), engine a9d0649
+
+- The twentieth round's sheet scan keeps, for every 32-bit field of the save data's object and the character's sheet,
+  its first and last reading, its changes and the tester's phases they fell in (O121, O122); the owner's own screens,
+  shared in chat, name the fields afterwards. What reads as text is never told, only where it lies.
+
+### 624. The launcher's panel tells, task by task, whether the round read what the task was for
+
+`2026-11-24` · METHOD · `#lodestar` `#launcher` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the twentieth round"), the owner's words of 2026-11-24, engine 1ca93fd
+
+- Two bits a task in the watch block (version 3, probe_gathered) carry the round's own verdict; the panel shows "got
+  it" or "not gathered" under each finished task and, at the end, whether the run is usable. A verdict is the round's
+  reading, so "not gathered" may be the round's own fault, and the panel says to send the files all the same.
+
+### 625. The parts watch starts over when the main player's object changes, as a death makes a new one in the fake game
+
+`2026-11-24` · FACT · `#lodestar` `#tests` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the twentieth round")
+
+- A watch that must remember a phase before a death has to end before it; in the twentieth round's plan it runs from
+  the first mark to the ride's end. If the real game keeps the player's object through a death, nothing is lost.
+
+### 626. To keep a text out of a scan of numbers, every 16-bit unit from U+0020 up is a letter
+
+`2026-11-24` · METHOD · `#lodestar` `#privacy` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the twentieth round"), engine a36c799 (Engine's review)
+
+- No list of scripts will do: two letters of a missing script below U+0600 make a number small enough to be told, and
+  the last letter of an odd-length text in any missing script, with the nothing after it, is a small number by
+  itself. So every unit from U+0020 up but 0xFFFE and 0xFFFF is a letter, and two or more in a row are text, never
+  told. The cost is the numbers beside fractions, ids and addresses. A text of one letter cannot be told from a
+  number at all; the README tells the tester not to run the round with a one-letter name.
+
+### 627. The model calls' record holds only what the DLL sends, the client's events and the commits on display
+
+`2026-11-24` · DECIDED · `#engine` `#pages` `#privacy` · refs: PAGES§4.6.1, PAGES§4.6.2, PAGES§4.9, D15, D18, engine b8371f3, 46705d3 and 05f13d4 (merged at c9f35cb)
+
+- A row's only text is the displayed pages, so no prompt, unshown answer, key, base URL or server message can reach
+  it by construction; a model id shaped like a path is left out (PV5). The self-test and the model list submit inside
+  en-llm, so their rows are made at their first event. 20 rows are kept, 200 in developer mode, newest first.
+
+### 628. Pause AI for this session is a core input, not the handle's gate
+
+`2026-11-24` · DECIDED · `#engine` · refs: ARCH§6.8, D15, engine b8371f3, 46705d3 and 05f13d4 (merged at c9f35cb)
+
+- The ladder's level and its reason ("AI paused") live in the core's state, logged and recorded as any level change.
+  Closing the handle's gate instead would stop calls already sent and name the wrong cause, so EldenNet refuses its
+  own calls: the core drops requests while paused, and the DLL refuses submits, the self-test, model lists and drafts.
+  A reply already in flight finishes. A lint regeneration below L3 now fails at once rather than being sent.
+
+### 629. A reply's cost is kept only where the provider reports it
+
+`2026-11-24` · LIKELY · `#engine` `#llm` · refs: D18, engine b8371f3, 46705d3 and 05f13d4 (merged at c9f35cb)
+
+- OpenRouter reports `usage.cost` in each reply; en-llm keeps it where it is a finite number from 0 on (-1 when not
+  reported), and no price table is used. Other providers' cost fields are not read until one is checked.
