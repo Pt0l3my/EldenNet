@@ -8,7 +8,13 @@ so on), without knowing which is which. This round starts the game with EldenNet
 the game as it runs, which of those places holds which of the eleven managers EldenNet needs. Then it tries, for a few
 minutes, the way EldenNet v1 will read the game: from a thread of its own, about ten times a second.
 
-This is the eighteenth such round. The seventeenth worked: EldenNet's own reader read your character through its
+This is the eighteenth round once more, and the repeat is our mistake, not yours. Your run of it went as it
+should, and it found where the game marks a character as dead and, most likely, as on screen. But the round's
+summary of the numbers that keep still was thrown away at the very end: as you quit, its last looks found no
+character to read, and it replaced what it had with nothing. That is mended, and tested with an ending like
+yours. The tasks are the same as last time.
+
+The round before that, the seventeenth, worked: EldenNet's own reader read your character through its
 table of places for your game's build, with no search: the save's slot (6 with the one character, 2 with the
 other), your health (the maximum you then checked against the status screen, lower after your hit, back after
 your heal), your position (moving while you walked, still while you stood) and the list of the characters near

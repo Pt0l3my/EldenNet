@@ -665,7 +665,7 @@ class CharSurvey {
   static constexpr std::size_t kMaxTracked = 128;
   static constexpr std::uint32_t kPhases = 4;
   static constexpr std::uint64_t kEveryUs = 2'000'000;
-  static constexpr std::size_t kListedFields = 160, kListedHandles = 16, kListedPairs = 16, kListedBits = 32,
+  static constexpr std::size_t kListedFields = 512, kListedHandles = 16, kListedPairs = 16, kListedBits = 32,
                                kMaxDeadBits = 512;
 
   struct Options {

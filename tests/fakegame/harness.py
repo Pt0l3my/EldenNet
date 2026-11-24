@@ -4096,6 +4096,10 @@ def check_read_survey(result):
          "the survey's report holds an earlier round's section: %s" % sorted(d.keys()), failures)
     s = d.get("survey") or {"survey_fields": [], "dead_bits": [], "screen_bits": [], "phase_passes": [], "handles": []}
     passes = s.get("phase_passes") or [0, 0, 0, 0]
+    # The last passes are at the title, with no character to read: what the survey told before is kept.
+    need(s.get("absent", 0) >= 2 and s.get("fields_total", 0) >= 4 and len(s["survey_fields"]) == s.get("fields_total"),
+         "the survey after the game went back to its title: absent %s, fields %s" %
+         (s.get("absent"), s.get("fields_total")), failures)
     need(s.get("passes", 0) >= 20 and s.get("tracked") == 7 and s.get("most_listed") == 7 and s.get("deaths") == 1 and
          s.get("phase") == 3 and passes[0] >= 4 and passes[1] >= 4 and passes[2] >= 3 and passes[3] >= 3,
          "the survey's passes: %s" % {k: v for k, v in s.items() if not isinstance(v, list)} + " %s" % passes, failures)
@@ -4132,11 +4136,12 @@ def check_read_survey(result):
 case("launcher-eldennet-read-survey", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
                                                "--read", "--read-plan", "1", "--read-pace-s", "12"] +
      game("--field-mirror", "--title-frames", "720", "--screen-from-s", "24", "--screen-to-s", "32",
-          "--kill-at-s", "40", frames=4800),
+          "--kill-at-s", "40", "--retitle-at-s", "56", "--retitle-for-s", "100", frames=4800),
      program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
      # The fake game's seconds of the world against the launcher's tasks at twelve seconds each: the world begins some
      # 12 s in and the round is ready some 10 s in, so the load's mark comes at about 10 of the world's seconds, the
-     # standing task runs to 22, the looking task to 34 and the kill's to 46.
+     # standing task runs to 22, the looking task to 34 and the kill's to 46. At 56 the fake game goes back to its
+     # title and stays there, as a tester who quits does: the survey's last passes find no character.
      prepare=install_eldennet(None, probe=True, gal_change=read_state_gal, then=with_saves),
      check=check_read_survey,
      what="the survey's plan (--read-plan 1): the plan read by the round, seven tasks and five marks, no search of the "
