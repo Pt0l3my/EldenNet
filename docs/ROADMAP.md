@@ -1646,6 +1646,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: decided by the owner on 2026-11-23 as recommended ("After keys or pad") and built the same day (GraceUI
     feat/foundations 63d63c3); the harness's menu-focus-ring scenario reads the ring's pixels beside the focus (none at
     open, there after a key, gone after a mouse move, the focus kept). EldenNet's goldens do not change.
+- aw The spike report places a dropped press: the game window's focus and place, the presses that reached the game, each input detour's longest call and the game's gaps between DirectInput reads, in each state line (GraceUI 0.2.34) [done]
+  - refs: GraceUI:D238, GraceUI:D239, WHY§566, WHY§570
+  - gives: built on 2026-11-24 (GraceUI feat/foundations d3a6837, 2d8cef8) at Engine's request after spikes.6's A1.
+    The harness checks each count (a press with no holder by DirectInput and by message, focus lost and gained, a
+    300 ms gap between reads, the detours' longest calls). The owner's A1 run again showed the first A1's drops a
+    first-run effect (WHY§566); for a next one, the owner's rough time of a missed press is set against the state
+    line near it. For spikes.7.
 
 ### S11.3 EldenNet v0.2
 

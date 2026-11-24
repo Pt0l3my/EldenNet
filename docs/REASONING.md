@@ -592,6 +592,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 567 | 2026-11-24 | The game's state is named by a round's own checks: one of 22 fields that read the two saves' slots lies in an object of the class the leads give | FACT | #lodestar #l6 #gal |
 | 568 | 2026-11-24 | A character's parts by two rounds: the holder at 0x190, health in the first part, position in the fourteenth | LIKELY | #lodestar #l6 |
 | 569 | 2026-11-24 | The near list's elements do not all hold a fraction 8 bytes in: the reader takes the distance element by element | FACT | #lodestar |
+| 570 | 2026-11-24 | A press a player says did not register is placed by maxima and gaps, not by percentiles | METHOD | #graceui #input |
 
 ## Entries
 
@@ -8598,3 +8599,14 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - At the layout's place the list held 119 elements of 16 bytes, a character's address first in each, but not a
   fraction in every element 8 bytes in, where the thirteenth round's shorter lists had one in all. near_entry's
   distance is not to be trusted in every element.
+
+### 570. A press a player says did not register is placed by maxima and gaps, not by percentiles
+
+`2026-11-24` · METHOD · `#graceui` `#input` · refs: GraceUI:D239, GraceUI:D175, WHY§566
+
+- A game that reads input state loses a press shorter than the gap between two of its reads, and one late read in
+  thousands shows in no p99 and no 200 ms frame window. GraceUI's spike report (0.2.34) now keeps each input
+  detour's longest call, the longest gap between the game's DirectInput reads and the counts over thresholds, with
+  the times at which they rose, beside the window's focus and the presses that reached the game. In spikes.6's
+  first A1, GraceUI's allocation count did not move during play (188 before and after), so its heap guard never
+  ran on the game's threads then.
