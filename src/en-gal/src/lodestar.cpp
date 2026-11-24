@@ -860,6 +860,7 @@ constexpr std::array<std::string_view, 4> kHolds = {"nothing", "unread", "unclas
 constexpr std::array<std::string_view, 6> kWordKinds = {"zero", "small", "vtable", "image", "heap", "other"};
 constexpr std::array<std::string_view, 3> kJumpAs = {"fraction", "whole", "hour"};
 constexpr std::array<std::string_view, 3> kTreeMatch = {"start", "index", "address"};
+constexpr std::array<std::string_view, 6> kCheck = {"is", "equal", "with_player", "block", "bits_equal", "changed"};
 constexpr std::array<std::string_view, 9> kRefusal = {"unreadable",    "static_section", "static_alignment",
                                                       "class_section", "getter_section", "getter_not_function",
                                                       "no_path",       "path_section",   "path_text"};
@@ -951,16 +952,22 @@ constexpr auto kKeys = std::to_array<Key>({
     U("pos_frames"), U("list_frames"), U("near_most"), U("near_read"), U("near_chr"), U("near_distance"),
     U("near_rising"), AU("pos_frames_by"), AU("pos_moved_by"), AO("at_marks"), B("there"), B("loaded"), B("has_hp"),
     U("hp"), U("max_hp"), U("near"),
+    // A character's other fields through the layout: counts only.
+    U("fields_bound"), U("fields_frames"), U("chr_self"), U("chr_object"), U("chr_handle"), U("chr_param"),
+    U("chr_kin"), U("chr_entity"), U("chr_dead"), U("chr_on_screen"), U("handles_shared"), U("objects_most"),
+    U("handles_most"), U("kinds_most"), U("entities_most"), U("teams_most"), U("team_group_most"), U("self_frames"),
+    U("self_handle_frames"), U("self_param_frames"), U("self_dead_frames"), U("self_team_alone_frames"),
+    AU("chr_object_by"), AU("chr_dead_by"), AU("chr_on_screen_by"),
     // The character survey (in game): behaviour only, no value of any character.
     O("survey"), U("tracked"), U("most_listed"), U("deaths"), U("fields_total"), AO("survey_fields"), U("seen"),
     U("changed_for"), U("most"), U("zeros"), U("small"), U("block_like"), U("id_like"), B("player_alone"),
     AU("handles"), AO("pairs"), U("a"), U("b"), U("holds_for"), U("of"), U("dead_total"), AO("dead_bits"),
     U("agree_alive"), U("agree_dead"), U("against"), U("screen_total"), AO("screen_bits"), U("look"),
-    U("flipped_in"),
+    U("flipped_in"), AO("checks"), W("check", kCheck), U("player_holds"), U("player_of"),
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 18, kKeys};
+constexpr report::Vocabulary kVocabulary{"lodestar", 19, kKeys};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -1857,6 +1864,19 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.end_object();
     }
     w.end_array();
+    w.begin_array("checks");
+    for (const SurveyCheck& r : f.checks) {
+      w.begin_object();
+      w.word("check", kCheck[std::min<std::size_t>(r.kind, kCheck.size() - 1)]);
+      w.number("a", r.a);
+      w.number("b", r.b);
+      w.number("holds_for", r.holds);
+      w.number("of", r.of);
+      w.number("player_holds", r.player_holds);
+      w.number("player_of", r.player_of);
+      w.end_object();
+    }
+    w.end_array();
     w.end_object();
   }
 
@@ -1898,6 +1918,31 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.end_object();
     }
     w.end_array();
+    w.number("fields_bound", f.fields_bound);
+    w.number("fields_frames", f.fields_frames);
+    w.number("chr_self", f.chr_self);
+    w.number("chr_object", f.chr_object);
+    w.number("chr_handle", f.chr_handle);
+    w.number("chr_param", f.chr_param);
+    w.number("chr_kin", f.chr_kin);
+    w.number("chr_entity", f.chr_entity);
+    w.number("chr_dead", f.chr_dead);
+    w.number("chr_on_screen", f.chr_on_screen);
+    w.number("handles_shared", f.handles_shared);
+    w.number("objects_most", f.objects_most);
+    w.number("handles_most", f.handles_most);
+    w.number("kinds_most", f.kinds_most);
+    w.number("entities_most", f.entities_most);
+    w.number("teams_most", f.teams_most);
+    w.number("team_group_most", f.team_group_most);
+    w.number("self_frames", f.self_frames);
+    w.number("self_handle_frames", f.self_handle_frames);
+    w.number("self_param_frames", f.self_param_frames);
+    w.number("self_dead_frames", f.self_dead_frames);
+    w.number("self_team_alone_frames", f.self_team_alone_frames);
+    numbers(w, "chr_object_by", f.chr_object_by);
+    numbers(w, "chr_dead_by", f.chr_dead_by);
+    numbers(w, "chr_on_screen_by", f.chr_on_screen_by);
     w.end_object();
   }
 

@@ -569,6 +569,63 @@ TEST_CASE("backend: the world's leads alone read through a layout that places th
   CHECK(a.near_chr == n);
   CHECK(a.near_distance == n);
   CHECK(a.near_rising == n);
+  // A character's other fields, where asked for (the nineteenth round): each through the layout's own field, counted
+  // over the list's characters that are not the main player, and none kept.
+  using WA = ErBackend::WorldAlone;
+  CHECK(a.fields_bound ==
+        (WA::kHandle | WA::kParam | WA::kModel | WA::kEntity | WA::kTeam | WA::kDead | WA::kOnScreen));
+  CHECK_FALSE(a.fields);
+  CHECK(a.near_object == 0);
+  for (std::uint32_t i = 0; i < n; ++i) {
+    const std::uint64_t c = w.npcs[i];
+    const std::uint32_t kind = 20'000'000 + 10'000 * (i / 2);
+    w.mem.put<std::uint64_t>(c + 0x8, 0x00A0'0000'0000'1000ull + i);
+    w.mem.put<std::uint32_t>(c + 0x10, kind);
+    w.mem.put<std::uint32_t>(c + 0x14, i == 0 ? 7 : kind / 10'000);  // one whose model is not its kind's
+    w.mem.put<std::uint32_t>(c + 0x18, i == 1 ? 0 : 5000 + i);       // one placed by no map
+    w.mem.put<std::uint8_t>(c + 0x20, i == 0 ? 3 : 6);
+    w.mem.put<std::uint8_t>(c + 0x21, static_cast<std::uint8_t>((i == 2 ? 0x20 : 0) | (i < 2 ? 0x02 : 0)));
+  }
+  w.mem.put<std::uint64_t>(w.player + 0x8, 0x00FF'0000'0000'0001ull);
+  w.mem.put<std::uint32_t>(w.player + 0x10, 0);
+  w.mem.put<std::uint8_t>(w.player + 0x20, 1);
+  w.mem.put<std::uint8_t>(w.player + 0x21, 0);
+  const WA f = backend.world_alone(gt, true);
+  CHECK(f.fields);
+  CHECK(f.near_chr == n);
+  CHECK(f.near_self == 0);
+  CHECK(f.near_object == n);
+  CHECK(f.near_handle == n);
+  CHECK(f.near_handles == n);
+  CHECK(f.near_param == n);
+  CHECK(f.near_kinds == (n + 1) / 2);
+  CHECK(f.near_kin == n - 1);
+  CHECK(f.near_entity == n - 1);
+  CHECK(f.near_entities == n - 1);
+  CHECK(f.near_teams == 2);
+  CHECK(f.near_team_most == n - 1);
+  CHECK(f.near_dead == 1);
+  CHECK(f.near_on_screen == 2);
+  CHECK(f.self_object);
+  CHECK(f.self_handle);
+  CHECK_FALSE(f.self_param);
+  CHECK_FALSE(f.self_dead);
+  CHECK(f.self_team_alone);
+  REQUIRE(f.hp.has_value());  // the rest reads as before
+  CHECK(f.hp->cur == 812);
+  // Two characters with one handle show as one handle fewer; the main player in the list is counted apart, and a
+  // team it shares is not its alone.
+  const std::uint64_t third = w.mem.get<std::uint64_t>(w.near + 0x10 * 2);
+  w.mem.put<std::uint64_t>(w.npcs[1] + 0x8, w.mem.get<std::uint64_t>(w.npcs[0] + 0x8));
+  w.mem.put<std::uint64_t>(w.near + 0x10 * 2, w.player);
+  w.mem.put<std::uint8_t>(w.player + 0x20, 6);
+  const WA g = backend.world_alone(gt, true);
+  CHECK(g.near_self == 1);
+  CHECK(g.near_object == n - 1);
+  CHECK(g.near_handle == n - 1);
+  CHECK(g.near_handles == n - 2);
+  CHECK_FALSE(g.self_team_alone);
+  w.mem.put<std::uint64_t>(w.near + 0x10 * 2, third);
   // What changes in the game shows at the next call; an element that holds no fraction, or no character, is counted
   // out by itself and the list is read on (WHY§569).
   w.mem.put<std::int32_t>(vitals + 0x0, 300);
@@ -665,6 +722,34 @@ TEST_CASE("backend: the world's leads alone read nothing of a part the layout do
     then(backend.world_alone(gt), backend);
   };
   using WA = ErBackend::WorldAlone;
+  // No field of a character but its parts: the others are not read, asked for or not.
+  {
+    const std::size_t from = w.layout.find("[class.character.fields]");
+    REQUIRE(from != std::string::npos);
+    const std::size_t to = w.layout.find("\n[", from + 1);
+    std::string fields;
+    for (std::size_t at = from; at < to;) {
+      const std::size_t end = w.layout.find('\n', at) + 1;
+      const std::string_view line(w.layout.data() + at, end - at);
+      if (line.starts_with("[") || line.starts_with("parts ")) fields.append(line);
+      at = end;
+    }
+    const std::string whole = w.layout;
+    w.layout = whole.substr(0, from) + fields + whole.substr(to);
+    backend_of({"characters", "near_entry", "character", "character_parts", "vitals", "motion", "game_state"},
+               [&](const WA& a, ErBackend& backend) {
+                 CHECK(a.lacks == WA::kFields);
+                 CHECK(a.fields_bound == 0);
+                 CHECK(a.hp.has_value());
+                 const auto gt = en::proto::GameThread::issue();
+                 const WA b = backend.world_alone(gt, true);
+                 CHECK_FALSE(b.fields);
+                 CHECK(b.near_object == 0);
+                 CHECK_FALSE(b.self_object);
+                 CHECK(b.near_chr == w.npcs.size());
+               });
+    w.layout = whole;
+  }
   // No vitals: the parts are not read; the slot, the player's class and the list are.
   backend_of({"characters", "near_entry", "character", "character_parts", "motion", "game_state"},
              [&](const WA& a, ErBackend&) {
@@ -685,7 +770,7 @@ TEST_CASE("backend: the world's leads alone read nothing of a part the layout do
   });
   // Nothing of it at all (the flags' layout): nothing is read, not even the statics.
   backend_of({"event_flags", "flag_node"}, [&](const WA& a, ErBackend& backend) {
-    CHECK(a.lacks == (WA::kSlot | WA::kPlayer | WA::kParts | WA::kNear));
+    CHECK(a.lacks == (WA::kSlot | WA::kPlayer | WA::kParts | WA::kNear | WA::kFields));
     CHECK_FALSE(a.characters);
     CHECK(backend.reader().copies() == 0);
   });
