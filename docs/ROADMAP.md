@@ -1806,7 +1806,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 - S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs [active]
   - needs: S11.2.h
-  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, O99, O104, G34, G36
+  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, O99, O104, O119, G34, G36
   - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format. The
     allowances' and reactions' inherit tri-states (PAGES) use GraceUI's third = "inherit" and the settings topic's
     `inherited` list, added on 2026-11-20 at EldenNet's request (GraceUI feat/foundations ac4bc39). Since GraceUI
@@ -1872,7 +1872,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     per problem, what disable.toml turns off, and the session's reloads (WHY§600 to §604). In v0.2 the content layer
     turns off personas alone and ships no card, so those rows stay empty in game; a layer's problem names its field
     but no line. Left: Docs and Tools › Bug report, waiting on GraceUI's answers (a document page, a multi-line field
-    and a preview); the page's words, for the owner's review.
+    and a preview). Its readings and words accepted as written by the owner the same day (O119), PAGES §4.6.9 noted.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2

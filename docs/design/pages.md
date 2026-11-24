@@ -829,6 +829,14 @@ a later version (O41, EldenNet DESIGN §13); v1 is dialogue only and never write
   entries, triggers and rules as counts) · **Reloads** (time, layer, result).
 - **Data.** Reads `content`. Writes nothing (no content editors, D2).
 - **Rules.** Relative paths only (PV5).
+- *Since 2026-11-24, as built (engine 86d3991; O119; WHY§602):* a file of the overrides folder is Loaded, Refused, "Not
+  loaded: another file was refused" (an error outside a player's layer refuses the whole load) or "Not read" (one the
+  DLL left out: a link, a folder too deep, past 256 files, unreadable), with a row per problem; a path that is not fit
+  to show goes on an "Other files" row. The reloads' layer is what the load read: "Shipped content and your overrides"
+  at the start, "Your overrides" after the profile editor saved. Until the pack has a manifest its name and credit are
+  fixed words; cards and the turned-off knowledge, triggers and rules stay empty while the content layer gives none, and
+  a layer's problem names its field without a line. The page is a category of its own after Settings, with no rule
+  above it, until GraceUI draws a foot for a mod's categories.
 
 **Plugins** (`plugins`; 1.1 for content plugins, code plugins after v1.0; D104).
 
