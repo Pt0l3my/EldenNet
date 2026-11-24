@@ -269,6 +269,9 @@ dialog and Related card of GraceUI §4.2.4.
 - **Purpose.** Is EldenNet working, who is near, what was just said and what was asked of the model.
 - **Header actions.** Pause AI (a chip that toggles; session only, D15) · Run self-test (`selftest.run`; the result
   in a toast and on AI › Self-test) · Customise.
+- *Since 2026-11-24, as built (engine 2f27925; GraceUI D252):* Pause AI is GraceUI's quick switch ("Pause AI for this
+  session", `ai.pause`, its state `status.ai_paused`), with its line on the Status card; the header chip waits for a
+  header action that is a switch. Home is live, and its Model calls card shows the last 20.
 - **Cards** (a grid of mixed widths, each with an uppercase gold title; the title, or Enter on it, opens its page):
 
 | Card | Width (3 / 5 columns) | Contents | Reads | From |
@@ -428,6 +431,10 @@ dialog and Related card of GraceUI §4.2.4.
 - **Data.** Reads `calls` (20 kept, 200 in developer mode), `usage`.
 - **Rules.** No prompt or unshown text, ever (invariant 1); no base URL.
 - **Related.** Models, System › Traces, System › Logs.
+- *Since 2026-11-24, as built (engine 2f27925; GraceUI D250, D252):* the slot is shown as its job's label ("Job"); the
+  row drawer's fields are the table's last two columns, Why and Text shown, until GraceUI has a row drawer; the hour's
+  line under the tiles gives own-initiative calls and every request against the bound; cost is shown only once a
+  provider reported one, with how many calls did; the page is live.
 
 **Director** (`ai.director`; a later-version statement). A director that chooses who speaks next and starts scenes on
 its own is a later version (EldenNet DESIGN §13, the `Directed` class). In this version NPCs speak through greetings,

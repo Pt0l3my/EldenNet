@@ -655,6 +655,11 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 630 | 2026-11-24 | The twentieth round's two runs lost their report to the 256 KiB limit at the first pass | FACT | #lodestar #l6 |
 | 631 | 2026-11-24 | What the tester is told must come from what was written, and a case must be at the game's sizes | METHOD | #lodestar #tests |
 | 632 | 2026-11-24 | A kind of report may say a size limit of its own, 1 MiB at most | DECIDED | #lodestar #gal |
+| 633 | 2026-11-24 | At GraceUI 0.2.46 grace-dev's dump of Docs passes a mod's draw-list limits | FACT | #pages #goldens #graceui |
+| 634 | 2026-11-24 | EldenNet's GraceUI floor stays 0.2.44 at the 0.2.46 pin | DECIDED | #graceui #pages |
+| 635 | 2026-11-24 | Requests' drawer fields are its last two columns until GraceUI has a row drawer | DECIDED | #pages #privacy |
+| 636 | 2026-11-24 | Pause AI is not a sensitive command, and is the quick switch alone for now | DECIDED | #pages #privacy |
+| 637 | 2026-11-24 | A page whose first control comes with its topic opens in game focused on its Related card | FACT | #pages #graceui |
 
 ## Entries
 
@@ -9304,3 +9309,46 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   goes first and the sheet's list last, halved from its far end, and said so. The watch word stays version 3: its
   sixteenth mark becomes the report's bit, since only package .26 read the word and the launcher and the DLL travel
   together.
+
+### 633. At GraceUI 0.2.46 grace-dev's dump of Docs passes a mod's draw-list limits
+
+`2026-11-24` · FACT · `#pages` `#goldens` `#graceui` · refs: tests/pages/golden, GraceUI D253, tools/grace-dev/dump.cpp, engine 9f1befc and 3e80305 (merged at 2f27925)
+
+- D253 draws the chosen document whole, so the dump of Docs over the title holds 209 items and 15,862 vertices, more
+  than a mod's submission may hold (13,107), and says "check_draw_list: refused" and exits 1. The menu's list is
+  GraceUI's own, tessellated without that check, so tests/pages/preview.py accepts that exit for Docs alone, with that
+  verdict alone, and the golden records it. Asked of Grace. Otherwise the pin moved two goldens, both by D253, and the
+  pages every golden by the quick switches' pill, Home's and Requests' by the live updates' pill, the AI pages' rail
+  by Requests, and this job's words; three goldens are new.
+
+### 634. EldenNet's GraceUI floor stays 0.2.44 at the 0.2.46 pin
+
+`2026-11-24` · DECIDED · `#graceui` `#pages` · refs: src/en-proto/include/en/proto/graceui_pin.hpp, GraceUI D252, engine 9f1befc and 3e80305 (merged at 2f27925)
+
+- A space's `quick` and a page's `live` are fields an older decoder skips, so GraceUI 0.2.44 shows the pages without
+  their pills, and only Pause AI, which the quick switch alone sends, cannot be turned on there.
+
+### 635. Requests' drawer fields are its last two columns until GraceUI has a row drawer
+
+`2026-11-24` · DECIDED · `#pages` `#privacy` · refs: PAGES§4.6.2, PV4, src/en-overlay/include/en/overlay/space.hpp, engine 9f1befc and 3e80305 (merged at 2f27925)
+
+- The error class in words and the text shown are Requests' last two columns, Why and Text shown, and Text shown is
+  Home's card's last; a drawer would take them as they are (asked of Grace). `calls` holds every kept row and Home's
+  20 under 240 KiB, below GraceUI's 256 KiB frame: past it, Requests' oldest rows give up their text, then go. Slot is
+  shown as its job's label ("Job"); the hour's line gives own-initiative calls and every request against the bound.
+
+### 636. Pause AI is not a sensitive command, and is the quick switch alone for now
+
+`2026-11-24` · DECIDED · `#pages` `#privacy` · refs: GraceUI D221, D252, G9, PAGES§4.6.1, engine 9f1befc and 3e80305 (merged at 2f27925)
+
+- A paired device may pause and resume, as it may run the self-test: the command writes no file and keeps nothing
+  (as agreed with Grace). PAGES' chip in Home's header waits for a header action that is a switch (asked of Grace).
+  While paused the AI pages lead with the pause before any other cause, and the space refuses the self-test and model
+  lists with en-proto's words, as the DLL does.
+
+### 637. A page whose first control comes with its topic opens in game focused on its Related card
+
+`2026-11-24` · FACT · `#pages` `#graceui` · refs: GraceUI page_view.cpp (focus_first_control), tests/pages/golden
+
+- grace-dev's dumps of AI › Requests (its filter bar comes with its topic) and of Home (no control above Related)
+  focus Related and scroll to it, the header above the top; so did Home and Content packs at 0.2.44. Asked of Grace.
