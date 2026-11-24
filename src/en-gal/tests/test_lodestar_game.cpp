@@ -2759,6 +2759,22 @@ TEST_CASE("in game: the character survey tells a character's fields by how they 
   CHECK(gone.pairs.size() == f.pairs.size());
   CHECK(gone.dead_bits.size() == 1);
   CHECK_FALSE(gone.screen_bits.empty());
+  // Nor does a pass with a few characters left (the world going): three of ten tell nothing new, and what the full
+  // passes told stands, the handle among it.
+  w.mem.put<std::uint64_t>(manager + 0x10, chars[0].at);
+  w.mem.put<std::uint64_t>(manager + 0x28, run + 2 * 0x10);
+  pass(false);
+  const lodestar::SurveyFound few = survey.found();
+  CHECK(few.absent == 2);
+  CHECK(few.fields.size() == f.fields.size());
+  REQUIRE(field(0x10) != nullptr);
+  bool same = false;
+  for (const lodestar::SurveyField& r : few.fields) {
+    same = same || (r.offset == 0x10 && r.seen == 10 && r.distinct == 4);
+  }
+  CHECK(same);
+  CHECK(few.handles == f.handles);
+  CHECK(few.pairs.size() == f.pairs.size());
   // The report carries where the fields lie and how they behaved, and lints clean; no value is written.
   lodestar::Found found = round_of(w).found;
   found.survey = f;
