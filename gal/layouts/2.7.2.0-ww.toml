@@ -44,6 +44,14 @@
 #   fractions from 0x70: the first and the third ranged over metres while the owner walked, the second, the height,
 #   moved in the one round where the ground was not level). Leads from the main player alone, by behaviour: no
 #   other character was read, and several other numbers behaved as the health did.
+# - read through EldenNet's own reader (the seventeenth read-only round, 2026-11-24; ErBackend::world_alone, once a
+#   second for six minutes, no fault): the game's state's item passed the table's checks in the game; the save's
+#   slot read 6 with the one save and 2 with the other, and kept its number at the title in between; the object at
+#   the main player's word was of the player's class whenever a save was loaded; the health read below its maximum
+#   after the owner's hit and equal to it after the heal, never above it; the position moved in 26 of the walk's 29
+#   seconds and in none of the 107 standing ones; and the near list's first 48 elements held a character every
+#   time, with a distance that never fell along the list in all but 8 of 12,720 elements read. Still leads: the
+#   owner's own check of the numbers against the screen, S0-A and the self-tests confirm.
 # The other classes, fields, enums, params and self-test ids are later rounds' to find, and are left out. A release
 # build refuses this file (every entry a lead).
 schema = 2
