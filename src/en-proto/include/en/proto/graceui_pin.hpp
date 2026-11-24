@@ -17,7 +17,9 @@ inline constexpr std::uint32_t kAbiMajor = 1;  // graceui.h's GRACEUI_ABI_MAJOR,
 // filter bar (0.2.43, D250), and the rail's foot (0.2.42, D248). The headers are GraceUI 0.2.46's (ABI 1.7, protocol
 // 1.13; EldenNet uses neither's uploads, D226); what came after 0.2.22 but the pages is used only behind its has_cap,
 // or, for 0.2.36's EB Garamond Italic (D241), where GraceUI's folder holds the file: without it the Tarnished's lines
-// are drawn upright.
+// are drawn upright. 0.2.45's quick switches and live pages (D252, protocol 1.13) do not raise it: an older decoder
+// skips the space's `quick` and a page's `live`, so a GraceUI from 0.2.44 shows the pages without them, and Pause AI,
+// which only the quick switch sends, cannot be turned on there.
 inline constexpr std::array<std::uint16_t, 3> kFloor = {0, 2, 44};
 inline constexpr std::string_view kCommit = "fe7d9db";  // GraceUI's feat/foundations (D169 to D253), GraceUI 0.2.46
 

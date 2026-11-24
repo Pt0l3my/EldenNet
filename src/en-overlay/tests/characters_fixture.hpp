@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "en/overlay/characters.hpp"
+#include "en/proto/calls.hpp"
 
 namespace en::overlay::test {
 
@@ -40,7 +41,7 @@ inline ProfileRow weaver() {
 }
 
 // The facts each fixture state points at: none before the content loads (starting); the two characters otherwise, the
-// weaver's layer saved over an older shipped profile in the world.
+// weaver's layer saved over an older shipped profile in the world, where AI is paused, so a draft waits.
 inline const CharacterFacts* characters_fixture(std::string_view state) {
   static const CharacterFacts title = [] {
     CharacterFacts f;
@@ -53,7 +54,7 @@ inline const CharacterFacts* characters_fixture(std::string_view state) {
     CharacterFacts f = title;
     f.revision = 2;
     f.rows[1].updated = true;
-    f.draft_blocked = "Drafts wait until EldenNet may use the network.";
+    f.draft_blocked = std::string(en::proto::kAiPausedDraft);  // the world's AI is paused (calls_fixture.hpp)
     return f;
   }();
   if (state == "starting") return nullptr;

@@ -143,9 +143,10 @@ cmake --build build-cl
   (`mesa-vulkan-drivers`) for Wine's Direct3D 12, as GraceUI's harness does. Build GraceUI at the commit
   third_party/graceui-sys comes from (fe7d9db, GraceUI 0.2.46), so the space and the surfaces meet the checks they will
   meet. The page lint and the preview are pinned to the same commit (`tests/pages/lint.py`): the page data is protocol
-  1.12's since Docs' document block and Bug report's prose field and preview (GraceUI D251), the GraceUI floor 0.2.44.
-  `launcher-eldennet-graceui-pages` drives EldenNet's pages through that GraceUI, Content packs, Docs and Bug report
-  among them: F5's menu
+  1.13's since the quick switches and live pages (GraceUI D252), which an older GraceUI reads past, so the GraceUI
+  floor stays 0.2.44 (Docs' document block, D251). `launcher-eldennet-graceui-pages` drives EldenNet's pages through
+  that GraceUI, Content packs, Docs and Bug report among them, `-pause` Pause AI by its quick switch's command and
+  `-talk-calls` AI › Requests after a reply: F5's menu
   and, from Linux, a browser of the tests' own (`tests/pages/browser.py`) on GraceUI's server at the port the fake
   game's report names. Every
   GraceUI case sets `GRACEUI_TEST_PORT=free` (GraceUI 0.2.31's D234) in the game's environment, so the test build serves

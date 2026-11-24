@@ -24,6 +24,8 @@ text    ink.mute       30,1010  138x30   glyphs 12 "Content packs"
 fill    ground.well   340,  10  350x35   r3
 text    ink.faint     353,  15   51x25   glyphs 6 "Search"
 text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
+fill    ground.well  1626,  10  148x35   r3
+text    ink.body     1641,  15  118x25   glyphs 13 "Quick switches"
 line    rule          300,  55 1620x1   
 text    ink.hi        340,  86  199x45   clip1 glyphs 9 "Bug report"
 text    ink.mute      340, 136  810x25   clip1 glyphs 80 "What a bug report would hold: your own words, EldenNet's versions and state, and its recent log."
@@ -69,7 +71,7 @@ text    ink.hi        365,1048   47x28   clip1 glyphs 5 "State"
 text    ink.mute      365,1097   42x25   clip1 glyphs 5 "State"
 text    ink.body      812,1097   76x25   clip1 glyphs 9 "Observing"
 text    ink.mute      365,1135   25x25   clip1 glyphs 3 "Why"
-text    ink.body      812,1135  903x25   clip1 glyphs 90 "EldenNet reads the game. NPCs speak once a model answers Conversation: AI › Providers says what is missing."
+text    ink.body      812,1135  253x25   clip1 glyphs 25 "AI is paused for this session."
 text    ink.mute      365,1173   42x25   clip1 glyphs 5 "Start"
 text    ink.body      812,1173   59x25   clip1 glyphs 7 "Started"
 text    ink.mute      365,1211  135x25   clip1 glyphs 14 "Offline and solo"
@@ -81,7 +83,7 @@ text    ink.body      812,1287  363x25   clip1 glyphs 36 "9 of 11 groups have pa
 text    ink.mute      365,1325  169x25   clip1 glyphs 18 "Stopped after faults"
 text    ink.body      812,1325   84x25   clip1 glyphs 9 "The camera"
 text    ink.mute      365,1363   17x25   clip1 glyphs 2 "AI"
-text    ink.body      812,1363  768x25   clip1 glyphs 79 "NPCs speak once a model answers Conversation. The self-test checks your provider meanwhile."
+text    ink.body      812,1363  987x25   clip1 glyphs 95 "AI is paused for this session, so EldenNet calls no model. Turn Pause AI off in the quick switches to call one again."
 text    ink.mute      365,1401   59x25   clip1 glyphs 6 "The log"
 text    ink.body      812,1401   59x25   clip1 glyphs 7 "Writing"
 text    ink.mute      365,1439   76x25   clip1 glyphs 9 "Recording"
@@ -161,4 +163,4 @@ stroke  edge          466,1044   42x28   r3 w1
 text    ink.body      474,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     515,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi       362, 326 1496x87   r5 w3 clip1
-# 162 items, 9936 vertices, 18036 indices, 4 commands; check_draw_list: passes
+# 164 items, 9816 vertices, 17922 indices, 4 commands; check_draw_list: passes

@@ -24,6 +24,8 @@ text    ink.mute       30,1010  138x30   glyphs 12 "Content packs"
 fill    ground.well   340,  10  350x35   r3
 text    ink.faint     353,  15   51x25   glyphs 6 "Search"
 text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
+fill    ground.well  1626,  10  148x35   r3
+text    ink.body     1641,  15  118x25   glyphs 13 "Quick switches"
 line    rule          300,  55 1620x1   
 text    ink.hi        340,  86   80x45   clip1 glyphs 4 "Docs"
 text    ink.mute      340, 136  903x25   clip1 glyphs 94 "EldenNet's own guides, bundled with it: getting started, privacy, spoilers, keys, troubleshooting and more."
@@ -184,7 +186,7 @@ stroke  rule          894,2064  986x175  r5 w1 clip1
 text    gold          919,2084   67x20   clip1 glyphs 7 "Related"
 line    rule          919,2114  936x1    clip1
 text    ink.hi        934,2128   38x28   clip1 glyphs 4 "Home"
-text    ink.mute     1231,2129  565x25   clip1 glyphs 53 "Whether EldenNet is working on this game, and what to do if it is not."
+text    ink.mute     1231,2129  565x25   clip1 glyphs 54 "Whether EldenNet is working on this game, what to do if it is not, and what it asked of a model."
 text    gold         1820,2128    9x28   clip1 glyphs 1 "→"
 line    rule          919,2169  936x1    clip1
 text    ink.hi        934,2183   94x28   clip1 glyphs 9 "Bug report"
@@ -208,4 +210,4 @@ stroke  edge          572,1044   42x28   r3 w1
 text    ink.body      580,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     621,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi       347, 293  510x76   r5 w3 clip1
-# 209 items, 15862 vertices, 25821 indices, 4 commands; check_draw_list: refused (more vertices, indices or commands than a list may hold)
+# 211 items, 15942 vertices, 26007 indices, 4 commands; check_draw_list: refused (more vertices, indices or commands than a list may hold)

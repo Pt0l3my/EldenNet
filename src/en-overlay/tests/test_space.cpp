@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 
+#include "calls_fixture.hpp"
 #include "characters_fixture.hpp"
 #include "content_fixture.hpp"
 #include "en/overlay/docs.hpp"
@@ -81,6 +82,7 @@ SpaceFacts world() {
   f.recording = true;
   f.recorded = 2400;
   f.session_ms = 3'930'000;
+  f.ai_paused = true;  // Pause AI for this session (D15): the ladder at L2 for it, its calls made before it
   return f;
 }
 
@@ -94,6 +96,7 @@ SpaceFacts multiplayer() {
   f.badge = true;
   f.recording_asked = false;
   f.recording = false;
+  f.ai_paused = false;
   return f;
 }
 
@@ -293,6 +296,7 @@ SpaceFacts facts_of(std::string_view state) {
   f.ai = &ai_fixture(state);
   f.characters = en::overlay::test::characters_fixture(state);  // Characters › Named NPCs (characters_fixture.hpp)
   f.content = en::overlay::test::content_fixture(state);        // Content packs (content_fixture.hpp)
+  f.calls = en::overlay::test::calls_fixture(state);            // AI › Requests, Home's Model calls (calls_fixture.hpp)
   return f;
 }
 
@@ -313,7 +317,9 @@ const char* const kAiTopics[] = {"ai.status",
                                  "ai.choices.bark_live.fallback",
                                  "ai.choices.bark_pool.fallback",
                                  "ai.choices.memory.fallback",
-                                 "ai.choices.selftest.fallback"};
+                                 "ai.choices.selftest.fallback",
+                                 "calls",
+                                 "usage"};
 
 json frame(const std::string& text) { return json::parse(text); }
 
@@ -363,8 +369,8 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
     CHECK(p["increment"].get<std::string>() <= std::string(kIncrement));
   }
   CHECK(ids == std::vector<std::string>{"home", "system.status", "system.logs", "settings.developer", "ai.providers",
-                                        "ai.models", "ai.selftest", "characters.named", "content", "tools.report",
-                                        "docs"});
+                                        "ai.models", "ai.selftest", "ai.requests", "characters.named", "content",
+                                        "tools.report", "docs"});
   // The rail holds PAGES §4.2.1's categories in their order, the slice's pages in theirs.
   std::vector<std::string> rail;
   for (const json& c : pages["categories"]) rail.push_back(c["id"].get<std::string>());
@@ -392,10 +398,22 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
   CHECK(pages["commands"] == json::array({"settings.set", "settings.reset", "selftest.run", "models.list",
                                           "providers.add", "providers.remove", "providers.key", "profile.check",
                                           "profile.save", "profile.reset", "profile.restore", "profile.draft",
-                                          "report.build", "report.part"}));
-  // Docs' document block and Bug report's prose field and preview: protocol 1.12's (GraceUI D251), on 1.11's filter
-  // bar (D250), 1.10's foot (D248) and 1.8's sensitive marks (D221).
-  CHECK(pages["minor"] == 12);
+                                          "report.build", "report.part", "ai.pause"}));
+  // The quick switches and live pages: protocol 1.13's (GraceUI D252), on 1.12's document block, prose field and
+  // preview (D251), 1.11's filter bar (D250), 1.10's foot (D248) and 1.8's sensitive marks (D221).
+  CHECK(pages["minor"] == 13);
+  // Pause AI for this session, the one quick switch (GraceUI §78's form), and not sensitive: a paired device may pause.
+  CHECK(pages["quick"] == json::array({{{"id", "pause"}, {"label", "Pause AI for this session"},
+                                        {"command", "ai.pause"},
+                                        {"state", {{"topic", "status"}, {"field", "ai_paused"}}}, {"home", "home"}}}));
+  CHECK(std::find(pages["sensitive_commands"].begin(), pages["sensitive_commands"].end(), "ai.pause") ==
+        pages["sensitive_commands"].end());
+  // Home and Requests are live (D252): their topics move by themselves; no other page is.
+  std::vector<std::string> live;
+  for (const json& p : pages["pages"]) {
+    if (p.value("live", false)) live.push_back(p["id"].get<std::string>());
+  }
+  CHECK(live == std::vector<std::string>{"home", "ai.requests"});
   // GraceUI 0.2.5's checks (D183, eldennet-changes §36), met already: no topic is the server's own "pages", the id is
   // not GraceUI's reserved one, and every destructive action, a row's included, has its confirmation's text.
   CHECK(pages["space"] != "graceui");
@@ -712,6 +730,7 @@ TEST_CASE("space: L3 and L4 show as speaking, in their own words, not as Observi
   AiFacts ai = ai_ready();
   SpaceFacts f = world();
   f.ai = &ai;
+  f.ai_paused = false;  // the world fixture's pause holds the ladder at L2: off here, as it must be to speak
   f.level = Level::Speaking;
   json b = s.body("status", f);
   CHECK(b["word"] == "Speaking");
@@ -836,10 +855,11 @@ TEST_CASE("space: the AI pages' topics: projections only, the address on Provide
   // GraceUI's space.state (D188): nothing greyed but at L1, where the AI pages carry the banner's words.
   CHECK(s.body("space.state", f) == json{{"greyed", json::object()}});
   const json greyed = s.body("space.state", facts_of("banner"))["greyed"];
-  CHECK(greyed.size() == 4);  // Home and AI (PAGES §4.4): System and Settings stay usable
+  CHECK(greyed.size() == 5);  // Home and AI (PAGES §4.4): System and Settings stay usable
   CHECK(greyed["ai.selftest"] == "EldenNet inactive: game build 3.14.15.0 not supported yet");
   CHECK(greyed["home"] == greyed["ai.selftest"]);
   CHECK(greyed.contains("ai.providers"));
+  CHECK(greyed["ai.requests"] == greyed["ai.selftest"]);
   CHECK_FALSE(greyed.contains("system.status"));
   CHECK_FALSE(greyed.contains("settings.developer"));
   SpaceFacts long_banner = facts_of("banner");
@@ -2103,6 +2123,286 @@ TEST_CASE("space: Bug report: the log's tail scrubbed again, settings without se
   CHECK(parts.dump().find("invented key") == std::string::npos);
 }
 
+TEST_CASE("space: AI › Requests and Home's Model calls: PAGES' columns and words, the sort keys, PV4 and PV5") {
+  const Space s;
+  const SpaceFacts f = facts_of("world");
+  const json calls = s.body("calls", f);
+  const json& requests = calls["requests"];
+  const auto ids_of = [](const json& columns) {
+    std::vector<std::string> ids;
+    for (const json& c : columns) ids.push_back(c["id"].get<std::string>());
+    return ids;
+  };
+  // The page data: Requests' table on `calls`' `requests` member, with its filter bar (GraceUI D250: job, purpose and
+  // outcome; sorted on the rows' hidden keys, newest first; no search, by PV4); Home's card on its `home` member.
+  const json pages = json::parse(space_pages());
+  json table, card;
+  for (const json& page : pages["pages"]) {
+    for (const json& sec : page.value("sections", json::array())) {
+      for (const json& b : sec["blocks"]) {
+        if (b.value("topic", "") != "calls") continue;
+        (page["id"] == "ai.requests" ? table : card) = b;
+      }
+    }
+  }
+  CHECK(table["props"]["field"] == "requests");
+  CHECK(card["props"]["field"] == "home");
+  CHECK_FALSE(card.contains("filter_bar"));
+  CHECK(table["filter_bar"]["filters"] == json::array({{{"column", "slot"}, {"label", "Job"}},
+                                                       {{"column", "purpose"}, {"label", "Purpose"}},
+                                                       {{"column", "outcome"}, {"label", "Outcome"}}}));
+  std::vector<std::string> keys;
+  for (const json& o : table["filter_bar"]["sort"]) keys.push_back(o["key"].get<std::string>());
+  CHECK(keys == std::vector<std::string>{"at_ms", "first_token_ms", "total_ms", "tokens"});
+  CHECK(table["filter_bar"]["sort"][0]["direction"] == "descending");
+  CHECK_FALSE(table["filter_bar"].contains("search"));
+  // PAGES' nine columns, then why and the text shown: GraceUI has no row drawer yet.
+  CHECK(ids_of(requests["columns"]) == std::vector<std::string>{"time", "slot", "purpose", "speaker", "provider_model",
+                                                                 "first_token", "total", "tokens", "outcome", "why",
+                                                                 "text"});
+  REQUIRE(requests["rows"].size() == 8);
+  // Newest first. A call still waiting has no first token, total or tokens: those keys are left out, so that it sorts
+  // last on them (GraceUI D250), and no text.
+  const json& waiting = requests["rows"][0];
+  CHECK(waiting["id"] == 19);
+  CHECK(waiting["at_ms"] == 3'905'000);
+  CHECK(waiting["time"] == "1:05:05");
+  CHECK(waiting["outcome"] == "waiting");
+  for (const char* key : {"first_token_ms", "first_token", "total_ms", "total", "tokens", "text", "why"}) {
+    CHECK_FALSE(waiting.contains(key));
+  }
+  const json& shown = requests["rows"][1];
+  CHECK(shown["slot"] == "Conversation");
+  CHECK(shown["purpose"] == "reply");
+  CHECK(shown["speaker"] == "Old Bram");
+  CHECK(shown["provider_model"] == "talker-small on openrouter");
+  CHECK(shown["first_token"] == "0.64 s");
+  CHECK(shown["first_token_ms"] == 640);
+  CHECK(shown["total"] == "1.72 s");
+  CHECK(shown["total_ms"] == 1720);
+  CHECK(shown["tokens"] == 858);  // in and out, a column and its sort key at once
+  CHECK(shown["outcome"] == "shown");
+  CHECK(shown["text"] == "Two coins for the crossing, friend, and the river decides how dry you land.");
+  CHECK_FALSE(shown.contains("why"));
+  // The fallback's answer reached the screen; why the first model did not answer is kept, in words.
+  CHECK(requests["rows"][2]["outcome"] == "fallback model");
+  CHECK(requests["rows"][2]["provider_model"] == "talker-large on openrouter");
+  CHECK(requests["rows"][2]["why"] == "Took too long to start its answer.");
+  // Not shown: no text, ever (PV4).
+  CHECK(requests["rows"][3]["outcome"] == "not shown");
+  CHECK_FALSE(requests["rows"][3].contains("text"));
+  CHECK(requests["rows"][4]["outcome"] == "timed out");
+  CHECK_FALSE(requests["rows"][4].contains("first_token_ms"));
+  CHECK_FALSE(requests["rows"][4].contains("tokens"));
+  CHECK(requests["rows"][5]["slot"] == "Profile drafts");
+  CHECK(requests["rows"][5]["purpose"] == "profile draft");
+  CHECK(requests["rows"][5]["outcome"] == "answered");
+  CHECK_FALSE(requests["rows"][5].contains("speaker"));
+  CHECK(requests["rows"][6]["outcome"] == "failed");
+  CHECK(requests["rows"][6]["why"] == "Failed on the provider's side.");
+  // Every purpose and outcome a filter offers is in PAGES' words (en-proto's), every job its player's label.
+  std::vector<std::string> purposes, outcomes;
+  for (std::size_t i = 0; i < en::proto::kCallPurposes; ++i) {
+    purposes.emplace_back(en::proto::words(static_cast<en::proto::CallPurpose>(i)));
+  }
+  for (std::size_t i = 0; i < en::proto::kCallOutcomes; ++i) {
+    outcomes.emplace_back(en::proto::words(static_cast<en::proto::CallOutcome>(i)));
+  }
+  for (const json& r : requests["rows"]) {
+    CHECK(std::find(purposes.begin(), purposes.end(), r["purpose"].get<std::string>()) != purposes.end());
+    CHECK(std::find(outcomes.begin(), outcomes.end(), r["outcome"].get<std::string>()) != outcomes.end());
+    const std::string job = r["slot"].get<std::string>();
+    CHECK((job == "Conversation" || job == "Profile drafts"));
+  }
+  // Home's card: the newest 20 (8 here), its own columns, no sort key, no why.
+  const json& home = calls["home"];
+  CHECK(ids_of(home["columns"]) == std::vector<std::string>{"time", "slot", "purpose", "speaker", "model",
+                                                             "first_token", "total", "outcome", "text"});
+  REQUIRE(home["rows"].size() == 8);
+  CHECK(home["rows"][1]["model"] == "talker-small");
+  CHECK(home["rows"][1]["text"] == shown["text"]);
+  for (const json& r : home["rows"]) {
+    for (const char* key : {"id", "at_ms", "first_token_ms", "total_ms", "tokens", "why", "provider_model"}) {
+      CHECK_FALSE(r.contains(key));
+    }
+  }
+  // A model list has no job and no model: its provider alone.
+  const json title_rows = s.body("calls", facts_of("title"))["requests"]["rows"];
+  REQUIRE(title_rows.size() == 5);
+  CHECK(title_rows[0]["purpose"] == "model list");
+  CHECK(title_rows[0]["provider_model"] == "lantern-box");
+  CHECK_FALSE(title_rows[0].contains("slot"));
+  CHECK(title_rows[2]["slot"] == "Self-test");
+  CHECK(title_rows[4]["purpose"] == "self-test");
+
+  // The tiles, and the hour's line against the bound; cost only where a provider reported one (D18).
+  const json usage = s.body("usage", f);
+  REQUIRE(usage["tiles"].size() == 6);
+  CHECK(usage["tiles"][0] == json{{"label", "Calls"}, {"value", "31"}});
+  CHECK(usage["tiles"][1] == json{{"label", "Tokens in"}, {"value", "21,480"}});
+  CHECK(usage["tiles"][2] == json{{"label", "Tokens out"}, {"value", "1,322"}});
+  CHECK(usage["tiles"][3] == json{{"label", "Failures"}, {"value", "3"}});
+  CHECK(usage["tiles"][4] == json{{"label", "Own-initiative this hour"}, {"value", "0"}});
+  CHECK(usage["tiles"][5] == json{{"label", "Cost reported"}, {"value", "0.0187"}, {"unit", "by 19 calls"}});
+  CHECK(usage["sentence"] ==
+        "In the last hour: no own-initiative calls, and 24 of the 600 requests EldenNet may send in an hour.");
+  const json title_usage = s.body("usage", facts_of("title"));
+  CHECK(title_usage["tiles"].size() == 5);  // no cost reported: no cost tile
+  en::proto::CallsView one;
+  one.usage.own_initiative_hour = 1;
+  one.usage.requests_hour = 1;
+  SpaceFacts g = f;
+  g.calls = &one;
+  CHECK(s.body("usage", g)["sentence"] == "In the last hour: 1 own-initiative call, and 1 request sent.");  // no bound
+
+  // No row yet (starting, at L1): empty tables, the tiles at nought, the hour's line with no bound before the providers
+  // are read; and with no record at all, nothing (absence is silent).
+  CHECK(s.body("calls", facts_of("starting"))["requests"]["rows"].empty());
+  CHECK(s.body("calls", facts_of("banner"))["home"]["rows"].empty());
+  CHECK(s.body("usage", facts_of("banner"))["sentence"] ==
+        "In the last hour: no own-initiative calls, and no requests sent.");
+  SpaceFacts bare = f;
+  bare.calls = nullptr;
+  CHECK(s.body("calls", bare).empty());
+  CHECK(s.body("usage", bare).empty());
+
+  // PV4 and PV5: no base URL, key, path or address in any frame; a model id shaped like a path left out.
+  en::proto::CallsView odd = *f.calls;
+  odd.rows[1].model = "C:\\Users\\someone\\models\\invented.gguf";
+  odd.rows[2].model = "/home/someone/invented.gguf";
+  g.calls = &odd;
+  Space watching;
+  watching.watched(sub("calls"));
+  watching.watched(sub("usage"));
+  for (const json& out : collect(watching, g, 0)) {
+    CHECK(clean(out["body"]));
+    CHECK_FALSE(holds(out["body"], "example.invalid"));
+    CHECK_FALSE(holds(out["body"], "someone"));
+    CHECK_FALSE(holds(out["body"], "fk-"));
+  }
+  CHECK(watching.body("calls", g)["requests"]["rows"][1]["provider_model"] == "openrouter");
+  CHECK_FALSE(watching.body("calls", g)["home"]["rows"][1].contains("model"));
+}
+
+TEST_CASE("space: Requests' body stays within GraceUI's frame to a page; the oldest rows give up their text first") {
+  const Space s;
+  en::proto::CallsView big;
+  for (std::uint64_t i = 0; i < en::proto::kCallsKeptDeveloper; ++i) {
+    en::proto::CallRow r;
+    r.id = 1000 - i;
+    r.at_ms = 9'000'000 - i * 1000;
+    r.slot = en::proto::kDialogue;
+    r.speaker = std::string(64, 'b');
+    r.provider = std::string(32, 'p');
+    r.model = std::string(190, 'm');
+    r.first_token_ms = 500;
+    r.total_ms = 1500;
+    r.tokens_in = 900;
+    r.tokens_out = 120;
+    r.outcome = en::proto::CallOutcome::Shown;
+    r.text = std::string(en::proto::kCallTextMaxBytes, 't');
+    big.rows.push_back(r);
+  }
+  SpaceFacts f = facts_of("world");
+  f.calls = &big;
+  const json body = s.body("calls", f);
+  const std::string text = body.dump();
+  CHECK(text.size() <= kCallsBodyMax);
+  const json& rows = body["requests"]["rows"];
+  REQUIRE_FALSE(rows.empty());
+  CHECK(rows[0].contains("text"));  // the newest keep their text
+  CHECK_FALSE(rows[rows.size() - 1].contains("text"));
+  bool gone = false;  // once a row gave its text up, every older one has too
+  for (const json& r : rows) {
+    if (!r.contains("text")) gone = true;
+    if (gone) CHECK_FALSE(r.contains("text"));
+  }
+  CHECK(body["home"]["rows"].size() == kCallsHomeRows);
+  for (const json& r : body["home"]["rows"]) CHECK(r.contains("text"));
+  // A frame of it fits the frame to a page.
+  Space watching;
+  watching.watched(sub("calls"));
+  std::vector<std::string> frames;
+  watching.collect(f, 0, frames);
+  REQUIRE(frames.size() == 1);
+  CHECK(frames[0].size() <= GRACEUI_FRAME_TO_PAGE_MAX);
+}
+
+TEST_CASE("space: Pause AI: ai.pause {on} handed to the DLL at once; status.ai_paused; model calls refused while on") {
+  Space s;
+  AiFacts ai = ai_ready();
+  SpaceFacts f = title();
+  f.ai = &ai;
+  const auto answer_of = [&](std::string_view name, const json& args = json::object()) {
+    return frame(s.command(cmd(args, name), f));
+  };
+  // The quick switch's command (GraceUI D252): {"on": bool}, answered at once; the state follows on `status`.
+  CHECK(answer_of("ai.pause", {{"on", true}})["ok"] == true);
+  std::vector<AiRequest> taken = s.take_requests();
+  REQUIRE(taken.size() == 1);
+  CHECK(taken[0].kind == AiRequest::Kind::Pause);
+  CHECK(taken[0].on);
+  const std::vector<SpaceNote> notes = s.take_notes();
+  REQUIRE(notes.size() == 1);
+  CHECK(notes[0].topic == "ai.pause");
+  CHECK(notes[0].key == "on");
+  CHECK(notes[0].result == "ok");
+  for (const json& bad : {json::object(), json{{"on", "yes"}}, json{{"on", 1}}, json{{"off", true}}}) {
+    CHECK(answer_of("ai.pause", bad)["error"] == "invalid_value");
+  }
+  CHECK(s.take_requests().empty());
+
+  // Off: the status says so, and its member is false from the first body, starting or not.
+  json status = s.body("status", f);
+  CHECK(status["ai_paused"] == false);
+  CHECK(status["items"].back() == json{{"label", "Pause AI"}, {"value", "Off"}});
+  CHECK(s.body("status", starting())["ai_paused"] == false);
+  CHECK_FALSE(s.body("status", starting()).contains("word"));
+
+  // On, as the core holds it: the member true; the Status card's line; at the title the dormant words lead still, in
+  // the world (L2 for it, not dormant) the pause is the reason, and the AI pages lead with it (PAGES §4.4).
+  f.ai_paused = true;
+  status = s.body("status", f);
+  CHECK(status["ai_paused"] == true);
+  CHECK(status["items"].back() == json{{"label", "Pause AI"}, {"value", "On, for this session"}});
+  CHECK(status["reason"] == "At the title screen: EldenNet waits until a character is loaded.");
+  SpaceFacts w = facts_of("world");
+  CHECK(s.body("status", w)["word"] == "Observing");
+  CHECK(s.body("status", w)["reason"] == std::string(en::proto::kAiPausedStatus));
+  CHECK(s.body("ai.status", w)["sentence"] ==
+        "AI is paused for this session, so EldenNet calls no model. Turn Pause AI off in the quick switches to call "
+        "one again.");
+  CHECK(s.body("ai.status", f)["sentence"] == s.body("ai.status", w)["sentence"]);
+  // The self-test and the model list are refused in en-proto's words, and nothing goes to the DLL.
+  json r = answer_of("selftest.run");
+  CHECK(r["error"] == "not_now");
+  CHECK(r["detail"] == std::string(en::proto::kAiPausedSelfTest));
+  r = answer_of("models.list");
+  CHECK(r["error"] == "not_now");
+  CHECK(r["detail"] == std::string(en::proto::kAiPausedModelList));
+  CHECK(s.take_requests().empty());
+  // The rest of the AI pages' commands are no model call: they stay open.
+  CHECK(answer_of("providers.remove", {{"id", "openrouter"}})["error"] == "confirm_required");
+  // Off again: handed to the DLL the same way.
+  CHECK(answer_of("ai.pause", {{"on", false}})["ok"] == true);
+  taken = s.take_requests();
+  REQUIRE(taken.size() == 1);
+  CHECK(taken[0].kind == AiRequest::Kind::Pause);
+  CHECK_FALSE(taken[0].on);
+
+  // Published: the watched status changes with the facts, at its rate.
+  Space watching;
+  watching.watched(sub("status"));
+  f.ai_paused = false;
+  std::vector<json> out = collect(watching, f, 0);
+  REQUIRE(out.size() == 1);
+  CHECK(out[0]["body"]["ai_paused"] == false);
+  f.ai_paused = true;
+  out = collect(watching, f, 300);
+  REQUIRE(out.size() == 1);
+  CHECK(out[0]["body"]["ai_paused"] == true);
+}
+
 TEST_CASE("space: the fixture states' topics.json, which grace-dev previews (tests/pages)") {
 #if defined(_WIN32)
   // The Windows builds run under Wine, outside the source tree's drive: the Linux builds compare the files.
@@ -2115,7 +2415,7 @@ TEST_CASE("space: the fixture states' topics.json, which grace-dev previews (tes
     const SpaceFacts f = facts_of(state);
     json topics = json::object();
     for (const char* topic : {"status", "errors", "system.status"}) topics[topic] = s.body(topic, f);
-    for (const char* topic : kAiTopics) topics[topic] = s.body(topic, f);
+    for (const char* topic : kAiTopics) topics[topic] = s.body(topic, f);  // calls and usage among them
     for (const std::string& topic : en::overlay::test::characters_topics(f.characters)) topics[topic] = s.body(topic, f);
     topics["content"] = s.body("content", f);
     // Docs (bundled): the list, the first document, which a page's dump shows, and About, its slots filled.

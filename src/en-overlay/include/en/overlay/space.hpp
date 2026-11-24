@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "en/overlay/characters.hpp"
+#include "en/proto/calls.hpp"
 #include "en/proto/content_view.hpp"
 #include "en/proto/llm.hpp"
 #include "en/proto/snapshot.hpp"
@@ -229,7 +230,30 @@ struct SpaceFacts {
   // The Content packs page's projection (en-proto's content_view.hpp, built by en-core on each load); null before the
   // first load (the topic publishes nothing).
   const proto::ContentView* content = nullptr;
+  // The model calls' record and the session's usage (en-proto's calls.hpp, kept by the DLL on T6): AI › Requests and
+  // Home's Model calls card, the topics `calls` and `usage`; null before the DLL keeps one (they publish nothing).
+  const proto::CallsView* calls = nullptr;
+  // Pause AI for this session (D15), as the core holds it: `status.ai_paused`, the quick switch's state (GraceUI D252).
+  bool ai_paused = false;
 };
+
+// ---- AI › Requests and Home's Model calls card (PAGES §4.6.1, §4.6.2): the topic `calls`, a member per table (GraceUI
+// D185's props.field), {columns, rows}: `requests`, every row kept (20, or 200 with Developer views), each with its
+// hidden sort keys (at_ms, first_token_ms, total_ms, tokens; a key it has no value for left out, so that it sorts last,
+// GraceUI D250) and its id; `home`, the newest 20. A row's text is the displayed text of a reply whose pages reached
+// the screen, and nothing else of the model's or the player's (PV4): never a prompt, an unshown answer, a key, a base
+// URL or a server's message; a failure is its error class in words. The topic `usage`: Requests' tiles and the hour's
+// line, own-initiative calls and every request sent against the bound, which Home's card shows too; cost only where a
+// provider reported one (D18). The body stays within GraceUI's frame to a page (256 KiB): past kCallsBodyMax, the
+// oldest rows of `requests` give up their text, then go (a session's rows as they come are far below it).
+inline constexpr std::string_view kCallsTopic = "calls";
+inline constexpr std::string_view kUsageTopic = "usage";
+inline constexpr std::size_t kCallsHomeRows = 20;          // Home's card: the last 20 (PAGES §4.6.1)
+inline constexpr std::size_t kCallsBodyMax = 240 * 1024;  // bytes of the body, below GRACEUI_FRAME_TO_PAGE_MAX's
+// Pause AI for this session (D15; GraceUI D252's session switch): `{"on": bool}`, answered at once; the DLL hands it to
+// the core in the same wake, and `status.ai_paused` follows. Not sensitive: a paired device may pause and resume, as it
+// may run the self-test (G9, D221); it writes no file and keeps nothing.
+inline constexpr std::string_view kPauseCommand = "ai.pause";
 
 // ---- Tools › Bug report (PAGES §4.6.8; GraceUI D251): the bundle's preview, the topic `report`, a part a member of
 // its `parts`, each {id, label, optional, included, fields: [{label, value, code}]}. What it holds is what EldenNet
@@ -247,8 +271,9 @@ inline constexpr std::size_t kReportWhatMax = 2000;  // characters: the form's p
 inline constexpr std::size_t kReportLogLines = 30;   // the log's newest lines in the preview
 
 // A long command the space took (selftest.run, models.list) or a change of providers.toml or secrets.toml it asked for
-// (providers.add, providers.remove, providers.key): answered `ok` at once, for the DLL to make; its progress and its
-// outcome reach the views through the facts. A key's value travels in `key` alone, for the DLL to store and overwrite.
+// (providers.add, providers.remove, providers.key), or Pause AI (ai.pause): answered `ok` at once, for the DLL to make;
+// its progress and its outcome reach the views through the facts. A key's value travels in `key` alone, for the DLL to
+// store and overwrite.
 struct AiRequest {
   enum class Kind : std::uint8_t {
     SelfTest,
@@ -258,11 +283,13 @@ struct AiRequest {
     Remove,     // `id`, which no job uses, with its key where no other provider names it
     SetKey,     // `id`'s key: `key`
     ClearKey,   // `id`'s key, cleared
+    Pause,      // Pause AI for this session (kPauseCommand): `on`
   };
   Kind kind = Kind::SelfTest;
   std::string id;
   std::string base_url;   // AddOwn: as en-proto's check_base_url wrote it
   bool local = false;     // AddOwn: http:// to this PC or to a private address of the home network
+  bool on = false;        // Pause: on, or off
   std::string key;        // SetKey: the key as typed, spaces round it taken off: never logged, published or kept here
 
   bool operator==(const AiRequest&) const = default;

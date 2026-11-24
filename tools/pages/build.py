@@ -9,7 +9,7 @@ D160 and eldennet-changes §19 item 3).
 The source is src/en-overlay/pages/space.toml, in GraceUI's page format. Its outputs:
 
   - src/en-overlay/pages/pages.json: the protocol's `space_pages` (the space, its name, the protocol minor its
-    components need, its categories, pages, topics, commands, slow commands and sensitive commands);
+    components need, its categories, pages, topics, commands, slow commands, sensitive commands and quick switches);
   - src/en-overlay/pages/settings.json: the protocol's `settings_description` (its schema number, the hash GraceUI's
     format gives it, the first 16 hex digits of the SHA-256 of its settings' canonical JSON, and every setting with
     `synonyms` and `locked` filled in);
@@ -33,14 +33,14 @@ PAGES_JSON = ROOT / "src" / "en-overlay" / "pages" / "pages.json"
 SETTINGS_JSON = ROOT / "src" / "en-overlay" / "pages" / "settings.json"
 SPACE_CPP = ROOT / "src" / "en-overlay" / "src" / "space_data.cpp"
 
-PROTOCOL_MINOR = 12  # the document block, the prose field and the report preview's command are protocol 1.12's
-#                     (GraceUI D251), on 1.11's filter bar (D250), 1.10's foot (D248), 1.8's sensitive commands and
-#                     settings (D221), 1.7's editor block (D217), 1.6's slow commands (D216), 1.5's topic families
-#                     and master list (D215), 1.3's chip and live status (D202) and 1.2's row actions, row secrets,
-#                     a form and pickers (D192 to D196)
-SPACE_FIELDS = ("id", "name", "settings_schema", "commands", "slow_commands", "sensitive_commands")
+PROTOCOL_MINOR = 13  # the quick switches and live pages are protocol 1.13's (GraceUI D252), on 1.12's document block,
+#                     prose field and report preview's command (D251), 1.11's filter bar (D250), 1.10's foot (D248),
+#                     1.8's sensitive commands and settings (D221), 1.7's editor block (D217), 1.6's slow commands
+#                     (D216), 1.5's topic families and master list (D215), 1.3's chip and live status (D202) and 1.2's
+#                     row actions, row secrets, a form and pickers (D192 to D196)
+SPACE_FIELDS = ("id", "name", "settings_schema", "commands", "slow_commands", "sensitive_commands", "quick")
 PAGE_FIELDS = ("id", "category", "name", "description", "help", "related", "increment", "tag", "actions", "master",
-               "tabs", "sections")
+               "tabs", "sections", "live")
 SETTING_FIELDS = ("key", "type", "default", "min", "max", "step", "unit", "choices", "choices_from", "third", "label",
                   "help", "synonyms", "home", "effect", "availability", "locked", "sensitive")
 DELIMITER = ")space\""
@@ -76,7 +76,7 @@ def documents(text):
         "topics": source.get("topic", []),
         "commands": space.get("commands", []),
     }
-    for optional in ("slow_commands", "sensitive_commands"):
+    for optional in ("slow_commands", "sensitive_commands", "quick"):
         if optional in space:
             space_pages[optional] = space[optional]
     settings = []

@@ -41,12 +41,16 @@ import browser  # noqa: E402
 # Docs (PAGES §4.6.9) over the title (its list and the first document, Getting started, chosen: GraceUI D251's reader);
 # Tools › Bug report (PAGES §4.6.8) over the title (nothing typed: the five parts) and over the world (the player's
 # words of the fixture's own, and the content left out: drawn in the muted ink, its fields hidden).
+# AI › Requests (PAGES §4.6.2) over the title (the self-test's run and a model list: no cost reported) and over the
+# world (a conversation's replies before AI was paused: shown, by the fallback, not shown, timed out, failed, waiting,
+# a cost reported); Home over the world too (its Model calls card with the replies' text, and Pause AI on).
 PAGES = (("home", "title"), ("system.status", "title"), ("system.logs", "title"), ("settings.developer", "title"),
          ("ai.providers", "title"), ("ai.models", "title"), ("ai.selftest", "title"), ("ai.selftest", "banner"),
          ("ai.providers", "starting"), ("home", "banner"), ("ai.providers", "world"), ("ai.models", "world"),
          ("characters.named", "title"), ("characters.named", "world"), ("characters.named", "starting"),
          ("content", "title"), ("content", "world"), ("content", "starting"), ("docs", "title"),
-         ("tools.report", "title"), ("tools.report", "world"))
+         ("tools.report", "title"), ("tools.report", "world"), ("ai.requests", "title"), ("ai.requests", "world"),
+         ("home", "world"))
 SIZE = "1920x1080"
 # A page whose in-game list grace-dev's dump finds longer than a mod's draw list may be (check_draw_list: refused, and
 # grace-dev exits 1): since GraceUI 0.2.46 (D253) Docs draws the chosen document whole, and Getting started's text is

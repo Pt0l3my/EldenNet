@@ -237,8 +237,12 @@ After each wake, once T1 has published the connection:
   result=paused`), the self-test and the model list are refused (`selftest result=refused why=paused`, `models_list
   result=refused why=paused`), and a draft is blocked with en-proto's `kAiPausedDraft`. Never stored: every start has it
   off. The tests' switch, `ELDENNET_TEST_PAUSE=on` in the environment, pauses from T6's start in a probe build alone;
-  the release DLL logs `ai_pause asked=test accepted=0` and refuses. The space's command, its state and the words of a
-  refused self-test or model list (en-proto's `kAiPausedSelfTest`, `kAiPausedModelList`) are bound by the pages' job.
+  the release DLL logs `ai_pause asked=test accepted=0` and refuses. The pages bind it (`overlay.cpp`): each wake
+  `SpaceFacts::calls` is `ai_calls` and `SpaceFacts::ai_paused` is `ai_paused` (AI › Requests, Home's Model calls card
+  and the Status card's line); the space's `ai.pause`, GraceUI's quick switch, comes as an `AiRequest` of kind Pause,
+  which `ai_request` hands to `ai_pause` whether or not the AI files are read (`page what=command name=ai.pause key=on
+  result=ok`); and the space refuses `selftest.run` and `models.list` itself while paused, in en-proto's
+  `kAiPausedSelfTest` and `kAiPausedModelList`, before the DLL would.
 - GraceUI gone (`poll` answers not connected or inactive): `overlay lost=1`, and nothing more is called.
 
 ## The watch block and the crash filter (O71, O90)
