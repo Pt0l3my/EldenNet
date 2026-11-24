@@ -99,6 +99,13 @@ text    ink.hi        380,1550   84x28   clip1 glyphs 9 "Providers"
 text    ink.mute      862,1551  624x25   clip1 glyphs 63 "Where EldenNet's model calls go, with whose key, and whether each answers."
 text    gold         1820,1550    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
-text    ink.faint     340,1045  202x25   glyphs 16 "Enter  Open    Esc  Back"
+fill    ground.well   340,1044   60x28   r3
+stroke  edge          340,1044   60x28   r3 w1
+text    ink.body      348,1046   44x25   glyphs 5 "Enter"
+text    ink.faint     407,1045   34x25   glyphs 4 "Open"
+fill    ground.well   466,1044   42x28   r3
+stroke  edge          466,1044   42x28   r3 w1
+text    ink.body      474,1046   26x25   glyphs 3 "Esc"
+text    ink.faint     515,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi      1715,  86  168x46   r5 w3 clip1
-# 102 items, 4036 vertices, 8118 indices, 4 commands; check_draw_list: passes
+# 109 items, 4180 vertices, 8754 indices, 4 commands; check_draw_list: passes
