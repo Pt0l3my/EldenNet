@@ -2913,15 +2913,51 @@ case("launcher-eldennet-graceui-anticheat", LGAME + ["--also", "{easyanticheat_e
 # the scan then finding the active one; that EldenNet's table is the active copy's is told by the mods each copy holds.
 # On the banner path (a build the DLL's gal/ does not know), as -before: EldenNet's banner and F11's view on the active
 # copy. Each report adds a grace_copies line: every copy in load order (c1, c2), and the reported copy's notices and log
-# lines naming another copy.
-# TODO(GraceUI 0.2.35): GraceUI_Test_GetHookLead(index, out) tells, for each hook on D102's list, whether it still
-# leads to that copy's detour and the module it leads into. The test build here (0.2.31 to 0.2.33) lacks it, so "one
-# module holds GraceUI's hooks" is checked by hooks_installed alone (0 on the idle copy, the same on the active one at
-# every report); once a 0.2.35 test build is EN_GRACEUI_DIR, report each hook's module and check they are all the
-# active copy's.
+# lines naming another copy, and where each copy's hooks lead (GraceUI_Test_GetHookLead, GraceUI 0.2.35's D240, in
+# GraceUI_Test_GetHookName's order): "one hook holder in the process" (GraceUI's invariant 16) at run time. Every
+# hook of the active copy leads to its own detour in its own module, with MinHook's two jumps (its jump, then its
+# relay's), the window procedure's filter with none (GetWindowLongPtr's answer): here "2,2,2,2,2,0" under Wine, the
+# render half's five and the window procedure, since these runs' fake game loads neither DirectInput nor XInput (where
+# a game does, GetDeviceState joins with two, and XInputGetState once for each XInput DLL loaded before the start). The
+# idle copy answers no hook at index 0.
 COPY_NAMES = ("GraceUI\\graceui.dll", "OtherMod\\GraceUI\\graceui.dll")
 COPY_NOTICE = "A_second_copy_of_GraceUI_was_loaded_from_another_folder_and_is_idle:_"
+# From GraceUI 0.2.38 (D244), when the copy that idles is GraceUI's own, its notice names the copy in use instead, the
+# one to remove (the log line likewise); before it, the words above named GraceUI's own copy as the second one.
+OWN_COPY_NOTICE = ("GraceUI's_own_copy_is_idle:_another_copy_was_started_first_and_is_in_use,_%s._Remove_that_copy_to_"
+                   "use_GraceUI's_own.")
+
+
+def copy_notice(r, active, idle):
+    """The words of the active copy's notice of the idle one, as the GraceUI under test puts them."""
+    version, _ = graceui_version(r)
+    if COPY_NAMES[idle - 1] == "GraceUI\\graceui.dll" and tuple(int(n) for n in version.split(".")) >= (0, 2, 38):
+        return OWN_COPY_NOTICE % COPY_NAMES[active - 1]
+    return COPY_NOTICE + COPY_NAMES[idle - 1]
+
+
 COPY_BANNER = "EldenNet_inactive:_game_build_3.14.15.0_not_supported_yet"
+
+
+def check_hook_leads(line, active, idle):
+    """One grace_copies line's hook leads: every hook of the active copy leading into its own detour and module, two
+    jumps each but the window procedure's none; none answered by the idle copy (GraceUI D240, invariant 16)."""
+    a, i = "c%d" % active, "c%d" % idle
+    failures = []
+    hooks = line.get(a + "_hooks", "")
+    jumps = line.get(a + "_jumps", "none").split(",")
+    at = int(line.get(a + "_window_procedure", "-1"))
+    want = ["0" if k == at else "2" for k in range(len(jumps))]
+    need(line.get(a + "_leads") == hooks and line.get(a + "_leads_here") == hooks and hooks not in ("", "0") and
+         at >= 0 and jumps == want,
+         "frame %s: the active copy's hooks do not each lead to its own detour (hooks %s, answered %s, leading here "
+         "%s, jumps %s, the window procedure at %s)" %
+         (line.get("frame"), hooks, line.get(a + "_leads"), line.get(a + "_leads_here"), ",".join(jumps), at),
+         failures)
+    need(line.get(i + "_leads") == "0" and line.get(i + "_leads_here") == "0",
+         "frame %s: the idle copy answers %s hook leads (%s leading into it)" %
+         (line.get("frame"), line.get(i + "_leads"), line.get(i + "_leads_here")), failures)
+    return failures
 
 
 def install_grace_copy(paths):
@@ -2960,7 +2996,8 @@ def check_second_copy(active, asks, reports):
                                           for e in lines], failures)
         # Every report: both copies loaded, the active one reported, hooked once with its one init thread, both mods
         # connected to it and the other copy named once; the idle copy with no thread, no hook and no mod. The active
-        # copy's hooks the same at every report: no copy installed any later.
+        # copy's hooks the same at every report, each leading into its own detour: no copy installed any later, and
+        # nothing lies over them.
         hooks = set()
         for frame in reports:
             failures += want_grace(r, frame, "grace_copies", copies=2, reported=active,
@@ -2969,9 +3006,13 @@ def check_second_copy(active, asks, reports):
                                       i: COPY_NAMES[idle - 1], i + "_test": 1, i + "_host": 4, i + "_threads": 0,
                                       i + "_installs": 0, i + "_hooks": 0, i + "_consumers": 0, i + "_named": 0},
                                    copy_notices=1, copy_logs=(1, 1), copy_tone=1,
-                                   copy_notice=COPY_NOTICE + COPY_NAMES[idle - 1].replace(" ", "_"))
+                                   copy_notice=copy_notice(r, active, idle).replace(" ", "_"))
             line = next((e for e in r.events("FAKEGAME", "grace_copies") if e.get("frame") == str(frame)), {})
             hooks.add(line.get(a + "_hooks"))
+            failures += check_hook_leads(line, active, idle)
+            if frame == reports[-1]:
+                print("hook leads at frame %d: %s hooks of %s, jumps %s" % (frame, line.get(a + "_leads"), a,
+                                                                           line.get(a + "_jumps")))
         need(len(hooks) == 1, "the active copy's hooks changed between reports: %s" % sorted(map(str, hooks)), failures)
         # EldenNet on the active copy (its two mods above, and EldenNet among the reported copy's): its banner as one
         # notice under its key, and F11's view drawn on the game's frame.

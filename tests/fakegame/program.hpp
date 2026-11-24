@@ -122,7 +122,7 @@ struct Options {
   // loaded from a folder other than the game's GraceUI): at each frame listed (0: at boot, before the window) it asks
   // that copy for ABI 1's table, as such a mod would, and connects once, to the table that answered, else to the
   // GraceUI graceui-sys finds; one `grace_copy` line each. Each --grace-report then adds a `grace_copies` line of every
-  // copy loaded, wherever there is more than one.
+  // copy loaded, wherever there is more than one, with where each copy's hooks lead (GraceUI_Test_GetHookLead, D240).
   // --pad-chord-at F,F... presses the chat box's pad chord (D-pad Up, then View: GraceUI D204) from each frame listed,
   // one read of pad 0 a frame through the test build's XInput filter (GraceUI_Test_PadRead; Wine has no pad): Up alone
   // for 250 ms, then both for 650 ms, then neither; one `pad_chord` line of what the game read.
