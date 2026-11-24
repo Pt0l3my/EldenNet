@@ -610,6 +610,13 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 585 | 2026-11-24 | GraceUI's hotkey event does not say whether the key or the chord fired it | FACT | #graceui #overlay |
 | 586 | 2026-11-24 | Pressing T while danger lasts lost the box's kept draft | FACT | #core #overlay |
 | 587 | 2026-11-24 | v0.1's two danger stand-ins differ: GraceUI's provider claim and the conversation's safe context | FACT | #overlay #core #graceui |
+| 588 | 2026-11-24 | GraceUI 0.2.32 to 0.2.38 change two vendored files and the ABI's minor, and no page golden | FACT | #graceui #pages |
+| 589 | 2026-11-24 | A box refused at its opening keeps the store's draft; a sent line drops it | DECIDED | #core #overlay |
+| 590 | 2026-11-24 | The active GraceUI copy's hooks all lead into it; the idle copy answers none | FACT | #graceui #s10.3 #wine |
+| 591 | 2026-11-24 | The fake GraceUI gave every mod two faces; EldenNet has eight | FACT | #graceui #tests |
+| 592 | 2026-11-24 | Only the box's history carries the Tarnished's lines, so only it takes the italic | FACT | #overlay |
+| 593 | 2026-11-24 | The surfaces' fonts are read beside the copy named graceui.dll, not the active one | LIKELY | #overlay #dll |
+| 594 | 2026-11-24 | Rounded corners as Dear ImGui draws them, on EldenNet's white texel, at GraceUI's radius tokens | METHOD | #overlay |
 
 ## Entries
 
@@ -8742,6 +8749,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   MinHook's jump and relay, shows it (GraceUI_Test_GetHookLead, GraceUI 0.2.35's test build); a hook laid over one
   of GraceUI's shows as leading into its own module. With dll_checks.py (static) and an idle copy's
   hooks_installed 0, that is the whole of "one hook library in the process".
+- Later (2026-11-24): EldenNet's -second-copy cases check it at every report from GraceUI 0.2.38's pin (WHY§590).
 
 ### 582. Under Wine, GetModuleHandleW of a name two loaded copies share answered the copy asked first; Windows may differ
 
@@ -8765,6 +8773,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   (idle) and graceui-sys found the active copy by its scan: Grace's harness saw the active copy answered by name in
   both orders, so the cases allow either. "Two consumers each way round" is covered in CMake's set by -unbound and
   the two new cases, and by hand by the package cases A1 to A4. The hook-lead check waits for GraceUI 0.2.36's pin.
+- Later (2026-11-24): the hook-lead check is in from GraceUI 0.2.38's pin (WHY§590), and with the private copy
+  first GraceUI's own idle copy's notice now names the copy in use and asks the player to remove it (GraceUI:D244).
 
 ### 584. The talk chord through GraceUI's filter, read once a frame, completes as the harness's 10 ms reads do
 
@@ -8782,6 +8792,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   produces OpenVia::PadChord, and arms the 100 ms swallow of T's character after a chord open (harmless in practice).
   Asked of Grace: a field naming the binding that fired.
 - Later (2026-11-24): GraceUI 0.2.38 gives it, GraceUiEvent.hotkey_by (D243, ABI 1.7).
+- Later (2026-11-24): EldenNet uses it (engine 678b313, merged at 6930988): the chord alone opens the box by
+  OpenVia::PadChord, logged via=pad_chord, and arms no swallow; the key, both, or 0 from an older GraceUI open by the key.
 
 ### 586. Pressing T while danger lasts lost the box's kept draft
 
@@ -8791,6 +8803,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   the conversation: the core's reopen moved the kept draft into the box, the overlay's not-now close carried an empty
   one, and on_close keeps no draft for NotNow or Refused. Being fixed with EldenNet's move to GraceUI 0.2.36, with a
   unit test and the danger case extended by a T press.
+- Later (2026-11-24): fixed in the core alone at the 0.2.38 pin (WHY§589).
 
 ### 587. v0.1's two danger stand-ins differ: GraceUI's provider claim and the conversation's safe context
 
@@ -8800,3 +8813,70 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   safe_context closes the box for the player dead or riding, a boss, combat or hostiles near. A lock-on on a friendly
   closes the box through GraceUI alone (input lost, draft kept); riding closes it through the core alone, with
   GraceUI's menu free to stay open. To align when safe_context replaces the stand-in, as world.hpp plans.
+
+### 588. GraceUI 0.2.32 to 0.2.38 change two vendored files and the ABI's minor, and no page golden
+
+`2026-11-24` · FACT · `#graceui` `#pages` · refs: S10.3.d, S11.4.c, engine 07ae392 (merged at 6930988), GraceUI:D235, GraceUI:D238, GraceUI:D240, GraceUI:D242, GraceUI:D243, GraceUI:G42
+
+- From 386d1ba to 3ea17b6 only graceui.h (ABI 1.7: GraceUiEvent.hotkey_by in the word that was reserved3, the
+  hotkey-by cap) and graceui_test.h (input counters, the focus ring and pad mode, the heap guard, the hook leads)
+  changed; the page lint's five files are byte for byte the same (protocol 1.9). The floor stays 0.2.22; the italic
+  face and hotkey_by are used only where present. The pages' goldens regenerated with 3ea17b6's grace-dev came out
+  byte for byte the old ones: G42's ring and D242's pad mode leave grace-dev's dumps as they were.
+
+### 589. A box refused at its opening keeps the store's draft; a sent line drops it
+
+`2026-11-24` · DECIDED · `#core` `#overlay` · refs: S11.4.c, engine 64f7a42 (merged at 6930988), NPC §5.4, WHY§586
+
+- The core's opening (a reopen or a new conversation) copies the kept draft into the box instead of taking it out of
+  the store, so a not-now or refused answer, whose close carries no draft, leaves the store on its first 60 s clock.
+  The store's copy goes at the box's next close (which carries the editor's text) or when a line is sent. Rejected:
+  the refusal's close carrying the draft back, which changes both sides and restarts the 60 s that NPC §5.4 counts
+  from the danger. The unit test fails before the fix; in the danger case T during the lock-on logs not_now and
+  draft=0, and T after it brings the three characters back and sends them.
+
+### 590. The active GraceUI copy's hooks all lead into it; the idle copy answers none
+
+`2026-11-24` · FACT · `#graceui` `#s10.3` `#wine` · refs: S10.3.d, engine dc601a3 (merged at 6930988), GraceUI:D240, GraceUI invariant 16, WHY§581
+
+- Under Wine, at every report of -second-copy and -second-copy-first, the active copy reads leads=6 leads_here=6
+  jumps=2,2,2,2,2,0 (the render half's five and the window procedure; the fake game loads neither DirectInput nor
+  XInput, so six, not GraceUI's harness's seven), every lead in its own module; the idle copy and a copy never asked
+  answer none. A mutation reporting hook 1 as leading into another module failed both cases at frames 360 and 600.
+
+### 591. The fake GraceUI gave every mod two faces; EldenNet has eight
+
+`2026-11-24` · FACT · `#graceui` `#tests` · refs: engine a3686fc (merged at 6930988), GraceUI:D139, GraceUI:D241
+
+- graceui.h's GRACEUI_FACES_PER_MOD is 2, and the fake answered full past it for every mod; D139 gives the id eldennet
+  eight. With the italic as EldenNet's third face the fake counts eight for eldennet and two for any other id, as
+  GraceUI's registry does. Asked of Grace (low): a constant or a comment in graceui.h naming EldenNet's eight.
+
+### 592. Only the box's history carries the Tarnished's lines, so only it takes the italic
+
+`2026-11-24` · FACT · `#overlay` · refs: S11.4.c, engine a3686fc (merged at 6930988), NPC §10.1, GraceUI:D241
+
+- The lower third (and the strip page in the box) shows a PageView, always the NPC's speech or card; the Tarnished's
+  lines are only the box's history lines, the queued "(waiting)" line among them. Those are drawn in EB Garamond
+  Italic at 30 px when GraceUI ships the face (0.2.36 on), upright otherwise; the lower third is unchanged, as NPC
+  §10.1 names italic for the history alone.
+
+### 593. The surfaces' fonts are read beside the copy named graceui.dll, not the active one
+
+`2026-11-24` · LIKELY · `#overlay` `#dll` · refs: S10.3.d, engine a3686fc (merged at 6930988), WHY§582
+
+- grace_fonts() reads fonts\ beside GetModuleHandleW(L"graceui.dll"), which under Wine can be the idle copy loaded
+  first. The files are the same build's in the cases and the surfaces are off on their banner path, so nothing shows
+  it, but a private copy of another version would lend its fonts. Reading beside the module en::overlay::find()
+  connected to would follow the active copy; not changed yet.
+
+### 594. Rounded corners as Dear ImGui draws them, on EldenNet's white texel, at GraceUI's radius tokens
+
+`2026-11-24` · METHOD · `#overlay` · refs: S11.4.c, engine a3686fc (merged at 6930988), NPC §10.1, GraceUI tokens [radius]
+
+- The box's ground and frame take the card's radius (4 px, NPC §10.1's too) and the hint's key box the control's
+  (2 px), each times the content scale. A ground is a fan inside two rings half a pixel either side of the outline (its
+  colour, then clear); a frame four rings; six points a corner at 4 px keep the chord within a quarter pixel. On
+  whole-pixel sides they cover exactly what the square rect() and edge() did, so the fake game's probes kept their
+  counts; a small rasteriser in the unit test checks the corner pixel clear, its neighbour partly covered and the
+  frame hollow. A box at 1080 lines: 144 vertices and 642 indices. The lower third and the card have no ground.

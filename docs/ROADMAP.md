@@ -1276,14 +1276,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - b The read-group self-tests, the matrix's v0.1 rows (with S0's third-party rows not yet run), and the patch drill if the JP build's layout is ready
   - refs: ARCH§12.4, O91
 - c Every CI stage but the eval (from v0.2) gating, and signed builds for testers
-- d One hook library in the process, GraceUI's; EldenNet's imports and symbols free of any; two consumers each way round; a second GraceUI copy idling
-  - refs: G15, GraceUI:DESIGN§10, WHY§581, WHY§583
+- d One hook library in the process, GraceUI's; EldenNet's imports and symbols free of any; two consumers each way round; a second GraceUI copy idling [done]
+  - refs: G15, GraceUI:DESIGN§10, WHY§581, WHY§583, WHY§590
   - gives: on 2026-11-24, with Grace (the owner's request): dll_checks.py (no hook library's symbol, imports against a
     reviewed list); the fake-game cases -second-copy and -second-copy-first (a second GraceUI copy idles, installs no
     hook and is named once; EldenNet and another mod stay on the active copy; engine 08fef7a, merged at 4c5632d) and
     -unbound (two consumers each way round, with the package cases A1 to A4 by hand); GraceUI's own cases of a mod
     beside a second copy and its hook leads (S11.2.ax). Left: the hook-lead check in EldenNet's case, with the move
-    to GraceUI 0.2.36.
+    to GraceUI 0.2.36. Done the same day at GraceUI 0.2.38 (engine dc601a3, merged at 6930988; WHY§590): at every
+    report the active copy's six hooks each lead into its own detour and module, and the idle copy answers none; a
+    mutation of the report fails both cases. With GraceUI's own copy idle, its notice now names the copy in use.
 
 ### S10.4 GraceUI 0.1 Host
 
@@ -1703,7 +1705,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - ba What pressed a hotkey (ABI 1.7) and the notice when GraceUI's own copy idles (GraceUI 0.2.38) [done]
   - refs: GraceUI:D243, GraceUI:D244, GraceUI:D240, WHY§585
   - gives: built on 2026-11-24 (GraceUI feat/foundations 3ea17b6) at Engine's request after its second-copy and chord
-    cases; EldenNet reads hotkey_by for the chat box's via and its swallow, with its pin moving to 0.2.38.
+    cases; EldenNet reads hotkey_by for the chat box's via and its swallow, with its pin moving to 0.2.38. Pinned the
+    same day (engine 678b313, merged at 6930988; WHY§585, §590).
 
 ### S11.3 EldenNet v0.2
 
@@ -1887,7 +1890,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     On 2026-11-24 the chord and the danger close were tested against GraceUI's real test build (engine 08fef7a,
     merged at 4c5632d; WHY§584 to §587): -talk-chord and -talk-danger. The italic face (GraceUI 0.2.36, S11.2.ay),
     the rounded corners and the kept draft's loss when T is pressed during danger (WHY§586) are being done with the
-    move to GraceUI 0.2.36.
+    move to GraceUI 0.2.36. Done the same day at GraceUI 0.2.38, ABI 1.7 (engine 07ae392 to 678b313, merged at
+    6930988; WHY§588 to §594): the Tarnished's lines in the box's history in EB Garamond Italic where GraceUI ships it;
+    the box's ground and frame rounded at GraceUI's card radius and the hint's key at its control radius; a box GraceUI
+    refuses at its opening keeps the kept draft; the chord alone opens the box by the chord (via=pad_chord, no
+    swallow), from GraceUI's hotkey_by. Left: the call-out box (v0.6), and S4 and S0-E's input half in game.
 - d A second Escape while a reply paces (NPC §5.7): a way for it to reach EldenNet once the box has closed, asked of GraceUI [done]
   - needs: c
   - refs: NPC§5.7, WHY§437, WHY§461, G39
