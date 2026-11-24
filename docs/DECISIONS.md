@@ -2543,3 +2543,25 @@ never shipped or uploaded, is research within O111.
 (Lodestar's chat, 2026-11-24; the figures of the owner's machine left out).
 
 **Follows from.** O111, O121, O122; WHY§630 to §632.
+
+## O127
+
+**AI › Requests, Home's Model calls card and Pause AI: their words and readings** · *2026-11-24 · Decided by the owner, as recommended*
+
+**Question.** The model calls' record, AI › Requests, Home's Model calls card and Pause AI for this session were built
+at GraceUI 0.2.46 (S11.4.a; engine 2f27925; WHY§627 to §629, §633 to §637). Their new words: the purposes and outcomes
+(PAGES' own, and ours: "model list", "profile draft", "waiting", "answered"); each error class in words ("Took too long
+to start its answer." and the rest); Pause AI's lines ("AI is paused for this session.", the AI pages' lead while
+paused, the refusals of the self-test and the model lists, "Drafts wait while AI is paused for this session."); the
+pages' names, descriptions, help, tiles, columns and empty words. Readings: the slot shown as its job's label; Why and
+Text shown as columns until GraceUI has a row drawer; Pause AI as the quick switch alone until a header action can be a
+switch; a reply already in flight when the pause comes finishes; the talk key silent while paused. **Options:** accept
+them as built, or change any of them.
+
+**Recommendation.** Accept as built.
+
+**Decision.** The words and readings as built, as PAGES §4.6.1's and §4.6.2's dated notes of 2026-11-24 hold them.
+
+**Owner's words.** "Accept as built (Recommended)" (question dialog, 2026-11-24).
+
+**Follows from.** D15, D18; O125; PAGES §4.6.1, §4.6.2, §4.9; S11.4.a.

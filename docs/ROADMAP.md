@@ -1899,7 +1899,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 - S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs [active]
   - needs: S11.2.h
-  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, O99, O104, O119, O120, O125, G34, G36
+  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, O99, O104, O119, O120, O125, O127, G34, G36
   - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format. The
     allowances' and reactions' inherit tri-states (PAGES) use GraceUI's third = "inherit" and the settings topic's
     `inherited` list, added on 2026-11-20 at EldenNet's request (GraceUI feat/foundations ac4bc39). Since GraceUI
@@ -1987,8 +1987,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     (tiles, the table with its filter bar on job, purpose and outcome, sorted on time, first token, total and tokens;
     live), Home's Model calls card (the last 20; Home live), and Pause AI for this session as GraceUI's quick switch
     (`ai.pause`, `status.ai_paused`, not sensitive; the Status card's line; the self-test and model lists refused).
-    Left: a row drawer for Why and Text shown, and Pause AI's chip in Home's header, both asked of Grace; the new words
-    for the owner's review. The fake game's suite under Wine: 144 of 144.
+    Left: a row drawer for Why and Text shown, and Pause AI's chip in Home's header, both asked of Grace. The new words
+    accepted as built by the owner the same day (O127). The fake game's suite under Wine: 144 of 144.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
