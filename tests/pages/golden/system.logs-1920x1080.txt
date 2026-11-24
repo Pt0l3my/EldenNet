@@ -15,9 +15,13 @@ fill    tint.select     0, 325  300x40
 fill    gold            0, 325    3x40  
 text    gold.hi        50, 333   34x25   glyphs 4 "Logs"
 line    rule           30, 365  240x1   
-text    ink.mute       30, 375   85x30   glyphs 8 "Settings"
-line    rule           30, 415  240x1   
-text    ink.mute       30, 425  138x30   glyphs 12 "Content packs"
+text    ink.mute       30, 375   53x30   glyphs 5 "Tools"
+line    rule           30, 900  240x1   
+text    ink.mute       30, 910   85x30   glyphs 8 "Settings"
+line    rule           30, 950  240x1   
+text    ink.mute       30, 960   42x30   glyphs 4 "Docs"
+line    rule           30,1000  240x1   
+text    ink.mute       30,1010  138x30   glyphs 12 "Content packs"
 fill    ground.well   340,  10  350x35   r3
 text    ink.faint     353,  15   51x25   glyphs 6 "Search"
 text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
@@ -57,17 +61,20 @@ text    ink.hi        380, 645   84x28   clip1 glyphs 9 "Developer"
 text    ink.mute      862, 646  472x25   clip1 glyphs 49 "Options for testing EldenNet and reporting its problems."
 text    gold         1820, 645    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
-fill    ground.well   340,1044   42x28   r3
-stroke  edge          340,1044   42x28   r3 w1
-text    ink.body      348,1046   26x25   glyphs 2 "← →"
-text    ink.faint     389,1045   51x25   glyphs 6 "Change"
-fill    ground.well   465,1044   60x28   r3
-stroke  edge          465,1044   60x28   r3 w1
-text    ink.body      473,1046   44x25   glyphs 5 "Enter"
-text    ink.faint     532,1045  118x25   glyphs 11 "Go to its page"
-fill    ground.well   675,1044   42x28   r3
-stroke  edge          675,1044   42x28   r3 w1
-text    ink.body      683,1046   26x25   glyphs 3 "Esc"
-text    ink.faint     724,1045   34x25   glyphs 4 "Back"
+fill    ground.well   340,1044   55x28   r3
+stroke  edge          340,1044   55x28   r3 w1
+fill    ink.body      354,1057    9x2   
+tri     ink.body      348,1051    7x14   <
+fill    ink.body      372,1057    9x2   
+tri     ink.body      380,1051    7x14   >
+text    ink.faint     402,1045   51x25   glyphs 6 "Change"
+fill    ground.well   477,1044   60x28   r3
+stroke  edge          477,1044   60x28   r3 w1
+text    ink.body      485,1046   44x25   glyphs 5 "Enter"
+text    ink.faint     544,1045  118x25   glyphs 11 "Go to its page"
+fill    ground.well   687,1044   42x28   r3
+stroke  edge          687,1044   42x28   r3 w1
+text    ink.body      695,1046   26x25   glyphs 3 "Esc"
+text    ink.faint     736,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi      1502, 414  356x44   r5 w3 clip1
-# 71 items, 2724 vertices, 6078 indices, 4 commands; check_draw_list: passes
+# 78 items, 2780 vertices, 6186 indices, 4 commands; check_draw_list: passes

@@ -270,6 +270,7 @@ void fill_space(const Shell& s, const en::core::Core& core, const en::proto::Wor
                 std::uint64_t tripped, std::uint32_t graceui, std::string& banner, en::overlay::SpaceFacts& f) {
   const en::core::State& cs = core.state();
   f.version = kVersion;
+  f.label = kVersionLabel;  // the build's label (EN_VERSION_LABEL): Docs' About, the bug report
   f.graceui = graceui;
   f.floor = en::proto::graceui_pin::kFloor;
   f.init = block::init_state();

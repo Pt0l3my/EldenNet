@@ -2,14 +2,15 @@
 # - portable, in every build (tested on Linux too): the F11 view's lines (view.hpp), the world-state claims
 #   (world.hpp), the conversation's surfaces laid out as draw lists (surfaces.hpp) and EldenNet's space (space.hpp:
 #   its pages, generated from pages/space.toml into src/space_data.cpp by tools/pages/build.py, its topics and its one
-#   command path; characters.hpp, the Characters pages and the profile editor), on en-proto, nlohmann/json and
-#   graceui.h, plain C;
+#   command path; characters.hpp, the Characters pages and the profile editor; docs.hpp, Docs' documents, converted from
+#   docs/ into src/docs_data.cpp by tools/docs/build.py), on en-proto, nlohmann/json and graceui.h, plain C;
 # - in the Windows builds: the connection (overlay.hpp), through graceui-sys alone, and the view drawn on Dear ImGui
 #   1.93.0's core with no backend, as GraceUI's gu_imgui_core compiles it. No hook library, no renderer backend, no
 #   hook (R12, GraceUI invariant 16), and never en-core or en-gal (ARCH §2.3: it can never reach game memory).
 set(EN_OVERLAY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/view.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/world.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/space.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/space_data.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/surfaces.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/characters.cpp)
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/surfaces.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/characters.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/docs_data.cpp)
 if(WIN32)
   list(APPEND EN_OVERLAY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/overlay.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/chat.cpp)
   # Dear ImGui's core, with GraceUI's gu_imgui_core's definitions (they change the library's structures, so they are
@@ -83,8 +84,13 @@ if(EN_BUILD_TESTS)
   find_package(Python3 3.11 COMPONENTS Interpreter)
   if(Python3_Interpreter_FOUND)
     add_test(NAME en_pages_build COMMAND ${Python3_EXECUTABLE} -I ${PROJECT_SOURCE_DIR}/tools/pages/build.py --check)
-    set(EN_GRACEUI_SOURCE "" CACHE PATH "A GraceUI checkout at the pinned commit (c53f414), for its page lint")
-    set(EN_GRACE_DEV "" CACHE FILEPATH "grace-dev from a Linux build of GraceUI at the pinned commit (c53f414)")
+    # Docs' documents (PAGES §4.6.9; GraceUI D251): tools/docs/build.py --check fails when a draft of docs/ is outside
+    # its format or GraceUI's limits, links to a document or a heading that does not exist, or src/docs_data.cpp is not
+    # what the drafts build; its tests feed it invented drafts, each outside the format in its own way.
+    add_test(NAME en_docs_build COMMAND ${Python3_EXECUTABLE} -I ${PROJECT_SOURCE_DIR}/tools/docs/build.py --check)
+    add_test(NAME en_docs_tests COMMAND ${Python3_EXECUTABLE} -I ${PROJECT_SOURCE_DIR}/tools/docs/test_build.py)
+    set(EN_GRACEUI_SOURCE "" CACHE PATH "A GraceUI checkout at the pinned commit (3fac29b), for its page lint")
+    set(EN_GRACE_DEV "" CACHE FILEPATH "grace-dev from a Linux build of GraceUI at the pinned commit (3fac29b)")
     if(EN_GRACEUI_SOURCE)
       add_test(NAME en_pages_lint COMMAND ${Python3_EXECUTABLE} -I ${PROJECT_SOURCE_DIR}/tests/pages/lint.py
         --graceui ${EN_GRACEUI_SOURCE} ${CMAKE_CURRENT_SOURCE_DIR}/pages/space.toml)

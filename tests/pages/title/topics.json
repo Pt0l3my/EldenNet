@@ -487,6 +487,514 @@
       ]
     }
   },
+  "docs.list": {
+    "columns": [
+      {
+        "id": "title",
+        "label": "Document"
+      },
+      {
+        "id": "headings",
+        "label": "Covers"
+      }
+    ],
+    "rows": [
+      {
+        "headings": "What this version does · What it does not do yet · What you need · Your first conversation · If something goes wrong · See also",
+        "id": "getting-started",
+        "title": "Getting started"
+      },
+      {
+        "headings": "What is in the download · Installing · Starting the game · With a mod loader you already use · Updating EldenNet · Updating GraceUI · Removing EldenNet · See also",
+        "id": "installing",
+        "title": "Installing and starting EldenNet, and updating GraceUI"
+      },
+      {
+        "headings": "Where your provider can be · When EldenNet calls a model · What a conversation sends · What a profile draft sends · What the self-test and the model lists send · Your keys · What your provider sees · What never leaves this PC · About AI in EldenNet · See also",
+        "id": "provider",
+        "title": "What is sent to your provider"
+      },
+      {
+        "headings": "What EldenNet keeps on this PC · The logs · Crash records · Recordings · What you type, and what characters say · Your character's name · Your keys · The menu in your browser · Model names a provider lists · See also",
+        "id": "privacy",
+        "title": "Privacy"
+      },
+      {
+        "headings": "Each character knows what they would know · What the model may know · On the pages · No spoiler setting · See also",
+        "id": "spoilers",
+        "title": "Spoilers: how EldenNet keeps them"
+      },
+      {
+        "headings": "The defaults · Talking to a character · In GraceUI's menu · Changing a key · See also",
+        "id": "keys",
+        "title": "Keys and pad"
+      },
+      {
+        "headings": "Where to look first · The banner in game · Game build not supported yet · Files for this game build incomplete · Cannot read this game build yet · The game did not finish starting · Easy Anti-Cheat is running · Offline solo session not confirmed · Stopped reading after an error · Test run · Paused for multiplayer · Home's state · Home's problems · The AI pages' Now line · Messages in a conversation · When a character does not answer · When nothing shows in game · Your settings file · The launcher's messages · E01: the game was not found · E02: Steam is not running · E03: the game is already running · E04: Easy Anti-Cheat is running · E05: this game build is not supported yet · E06: the appid file could not be written · E07: your save could not be backed up · E08: eldennet.dll was not found · E09: the game could not be started · E10: EldenNet could not be loaded · E11: Proton · E12: GraceUI is missing or damaged · Command-line tools · eldennet-launcher · eldennet-engine · Save backups · Crash records · See also",
+        "id": "troubleshooting",
+        "title": "Troubleshooting"
+      },
+      {
+        "headings": "Where your files go · When EldenNet reads them · Checking your files · Your notes on a character · In the profile editor · By hand · Turning content off · Writing well · Not in this version · See also",
+        "id": "writing-content",
+        "title": "Writing content"
+      },
+      {
+        "headings": "EldenNet · What EldenNet contains · GraceUI · Design credit · The game · AI assistance · See also",
+        "id": "licences",
+        "title": "Licences and credits"
+      },
+      {
+        "headings": "The project · See also",
+        "id": "about",
+        "title": "About"
+      }
+    ]
+  },
+  "docs/about": {
+    "blocks": [
+      {
+        "paragraph": [
+          {
+            "text": "EldenNet lets characters of the game hold a free conversation with you, in their own voice, written by an AI model you choose. It reads the game and never changes it, and works only offline, alone in your own world."
+          }
+        ]
+      },
+      {
+        "table": {
+          "columns": [
+            {
+              "id": "part",
+              "label": "Part"
+            },
+            {
+              "id": "version",
+              "label": "Version"
+            }
+          ],
+          "rows": [
+            {
+              "part": "EldenNet",
+              "version": "0.1.0"
+            },
+            {
+              "part": "GraceUI",
+              "version": "0.2.12"
+            },
+            {
+              "part": "Build",
+              "version": "0.1.0"
+            }
+          ]
+        }
+      },
+      {
+        "paragraph": [
+          {
+            "text": "System › Status › Compatibility says whether this version of EldenNet supports your game's build, and which GraceUI it needs."
+          }
+        ]
+      },
+      {
+        "heading": "The project",
+        "level": 2
+      },
+      {
+        "paragraph": [
+          {
+            "text": "EldenNet is free software under the MIT License, developed with AI assistance. Its engine follows the logic and structure of SkyrimNet, whose author permits EldenNet to build on it: "
+          },
+          {
+            "doc": "licences",
+            "text": "Licences and credits"
+          },
+          {
+            "text": " gives the credit in full."
+          }
+        ]
+      },
+      {
+        "paragraph": [
+          {
+            "text": "EldenNet is not affiliated with or endorsed by FromSoftware or Bandai Namco."
+          }
+        ]
+      },
+      {
+        "heading": "See also",
+        "level": 2
+      },
+      {
+        "paragraph": [
+          {
+            "doc": "getting-started",
+            "text": "Getting started"
+          },
+          {
+            "text": " · "
+          },
+          {
+            "doc": "licences",
+            "text": "Licences and credits"
+          },
+          {
+            "text": " · "
+          },
+          {
+            "doc": "privacy",
+            "text": "Privacy"
+          }
+        ]
+      }
+    ],
+    "title": "About"
+  },
+  "docs/getting-started": {
+    "blocks": [
+      {
+        "paragraph": [
+          {
+            "text": "EldenNet lets characters of the game hold a conversation with you. You type a line; the character answers in their own voice, in text on screen, written by an AI model that you choose. This page takes you from a fresh install to your first conversation."
+          }
+        ]
+      },
+      {
+        "heading": "What this version does",
+        "level": 2
+      },
+      {
+        "list": [
+          [
+            {
+              "text": "The characters listed on "
+            },
+            {
+              "strong": true,
+              "text": "Characters › Named NPCs"
+            },
+            {
+              "text": " answer when you speak to them. In this version the list is short."
+            }
+          ],
+          [
+            {
+              "text": "Each of them has a profile EldenNet wrote in its own words, and knows what anyone would know on first meeting them. "
+            },
+            {
+              "doc": "spoilers",
+              "text": "Spoilers: how EldenNet keeps them"
+            },
+            {
+              "text": " says more."
+            }
+          ],
+          [
+            {
+              "text": "You can add notes of your own on how a character speaks, on the same page under "
+            },
+            {
+              "strong": true,
+              "text": "Your notes"
+            },
+            {
+              "text": "."
+            }
+          ],
+          [
+            {
+              "text": "Conversation is in text, in a box on screen. Characters only talk: they take no other action."
+            }
+          ],
+          [
+            {
+              "text": "EldenNet reads the game and never changes it. It writes nothing into the game, and it never edits your saves."
+            }
+          ]
+        ],
+        "ordered": false
+      },
+      {
+        "heading": "What it does not do yet",
+        "level": 2
+      },
+      {
+        "list": [
+          [
+            {
+              "text": "Other characters, soldiers and passers-by say nothing."
+            }
+          ],
+          [
+            {
+              "text": "Characters do not speak up on their own, greet you or talk among themselves."
+            }
+          ],
+          [
+            {
+              "text": "Nothing is remembered once the game closes. Within a session, a character recalls the last lines of your previous conversation with them."
+            }
+          ],
+          [
+            {
+              "text": "There are no voices: lines are text only."
+            }
+          ],
+          [
+            {
+              "text": "Some parts of the menu have no pages yet, and are not shown."
+            }
+          ],
+          [
+            {
+              "text": "Playing on a Steam Deck or under Proton is not covered by this version."
+            }
+          ]
+        ],
+        "ordered": false
+      },
+      {
+        "heading": "What you need",
+        "level": 2
+      },
+      {
+        "list": [
+          [
+            {
+              "text": "The game on PC, through Steam. EldenNet works only offline, alone in your own world, without Easy Anti-Cheat, and its launcher starts the game that way."
+            }
+          ],
+          [
+            {
+              "text": "GraceUI, the menu and on-screen layer EldenNet draws through. It comes with EldenNet."
+            }
+          ],
+          [
+            {
+              "text": "An AI provider. It can be a cloud service, with a key of your own from that service (which may charge for its use), or a model server on this PC, or one on another PC of your home network."
+            }
+          ]
+        ],
+        "ordered": false
+      },
+      {
+        "heading": "Your first conversation",
+        "level": 2
+      },
+      {
+        "list": [
+          [
+            {
+              "text": "Install EldenNet and GraceUI as "
+            },
+            {
+              "doc": "installing",
+              "text": "Installing and starting EldenNet, and updating GraceUI"
+            },
+            {
+              "text": " says."
+            }
+          ],
+          [
+            {
+              "text": "Start the game with "
+            },
+            {
+              "code": true,
+              "text": "eldennet-launcher.exe"
+            },
+            {
+              "text": ". The first time, read the notices it shows before the game starts."
+            }
+          ],
+          [
+            {
+              "text": "Open the menu with "
+            },
+            {
+              "strong": true,
+              "text": "F5"
+            },
+            {
+              "text": ". The menu is also in your browser while the game runs: GraceUI › Browser view gives its address."
+            }
+          ],
+          [
+            {
+              "text": "On "
+            },
+            {
+              "strong": true,
+              "text": "Home"
+            },
+            {
+              "text": ", read the Status card: its State and Why rows say how EldenNet stands. It cannot read Speaking until a model answers."
+            }
+          ],
+          [
+            {
+              "text": "On "
+            },
+            {
+              "strong": true,
+              "text": "AI › Models"
+            },
+            {
+              "text": ", choose a preset, or keep the one shown. A preset chooses a model for each job."
+            }
+          ],
+          [
+            {
+              "text": "On "
+            },
+            {
+              "strong": true,
+              "text": "AI › Providers"
+            },
+            {
+              "text": ", press "
+            },
+            {
+              "strong": true,
+              "text": "Add the preset's provider"
+            },
+            {
+              "text": ", then paste your key on its row. For a server of your own, fill in a name and a base URL under "
+            },
+            {
+              "strong": true,
+              "text": "Your own provider"
+            },
+            {
+              "text": " instead: a server on this PC, or one on your home network by its private address, takes no key. Then press "
+            },
+            {
+              "strong": true,
+              "text": "List models"
+            },
+            {
+              "text": "."
+            }
+          ],
+          [
+            {
+              "text": "On "
+            },
+            {
+              "strong": true,
+              "text": "AI › Self-test"
+            },
+            {
+              "text": ", press "
+            },
+            {
+              "strong": true,
+              "text": "Run self-test"
+            },
+            {
+              "text": ". It takes a few seconds and works at the title screen too. Its verdict says whether replies will come quickly enough."
+            }
+          ],
+          [
+            {
+              "text": "Load your character. When Home's state reads "
+            },
+            {
+              "strong": true,
+              "text": "Speaking"
+            },
+            {
+              "text": ", walk up to one of the characters on Characters › Named NPCs. When you are close, a hint shows the talk key: press "
+            },
+            {
+              "strong": true,
+              "text": "T"
+            },
+            {
+              "text": ", type your line and press "
+            },
+            {
+              "strong": true,
+              "text": "Enter"
+            },
+            {
+              "text": ". "
+            },
+            {
+              "strong": true,
+              "text": "Esc"
+            },
+            {
+              "text": " closes the box."
+            }
+          ]
+        ],
+        "ordered": true
+      },
+      {
+        "note": [
+          {
+            "strong": true,
+            "text": "Note."
+          },
+          {
+            "text": " Model calls wait until EldenNet has confirmed that you are offline and alone in your own world. While you play with others online, EldenNet pauses."
+          }
+        ]
+      },
+      {
+        "heading": "If something goes wrong",
+        "level": 2
+      },
+      {
+        "paragraph": [
+          {
+            "text": "Home says what is wrong and what to do about it, and System › Status says it part by part. "
+          },
+          {
+            "doc": "troubleshooting",
+            "text": "Troubleshooting"
+          },
+          {
+            "text": " explains every message."
+          }
+        ]
+      },
+      {
+        "heading": "See also",
+        "level": 2
+      },
+      {
+        "paragraph": [
+          {
+            "doc": "keys",
+            "text": "Keys and pad"
+          },
+          {
+            "text": " · "
+          },
+          {
+            "doc": "provider",
+            "text": "What is sent to your provider"
+          },
+          {
+            "text": " · "
+          },
+          {
+            "doc": "privacy",
+            "text": "Privacy"
+          },
+          {
+            "text": " · "
+          },
+          {
+            "doc": "writing-content",
+            "text": "Writing content"
+          }
+        ]
+      }
+    ],
+    "title": "Getting started"
+  },
   "errors": {
     "checks": []
   },
@@ -854,6 +1362,160 @@
         "kind": "Local",
         "requests": "1",
         "type": "OpenAI-compatible"
+      }
+    ]
+  },
+  "report": {
+    "parts": [
+      {
+        "fields": [
+          {
+            "label": "EldenNet",
+            "value": "0.1.0"
+          },
+          {
+            "label": "Build",
+            "value": "0.1.0"
+          },
+          {
+            "label": "GraceUI",
+            "value": "0.2.12"
+          },
+          {
+            "label": "GraceUI needed",
+            "value": "0.2.12 or later"
+          },
+          {
+            "label": "Game build",
+            "value": "3.14.15.0, supported"
+          },
+          {
+            "label": "Started by",
+            "value": "The EldenNet launcher"
+          }
+        ],
+        "id": "versions",
+        "included": true,
+        "label": "Versions",
+        "optional": false
+      },
+      {
+        "fields": [
+          {
+            "label": "State",
+            "value": "Dormant"
+          },
+          {
+            "label": "Why",
+            "value": "At the title screen: EldenNet waits until a character is loaded."
+          },
+          {
+            "label": "Start",
+            "value": "Started"
+          },
+          {
+            "label": "Offline and solo",
+            "value": "Confirmed"
+          },
+          {
+            "label": "Reading the game",
+            "value": "1200 readings so far"
+          },
+          {
+            "label": "What it can read",
+            "value": "9 of 11 groups have passed their self-tests"
+          },
+          {
+            "label": "AI",
+            "value": "NPCs speak once a model answers Conversation. The self-test checks your provider meanwhile."
+          },
+          {
+            "label": "The log",
+            "value": "Writing"
+          },
+          {
+            "label": "Recording",
+            "value": "Off"
+          },
+          {
+            "label": "This session",
+            "value": "12 min"
+          }
+        ],
+        "id": "state",
+        "included": true,
+        "label": "State",
+        "optional": false
+      },
+      {
+        "fields": [
+          {
+            "label": "Settings file",
+            "value": "Read"
+          },
+          {
+            "code": true,
+            "label": "Values",
+            "value": "debug.panel = false\ndebug.record_sessions = false\ndebug.log_level = \"info\"\nai.preset = \"cloud-budget\"\nslots.dialogue.provider = \"\"\nslots.dialogue.model = \"\"\nslots.dialogue.fallback_provider = \"\"\nslots.dialogue.fallback = \"\"\nslots.bark_live.provider = \"\"\nslots.bark_live.model = \"\"\nslots.bark_live.fallback_provider = \"\"\nslots.bark_live.fallback = \"\"\nslots.bark_pool.provider = \"\"\nslots.bark_pool.model = \"\"\nslots.bark_pool.fallback_provider = \"\"\nslots.bark_pool.fallback = \"\"\nslots.memory.provider = \"\"\nslots.memory.model = \"\"\nslots.memory.fallback_provider = \"\"\nslots.memory.fallback = \"\"\nslots.selftest.provider = \"\"\nslots.selftest.model = \"\"\nslots.selftest.fallback_provider = \"\"\nslots.selftest.fallback = \"\""
+          }
+        ],
+        "id": "settings",
+        "included": true,
+        "label": "Settings",
+        "optional": true
+      },
+      {
+        "fields": [
+          {
+            "label": "Personas",
+            "value": "2"
+          },
+          {
+            "label": "Cards",
+            "value": "3"
+          },
+          {
+            "label": "Knowledge",
+            "value": "Included"
+          },
+          {
+            "label": "Event rules",
+            "value": "Included"
+          },
+          {
+            "label": "Your overrides",
+            "value": "3 files: 2 loaded and 1 refused"
+          },
+          {
+            "label": "Turned off",
+            "value": "1 persona and 1 card"
+          },
+          {
+            "label": "Loads this session",
+            "value": "1; the last: Loaded, with 2 warnings"
+          },
+          {
+            "label": "Your notes on characters",
+            "value": "1 character"
+          }
+        ],
+        "id": "content",
+        "included": true,
+        "label": "Content",
+        "optional": true
+      },
+      {
+        "fields": [
+          {
+            "code": true,
+            "label": "Newest lines",
+            "value": "0:00:00  boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev\n0:00:00  gate result=passed ms=11\n0:00:00  init state=settings\n0:00:01  connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.12\n0:00:06  init state=ready\n0:00:06  change what=phase to=title"
+          }
+        ],
+        "id": "log",
+        "included": true,
+        "label": "Recent log",
+        "optional": true
       }
     ]
   },

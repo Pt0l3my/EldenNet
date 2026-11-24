@@ -46,7 +46,7 @@ TEST_CASE("overlay: connect as eldennet, with EldenNet's floor and the caps it u
   CHECK(r.outcome == Outcome::Connected);
   CHECK(g.id == "eldennet");
   CHECK(g.name == "EldenNet");
-  CHECK(g.floor == GRACEUI_VERSION_PACK(0, 2, 22));  // GraceUI 0.2.22: the editor's chosen row (D218), on 1.5's wait
+  CHECK(g.floor == GRACEUI_VERSION_PACK(0, 2, 44));  // GraceUI 0.2.44: Docs and Bug report's blocks (D251)
   CHECK(g.mod_version == GRACEUI_VERSION_PACK(0, 1, 0));
   CHECK(g.mod_caps == "notices world-state hotkeys");
   CHECK(std::string(r.view) == "off");

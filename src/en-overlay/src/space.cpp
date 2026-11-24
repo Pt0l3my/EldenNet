@@ -9,6 +9,7 @@
 #include <set>
 #include <utility>
 
+#include "en/overlay/docs.hpp"
 #include "en/proto/base_url.hpp"
 #include "graceui.h"
 
@@ -936,6 +937,291 @@ json content_body(const SpaceFacts& f) {
               {"reloads", json{{"columns", std::move(reload_columns)}, {"rows", std::move(reloads)}}}};
 }
 
+// ---- Docs (PAGES §4.6.9; GraceUI D251): the bundled documents (docs.hpp), as they were converted, About's slots
+// filled with what EldenNet knows; a table's row whose slot has no value is left out (absence is silent).
+
+const BundledDoc* doc_of(std::string_view id) noexcept {
+  for (const BundledDoc& d : bundled_docs()) {
+    if (d.id == id) return &d;
+  }
+  return nullptr;
+}
+
+json docs_list_body() {
+  json rows = json::array();
+  for (const BundledDoc& d : bundled_docs()) {
+    rows.push_back(json{{"id", d.id}, {"title", d.title}, {"headings", d.headings}});
+  }
+  return json{{"columns", json::array({json{{"id", "title"}, {"label", "Document"}},
+                                       json{{"id", "headings"}, {"label", "Covers"}}})},
+              {"rows", std::move(rows)}};
+}
+
+json docs_body(std::string_view id, const SpaceFacts& f) {
+  const BundledDoc* d = doc_of(id);
+  if (d == nullptr) return json::object();
+  json body = json::parse(d->body, nullptr, false);
+  if (body.is_discarded() || !body.is_object()) return json::object();  // a defect en_overlay_tests catches
+  if (id != kDocsAbout) return body;
+  const std::pair<std::string_view, std::string> slots[] = {
+      {"{eldennet_version}", f.version == std::array<std::uint16_t, 3>{} ? std::string() : version_of(f.version)},
+      {"{graceui_version}", f.graceui != 0 ? packed_version(f.graceui) : std::string()},
+      {"{build}", std::string(f.label)}};
+  for (json& block : body["blocks"]) {
+    if (!block.is_object() || !block.contains("table")) continue;
+    json kept = json::array();
+    for (json& row : block["table"]["rows"]) {
+      bool known = true;
+      for (auto& [key, cell] : row.items()) {
+        (void)key;
+        if (!cell.is_string()) continue;
+        std::string text = cell.get<std::string>();
+        for (const auto& [slot, value] : slots) {
+          const std::size_t at = text.find(slot);
+          if (at == std::string::npos) continue;
+          if (value.empty()) known = false;
+          text.replace(at, slot.size(), value);
+        }
+        cell = text;
+      }
+      if (known) kept.push_back(std::move(row));
+    }
+    block["table"]["rows"] = std::move(kept);
+  }
+  return body;
+}
+
+// ---- Tools › Bug report (PAGES §4.6.8; GraceUI D251; space.hpp): the bundle's parts, in our words and numbers.
+
+constexpr std::string_view kReportBuild = "report.build";  // the form: {what}
+constexpr std::string_view kReportPart = "report.part";    // an optional part's switch: {id, on}
+constexpr std::array<std::string_view, 3> kReportOptional = {"settings", "content", "log"};
+
+// Characters as code points: UTF-8's bytes that start one.
+std::size_t chars_of(std::string_view text) noexcept {
+  std::size_t n = 0;
+  for (const char c : text) n += (static_cast<unsigned char>(c) & 0xC0) != 0x80 ? 1 : 0;
+  return n;
+}
+
+// A word shaped like a path or a local address: one of the marks of a path, or an IPv4 address, a port after it or
+// not, with a sentence's mark at its end (PV5).
+bool unshowable(std::string_view w) noexcept {
+  while (!w.empty() && std::string_view(".,;:!?)\"'").find(w.back()) != std::string_view::npos) w.remove_suffix(1);
+  while (!w.empty() && std::string_view("(\"'").find(w.front()) != std::string_view::npos) w.remove_prefix(1);
+  if (w.empty()) return false;
+  if (w.find('\\') != std::string_view::npos || w.find(":/") != std::string_view::npos || w.front() == '/' ||
+      w.front() == '~' || w.find("/Users/") != std::string_view::npos || w.find("/home/") != std::string_view::npos ||
+      w.find("AppData") != std::string_view::npos) {
+    return true;
+  }
+  if (w.size() >= 2 && std::isalpha(static_cast<unsigned char>(w[0])) != 0 && w[1] == ':') return true;  // a drive
+  int groups = 0;
+  std::size_t i = 0;
+  while (i < w.size() && groups < 4) {
+    std::size_t j = i;
+    while (j < w.size() && std::isdigit(static_cast<unsigned char>(w[j])) != 0) ++j;
+    if (j == i || j - i > 3) return false;
+    ++groups;
+    if (groups < 4) {
+      if (j >= w.size() || w[j] != '.') return false;
+      i = j + 1;
+    } else {
+      i = j;
+    }
+  }
+  return groups == 4 && (i == w.size() || w[i] == ':');
+}
+
+// The report's text, scrubbed again: a SteamID64's shape (`scrubbed`), and each word shaped like a path or a local
+// address, the value of a log line's key=value included, "redacted"; spaces and line breaks kept.
+std::string report_scrubbed(std::string_view text) {
+  const std::string once = scrubbed(text);
+  std::string out;
+  out.reserve(once.size());
+  std::size_t i = 0;
+  while (i < once.size()) {
+    if (once[i] == ' ' || once[i] == '\n' || once[i] == '\t') {
+      out.push_back(once[i++]);
+      continue;
+    }
+    std::size_t j = i;
+    while (j < once.size() && once[j] != ' ' && once[j] != '\n' && once[j] != '\t') ++j;
+    const std::string_view word = std::string_view(once).substr(i, j - i);
+    const std::size_t eq = word.find('=');
+    if (eq != std::string_view::npos && unshowable(word.substr(eq + 1))) {
+      out.append(word.substr(0, eq + 1)).append("redacted");
+    } else if (unshowable(word)) {
+      out.append("redacted");
+    } else {
+      out.append(word);
+    }
+    i = j;
+  }
+  return out;
+}
+
+// A field of a part: our words and numbers (the log's lines and the player's words are scrubbed before they come here).
+json report_field(std::string_view label, std::string value, bool code = false) {
+  json f{{"label", label}, {"value", std::move(value)}};
+  if (code) f["code"] = true;
+  return f;
+}
+
+json report_part(std::string_view id, std::string_view label, bool optional, bool included, json fields) {
+  return json{{"id", id},
+              {"label", label},
+              {"optional", optional},
+              {"included", included},
+              {"fields", std::move(fields)}};
+}
+
+// A count with its noun, "1 file" or "3 files".
+std::string counted(std::size_t n, std::string_view one, std::string_view many) {
+  return std::to_string(n) + " " + std::string(n == 1 ? one : many);
+}
+
+// Words joined as a list is read: "a", "a and b", "a, b and c".
+std::string listed(const std::vector<std::string>& words) {
+  std::string out;
+  for (std::size_t i = 0; i < words.size(); ++i) {
+    if (i != 0) out += i + 1 == words.size() ? " and " : ", ";
+    out += words[i];
+  }
+  return out;
+}
+
+json report_versions(const SpaceFacts& f) {
+  json fields = json::array();
+  fields.push_back(report_field("EldenNet", version_of(f.version)));
+  if (!f.label.empty()) fields.push_back(report_field("Build", std::string(f.label)));
+  if (f.graceui != 0) fields.push_back(report_field("GraceUI", packed_version(f.graceui)));
+  if (f.floor != std::array<std::uint16_t, 3>{}) {
+    fields.push_back(report_field("GraceUI needed", version_of(f.floor) + " or later"));
+  }
+  if (f.build_known) fields.push_back(report_field("Game build", build_of(f.build) + build_words(f)));
+  fields.push_back(report_field("Started by", f.launcher ? "The EldenNet launcher" : "Another loader"));
+  return fields;
+}
+
+json report_state(const SpaceFacts& f) {
+  const Lamp lamp = lamp_of(f);
+  const std::string reason = reason_of(f);
+  json fields = json::array();
+  fields.push_back(report_field("State", lamp.word != nullptr ? lamp.word : "Starting"));
+  if (!reason.empty() && f.level != Level::Starting) fields.push_back(report_field("Why", reason));  // else the start's
+  fields.push_back(report_field("Start", start_words(f.init)));
+  if (f.level >= Level::Observing) {
+    fields.push_back(report_field("Offline and solo", f.gate_open ? "Confirmed" : dormant_words(f)));
+  }
+  const bool stopped = f.init == pw::InitState::Banner || f.init == pw::InitState::Inert;
+  switch (f.reading) {
+    case Reading::None: fields.push_back(report_field("Reading the game", stopped ? "Not started" : "Not yet")); break;
+    case Reading::Registered:
+    case Reading::PhaseA: fields.push_back(report_field("Reading the game", "Its first readings")); break;
+    case Reading::Running:
+      fields.push_back(report_field("Reading the game", std::to_string(f.snapshots) + " readings so far"));
+      break;
+    case Reading::Inert: fields.push_back(report_field("Reading the game", "Stopped")); break;
+  }
+  if (f.have_health) {
+    std::size_t passed = 0;
+    for (const proto::GroupHealth& g : f.health.groups) passed += g.state == proto::GroupState::Ok ? 1 : 0;
+    fields.push_back(report_field("What it can read", std::to_string(passed) + " of " +
+                                                          std::to_string(proto::kGroupCount) +
+                                                          " groups have passed their self-tests"));
+  }
+  std::vector<std::string> tripped;
+  for (std::size_t g = 0; g < proto::kGroupCount; ++g) {
+    if ((f.tripped & (1ull << g)) != 0) tripped.emplace_back(group_words(static_cast<proto::Group>(g)));
+  }
+  if (!tripped.empty()) fields.push_back(report_field("Stopped after faults", listed(tripped)));
+  std::vector<std::string> problems;
+  for (const json& c : errors_body(f)["checks"]) problems.push_back(c["label"].get<std::string>());
+  if (!problems.empty()) {
+    std::string words;
+    for (const std::string& p : problems) words += (words.empty() ? "" : "\n") + p;
+    fields.push_back(report_field("Problems", words));
+  }
+  if (f.ai != nullptr) fields.push_back(report_field("AI", ai_cause(f)));
+  fields.push_back(report_field("The log", !f.logger ? "Not writing"
+                                           : f.log_dropped != 0 ? std::to_string(f.log_dropped) + " lines dropped"
+                                                                : "Writing"));
+  fields.push_back(report_field("Recording", !f.recording_asked ? "Off"
+                                             : f.recording       ? "On"
+                                                                 : "It could not start"));
+  fields.push_back(report_field("This session", duration_of(f.session_ms)));
+  return fields;
+}
+
+json report_content(const SpaceFacts& f) {
+  json fields = json::array();
+  if (f.content == nullptr) {
+    fields.push_back(report_field("Content", "Not loaded yet"));
+    return fields;
+  }
+  const proto::ContentView& c = *f.content;
+  fields.push_back(report_field("Personas", std::to_string(c.personas)));
+  if (c.cards != 0) fields.push_back(report_field("Cards", std::to_string(c.cards)));
+  if (c.knowledge) fields.push_back(report_field("Knowledge", "Included"));
+  if (c.rules) fields.push_back(report_field("Event rules", "Included"));
+  std::size_t loaded = 0, refused = 0, waiting = 0, unread = 0;
+  for (const std::vector<proto::OverrideFile>* files : {&c.overrides, &c.left_out}) {
+    for (const proto::OverrideFile& o : *files) {
+      loaded += o.state == proto::OverrideState::Loaded ? 1 : 0;
+      refused += o.state == proto::OverrideState::Refused ? 1 : 0;
+      waiting += o.state == proto::OverrideState::Waiting ? 1 : 0;
+      unread += o.state == proto::OverrideState::LeftOut ? 1 : 0;
+    }
+  }
+  const std::size_t files = loaded + refused + waiting + unread;
+  if (files == 0) {
+    fields.push_back(report_field("Your overrides", "None"));
+  } else {
+    std::vector<std::string> states;
+    if (loaded != 0) states.push_back(std::to_string(loaded) + " loaded");
+    if (refused != 0) states.push_back(std::to_string(refused) + " refused");
+    if (waiting != 0) states.push_back(std::to_string(waiting) + " not loaded");
+    if (unread != 0) states.push_back(std::to_string(unread) + " not read");
+    fields.push_back(report_field("Your overrides", counted(files, "file", "files") + ": " + listed(states)));
+  }
+  std::vector<std::string> off;
+  if (!c.off_personas.empty()) off.push_back(counted(c.off_personas.size(), "persona", "personas"));
+  if (!c.off_cards.empty()) off.push_back(counted(c.off_cards.size(), "card", "cards"));
+  if (c.off_knowledge != 0) off.push_back(counted(c.off_knowledge, "knowledge entry", "knowledge entries"));
+  if (c.off_triggers != 0) off.push_back(counted(c.off_triggers, "trigger", "triggers"));
+  if (c.off_rules != 0) off.push_back(counted(c.off_rules, "rule", "rules"));
+  if (!off.empty()) fields.push_back(report_field("Turned off", listed(off)));
+  if (!c.reloads.empty()) {
+    fields.push_back(report_field("Loads this session", std::to_string(c.reloads.size()) + "; the last: " +
+                                                            reload_words(c.reloads.front())));
+  }
+  if (f.characters != nullptr) {
+    std::size_t layers = 0, refused_layers = 0;
+    for (const ProfileRow& r : f.characters->rows) {
+      layers += r.layer ? 1 : 0;
+      refused_layers += r.refused ? 1 : 0;
+    }
+    if (layers + refused_layers != 0) {
+      std::string words = counted(layers, "character", "characters");
+      if (refused_layers != 0) words += ", and " + std::to_string(refused_layers) + " refused";
+      fields.push_back(report_field("Your notes on characters", words));
+    }
+  }
+  return fields;
+}
+
+// A setting's value as settings.toml would hold it; one shaped like a path is left out (a local server's model id can
+// be its file's path, PV5).
+std::string setting_words(const json& v) {
+  if (v.is_string()) {
+    const std::string& s = v.get_ref<const std::string&>();
+    if (!s.empty() && !pickable(s)) return "(left out)";
+    return text_of(v);
+  }
+  return text_of(v);
+}
+
 // A watch's note for the DLL's log: a family's member (GraceUI D215, `profiles/persona.kale`) as its family and its key,
 // since the log takes words alone (no '/').
 SpaceNote note_of(SpaceNote::What what, const std::string& topic) {
@@ -951,10 +1237,11 @@ std::uint64_t interval_of(std::string_view topic) noexcept {
   if (topic == "logs") return 1000;
   if (topic == "health") return 1000;  // a cooldown counts down each second
   if (topic == "selftest" || topic == "providers") return 250;
+  if (topic == kReportTopic) return 1000;  // its readings' count and its log's lines change at every wake
   return 0;  // on change
 }
 
-constexpr std::array<std::string_view, 23> kStates = {
+constexpr std::array<std::string_view, 24> kStates = {
     "settings",
     "status",
     "errors",
@@ -977,7 +1264,8 @@ constexpr std::array<std::string_view, 23> kStates = {
     "ai.choices.bark_pool.fallback",
     "ai.choices.memory.fallback",
     "ai.choices.selftest.fallback",
-    kContentTopic};
+    kContentTopic,
+    kReportTopic};
 
 std::string frame_topic(std::string_view frame) {
   const json f = json::parse(frame, nullptr, false);
@@ -1628,6 +1916,7 @@ std::string Space::command(std::string_view cmd_frame, const SpaceFacts& facts, 
         name == "providers.key") {
       return ai_command(id, name, args, facts);
     }
+    if (name == kReportBuild || name == kReportPart) return report_command(id, name, args);
     if (Characters::owns_command(name)) {  // the profile editor's (characters.hpp): answered now, or by the DLL later
       notes_.back().key = args.is_object() && args.contains("target") && args["target"].is_string()
                               ? args["target"].get<std::string>()
@@ -1765,6 +2054,11 @@ json Space::body(std::string_view topic, const SpaceFacts& facts) const {
   if (topic == "selftest") return selftest_body(facts);
   if (topic == "space.state") return space_state_body(facts);
   if (topic == kContentTopic) return content_body(facts);
+  if (topic == kReportTopic) return report_body(facts);
+  if (topic == kDocsList) return docs_list_body();
+  if (topic.rfind(std::string(kDocsFamily) + "/", 0) == 0) {
+    return docs_body(topic.substr(kDocsFamily.size() + 1), facts);
+  }
   if (topic == kProviderChoices) return provider_choices_body(facts);
   if (topic == kNamedList) return Characters::list_body(facts.characters);
   if (topic.rfind(std::string(kNamedFamily) + "/", 0) == 0) {
@@ -1785,6 +2079,136 @@ json Space::body(std::string_view topic, const SpaceFacts& facts) const {
                                                        : std::string_view());
   }
   return json::object();
+}
+
+void Space::collect_docs(const SpaceFacts& facts, std::uint64_t now_ms, std::vector<std::string>& frames) {
+  const std::string member = std::string(kDocsFamily) + "/";
+  for (const std::string& topic : watched_) {
+    const bool list = topic == kDocsList;
+    if (!list && topic.rfind(member, 0) != 0) continue;
+    Topic& t = topics_[topic];
+    // Bundled, so the same all session but for About's slots: built when watched, and About when its slots change.
+    const bool about = !list && std::string_view(topic).substr(member.size()) == kDocsAbout;
+    if (!t.fresh && !about) continue;
+    if (about) {
+      std::string slots = version_of(facts.version) + " " + std::to_string(facts.graceui) + " " +
+                          std::string(facts.label);
+      if (!t.fresh && slots == about_slots_) continue;
+      about_slots_ = std::move(slots);
+    }
+    json b = body(topic, facts);
+    if (!list && b.empty()) continue;  // not a document's id: absence is silent
+    std::string text = text_of(b);
+    if (!t.fresh && text == t.last) continue;
+    t.fresh = false;
+    t.last = std::move(text);
+    t.last_ms = now_ms;
+    ++t.rev;
+    frames.push_back(R"({"v":1,"t":"state","space":"eldennet","topic":")" + topic + R"(","rev":)" +
+                     std::to_string(t.rev) + R"(,"body":)" + t.last + "}");
+  }
+}
+
+// Tools › Bug report's commands (space.hpp): the player's words, kept in memory for the preview alone, and an optional
+// part's switch. The answer never echoes the words, and the command's note names the command alone (or the part).
+std::string Space::report_command(const json& id, std::string_view name, json& args) {
+  SpaceNote& note = notes_.back();
+  const auto refuse = [&](std::string_view detail) {
+    note.result = "invalid_value";
+    return answer(id, "invalid_value", detail);
+  };
+  if (!args.is_object()) return refuse("");
+  topics_[std::string(kReportTopic)].fresh = true;  // the preview at once, not at its rate
+  if (name == kReportBuild) {
+    const auto w = args.find("what");
+    if (w == args.end() || !w->is_string()) return refuse("");
+    // The frame's copy of the words is overwritten here, and so is every copy of them but the preview's.
+    std::string& typed = w->get_ref<std::string&>();
+    std::string text;
+    text.reserve(typed.size());
+    for (std::size_t i = 0; i < typed.size(); ++i) {
+      if (typed[i] != '\r') {
+        text.push_back(typed[i]);
+      } else if (i + 1 == typed.size() || typed[i + 1] != '\n') {
+        text.push_back('\n');
+      }
+    }
+    std::fill(typed.begin(), typed.end(), '\0');
+    const auto wipe = [](std::string& s) { std::fill(s.begin(), s.end(), '\0'); };
+    const std::size_t first = text.find_first_not_of(" \t\n");
+    const std::size_t last = text.find_last_not_of(" \t\n");
+    std::string kept = first == std::string::npos ? std::string() : text.substr(first, last - first + 1);
+    wipe(text);
+    if (std::any_of(kept.begin(), kept.end(), [](char c) {
+          const auto u = static_cast<unsigned char>(c);
+          return (u < 0x20 && c != '\n' && c != '\t') || u == 0x7F;
+        })) {
+      wipe(kept);
+      return refuse("Only words, numbers and line breaks: type it again.");
+    }
+    if (chars_of(kept) > kReportWhatMax) {
+      wipe(kept);
+      return refuse("That is over 2000 characters: shorten it.");
+    }
+    std::string shown = report_scrubbed(kept);
+    wipe(kept);
+    wipe(report_what_);
+    report_what_ = std::move(shown);
+    note.result = "ok";
+    return answer(id, "", "");
+  }
+  const auto part = args.find("id");
+  const auto on = args.find("on");
+  if (part == args.end() || !part->is_string() || on == args.end() || !on->is_boolean()) return refuse("");
+  const std::string which = part->get<std::string>();
+  if (std::find(kReportOptional.begin(), kReportOptional.end(), which) == kReportOptional.end()) {
+    return refuse("That part is always in the report.");
+  }
+  note.key = which;
+  if (on->get<bool>()) {
+    report_off_.erase(which);
+  } else {
+    report_off_.insert(which);
+  }
+  note.result = "ok";
+  return answer(id, "", "");
+}
+
+json Space::report_body(const SpaceFacts& f) const {
+  const auto included = [&](std::string_view part) { return report_off_.count(part) == 0; };
+  json parts = json::array();
+  if (!report_what_.empty()) {
+    parts.push_back(report_part("happened", "What happened", false, true,
+                                json::array({report_field("In your words", report_what_)})));
+  }
+  parts.push_back(report_part("versions", "Versions", false, true, report_versions(f)));
+  parts.push_back(report_part("state", "State", false, true, report_state(f)));
+  std::string values;
+  for (const Setting& s : settings_) {
+    if (s.type == "secret") continue;  // never a secret, nor its status (PV2)
+    const auto v = values_.find(s.key);
+    const json& value = v != values_.end() ? *v : s.fallback;
+    // A text value shaped like an address is left out too, as the log's are (PV5); setting_words leaves out paths.
+    const bool address = value.is_string() && unshowable(value.get_ref<const std::string&>());
+    values += (values.empty() ? "" : "\n") + s.key + " = " +
+              (address ? std::string("(left out)") : setting_words(value));
+  }
+  json settings = json::array();
+  settings.push_back(
+      report_field("Settings file", f.settings_refused ? "Refused: EldenNet uses its defaults" : "Read"));
+  if (!values.empty()) settings.push_back(report_field("Values", values, true));
+  parts.push_back(report_part("settings", "Settings", true, included("settings"), std::move(settings)));
+  parts.push_back(report_part("content", "Content", true, included("content"), report_content(f)));
+  if (!rows_.empty()) {
+    const std::size_t from = rows_.size() > kReportLogLines ? rows_.size() - kReportLogLines : 0;
+    std::string lines;
+    for (std::size_t i = from; i < rows_.size(); ++i) {
+      lines += (i == from ? "" : "\n") + rows_[i].time + "  " + report_scrubbed(rows_[i].line);
+    }
+    parts.push_back(report_part("log", "Recent log", true, included("log"),
+                                json::array({report_field("Newest lines", lines, true)})));
+  }
+  return json{{"parts", std::move(parts)}};
 }
 
 void Space::collect(const SpaceFacts& facts, std::uint64_t now_ms, std::vector<std::string>& frames) {
@@ -1823,6 +2247,7 @@ void Space::collect(const SpaceFacts& facts, std::uint64_t now_ms, std::vector<s
     frames.push_back(R"({"v":1,"t":"state","space":"eldennet","topic":")" + topic + R"(","rev":)" +
                      std::to_string(t.rev) + R"(,"body":)" + t.last + "}");
   }
+  collect_docs(facts, now_ms, frames);
   if (watching("logs") && !rows_.empty()) {
     Topic& t = topics_["logs"];
     const bool due = t.fresh || now_ms - t.last_ms >= interval_of("logs");
