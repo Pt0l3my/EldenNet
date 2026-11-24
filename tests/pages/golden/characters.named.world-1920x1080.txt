@@ -123,6 +123,17 @@ text    ink.hi        934,1860   38x28   clip1 glyphs 4 "Home"
 text    ink.mute     1231,1860  565x25   clip1 glyphs 53 "Whether EldenNet is working on this game, and what to do if it is not."
 text    gold         1820,1860    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
-text    ink.faint     340,1045  295x25   glyphs 20 "↑ ↓  Choose    →  Open    Esc  Back"
+fill    ground.well   340,1044   42x28   r3
+stroke  edge          340,1044   42x28   r3 w1
+text    ink.body      348,1046   26x25   glyphs 2 "↑ ↓"
+text    ink.faint     389,1045   51x25   glyphs 6 "Choose"
+fill    ground.well   465,1044   25x28   r3
+stroke  edge          465,1044   25x28   r3 w1
+text    ink.body      473,1046    9x25   glyphs 1 "→"
+text    ink.faint     497,1045   34x25   glyphs 4 "Open"
+fill    ground.well   555,1044   42x28   r3
+stroke  edge          555,1044   42x28   r3 w1
+text    ink.body      563,1046   26x25   glyphs 3 "Esc"
+text    ink.faint     605,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi       347, 248  510x76   r5 w3 clip1
-# 126 items, 7028 vertices, 13446 indices, 4 commands; check_draw_list: passes
+# 137 items, 7244 vertices, 14400 indices, 4 commands; check_draw_list: passes
