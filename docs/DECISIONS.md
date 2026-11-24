@@ -2309,3 +2309,27 @@ errors while the game still shows keep it; (b) keep the pop-up for every one; (c
 **Owner's words.** "Record quietly (Recommended)" (the question dialog, 2026-11-23).
 
 **Follows from.** O71; ARCH §4.8; WHY§556.
+
+## O116
+
+**The seventeenth read-only round writes three numbers of the owner's character** · *2026-11-24 · Decided by the owner, as recommended*
+
+**Question.** Every read-only round until the sixteenth wrote only where a number lies and how it behaved, never the
+number itself. For the seventeenth round to show that EldenNet's own reader reads the health right, its report has to
+hold numbers the owner can hold against the screen. Asked by Lodestar in its chat, in these words: "Until now every
+round promised to write only where a number lies, never the number itself. For the seventeenth round to prove EldenNet
+reads your health correctly, its report would have to hold three numbers of your character for you to compare with
+the screen: your health, your maximum health, and the save slot number (2). It would still not write where your
+character stands. May the report hold those three numbers?" **Options:** write them; or no numbers (the report says
+only whether the health was under its maximum, fell at the hit and rose at the heal).
+
+**Recommendation.** Write them.
+
+**Decision.** Write them: the health, its maximum and the save slot's number, as read after each of the tester's
+marks (up to nine moments). The position is never written, only whether it moved from one second to the next. The
+package's README says so in capitals (package 0.1.0-lodestar.21, engine feat/lodestar 1a262a7). Game numbers only,
+within O111; nothing personal.
+
+**Owner's words.** "Yes, write them (Recommended)" (Lodestar's question dialog, 2026-11-24).
+
+**Follows from.** O105, O111; WHY§567 to §569.

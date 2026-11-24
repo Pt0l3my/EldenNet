@@ -593,6 +593,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 568 | 2026-11-24 | A character's parts by two rounds: the holder at 0x190, health in the first part, position in the fourteenth | LIKELY | #lodestar #l6 |
 | 569 | 2026-11-24 | The near list's elements do not all hold a fraction 8 bytes in: the reader takes the distance element by element | FACT | #lodestar |
 | 570 | 2026-11-24 | A press a player says did not register is placed by maxima and gaps, not by percentiles | METHOD | #graceui #input |
+| 571 | 2026-11-24 | The world's leads are read through EldenNet's own reader before the world's group can be: ErBackend::world_alone | METHOD | #lodestar #gal #backend |
+| 572 | 2026-11-24 | The game's near list held 119 elements in the open world; snapshot() takes more than 48 for a fault of the world's group | FACT | #lodestar #design #gal |
 
 ## Entries
 
@@ -8610,3 +8612,24 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   the times at which they rose, beside the window's focus and the presses that reached the game. In spikes.6's
   first A1, GraceUI's allocation count did not move during play (188 before and after), so its heap guard never
   ran on the game's threads then.
+
+### 571. The world's leads are read through EldenNet's own reader before the world's group can be: ErBackend::world_alone
+
+`2026-11-24` · METHOD · `#lodestar` `#gal` `#backend` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the seventeenth round"), WHY§457, WHY§567 to §569, O116
+
+- ErBackend::world_alone (engine 1a262a7, merged at 5c07157), a sibling of flags_alone, reads each part only where
+  the layout binds all of it (the save's slot, the main player by its class, its parts with the health and the
+  position, the near list), says in `lacks` which it does not, and counts no group's fault: a failed read leaves
+  its part empty. Nothing bound means no read at all, not even the statics. The near list's length is told whole,
+  48 elements at most are looked at, and the distance is judged element by element (WHY§569). The seventeenth
+  round calls it once a second and writes the save's slot, the health and its maximum after each of the tester's
+  marks, with the owner's word (O116), and never the position, only whether it moved. Reviewed by Engine.
+
+### 572. The game's near list held 119 elements in the open world; snapshot() takes more than 48 for a fault of the world's group
+
+`2026-11-24` · FACT · `#lodestar` `#design` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the seventeenth round"), ARCH §6.6
+
+- read_world() counts a list longer than kWalkEntries (48) as a hard fault of the world's group (ARCH §6.6 #4), but
+  the sixteenth round found 119 elements with the owner standing in the open world. As it stands the world's group
+  would trip on its first snapshot there. To change before a ready start on the real game: a long list is walked
+  in part (its first 48, the nearest), its length told, and only bounds that make no sense are a fault. Engine's.
