@@ -275,9 +275,10 @@ void ai_cancel(Shell& s, en::proto::RequestId id) noexcept;
 [[nodiscard]] en::proto::NetHealth ai_health(Shell& s) noexcept;
 // T6: a change of the space's `ai.preset` or a job's model (`slots.<slot>.model`), made and written to providers.toml.
 void ai_change(Shell& s, en::overlay::Space& space, en::overlay::Space::Change& change) noexcept;
-// T6: a request the space took (selftest.run, models.list, providers.add, providers.remove, providers.key); a key's
-// value is taken out of the request and the request's copy overwritten. While AI is paused the self-test and the model
-// list are refused (logged; the space shows en-proto's kAiPausedSelfTest and kAiPausedModelList).
+// T6: a request the space took (selftest.run, models.list, providers.add, providers.remove, providers.key, and
+// ai.pause, handed to ai_pause); a key's value is taken out of the request and the request's copy overwritten. While AI
+// is paused the self-test and the model list are refused (logged; the space refuses them first, in en-proto's
+// kAiPausedSelfTest and kAiPausedModelList).
 void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest& request) noexcept;
 
 // ---- Pause AI and the model calls' record (ai.cpp; PAGES §4.6.1, §4.6.2; D15, D18): what the pages bind ----

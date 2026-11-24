@@ -98,9 +98,10 @@ std::string reason_of(const SpaceFacts& f) {
     case Level::Starting: return start_words(f.init);
     case Level::Inactive: return std::string(f.stop_text);
     case Level::Observing:
-      return f.dormant ? dormant_words(f)
-                       : "EldenNet reads the game. NPCs speak once a model answers Conversation: AI › Providers says "
-                         "what is missing.";
+      if (f.dormant) return dormant_words(f);
+      if (f.ai_paused) return std::string(proto::kAiPausedStatus);  // the ladder's reason (D15): "AI paused"
+      return "EldenNet reads the game. NPCs speak once a model answers Conversation: AI › Providers says what is "
+             "missing.";
     case Level::SpeakingInPart:
       return f.dormant ? dormant_words(f)
                        : "NPCs speak, but part of the game EldenNet reads has stopped: System › Status says which.";
@@ -217,7 +218,10 @@ json status_body(const SpaceFacts& f) {
     items.push_back(item("Game build", build_of(f.build) + build_words(f)));
   }
   items.push_back(item("This session", duration_of(f.session_ms)));
+  items.push_back(item("Pause AI", f.ai_paused ? "On, for this session" : "Off"));
   b["items"] = std::move(items);
+  // The quick switch's state (GraceUI D252): published from the first body, starting or not.
+  b["ai_paused"] = f.ai_paused;
   return b;
 }
 
@@ -574,6 +578,10 @@ std::string jobs_named(const std::vector<std::string_view>& slots) {
 std::string ai_cause(const SpaceFacts& f) {
   const AiFacts& ai = *f.ai;
   if (f.level == Level::Inactive) return banner_words(f);  // the greyed page's one form (O95)
+  if (f.ai_paused) {  // D15: whatever else holds, nothing is sent until it is off
+    return "AI is paused for this session, so EldenNet calls no model. Turn Pause AI off in the quick switches to "
+           "call one again.";
+  }
   if (ai.files == AiFiles::Refused) {
     return "Your providers file has a problem, so EldenNet calls no model: System › Status says what.";
   }
@@ -833,6 +841,142 @@ json provider_choices_body(const SpaceFacts& f) {
   return json{{"choices", std::move(choices)}};
 }
 
+// ---- AI › Requests and Home's Model calls card (space.hpp): the record's rows and the session's usage, in PAGES'
+// words (en-proto's) and our numbers. The only text is a shown reply's (PV4); a model id shaped like a path is left out
+// (PV5).
+
+// 12345 as "12,345": a tile's number.
+std::string grouped(std::uint64_t n) {
+  std::string digits = std::to_string(n);
+  for (std::size_t at = digits.size(); at > 3; at -= 3) digits.insert(at - 3, ",");
+  return digits;
+}
+
+// A reported cost as the provider gave it, its unit the provider's (D18): six decimals at most, no trailing zeros.
+std::string cost_of(double cost) {
+  char text[32];
+  std::snprintf(text, sizeof text, "%.6f", cost);
+  std::string out = text;
+  while (out.size() > 1 && out.back() == '0') out.pop_back();
+  if (!out.empty() && out.back() == '.') out.pop_back();
+  return out;
+}
+
+std::string calls_counted(std::uint64_t n, std::string_view what) {
+  return (n == 0 ? std::string("no ") + std::string(what) + "s"
+          : n == 1 ? std::string("1 ") + std::string(what)
+                   : grouped(n) + " " + std::string(what) + "s");
+}
+
+// One call's cells in a table, Requests' or Home's card's (PAGES' columns): the time, the job, the purpose, the speaker
+// as shown, the provider and the model (Home: the model), the first token, the total, the tokens, the outcome, why in
+// words and the text shown (Home: no tokens and no why); and Requests' hidden sort keys and id, each key left out when
+// the call has no value for it (GraceUI D250: such a row sorts last).
+enum class CallTable : std::uint8_t { Requests, Home };
+
+json call_row(const proto::CallRow& r, CallTable table) {
+  const bool requests = table == CallTable::Requests;
+  json row{{"time", clock_of(r.at_ms)}, {"purpose", proto::words(r.purpose)}, {"outcome", proto::words(r.outcome)}};
+  if (requests) {
+    row["id"] = r.id;
+    row["at_ms"] = r.at_ms;
+  }
+  if (const char* job = slot_words(r.slot); *job != '\0') row["slot"] = job;
+  if (!r.speaker.empty()) row["speaker"] = r.speaker;
+  const std::string model = proto::shown_model(r.model) ? r.model : std::string();  // PV5, as the record has it
+  if (!requests) {
+    if (!model.empty()) row["model"] = model;
+  } else if (!model.empty() && !r.provider.empty()) {
+    row["provider_model"] = model + " on " + r.provider;
+  } else if (!model.empty() || !r.provider.empty()) {
+    row["provider_model"] = model.empty() ? r.provider : model;
+  }
+  if (r.first_token_ms >= 0) {
+    row["first_token"] = seconds_of(r.first_token_ms);
+    if (requests) row["first_token_ms"] = r.first_token_ms;
+  }
+  if (r.total_ms >= 0) {
+    row["total"] = seconds_of(r.total_ms);
+    if (requests) row["total_ms"] = r.total_ms;
+  }
+  if (requests && r.tokens() >= 0) row["tokens"] = r.tokens();  // a column and its sort key at once
+  if (const char* why = proto::error_words(r.error, r.http_status); requests && *why != '\0') row["why"] = why;
+  if (!r.text.empty()) row["text"] = r.text;  // the displayed text: a page of it reached the screen (PV4)
+  return row;
+}
+
+json column(std::string_view id, std::string_view label, bool numeric = false) {
+  json c{{"id", id}, {"label", label}};
+  if (numeric) c["numeric"] = true;
+  return c;
+}
+
+json calls_body(const SpaceFacts& f) {
+  if (f.calls == nullptr) return json::object();
+  const std::vector<proto::CallRow>& rows = f.calls->rows;
+  std::size_t bytes = 2048;  // the columns, the members' names and the brackets, well within
+  json home = json::array();  // Home's card: the newest 20
+  for (std::size_t i = 0; i < rows.size() && i < kCallsHomeRows; ++i) {
+    home.push_back(call_row(rows[i], CallTable::Home));
+    bytes += text_of(home.back()).size() + 1;
+  }
+  json requests = json::array();  // AI › Requests: every row kept, newest first
+  for (const proto::CallRow& r : rows) {
+    requests.push_back(call_row(r, CallTable::Requests));
+    bytes += text_of(requests.back()).size() + 1;
+  }
+  // Within GraceUI's frame to a page: past kCallsBodyMax, the oldest rows of Requests give up their text, then go.
+  for (std::size_t i = requests.size(); bytes > kCallsBodyMax && i-- > 0;) {
+    json& row = requests[i];
+    if (!row.contains("text")) continue;
+    const std::size_t before = text_of(row).size();
+    row.erase("text");
+    bytes -= before - text_of(row).size();
+  }
+  while (bytes > kCallsBodyMax && !requests.empty()) {
+    bytes -= text_of(requests.back()).size() + 1;
+    requests.erase(requests.end() - 1);
+  }
+  json requests_columns = json::array({column("time", "Time"), column("slot", "Job"), column("purpose", "Purpose"),
+                                       column("speaker", "Speaker"), column("provider_model", "Provider and model"),
+                                       column("first_token", "First token", true), column("total", "Total", true),
+                                       column("tokens", "Tokens", true), column("outcome", "Outcome"),
+                                       column("why", "Why"), column("text", "Text shown")});
+  json home_columns = json::array({column("time", "Time"), column("slot", "Job"), column("purpose", "Purpose"),
+                                   column("speaker", "Speaker"), column("model", "Model"),
+                                   column("first_token", "First token", true), column("total", "Total", true),
+                                   column("outcome", "Outcome"), column("text", "Text shown")});
+  json body = json::object();
+  body["requests"] = json{{"columns", std::move(requests_columns)}, {"rows", std::move(requests)}};
+  body["home"] = json{{"columns", std::move(home_columns)}, {"rows", std::move(home)}};
+  return body;
+}
+
+// The hour's line, Home's and Requests' alike: own-initiative calls in the last hour, and every request the model
+// client sent in it against the bound (budget.requests_per_hour), which counts them all, retries included.
+std::string hour_words(const proto::CallUsage& u) {
+  std::string words = "In the last hour: " + calls_counted(u.own_initiative_hour, "own-initiative call") + ", and ";
+  if (u.bound == 0) return words + calls_counted(u.requests_hour, "request") + " sent.";
+  return words + grouped(u.requests_hour) + " of the " + grouped(u.bound) + " requests EldenNet may send in an hour.";
+}
+
+json usage_body(const SpaceFacts& f) {
+  if (f.calls == nullptr) return json::object();
+  const proto::CallUsage& u = f.calls->usage;
+  const auto tile = [](std::string_view label, std::string value) {
+    return json{{"label", label}, {"value", std::move(value)}};
+  };
+  json tiles = json::array({tile("Calls", grouped(u.calls)), tile("Tokens in", grouped(u.tokens_in)),
+                            tile("Tokens out", grouped(u.tokens_out)), tile("Failures", grouped(u.failures)),
+                            tile("Own-initiative this hour", grouped(u.own_initiative_hour))});
+  if (u.cost_calls != 0) {  // D18: only what a provider's reply reported, in its own unit
+    json cost = tile("Cost reported", cost_of(u.cost));
+    cost["unit"] = u.cost_calls == 1 ? std::string("by 1 call") : "by " + grouped(u.cost_calls) + " calls";
+    tiles.push_back(std::move(cost));
+  }
+  return json{{"tiles", std::move(tiles)}, {"sentence", hour_words(u)}};
+}
+
 // GraceUI's framework topic (D188): the pages greyed, each with its words. At L1 Home and the AI pages (PAGES §4.4; System
 // and Settings stay usable), with the banner's own words (O95: one form, en-core's "EldenNet inactive: …"); at L2, or
 // with no healthy model, every page stays usable and the AI pages lead with the cause (ai.status).
@@ -840,7 +984,7 @@ json space_state_body(const SpaceFacts& f) {
   json greyed = json::object();
   if (f.level == Level::Inactive) {
     const std::string words = banner_words(f);
-    for (const char* page : {"home", "ai.providers", "ai.models", "ai.selftest"}) greyed[page] = words;
+    for (const char* page : {"home", "ai.providers", "ai.models", "ai.selftest", "ai.requests"}) greyed[page] = words;
   }
   return json{{"greyed", std::move(greyed)}};
 }
@@ -1238,10 +1382,12 @@ std::uint64_t interval_of(std::string_view topic) noexcept {
   if (topic == "health") return 1000;  // a cooldown counts down each second
   if (topic == "selftest" || topic == "providers") return 250;
   if (topic == kReportTopic) return 1000;  // its readings' count and its log's lines change at every wake
+  if (topic == kCallsTopic) return 500;     // a reply's first token, its pages and its end come close together
+  if (topic == kUsageTopic) return 1000;    // GraceUI DESIGN §6.5: at most once a second
   return 0;  // on change
 }
 
-constexpr std::array<std::string_view, 24> kStates = {
+constexpr std::array<std::string_view, 26> kStates = {
     "settings",
     "status",
     "errors",
@@ -1265,7 +1411,9 @@ constexpr std::array<std::string_view, 24> kStates = {
     "ai.choices.memory.fallback",
     "ai.choices.selftest.fallback",
     kContentTopic,
-    kReportTopic};
+    kReportTopic,
+    kCallsTopic,
+    kUsageTopic};
 
 std::string frame_topic(std::string_view frame) {
   const json f = json::parse(frame, nullptr, false);
@@ -1641,6 +1789,10 @@ std::string Space::ai_command(const json& id, std::string_view name, json& args,
   const bool running = ai->selftest.running || ai->listing;
   const bool calls = name == "selftest.run" || name == "models.list";
   if (calls) {
+    // Pause AI (D15): nothing is sent while it is on, in en-proto's words (the DLL refuses them too, and logs it).
+    if (facts.ai_paused) {
+      return refuse("not_now", name == "selftest.run" ? proto::kAiPausedSelfTest : proto::kAiPausedModelList);
+    }
     if (ai->providers.empty()) {
       return refuse("not_now", "Add a provider first: on Providers, add the preset's provider or one of your own.");
     }
@@ -1917,6 +2069,21 @@ std::string Space::command(std::string_view cmd_frame, const SpaceFacts& facts, 
       return ai_command(id, name, args, facts);
     }
     if (name == kReportBuild || name == kReportPart) return report_command(id, name, args);
+    if (name == kPauseCommand) {
+      // Pause AI for this session (D15): {"on": bool}, for the DLL to hand to the core; its state follows on `status`.
+      const auto on = args.is_object() ? args.find("on") : args.end();
+      if (!args.is_object() || on == args.end() || !on->is_boolean()) {
+        notes_.back().result = "invalid_value";
+        return answer(id, "invalid_value", "");
+      }
+      AiRequest r;
+      r.kind = AiRequest::Kind::Pause;
+      r.on = on->get<bool>();
+      notes_.back().key = r.on ? "on" : "off";
+      requests_.push_back(std::move(r));
+      notes_.back().result = "ok";
+      return answer(id, "", "");
+    }
     if (Characters::owns_command(name)) {  // the profile editor's (characters.hpp): answered now, or by the DLL later
       notes_.back().key = args.is_object() && args.contains("target") && args["target"].is_string()
                               ? args["target"].get<std::string>()
@@ -2055,6 +2222,8 @@ json Space::body(std::string_view topic, const SpaceFacts& facts) const {
   if (topic == "space.state") return space_state_body(facts);
   if (topic == kContentTopic) return content_body(facts);
   if (topic == kReportTopic) return report_body(facts);
+  if (topic == kCallsTopic) return calls_body(facts);
+  if (topic == kUsageTopic) return usage_body(facts);
   if (topic == kDocsList) return docs_list_body();
   if (topic.rfind(std::string(kDocsFamily) + "/", 0) == 0) {
     return docs_body(topic.substr(kDocsFamily.size() + 1), facts);

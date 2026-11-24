@@ -35,11 +35,11 @@ TALK_SHOTS = {1440: "hint", 1680: "chat", 1860: "lower-third"}
 # events: launcher-eldennet-graceui-events' run: F11's view (debug.panel) opened at 720 on Augur's events.
 EVENTS_SHOTS = {800: "f11"}
 # pages: launcher-eldennet-graceui-pages' world (the title screen: in the world the fake player reads as in danger,
-# which keeps the menu shut), with presses of our own, by the stops GraceUI 0.2.44 gives (the editor case's route to
+# which keeps the menu shut), with presses of our own, by the stops GraceUI 0.2.46 gives (the editor case's route to
 # GraceUI's own pages): F5 opens the menu on EldenNet's Home with no focus ring, as a mouse player sees it (G42); ↓
-# shows the ring; five Page Down to System › Status, ← into the rail, six ↓ (Logs, Tools, Settings, Docs, Content packs)
-# to GraceUI's own pages at its foot, Enter.
-PAGES_KEYS = ("600:f5,720:down,840:next,900:next,960:next,1020:next,1080:next,1140:left,1200:down,1230:down,"
+# shows the ring; six Page Down to System › Status (past AI's four pages and Named NPCs), ← into the rail, six ↓ (Logs,
+# Tools, Settings, Docs, Content packs) to GraceUI's own pages at its foot, Enter.
+PAGES_KEYS = ("600:f5,720:down,840:next,880:next,920:next,960:next,1000:next,1040:next,1140:left,1200:down,1230:down,"
               "1260:down,1290:down,1320:down,1350:down,1380:return")
 PAGES_SHOTS = {700: "menu-mouse", 800: "menu-ring", 1440: "graceui"}
 # check: the talk run again at the other format, shooting the box alone, to compare with the set's.

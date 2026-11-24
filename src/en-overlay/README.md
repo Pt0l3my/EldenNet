@@ -9,8 +9,8 @@ moved it to GraceUI 0.2.5's ABI 1.2 (§19, §23, §24, §26 to §29, §33, §34 
 C; WHY§364) adds EldenNet's own surfaces on GraceUI 0.2.20's ABI 1.5 (§31, §33, §47 to §50): the lower third, the chat
 box, the hint and the toasts. Later increments add the call-out box (v0.6) and the rest of its pages.
 
-It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 3fac29b, GraceUI
-0.2.44, ABI 1.7, protocol 1.12, whose uploads it does not use; its floor, 0.2.44, for Docs' document block and Bug
+It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at fe7d9db, GraceUI
+0.2.46, ABI 1.7, protocol 1.13, whose uploads it does not use; its floor, 0.2.44, for Docs' document block and Bug
 report's prose field and preview, which an older GraceUI refuses, with the profile editor's families, slow commands,
 editor block and chosen row, on 0.2.17's wait handle; 0.2.36's italic face where GraceUI's folder has it, and 0.2.38's
 word for what pressed a hotkey behind its cap): its look for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI
@@ -238,7 +238,8 @@ game's own text entry is not read in v0.1.
   the frame's copy of the value overwritten, and the poll buffer's after each command). An argument of the wrong type is refused as `invalid_value`.
 - **What it publishes and when**: nothing for a topic nobody watches; a state topic when it is watched (again for each
   new watch) and when its body changes, no oftener than its rate (`status`, `providers` and `selftest` 4 a second,
-  `system.status` and `health` once a second, the rest on change); the logs stream from its oldest row held, in batches of 100, then each new row once a second.
+  `calls` twice a second, `system.status`, `health` and `usage` once a second, the rest on change); the logs stream
+  from its oldest row held, in batches of 100, then each new row once a second.
 
 ## The Characters pages and the profile editor (`characters.hpp`; PAGES §4.6.4, NPC §4.7; S7.2.b)
 
@@ -344,6 +345,39 @@ save until 0.6, after EldenNet's scan. Two sections:
   name, the character's name or a local address (PV5, PV7). Published at most once a second (its readings' count and
   its log's lines change at every wake), and at once after either command.
 
+## AI › Requests, Home's Model calls card and Pause AI (`ai.requests`, `home`; PAGES §4.6.1, §4.6.2; S11.4.a)
+
+On GraceUI 0.2.46's quick switches and live pages (D252, protocol 1.13, which an older GraceUI reads past, so the floor
+stays 0.2.44) and 0.2.43's filter bar (D250), from the model calls' record the DLL keeps (`SpaceFacts::calls`,
+en-proto's `CallsView`, `ai_calls()`) and Pause AI as the core holds it (`SpaceFacts::ai_paused`, `ai_paused()`):
+
+- **AI › Requests** (`ai.requests`, increment 0.2, live): Now (`ai.status`); This session, `stat_tiles` on `usage`
+  (Calls, Tokens in, Tokens out, Failures, Own-initiative this hour, and Cost reported only once a provider's reply
+  reported one, D18, "by N calls") and the hour's line, own-initiative calls and every request the model client sent
+  in the last hour against `budget.requests_per_hour`, which counts them all; Calls, a table on `calls`' `requests`
+  member, every row kept (20, or 200 with Developer views from the next start), newest first: Time, Job (the slot's
+  player label), Purpose and Outcome (PAGES' words, en-proto's), Speaker as shown, Provider and model ("model on
+  provider"; a model id shaped like a path left out, PV5), First token, Total, Tokens (in and out, a number), then Why
+  (the error class in words) and Text shown (a reply's displayed text once a page of it reached the screen, and nothing
+  else, PV4): GraceUI has no row drawer yet, so these two are the table's last columns. Its filter bar (D250): Job,
+  Purpose and Outcome; sorted by Time (newest first), First token, Total or Tokens (most first) on each row's hidden
+  keys `at_ms`, `first_token_ms`, `total_ms` and `tokens`, a key the call has no value for left out so that it sorts
+  last; no search (PV4). Each row carries its `id`.
+- **Home** (live): the Status card's last line, Pause AI "Off" or "On, for this session", and the lead's reason "AI is
+  paused for this session." at L2 when not dormant (en-proto's kAiPausedStatus); and Model calls, a table on `calls`'
+  `home` member, the newest 20 in Requests' words (Time, Job, Purpose, Speaker, Model, First token, Total, Outcome,
+  Text shown), with the hour's line under it.
+- **The body's size**: `calls` stays within GraceUI's frame to a page (kCallsBodyMax, 240 KiB, below its 256 KiB):
+  past it, Requests' oldest rows give up their text, then go; Home's card is the newest 20 whatever happens. `calls` is
+  published at most twice a second, `usage` once a second.
+- **Pause AI for this session** (D15): the space's quick switch (`[[space.quick]]`, GraceUI §78's form), `ai.pause`
+  `{"on": bool}`, its state `status.ai_paused` (published from the first body, starting or not), living on Home. The
+  command is answered at once and handed to the DLL as an `AiRequest` of kind Pause (`ai_pause()`, which the core takes
+  in the same wake); an argument that is not a boolean `on` is `invalid_value`; its note's key says on or off. It is
+  not sensitive: a paired device may pause and resume, as it may run the self-test. While paused, `selftest.run` and
+  `models.list` are refused `not_now` in en-proto's words (kAiPausedSelfTest, kAiPausedModelList), the AI pages lead
+  with the pause, and Requests is greyed at L1 with the other AI pages.
+
 ## Tests
 
 `en_overlay_tests` (doctest): in every build, the Characters pages (`test_characters.cpp`: the page data with its
@@ -366,10 +400,15 @@ address, About's slots filled or their rows left out, the list and the documents
 slot changes), Bug report (its form and preview, the parts in plain data, the player's words leading the preview and in
 no other topic, answer, note or log row, scrubbed, refused in words over 2000 characters or with a control character,
 cleared by an empty field, the optional parts' switches and an always part's refusal, the log's newest 30 lines
-scrubbed again, settings without a secret or a path), and in the Linux builds the five fixture states'
+scrubbed again, settings without a secret or a path), Requests and Home's card (`tests/calls_fixture.hpp`: PAGES'
+columns and words, the sort keys left out where a call has none, Home's 20 without them, the tiles and the hour's line,
+cost only where reported, nothing without a record, no address, key or path in a frame, a model id shaped like a path
+left out, the body within the frame to a page with the newest text kept), Pause AI (its command handed over, refused
+without a boolean, `status.ai_paused` and the Status card's line, the leads, the self-test and the model list refused
+in en-proto's words), and in the Linux builds the five fixture states'
 `tests/pages/<state>/topics.json` (EN_UPDATE_FIXTURES=1 writes them anew). In the
 Windows builds, under Wine, the connection against a fake GraceUI of our own (`tests/fake_grace.hpp`; graceui-sys has no
-C mock): ABI 1.7's table, answering as GraceUI 0.2.44 answers and checking as it checks (connect's answers, notices
+C mock): ABI 1.7's table, answering as GraceUI 0.2.46 answers and checking as it checks (connect's answers, notices
 under keys, the registration window, hidden panels, hotkeys, poll's events by the event's size, the space's slots, and
 submit's draw-list checks: counts, bounds, ranges, indices, clip rectangles inside the panel, known textures, the
 stride). The cases: the space registered once for its views, or not without the cap or beside anti-cheat; watched

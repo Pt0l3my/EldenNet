@@ -21,6 +21,9 @@
 # Docs and Tools › Bug report (S11.4.a), on GraceUI 0.2.44 (D251, protocol 1.12): the bundled documents as a master
 # page whose one section holds the chosen row's document, with a search on the list's titles and headings (D250); and a
 # bug report's preview, the player's words in a prose field and the bundle's parts, the optional ones switched.
+# AI › Requests and Home's Model calls card (S11.4.a), on GraceUI 0.2.46 (D252, protocol 1.13, which an older GraceUI
+# reads past): every model call this session as a table with its filter bar (D250), the session's usage as tiles, both
+# pages live (Live updates holds them), and Pause AI for this session as a quick switch of the space's own.
 # The rail holds every category of PAGES §4.2.1 in its order; a category with no page yet holds none,
 # and GraceUI shows no category that is empty (D173). Every word a player reads here is a draft for the owner's review
 # (the slice's notes list them). Names of the game's places and characters never appear here (PAGES §4.1 item 6, SP3).
@@ -31,7 +34,7 @@ name = "EldenNet"
 settings_schema = 2
 commands = ["settings.set", "settings.reset", "selftest.run", "models.list", "providers.add", "providers.remove",
             "providers.key", "profile.check", "profile.save", "profile.reset", "profile.restore", "profile.draft",
-            "report.build", "report.part"]
+            "report.build", "report.part", "ai.pause"]
 # A model's draft of the player's notes: answered within 90 s (D216; NPC §4.7's 20 s to the first token, 60 s in all).
 slow_commands = ["profile.draft"]
 # From this PC alone, never a paired device (G9, D221; S11.4.e): a provider of one's own with its address, a provider's
@@ -39,6 +42,17 @@ slow_commands = ["profile.draft"]
 # (b), the profile editor's writing commands: the player's notes are saved, reset and restored on this PC alone.
 sensitive_commands = ["providers.add", "providers.remove", "providers.key", "profile.save", "profile.reset",
                       "profile.restore"]
+# ai.pause is not: a paired device may pause and resume as it may run the self-test, and it writes nothing.
+
+# The top bar's Quick switches (GraceUI D252; PAGES §4.5, §4.6.1): Pause AI for this session, a session switch of the
+# space's own, never a setting (D15), its state `status.ai_paused`, living on Home. The settings PAGES gives a shortcut
+# there (EldenNet on, the features' switches) are not settings of this increment yet.
+[[space.quick]]
+id = "pause"
+label = "Pause AI for this session"
+command = "ai.pause"
+state = { topic = "status", field = "ai_paused" }
+home = "home"
 
 # ---- Topics (GraceUI DESIGN §6.5's names). System › Status's tabs read one topic, `system.status`, each block its own
 # member of the body (GraceUI D185's `props.field`): the Compatibility tab its `compatibility`.
@@ -91,6 +105,17 @@ shape = "state"
 
 [[topic]]
 id = "selftest"
+shape = "state"
+
+# AI › Requests' and Home's Model calls card's (GraceUI DESIGN §6.5's `calls` and `usage`; GraceUI proposal 0012 §7):
+# `calls` the whole set kept, a member per table (D185's props.field), `usage` the tiles and the hour's line.
+
+[[topic]]
+id = "calls"
+shape = "state"
+
+[[topic]]
+id = "usage"
 shape = "state"
 
 # Each job's model picker's choices (GraceUI D193): what the job's provider listed last, as {"choices": [...]}; each
@@ -202,7 +227,7 @@ pages = ["home"]
 [[category]]
 id = "ai"
 name = "AI"
-pages = ["ai.providers", "ai.models", "ai.selftest"]
+pages = ["ai.providers", "ai.models", "ai.selftest", "ai.requests"]
 
 [[category]]
 id = "voice"
@@ -564,13 +589,20 @@ availability = "live"
 
 [[page]]
 id = "home"
+live = true  # its topics move by themselves: Live updates holds them (GraceUI D252)
 category = "home"
 name = "Home"
-description = "Whether EldenNet is working on this game, and what to do if it is not."
+description = "Whether EldenNet is working on this game, what to do if it is not, and what it asked of a model."
 increment = "0.1"
-related = ["system.status", "system.logs"]
-help.purpose = "See at a glance whether EldenNet is working, and what to do when something is wrong."
-help.steps = ["Read the Status card: its first line says how EldenNet stands, the next one why.", "Look at Problems: each says what went wrong and what to do about it.", "Open System for the details: the start, EldenNet's parts and its log."]
+related = ["system.status", "ai.requests", "system.logs"]
+help.purpose = "See at a glance whether EldenNet is working, what to do when something is wrong, and its model calls."
+help.steps = [
+  "Read the Status card: its first line says how EldenNet stands, the next one why.",
+  "Look at Problems: each says what went wrong and what to do about it.",
+  "Read Model calls for the last calls to a model: what each was for and how it ended. AI › Requests has them all.",
+  "Pause AI for this session from the quick switches: no model is called until you turn it off.",
+  "Open System for the details: the start, EldenNet's parts and its log.",
+]
 
 [[page.sections]]
 id = "status"
@@ -581,6 +613,24 @@ blocks = [{ kind = "component", component = "key_value_list", topic = "status" }
 id = "problems"
 title = "Problems"
 blocks = [{ kind = "component", component = "check_list", topic = "errors", props = { empty = "No problems." } }]
+
+# Home's Model calls card (PAGES §4.6.1): the last 20, in AI › Requests' words, and the hour's own-initiative calls
+# against the bound. GraceUI has no row drawer yet, so the text shown is the table's last column.
+[[page.sections]]
+id = "calls"
+title = "Model calls"
+description = "The last 20 calls to a model, newest first. A reply's text shows only once it reached the screen."
+
+[[page.sections.blocks]]
+kind = "component"
+component = "table"
+topic = "calls"
+props = { field = "home", empty = "No model call yet this session." }
+
+[[page.sections.blocks]]
+kind = "component"
+component = "computed_sentence"
+topic = "usage"
 
 [[page]]
 id = "system.status"
@@ -793,6 +843,62 @@ blocks = [{ kind = "component", component = "key_value_list", topic = "selftest"
 id = "earlier"
 title = "Earlier runs this session"
 blocks = [{ kind = "component", component = "table", topic = "selftest", props = { empty = "No earlier run this session." } }]
+
+# AI › Requests (PAGES §4.6.2): the session's usage as tiles, cost only where a provider reported one (D18), and the
+# hour's line; every call kept as a table with its filter bar (GraceUI D250: by job, purpose and outcome, sorted on the
+# rows' hidden keys, no search, by PV4). GraceUI has no row drawer yet, so why a call failed and the text shown are the
+# table's last two columns; no prompt, unshown text or base URL is ever in a row (invariant 1).
+[[page]]
+id = "ai.requests"
+live = true  # its topics move by themselves: Live updates holds them (GraceUI D252)
+category = "ai"
+name = "Requests"
+description = "Every model call this session and what it cost, without the prompts EldenNet sent."
+increment = "0.2"
+related = ["ai.models", "system.logs"]
+help.purpose = "See every call EldenNet made to a model this session: what it was for, how long it took, how it ended."
+help.steps = [
+  "Read the tiles: this session's calls, the tokens they used, the failures, and the last hour's own-initiative calls.",
+  "Narrow the table to one job, purpose or outcome, and sort it by time, first token, total or tokens.",
+  "Read Why for what went wrong, in words. Text shown holds a reply's text once it reached the screen, nothing else.",
+  "With Developer views on (Settings › Developer), the next start keeps the last 200 calls rather than 20.",
+]
+
+[[page.sections]]
+id = "now"
+title = "Now"
+blocks = [{ kind = "component", component = "computed_sentence", topic = "ai.status" }]
+
+[[page.sections]]
+id = "usage"
+title = "This session"
+
+[[page.sections.blocks]]
+kind = "component"
+component = "stat_tiles"
+topic = "usage"
+
+[[page.sections.blocks]]
+kind = "component"
+component = "computed_sentence"
+topic = "usage"
+
+[[page.sections]]
+id = "calls"
+title = "Calls"
+description = "Newest first. No prompt is ever shown, and a reply's text only once it reached the screen."
+
+[[page.sections.blocks]]
+kind = "component"
+component = "table"
+topic = "calls"
+props = { field = "requests", empty = "No model call yet this session." }
+
+[page.sections.blocks.filter_bar]
+filters = [{ column = "slot", label = "Job" }, { column = "purpose", label = "Purpose" },
+           { column = "outcome", label = "Outcome" }]
+sort = [{ key = "at_ms", label = "Time", direction = "descending" }, { key = "first_token_ms", label = "First token" },
+        { key = "total_ms", label = "Total" }, { key = "tokens", label = "Tokens", direction = "descending" }]
 
 # ---- Characters › Named NPCs (PAGES §4.6.4; NPC §4.7; S7.2.b): the roster as the master list (D215), the chosen row's
 # general profile and the player's own notes on it in an editor (D217). PAGES ships the page in 0.3 for the pilot; it

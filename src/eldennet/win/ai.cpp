@@ -846,6 +846,12 @@ void ai_change(Shell& s, en::overlay::Space& space, en::overlay::Space::Change& 
 }
 
 void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest& r) noexcept {
+  // Pause AI for this session (the space's ai.pause, D15): for the core, in this wake, whether or not the AI files are
+  // read yet.
+  if (r.kind == ov::AiRequest::Kind::Pause) {
+    ai_pause(s, r.on);
+    return;
+  }
   en::proto::ffi_guard(en::proto::Component::DllMain, [&] {
     // A key's value, taken out of the request at once and the request's copy overwritten.
     std::optional<llm::Secret> key;
@@ -951,6 +957,7 @@ void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest& r) 
         if (provider == nullptr || provider->key_ref.rfind("secrets:", 0) != 0) return;
         (void)edit_key(*st, provider->key_ref.substr(8), nullptr);
         return;
+      case ov::AiRequest::Kind::Pause: return;  // taken above
     }
   });
 }

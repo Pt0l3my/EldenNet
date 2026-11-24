@@ -253,7 +253,18 @@ conversation ends with no line said, the draft still kept (WHY§586); nothing ty
 lock-on ends T gives the draft back, which is sent. `launcher-eldennet-graceui-talk-paused`: Pause AI from the start
 (D15) by the tests' switch `ELDENNET_TEST_PAUSE=on`, which the probe build alone takes, with the talk case's set-up and
 a ready model: the ladder held at L2, the talk key reaching EldenNet and opening no box, nothing submitted or
-committed, and the local model server asked nothing at all.
+committed, and the local model server asked nothing at all. `launcher-eldennet-graceui-pause` (S11.4.a; GraceUI D252):
+Pause AI from the pages, at the title screen, with a local model server of the tests' own that takes no key: the
+browser reads the page data's one quick switch and the live pages, sends the switch's command `ai.pause {"on": true}`
+as GraceUI's quick switches do, sees `status.ai_paused` and Home's Status card flip, is refused the self-test and the
+model list in en-proto's words while the server is asked nothing and the calls' record gains no row; then `{"on":
+false}`, the state back, and a model list, once the gate allows network, reaching the server and the record as a model
+list's row; no frame of `calls` or `usage` holding the server's address. `launcher-eldennet-graceui-talk-calls`: the
+first conversation's run with a browser reading AI › Requests' topics once the reply is shown: the reply's row in
+PAGES' words (Conversation, reply, the persona as shown, the model on its provider, its first token and total, the 36
+tokens the server reported, shown) with the page shown as its text, Home's card's row the same, and no frame of
+`calls` or `usage` holding the line typed, the persona's prompt words or the server's address (PV4, PV2). The pages
+case and the editor case take one more Page Down past AI › Requests on their way to System › Status and Named NPCs.
 
 The derivation's offline round (part 3) joined it so: `probe-exe`, `probe-exe-slots` and `probe-exe-lint` run the
 Windows `eldennet-engine.exe` under Wine on `fakegame.exe` with `derive-leads.toml` (the fake game's own names under our

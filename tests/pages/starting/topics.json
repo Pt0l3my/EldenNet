@@ -158,6 +158,103 @@
   "ai.status": {
     "sentence": "No provider yet: on Providers, add the preset's provider or one of your own."
   },
+  "calls": {
+    "home": {
+      "columns": [
+        {
+          "id": "time",
+          "label": "Time"
+        },
+        {
+          "id": "slot",
+          "label": "Job"
+        },
+        {
+          "id": "purpose",
+          "label": "Purpose"
+        },
+        {
+          "id": "speaker",
+          "label": "Speaker"
+        },
+        {
+          "id": "model",
+          "label": "Model"
+        },
+        {
+          "id": "first_token",
+          "label": "First token",
+          "numeric": true
+        },
+        {
+          "id": "total",
+          "label": "Total",
+          "numeric": true
+        },
+        {
+          "id": "outcome",
+          "label": "Outcome"
+        },
+        {
+          "id": "text",
+          "label": "Text shown"
+        }
+      ],
+      "rows": []
+    },
+    "requests": {
+      "columns": [
+        {
+          "id": "time",
+          "label": "Time"
+        },
+        {
+          "id": "slot",
+          "label": "Job"
+        },
+        {
+          "id": "purpose",
+          "label": "Purpose"
+        },
+        {
+          "id": "speaker",
+          "label": "Speaker"
+        },
+        {
+          "id": "provider_model",
+          "label": "Provider and model"
+        },
+        {
+          "id": "first_token",
+          "label": "First token",
+          "numeric": true
+        },
+        {
+          "id": "total",
+          "label": "Total",
+          "numeric": true
+        },
+        {
+          "id": "tokens",
+          "label": "Tokens",
+          "numeric": true
+        },
+        {
+          "id": "outcome",
+          "label": "Outcome"
+        },
+        {
+          "id": "why",
+          "label": "Why"
+        },
+        {
+          "id": "text",
+          "label": "Text shown"
+        }
+      ],
+      "rows": []
+    }
+  },
   "content": {},
   "docs.list": {
     "columns": [
@@ -880,6 +977,7 @@
     "greyed": {}
   },
   "status": {
+    "ai_paused": false,
     "items": [
       {
         "label": "State",
@@ -904,6 +1002,10 @@
       {
         "label": "This session",
         "value": "Under a minute"
+      },
+      {
+        "label": "Pause AI",
+        "value": "Off"
       }
     ]
   },
@@ -988,5 +1090,30 @@
       }
     ],
     "rows": []
+  },
+  "usage": {
+    "sentence": "In the last hour: no own-initiative calls, and no requests sent.",
+    "tiles": [
+      {
+        "label": "Calls",
+        "value": "0"
+      },
+      {
+        "label": "Tokens in",
+        "value": "0"
+      },
+      {
+        "label": "Tokens out",
+        "value": "0"
+      },
+      {
+        "label": "Failures",
+        "value": "0"
+      },
+      {
+        "label": "Own-initiative this hour",
+        "value": "0"
+      }
+    ]
   }
 }

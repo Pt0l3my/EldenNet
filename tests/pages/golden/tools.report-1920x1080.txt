@@ -24,6 +24,8 @@ text    ink.mute       30,1010  138x30   glyphs 12 "Content packs"
 fill    ground.well   340,  10  350x35   r3
 text    ink.faint     353,  15   51x25   glyphs 6 "Search"
 text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
+fill    ground.well  1626,  10  148x35   r3
+text    ink.body     1641,  15  118x25   glyphs 13 "Quick switches"
 line    rule          300,  55 1620x1   
 text    ink.hi        340,  86  199x45   clip1 glyphs 9 "Bug report"
 text    ink.mute      340, 136  810x25   clip1 glyphs 80 "What a bug report would hold: your own words, EldenNet's versions and state, and its recent log."
@@ -167,4 +169,4 @@ stroke  edge          466,1044   42x28   r3 w1
 text    ink.body      474,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     515,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi       362, 326 1496x87   r5 w3 clip1
-# 168 items, 9688 vertices, 17280 indices, 4 commands; check_draw_list: passes
+# 170 items, 9764 vertices, 17460 indices, 4 commands; check_draw_list: passes

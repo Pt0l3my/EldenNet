@@ -1,7 +1,7 @@
 {
   "space": "eldennet",
   "name": "EldenNet",
-  "minor": 12,
+  "minor": 13,
   "categories": [
     {
       "id": "home",
@@ -16,7 +16,8 @@
       "pages": [
         "ai.providers",
         "ai.models",
-        "ai.selftest"
+        "ai.selftest",
+        "ai.requests"
       ]
     },
     {
@@ -91,17 +92,20 @@
       "id": "home",
       "category": "home",
       "name": "Home",
-      "description": "Whether EldenNet is working on this game, and what to do if it is not.",
+      "description": "Whether EldenNet is working on this game, what to do if it is not, and what it asked of a model.",
       "help": {
-        "purpose": "See at a glance whether EldenNet is working, and what to do when something is wrong.",
+        "purpose": "See at a glance whether EldenNet is working, what to do when something is wrong, and its model calls.",
         "steps": [
           "Read the Status card: its first line says how EldenNet stands, the next one why.",
           "Look at Problems: each says what went wrong and what to do about it.",
+          "Read Model calls for the last calls to a model: what each was for and how it ended. AI › Requests has them all.",
+          "Pause AI for this session from the quick switches: no model is called until you turn it off.",
           "Open System for the details: the start, EldenNet's parts and its log."
         ]
       },
       "related": [
         "system.status",
+        "ai.requests",
         "system.logs"
       ],
       "increment": "0.1",
@@ -130,8 +134,30 @@
               }
             }
           ]
+        },
+        {
+          "id": "calls",
+          "title": "Model calls",
+          "description": "The last 20 calls to a model, newest first. A reply's text shows only once it reached the screen.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "calls",
+              "props": {
+                "field": "home",
+                "empty": "No model call yet this session."
+              }
+            },
+            {
+              "kind": "component",
+              "component": "computed_sentence",
+              "topic": "usage"
+            }
+          ]
         }
-      ]
+      ],
+      "live": true
     },
     {
       "id": "system.status",
@@ -721,6 +747,108 @@
       ]
     },
     {
+      "id": "ai.requests",
+      "category": "ai",
+      "name": "Requests",
+      "description": "Every model call this session and what it cost, without the prompts EldenNet sent.",
+      "help": {
+        "purpose": "See every call EldenNet made to a model this session: what it was for, how long it took, how it ended.",
+        "steps": [
+          "Read the tiles: this session's calls, the tokens they used, the failures, and the last hour's own-initiative calls.",
+          "Narrow the table to one job, purpose or outcome, and sort it by time, first token, total or tokens.",
+          "Read Why for what went wrong, in words. Text shown holds a reply's text once it reached the screen, nothing else.",
+          "With Developer views on (Settings › Developer), the next start keeps the last 200 calls rather than 20."
+        ]
+      },
+      "related": [
+        "ai.models",
+        "system.logs"
+      ],
+      "increment": "0.2",
+      "sections": [
+        {
+          "id": "now",
+          "title": "Now",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "computed_sentence",
+              "topic": "ai.status"
+            }
+          ]
+        },
+        {
+          "id": "usage",
+          "title": "This session",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "stat_tiles",
+              "topic": "usage"
+            },
+            {
+              "kind": "component",
+              "component": "computed_sentence",
+              "topic": "usage"
+            }
+          ]
+        },
+        {
+          "id": "calls",
+          "title": "Calls",
+          "description": "Newest first. No prompt is ever shown, and a reply's text only once it reached the screen.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "calls",
+              "props": {
+                "field": "requests",
+                "empty": "No model call yet this session."
+              },
+              "filter_bar": {
+                "filters": [
+                  {
+                    "column": "slot",
+                    "label": "Job"
+                  },
+                  {
+                    "column": "purpose",
+                    "label": "Purpose"
+                  },
+                  {
+                    "column": "outcome",
+                    "label": "Outcome"
+                  }
+                ],
+                "sort": [
+                  {
+                    "key": "at_ms",
+                    "label": "Time",
+                    "direction": "descending"
+                  },
+                  {
+                    "key": "first_token_ms",
+                    "label": "First token"
+                  },
+                  {
+                    "key": "total_ms",
+                    "label": "Total"
+                  },
+                  {
+                    "key": "tokens",
+                    "label": "Tokens",
+                    "direction": "descending"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "live": true
+    },
+    {
       "id": "characters.named",
       "category": "characters",
       "name": "Named NPCs",
@@ -1024,6 +1152,14 @@
       "shape": "state"
     },
     {
+      "id": "calls",
+      "shape": "state"
+    },
+    {
+      "id": "usage",
+      "shape": "state"
+    },
+    {
       "id": "ai.choices.dialogue",
       "shape": "state"
     },
@@ -1117,7 +1253,8 @@
     "profile.restore",
     "profile.draft",
     "report.build",
-    "report.part"
+    "report.part",
+    "ai.pause"
   ],
   "slow_commands": [
     "profile.draft"
@@ -1129,5 +1266,17 @@
     "profile.save",
     "profile.reset",
     "profile.restore"
+  ],
+  "quick": [
+    {
+      "id": "pause",
+      "label": "Pause AI for this session",
+      "command": "ai.pause",
+      "state": {
+        "topic": "status",
+        "field": "ai_paused"
+      },
+      "home": "home"
+    }
   ]
 }
