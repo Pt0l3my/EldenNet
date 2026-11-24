@@ -88,16 +88,18 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    0x53B bit 4 behave alike). In the layout as leads (engine e816200). Open: chr_type (0x68 or 0x40), block_id (0x70,
    0xC or the moving 0x38). The first run lost its fields to empty passes at the quit (mine): a summary recomputed
    every pass must not be replaced by a pass that saw little, and a case must end as a real run ends.
-   **The nineteenth round** (package 0.1.0-lodestar.24, engine 20825c7; the record's "What was changed for the
-   nineteenth round"; built, verified, waiting for Engine's read and then the owner's run): `world_alone(gt,
-   fields)` reads the near characters' seven fields through the layout every two seconds and counts (no value);
-   the survey runs beside it with twenty checks of the open candidates (the type 0x68 or 0x40, against nothing
-   and against the design's 5; the block now 0x38 against the main player's and the map's 0x70 and 0xC; the dead
-   bit against its two rivals). Report schema 19. The eighteenth round's plan and tasks, the README asking for
-   four or more enemies. No new question went to the owner: O117's reading (a second copy of bytes the survey
-   reads), O118's tasks, counts only. **After it**: the fields become facts where the two readers agree; then
-   the save data's deaths and the sheet's level and name (the owner's status screen of 2026-11-24, in chat only,
-   is there to check against), field_area, the menus' screen, the session.
+   **The nineteenth round, run and reviewed** (package 0.1.0-lodestar.24, engine 20825c7; the record's "The
+   nineteenth round in game"): EldenNet's own reader read the near characters' seven fields through the layout
+   (2,784 characters over 58 frames: every handle its own, the kind and its model, the entity's id in three of
+   four, 9 teams, the dead 2 then 4, the on-screen by the phases) and the survey of the same run counts the
+   same. The checks told chr_type 0x68 (nothing for the player, the design's 5 for the others) and block_id 0x38
+   (where a character is now; 0x70 is the handle's upper half, the map it belongs to); both in the layout as
+   leads (engine cef6833). The dead bit stays bit 0 of 0x1C6 (bit 1 never differs; 0x53B bit 4 does). The owner
+   ran it three times; the first two most likely ended with the player's death (asked). Open: the player's block
+   at a crossing, 0x38 for a character with no entity's id, the player's own death and its dead bit,
+   last_hit_by. **Next** (to propose to Engine, then ask the owner outright): the save data's deaths and the
+   sheet's level and name (the owner's status screen of 2026-11-24, in chat only, is there to check against),
+   with the open points above as tasks of the same round; then field_area, the menus' screen, the session.
    **The eighteenth round as first sent** (package 0.1.0-lodestar.22, engine 02b0f27, after Engine's read; the record's "What was changed
    for the eighteenth round"): the character survey under plan 1 (`--read-plan 1`; the watch block's `probe_plan`,
    version 2), the owner's O117 and O118. When its files come back: `survey.survey_fields` for the type (small,
