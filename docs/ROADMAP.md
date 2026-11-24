@@ -1827,6 +1827,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     a row's drawer; a page's header action may be a switch on a state topic's boolean. EldenNet's next pin (after
     S11.4.a's System pages) takes 0.2.49: Docs' exit dropped, Requests' Why and Text shown in the drawer, Home's Pause AI
     chip beside the quick switch.
+- bj Live feeds and log tails drawn in game, and a filter bar on a stream (GraceUI 0.2.50, protocol 1.16) [done]
+  - refs: GraceUI:D257, PAGES§4.6.7
+  - gives: built on 2026-11-24 (GraceUI feat/foundations 789a17f; GraceUI's docs/eldennet-changes.md §83): in game a
+    stream shows its newest 200 rows, each with its time, wrapped (System › Logs and any feed on Home); a log tail may
+    carry a filter bar (a `level` filter and a search on the line), standing in for PAGES §4.6.7's level tiles as one
+    control in both views. EldenNet's next pin takes it with 0.2.49, a `level` on each log row.
 
 ### S11.3 EldenNet v0.2
 
