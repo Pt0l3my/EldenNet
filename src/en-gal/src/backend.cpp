@@ -617,18 +617,24 @@ void ErBackend::read_camera(const GameThread& gt, proto::WorldSnapshot&) {
 
 void ErBackend::read_world(const GameThread& gt, proto::WorldSnapshot& out) {
   seen_count_ = 0;
+  near_all_ = 0;
   const auto chars = item_object(gt, Group::World, Item::Characters);
   if (!chars) return;
   const FieldLayout* vec = b_.field(Fld::ByDistance);
   const auto begin = chars->u64(vec);
   const auto end = chars->second(vec);
   const std::uint32_t stride = b_.stride_of(Cls::NearEntry);
-  if (!begin || !end || stride == 0 || *end < *begin || (*end - *begin) % stride != 0 ||
-      (*end - *begin) / stride > kWalkEntries) {
-    fault(Group::World);  // ARCH §6.6 #4: an aligned list of at most 48 entries
+  // ARCH §6.6 #4: bounds that make sense (aligned, the end not before the start, a whole number of entries, no
+  // more than a megabyte of them; an empty list may be two nulls) or a fault. A list longer than a snapshot walks
+  // is no fault: the game's held 119 in the open world (WHY§572). It is nearest first, so its first kWalkEntries
+  // are walked and the rest are farther.
+  if (!begin || !end || stride == 0 || (*begin == 0 && *end != 0) || *begin % 8 != 0 || *end < *begin ||
+      (*end - *begin) % stride != 0 || *end - *begin > kMaxNearListBytes) {
+    fault(Group::World);
     return;
   }
-  const auto count = static_cast<std::uint32_t>((*end - *begin) / stride);
+  near_all_ = static_cast<std::uint32_t>((*end - *begin) / stride);
+  const std::uint32_t count = std::min(near_all_, kWalkEntries);
   // Steady reading: the list's two ends are still these when the snapshot is done.
   if (vec != nullptr && instance(Item::Characters) != 0) {
     remember(instance(Item::Characters) + vec->off, *begin);
@@ -1037,7 +1043,7 @@ ErBackend::WorldAlone ErBackend::world_alone(const GameThread& gt) {
     const auto end = chars->second(list_field);
     // Bounds that make sense: aligned, the end not before the start, and no more than a megabyte of elements.
     if (begin && end && *begin != 0 && *begin % 8 == 0 && *end >= *begin && (*end - *begin) % stride == 0 &&
-        *end - *begin <= 0x10'0000) {
+        *end - *begin <= kMaxNearListBytes) {
       done.list = true;
       done.near_all = static_cast<std::uint32_t>((*end - *begin) / stride);
       const std::uint32_t count = std::min<std::uint32_t>(done.near_all, kWalkEntries);

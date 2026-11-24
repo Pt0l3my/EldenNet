@@ -265,6 +265,32 @@ TEST_CASE("backend: a vtable that does not match skips its group, and is a fault
   CHECK(r.task.backend().book().breaker_total(Group::World) == 1);
 }
 
+TEST_CASE("backend: a near list longer than a snapshot walks is read for its nearest, and is no fault (WHY§572)") {
+  Running r;
+  r.start();
+  r.w.world();
+  r.run(1.0, 60);
+  REQUIRE(state_of(r, Group::World) == GroupState::Ok);
+  // 119 elements, as the game's in the open world: the characters nearest first, a metre and a half apart.
+  const std::uint64_t roster = r.w.instance("characters");
+  const std::uint64_t run = r.w.mem.alloc(119 * 0x10);
+  for (std::uint32_t i = 0; i < 119; ++i) {
+    r.w.mem.put<std::uint64_t>(run + 0x10 * i, r.w.npcs[i % r.w.npcs.size()]);
+    r.w.mem.put<float>(run + 0x10 * i + 0x8, 2.0f + 1.5f * static_cast<float>(i));
+  }
+  r.w.mem.put<std::uint64_t>(roster + 0x20, run);
+  r.w.mem.put<std::uint64_t>(roster + 0x28, run + 119 * 0x10);
+  r.run(1.0, 60);  // three snapshots
+  CHECK(r.task.backend().near_all() == 119);
+  CHECK(r.task.backend().book().breaker_total(Group::World) == 0);
+  CHECK(state_of(r, Group::World) == GroupState::Ok);
+  CHECK_FALSE(r.io.last().chars.empty());
+  // Bounds that make no sense are still a fault: the end before the start, three snapshots in a row.
+  r.w.mem.put<std::uint64_t>(roster + 0x28, run - 0x10);
+  r.run(1.0, 60);
+  CHECK(r.task.backend().book().breaker_total(Group::World) >= 1);
+}
+
 TEST_CASE("backend: real faults trip an optional group's breaker (L3), and a structural one makes the task inert") {
   Running r;
   r.start();

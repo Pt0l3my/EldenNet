@@ -33,6 +33,8 @@ inline constexpr std::uint32_t kFlagKnownSet = 100;  // phase B: this flag is se
 inline constexpr std::uint32_t kFlagTreeDepth = 64;
 inline constexpr std::uint32_t kMinTextTables = 20;
 inline constexpr std::uint32_t kWalkEntries = 48;
+// The near list's bounds that make sense: no more than a megabyte of elements (ARCH §6.6 #4; WHY§572).
+inline constexpr std::uint64_t kMaxNearListBytes = 0x10'0000;
 inline constexpr std::uint32_t kPhaseATicks = 8;
 
 struct BackendOptions {
@@ -153,6 +155,8 @@ class ErBackend final : public proto::GameBackend {
   std::shared_ptr<const std::vector<std::uint32_t>> take_retired() noexcept;
   // Soft skips (list entries dropped) since the start, by group.
   [[nodiscard]] std::uint64_t soft_skips(proto::Group g) const noexcept { return soft_[static_cast<std::size_t>(g)]; }
+  // The near list's elements at the last snapshot, by its bounds; at most kWalkEntries of them are walked.
+  [[nodiscard]] std::uint32_t near_all() const noexcept { return near_all_; }
   [[nodiscard]] std::uint64_t vtable_skips() const noexcept { return vtable_skips_; }
   // The characters the core tracks (SetTracked), for the render feed.
   [[nodiscard]] std::span<const proto::ChrHandle> tracked() const noexcept { return {tracked_.data(), tracked_count_}; }
@@ -258,6 +262,7 @@ class ErBackend final : public proto::GameBackend {
   };
   std::array<Seen, proto::kMaxSnapshotChars + 1> seen_{};
   std::size_t seen_count_ = 0;
+  std::uint32_t near_all_ = 0;
   // The watch list and its order by group (preallocated), the retired lists, the pending look-ups.
   std::shared_ptr<const std::vector<std::uint32_t>> watch_;
   std::uint32_t watch_version_ = 0;
