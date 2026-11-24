@@ -990,6 +990,17 @@ ErBackend::WorldAlone ErBackend::world_alone(const GameThread& gt, bool fields) 
   const FieldLayout* const team_field = b_.field(Fld::ChrTeam);
   const FieldLayout* const dead_field = b_.field(Fld::ChrDead);
   const FieldLayout* const screen_field = b_.field(Fld::ChrOnScreen);
+  const FieldLayout* const type_field = b_.field(Fld::ChrType);
+  const FieldLayout* const block_field = b_.field(Fld::ChrBlock);
+  // The round's shape for a block's id: its lowest byte nothing and its highest an area's number.
+  const auto block_of = [](std::optional<std::int64_t> v) -> std::optional<std::uint32_t> {
+    if (!v || *v <= 0 || *v > 0xFFFF'FFFFLL) return std::nullopt;
+    const auto u = static_cast<std::uint32_t>(*v);
+    return (u & 0xFF) == 0 && (u >> 24) >= 10 && (u >> 24) <= 61 ? std::optional<std::uint32_t>(u) : std::nullopt;
+  };
+  const bool has_clock = d_.address(Item::WorldClock).has_value() && b_.field(Fld::Hour) != nullptr &&
+                         b_.field(Fld::Minute) != nullptr;
+  const bool has_play = d_.address(Item::SaveData).has_value() && b_.field(Fld::PlayTime) != nullptr;
   if (b_.size_of(Cls::Character) != 0) {
     done.fields_bound = (handle_field != nullptr ? WorldAlone::kHandle : 0u) |
                         (param_field != nullptr ? WorldAlone::kParam : 0u) |
@@ -997,13 +1008,16 @@ ErBackend::WorldAlone ErBackend::world_alone(const GameThread& gt, bool fields) 
                         (entity_field != nullptr ? WorldAlone::kEntity : 0u) |
                         (team_field != nullptr ? WorldAlone::kTeam : 0u) |
                         (dead_field != nullptr ? WorldAlone::kDead : 0u) |
-                        (screen_field != nullptr ? WorldAlone::kOnScreen : 0u);
+                        (screen_field != nullptr ? WorldAlone::kOnScreen : 0u) |
+                        (type_field != nullptr ? WorldAlone::kType : 0u) |
+                        (block_field != nullptr ? WorldAlone::kBlock : 0u);
   }
   done.fields = fields && done.fields_bound != 0;
   done.lacks = (has_slot ? 0u : WorldAlone::kSlot) | (has_player ? 0u : WorldAlone::kPlayer) |
                (has_parts ? 0u : WorldAlone::kParts) | (has_near ? 0u : WorldAlone::kNear) |
-               (done.fields_bound != 0 ? 0u : WorldAlone::kFields);
-  if (inert_ || (!has_slot && !has_player && !has_near)) return done;
+               (done.fields_bound != 0 ? 0u : WorldAlone::kFields) | (has_clock ? 0u : WorldAlone::kClock) |
+               (has_play ? 0u : WorldAlone::kPlay);
+  if (inert_ || (!has_slot && !has_player && !has_near && !has_clock && !has_play)) return done;
   reader_.begin_tick();
   book_.begin_tick();
   tick_.fill(kUnread);
@@ -1019,6 +1033,22 @@ ErBackend::WorldAlone ErBackend::world_alone(const GameThread& gt, bool fields) 
       done.state = true;
       if (const auto slot = game->integer(slot_field); slot && *slot >= -1 && *slot <= 255) {
         done.save_slot = static_cast<std::int32_t>(*slot);
+      }
+    }
+  }
+  if (has_clock) {
+    if (const auto clock = item_object(gt, Group::Place, Item::WorldClock, false)) {
+      const auto hour = clock->integer(b_.field(Fld::Hour));
+      const auto minute = clock->integer(b_.field(Fld::Minute));
+      if (hour && minute && *hour >= 0 && *hour < 24 && *minute >= 0 && *minute < 60) {
+        done.clock = proto::Clock{static_cast<std::uint8_t>(*hour), static_cast<std::uint8_t>(*minute)};
+      }
+    }
+  }
+  if (has_play) {
+    if (const auto save = item_object(gt, Group::Player, Item::SaveData, false)) {
+      if (const auto play = save->integer(b_.field(Fld::PlayTime)); play && *play >= 0) {
+        done.play_time = static_cast<std::uint64_t>(*play);
       }
     }
   }
@@ -1041,6 +1071,8 @@ ErBackend::WorldAlone ErBackend::world_alone(const GameThread& gt, bool fields) 
         done.self_param = chr->integer(param_field).value_or(0) != 0;
         done.self_dead = chr->bit(dead_field).value_or(false);
         self_team = chr->integer(team_field);
+        done.self_type_none = chr->integer(type_field) == std::optional<std::int64_t>(0);
+        done.self_block = block_of(chr->integer(block_field));
       }
       const auto parts_addr = chr && has_parts ? chr->ptr(b_.field(Fld::ChrParts)) : std::nullopt;
       const auto parts = parts_addr && *parts_addr != 0
@@ -1081,8 +1113,8 @@ ErBackend::WorldAlone ErBackend::world_alone(const GameThread& gt, bool fields) 
         if (reader_.copy_into(gt, Group::World, *begin, list, 8)) {
           float last = -1.0f;
           // What the fields' counts need of each character, for this call only: nothing of it leaves the function.
-          std::array<std::uint64_t, kWalkEntries> handles{}, params{}, entities{}, teams{};
-          std::size_t handle_n = 0, param_n = 0, entity_n = 0, team_n = 0;
+          std::array<std::uint64_t, kWalkEntries> handles{}, params{}, entities{}, teams{}, types{};
+          std::size_t handle_n = 0, param_n = 0, entity_n = 0, team_n = 0, type_n = 0;
           for (std::uint32_t k = 0; k < count && !reader_.spent(); ++k) {
             const ObjView entry(list.subspan(std::size_t{k} * stride, stride));
             ++done.near_read;
@@ -1120,6 +1152,11 @@ ErBackend::WorldAlone ErBackend::world_alone(const GameThread& gt, bool fields) 
               entities[entity_n++] = static_cast<std::uint64_t>(*e);
             }
             if (const auto t = c->integer(team_field)) teams[team_n++] = static_cast<std::uint64_t>(*t);
+            if (const auto t = c->integer(type_field)) types[type_n++] = static_cast<std::uint64_t>(*t);
+            if (const auto block = block_of(c->integer(block_field))) {
+              ++done.near_block;
+              done.near_block_self += done.self_block == block ? 1 : 0;
+            }
             done.near_dead += c->bit(dead_field).value_or(false) ? 1 : 0;
             done.near_on_screen += c->bit(screen_field).value_or(false) ? 1 : 0;
           }
@@ -1145,6 +1182,7 @@ ErBackend::WorldAlone ErBackend::world_alone(const GameThread& gt, bool fields) 
             done.near_kinds = different(params, param_n, nullptr);
             done.near_entities = different(entities, entity_n, nullptr);
             done.near_teams = different(teams, team_n, &done.near_team_most);
+            done.near_types = different(types, type_n, &done.near_type_most);
           }
         }
       }

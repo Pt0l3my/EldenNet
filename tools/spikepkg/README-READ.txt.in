@@ -8,53 +8,69 @@ so on), without knowing which is which. This round starts the game with EldenNet
 the game as it runs, which of those places holds which of the eleven managers EldenNet needs. Then it tries, for a few
 minutes, the way EldenNet v1 will read the game: from a thread of its own, about ten times a second.
 
-This is the nineteenth round. The eighteenth, in its second run, found what it was after: where the game keeps, for
-each character near you, its handle (the number the game itself knows it by), its kind and its model, the id the map
-gives it, its side, whether it is on screen and whether it is dead. Thank you for running it twice.
+This is the twentieth round. The nineteenth worked: EldenNet's own reader and the survey agreed on seven things the
+game keeps for every character near you (its handle, kind, model, the map's id, its side, whether it is on screen,
+whether it is dead), and those places are now known. Two more were found, most likely: a character's type, and the
+block of the map it is in.
 
-Those seven places are now in EldenNet's table of places for your game's build. But a place found by watching how
-numbers behave is a lead, not yet a fact: EldenNet relies on it only once its own reader has read it in the game. That
-is this round. The reader that read your own character in the seventeenth round now also reads those seven fields of
-each character near you, through the table, and counts: how many of them have a handle, and whether any two share one;
-how many kinds there are among them; for how many the kind fits the model; how many have an id from the map; how many
-sides there are; how many are dead and how many on screen, in each stretch of your tasks. The survey of the eighteenth
-round runs beside it once more, so that the two can be held against each other in one and the same run: where they
-agree, the place is known.
+This round is about your own character. It is after four things. The count of your deaths, which the game keeps and
+EldenNet must know. How the game marks your own character as dead: the first run of the last package hinted that it is
+not as for an enemy. Your level and the other numbers of your character's sheet. And the block of the map you are in,
+at the moment you cross into another. On the way EldenNet's own reader reads the time of day, the play time and your
+position beside a second reader, which is what makes those places facts too.
 
-Three things the last round left open are looked at on the way. Each has two or three candidate places, and the survey
-now counts, for those places alone, what would tell them apart: for a character's type, which place reads nothing for
-your character and one and the same number for the creatures of the world; for the block of the map a character is in,
-which place holds for the enemies what it holds for you while you stand among them; and for the dead bit, whether its
-two rivals ever read differently from it.
+NEW IN THIS ROUND: THE PANEL TELLS YOU WHAT IT GATHERED. You asked for it. When a task is done, the panel says under
+it "Got it." or "Not gathered.", a second or two later. When all are done it says, at its foot and in the console,
+either "This run is usable: send it." or which tasks were not gathered. You never need to start again: whatever
+happens on the way (attacked, killed sooner than you meant), carry on and send the files. "Not gathered" may be the
+round's fault and not yours. The ride above all: it says "Got it." only if the round saw your block change, and where
+the game keeps the block is still our guess.
 
-What it reads is what you agreed to on 24 November: the first 2 KiB of the object of each character near you (48 at
-most) and of your own, every two seconds. The reader's own look at the same characters is a second copy of the first
-496 of those bytes, also every two seconds: about 24 KiB more a time, of memory the round reads already.
+New reading, which you agreed to on 24 November: the 64 KiB of memory from where the game's save data's object begins,
+and the 64 KiB from where your character's sheet begins, every two seconds or a little slower. Each object is smaller
+than that; what lies after it in memory is read with it and will mostly be noise.
 
-It writes behaviour and counts only: where a number lies, how it behaved and for how many characters, never a number
-itself: no id, no kind, no name. Of your own character it writes the same three numbers as in the last two rounds
-(your health, your maximum health, the save's slot), as they stood just after each of your confirmations and tasks;
-and, new, in how many of its looks your character had a handle, had a kind's number (a player should have none), was
-marked dead, and was on a side that no character near you shares. It still never writes where you stand.
+New writing, by your own choice ("let's scan numbers ... then I will share status and other UI pages"): NUMBERS OF
+YOUR CHARACTER. For every 32-bit number from 1 to 99,999,999 in those two stretches that changes rarely or never, the
+report holds where it lies, what it read first and last, in how many looks it changed, and in which of your tasks.
+Your level, your attributes, your runes and your count of deaths will be among them, and a good deal of noise beside
+them. Which is which the numbers do not say: that is what your status screen and menu pages are for, afterwards, in
+the chat.
 
-The tasks are the last round's, with one change: FOUR OR MORE weak enemies in sight, please, where the last README
-said "a few". With fewer than four characters in its reach the survey tells nothing.
+Your character's name lies in that sheet too. The round cannot skip what it has not found, so it copies those bytes
+with the rest; it recognises text by its shape and writes nothing of it, only where a run of text lies and how many
+fields long it is. A number that happens to stand right after a text is dropped with it, to be safe. (When I asked you
+I wrote that the name is "never read". The exact statement is this one: copied with the rest, never read as text,
+never written.)
 
-Load your usual character and go somewhere with four or more weak enemies in sight, at a safe distance: near enough to
-see them, far enough that they leave you alone. Then: stand still for 40 seconds; look around slowly for 40 seconds,
-turning the camera all the way round two or three times, so that the enemies pass on and off the screen (do not walk);
-kill one of them; and stand near it for 20 seconds. If something attacks you while you stand, as it did last time,
-deal with it: the round still counts, and another enemy's death only helps.
+The report goes from you to me and no further: no number of your character goes into the repository, the records, a
+message to another session or any page. As before it also holds your health, your maximum health and the save's slot
+as they stood just after each task, and never where you stand.
+
+The tasks are new and short, and none of them has you stand near enemies. Load your usual character somewhere quiet,
+with no enemy near, and get off your horse. Stand still for 20 seconds. Then ride or run in one direction for a
+minute: the further the better, round enemies and not through them. Then find any enemy and let it kill you, once;
+wait until you are back in the world and can move, and press Pause. Stand still for 20 seconds where you came back.
+Quit.
+
+BEFORE YOU START: dying drops the runes you carry. Spend them first, or die where they are easy to pick up again, and
+do not die a second time before you have picked them up.
+
+AFTERWARDS, in the chat: a screenshot of your status screen as it is after the run (level, attributes, runes), and of
+any other page that shows numbers of your character, if you like: the more of them, the more of the report I can name.
+They stay in the chat.
 
 The game may again end with an error code when you quit. That code is the game's own on your PC, it does not show
 every time, and we do not know what decides it. If it shows, the launcher keeps its record quietly and says
 nothing at its next start.
 
-The other reading is as before, at the same careful pace: in the background, as since the seventh round, memory
-near the event flags' own object (about 24 MiB in all at most), the flags' reader, the clock and the play time;
-and once a second EldenNet's reader on your character, about 2 KiB a time. The looks of the twelfth to the
-seventeenth rounds (the first 8 KiB of every object, the character manager's 256 KiB, the parts of your character)
-are not made any more: what they looked for is found. If the game stutters, quit it and tell us.
+The other reading is as before, at the same careful pace: in the background, as since the seventh round, memory near
+the event flags' own object (about 24 MiB in all at most), the flags' reader, the clock and the play time; once a
+second EldenNet's reader on your character, about 2 KiB a time, and every other second on the characters near you
+(about 24 KiB); the survey of the last two rounds (the first 2 KiB of each of up to 48 characters near you and of your
+own, every two seconds or a little slower); and, back for this round, the watch on the parts of your own character
+that the fourteenth to seventeenth rounds made (the first 4 KiB of each of its thirty or so parts): it is the second
+reader of your position. If the game stutters, quit it and tell us.
 
 It only reads. It calls nothing in the game, adds nothing to it and changes nothing in it. The panel is a window of
 the launcher's own, outside the game. Nothing in this package is for playing with yet.
@@ -66,8 +82,8 @@ alone, labelled @LABEL@.
 How long it takes
 -----------------
 
-About 15 minutes: 5 to unzip and start, 1 at the title screen, then about 5 for finding your spot, the standing,
-the looking around and the kill, and a few to send the files. The panel keeps the time for you.
+About 15 minutes: 5 to unzip and start, 1 at the title screen, then about 5 for finding a quiet spot, the ride and the
+death, and a few to send the files and take the screenshots. The panel keeps the time for you.
 
 
 What is in it
@@ -111,7 +127,7 @@ Before you start
 The steps
 ---------
 
-1. Double-click read.cmd. (Or, in a command prompt in this folder: eldennet-launcher.exe --read --read-plan 1)
+1. Double-click read.cmd. (Or, in a command prompt in this folder: eldennet-launcher.exe --read --read-plan 2)
 
    The first time, the launcher asks where eldenring.exe is if it cannot find it through Steam, and shows its notices.
 
@@ -121,27 +137,30 @@ The steps
 3. When the round is ready, the panel's first task turns grey. From then on follow the panel. Its tasks, in order:
 
      1. Wait at the title screen                  (the round does this one itself)
-     2. Load your usual character                 go to a place with four or more weak enemies in sight, at a safe
-                                                  distance; press Pause when you stand there, then let go of the
-                                                  controls
-     3. Stand still, 40 s                         hands off the keyboard, and do not touch the mouse: do not move
-                                                  or turn the camera
-     4. Look around slowly, 40 s                  turn the camera all the way round, slowly, two or three times, so
-                                                  that the enemies pass on and off the screen; do not walk
-     5. Kill one weak enemy                       any one; press Pause when it is dead, and stay near it
-     6. Stand still again, 20 s                   near the one you killed; hands off the keyboard and the mouse
+     2. Load your usual character                 go somewhere quiet, with no enemy near, and get off your horse;
+                                                  press Pause when you stand there, then let go of the controls
+     3. Stand still, 20 s                         on foot; hands off the keyboard and the mouse
+     4. Ride or run in one direction, 60 s        mount if you like, and keep going one way until the time is up:
+                                                  the further the better; go round enemies, not through them
+     5. Let an enemy kill you, once               any enemy; wait until you are back in the world and can move,
+                                                  then press Pause. If you died sooner than you meant to, that
+                                                  counts too: carry on
+     6. Stand still again, 20 s                   where you came back; hands off the keyboard and the mouse
      7. Quit the game
 
-   Take your time over task 2: nothing is counted until you press Pause, so ride or walk as far as you like to
-   find the spot. Dismount before you press it. Four enemies or more: more does no harm.
+   Take your time over task 2: nothing is counted until you press Pause. A run in which you are attacked or
+   killed before task 5 still counts: carry on with the tasks as they come, and send the files whatever the
+   panel says at the end. Under each done task the panel says "Got it." or "Not gathered." a second or two
+   after it ends; when all are done, its foot and the console say whether the run is usable.
 
    The waiting tasks count down and end by themselves. A task of yours waits until you press Pause (anywhere, while
    the game has the keyboard) or click the panel's button, which says what it stands for. The last task has no
    button: quitting the game ends it. The task under way is highlighted; done tasks are grey, with the time they
    took.
 
-   Two things matter. Press Pause only once the game is really there (standing at your spot; the enemy dead), and
-   during a waiting task do what it says until its time is up: that is when the round looks.
+   Two things matter. Press Pause only once the game is really there (standing at your spot; back in the world
+   after the death and able to move), and during a waiting task do what it says until its time is up: that is
+   when the round looks.
 
 4. Quit the game as you usually do. The console then says whether the two files passed their check, and the launcher
    ends.
@@ -194,7 +213,9 @@ What it does
     Pause goes to the launcher and not to the game meanwhile) and gives it back at the end. When you confirm a
     task of yours, or a standing or looking task's time is up, the launcher writes the moment into the small
     block of memory it shares with EldenNet, and the round reads it there. The launcher also writes there, before
-    the game starts, which list of tasks this round follows (read.cmd names it: --read-plan 1).
+    the game starts, which list of tasks this round follows (read.cmd names it: --read-plan 2). And the round
+    writes there, for the panel, two bits for each task that ends with a mark: whether what the task was for
+    was gathered. Nothing else passes between the two.
   - From the same thread, every two seconds, the watch: it follows the way to each named manager's object and
     copies its first 512 bytes (fewer where the object is smaller). From one copy to the next it counts, for every
     eight bytes, whether they changed and whether they rose, and now and then what they look like: nothing, a small
@@ -264,7 +285,7 @@ What it does
     as an id, and whether yours stands alone; where eight bytes are different in every character; where one number
     is another divided by 10,000; where a bit flipped as a character's health went to nothing, and for how many
     living and dead characters that bit then stood the same way; and where a bit flipped while you looked around
-    and not while you stood. And for twenty checks of the places the last round left open (two candidates for a
+    and not while you stood. And for twenty-one checks of the places the earlier rounds left open (two candidates for a
     character's type, the block it is in and two candidates for the map it belongs to, the dead bit and its two
     rivals) it counts, for your character and for the others apart, in how many looks each held: a place reading
     nothing, or the number the design expects of a creature of the world, or the same as another place, or the
@@ -277,27 +298,52 @@ What it does
     its first 496 bytes, the first 112 bytes of the holder of its parts, the first 320 bytes of the part with
     your health and the first 128 bytes of the part with your position; and of the list of characters near you
     the first 48 elements (768 bytes) with the first eight bytes of each one's object. About 2 KiB a second.
-    New in this round, every other second: of each of those 48 that is a character and not your own, the first
-    496 bytes of its object (about 24 KiB), from which it takes the seven fields the table now places: the
-    handle, the kind, the model, the map's id, the side, the dead bit and the on-screen bit. It
+    Every other second, as in the last round: of each of those 48 that is a character and not your own, the first
+    496 bytes of its object (about 24 KiB), from which it takes the fields the table places: the handle, the
+    kind, the model, the map's id, the side, the dead bit, the on-screen bit, and now the type and the block.
+    New in this round, every second: the world's clock (the first 32 bytes of its object) and the play time
+    (the first 168 bytes of the save data's object), through the table. It
     writes: how many times each of these was there to be read; how long the list was, and for how many of its
     elements a character lay behind the address and a plain distance beside it; for each stretch between two of
     your confirmations, in how many seconds your position had moved more than a centimetre since the second
-    before; and, as it stood just after each of your confirmations and tasks: whether a save was loaded and in
-    which slot, whether your character was there, YOUR HEALTH AND YOUR MAXIMUM HEALTH, and the length of the
-    list. Of the seven fields it writes counts only: over all its looks, how many characters had a handle, a
-    kind's number as large as an id, a model that fits the kind, a map's id; how many were dead and how many on
-    screen, also by the stretches between your confirmations; the most one look had of characters, of different
-    handles, kinds, map's ids and sides, and of characters on one side; in how many looks two characters shared
-    a handle; and of your own character, in how many looks it had a handle, had a kind's number, was marked dead,
-    and was on a side no character near you shares. It never writes the position itself, or any of those
-    numbers. Where the table lacks one of these places the reader reads nothing of it and says which.
+    before, your health read nothing, your character was there, its dead bit was set, and its block was
+    another than in the look before; in how many looks the clock's minute had stepped on by one, stood, or
+    jumped, and the play time had risen; and, as it stood just after each of your confirmations and tasks:
+    whether a save was loaded and in which slot, whether your character was there, YOUR HEALTH AND YOUR MAXIMUM
+    HEALTH, and the length of the list. Of the characters' fields it writes counts only, as in the last round,
+    with the type and the block counted the same way: how many characters had a block shaped as one, how many
+    were in your block, how many types there were and how many characters of the commonest. It never writes
+    the position itself, your block's number, or any of those numbers of other characters. Where the table
+    lacks one of these places the reader reads nothing of it and says which.
+  - The sheet scan, new in this round, from the same thread, from your first confirmation on, every two seconds or a
+    little slower until the game ends: your character's address from the character manager (8 bytes), the sheet's
+    address from your character's object (8 bytes), then up to 64 KiB of memory from where the save data's object
+    begins and up to 64 KiB from where the sheet begins, in pieces of 16 KiB (less where memory ends sooner). It
+    compares each 32-bit field with what it read there the time before. It writes, for every field whose number is
+    between 1 and 99,999,999 at the first or the last look and changed in eight looks at most: where it lies, THE
+    NUMBER AS FIRST READ AND AS LAST READ, in how many looks it changed, and in which of your tasks. Left out and only
+    counted: a number that changed more often (a timer), half of an address, and anything that reads as text. For text
+    (two letters or more in a row, as the game stores them) it writes where the run lies and how many fields it
+    covers, never a letter; a number standing right after a text is dropped with it. It also writes whether the sheet
+    is the object the save data's own words lead to. A thousand numbers an object at most, from its start.
+  - The watch on your character's parts, back for this round, from your first confirmation to the end of the ride:
+    once a second or so, your character's address, the holder of its parts, and the first 4 KiB of each of its thirty
+    or so parts. It writes which 32-bit fields of which part changed in most looks of the ride and in none while you
+    stood, with the size of the range they moved over (never a value): the second reader of your position, beside
+    EldenNet's own.
+  - What it gathered, for the panel: after each of your tasks the round looks at what EldenNet's own reader read in
+    it, and tells the launcher one of two things. The load: a save was loaded and your character was there. The first
+    stand: your position kept still. The ride: your position moved in a third of its seconds or more, and your block
+    changed at least once. The death: your health read nothing at some moment, and you were back with health when you
+    pressed Pause. The last stand: your character was there and the sheet scan made two looks or more. The launcher
+    shows it under the task, and writes it into its log.
   - Every two seconds it writes lodestar-found.json into %APPDATA%\EldenNet\probe, and lodestar-table.toml when
     another manager is named. If the report ever grows past its limit, it is written without the detail of the
     watched object that has the most, then of the next, and says which were left out. They hold only numbers
-    (offsets, sizes, counts, the jumps' numbers named above, and in this round your character's health, maximum
-    health and save slot) and EldenNet's own labels: no names of the game's, no text, no paths, nothing else of
-    your character and nothing of your PC.
+    (offsets, sizes, counts, the jumps' numbers named above, your character's health, maximum health and save
+    slot, and in this round the numbers of the sheet scan: your level, attributes, runes and count of deaths
+    among them) and EldenNet's own labels: no names of the game's or of your character, no text, no paths, and
+    nothing of your PC.
   - Watches the game until it ends, and keeps a short record if it ends badly: the error's code, which module it was
     in and the time, never a memory dump.
 

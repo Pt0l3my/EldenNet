@@ -209,7 +209,7 @@ TEST_CASE("tasks: the sheet's list (plan 2): a stand, a ride or a run, the teste
     if (t.kind == TaskKind::Do) CHECK_FALSE(t.button.empty());
   }
   CHECK(marks == 5);
-  CHECK(seconds == 90);  // no standing within sight of enemies, and little standing at all (the nineteenth's lesson)
+  CHECK(seconds == 100);  // no standing within sight of enemies, and little standing at all (the nineteenth's lesson)
   // A run in which the tester is attacked or killed early still counts, and the steps say so themselves.
   CHECK(tasks[4].detail.find("counts too") != std::string::npos);
   CHECK(tasks[6].detail.find("send the files") != std::string::npos);
@@ -230,10 +230,10 @@ TEST_CASE("tasks: a done task says what the round gathered, and the run's own li
   CHECK(gathered_footer(rows).empty());
   (void)list.round_step(1000);
   (void)list.confirm(2000);     // the load is done
-  (void)list.tick(2000 + 15000);  // the stand
+  (void)list.tick(2000 + 20000);  // the stand
   std::uint32_t word = w::with_gathered(0, 1, w::kGathered);
   list.set_gathered(word);
-  auto now = list.rows(20000);
+  auto now = list.rows(25000);
   CHECK(now[1].state == TaskState::Done);
   CHECK(now[1].gathered == w::kGathered);
   CHECK(gathered_text(now[1]) == "Got it.");
@@ -242,9 +242,9 @@ TEST_CASE("tasks: a done task says what the round gathered, and the run's own li
   CHECK(gathered_text(now[3]).empty());  // under way: nothing, whatever the word holds
   CHECK(gathered_footer(now).empty());   // not every marked task is done and judged
   // All done: one task missed.
-  (void)list.tick(17000 + 60000);
+  (void)list.tick(22000 + 60000);
   (void)list.confirm(90000);
-  (void)list.tick(90000 + 15000);
+  (void)list.tick(90000 + 20000);
   word = w::with_gathered(word, 2, w::kGathered);
   word = w::with_gathered(word, 3, w::kNotGathered);
   word = w::with_gathered(word, 4, w::kGathered);

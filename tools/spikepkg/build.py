@@ -411,9 +411,9 @@ def find(a):
     return pack(files, "EldenNet-Find", a.out, label)
 
 
-# The read round's plan this package's read.cmd names (the launcher's --read-plan; watch.hpp's kPlan*): 1, the
-# character survey (the eighteenth round). It goes with README-READ.txt.in, which lists that plan's tasks.
-READ_PLAN = 1
+# The read round's plan this package's read.cmd names (the launcher's --read-plan; watch.hpp's kPlan*): 2, the
+# sheet (the twentieth round: a stand, a ride or a run, the tester's own death).
+READ_PLAN = 2
 
 
 def read_cmd(label):

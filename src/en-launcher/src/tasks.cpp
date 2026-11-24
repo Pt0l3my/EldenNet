@@ -183,7 +183,7 @@ std::vector<Task> sheet_tasks() {
        "Go somewhere quiet, with no enemy near, and get off your horse. When you stand there, press Pause, and "
        "let go of the controls.",
        0, true, "I stand somewhere quiet"},
-      {K::Wait, "Stand still", "On foot. Hands off the keyboard and the mouse until the time is up.", 15, true, ""},
+      {K::Wait, "Stand still", "On foot. Hands off the keyboard and the mouse until the time is up.", 20, true, ""},
       {K::Wait, "Ride or run in one direction",
        "Mount if you like, and keep going one way until the time is up: the further the better. Go round enemies "
        "rather than through them.",
@@ -192,7 +192,7 @@ std::vector<Task> sheet_tasks() {
        "Find any enemy and let it kill you. Wait until you are back in the world and can move, then press Pause. "
        "If you died sooner than you meant to, that counts too: carry on.",
        0, true, "I died and I am back"},
-      {K::Wait, "Stand still again", "Where you came back. Hands off the keyboard and the mouse.", 15, true, ""},
+      {K::Wait, "Stand still again", "Where you came back. Hands off the keyboard and the mouse.", 20, true, ""},
       {K::End, "Quit the game",
        "Quit as you usually do. Whatever happened on the way, send the files: the round's own line below says "
        "what it gathered.",
