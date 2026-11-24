@@ -33,10 +33,11 @@ PAGES_JSON = ROOT / "src" / "en-overlay" / "pages" / "pages.json"
 SETTINGS_JSON = ROOT / "src" / "en-overlay" / "pages" / "settings.json"
 SPACE_CPP = ROOT / "src" / "en-overlay" / "src" / "space_data.cpp"
 
-PROTOCOL_MINOR = 10  # the rail's foot is protocol 1.10's (GraceUI D248), on 1.8's sensitive commands and settings
-#                     (D221), 1.7's editor block (D217), 1.6's slow commands (D216), 1.5's topic families and master
-#                     list (D215), 1.3's chip and live status (D202) and 1.2's row actions, row secrets, a form and
-#                     pickers (D192 to D196)
+PROTOCOL_MINOR = 12  # the document block, the prose field and the report preview's command are protocol 1.12's
+#                     (GraceUI D251), on 1.11's filter bar (D250), 1.10's foot (D248), 1.8's sensitive commands and
+#                     settings (D221), 1.7's editor block (D217), 1.6's slow commands (D216), 1.5's topic families
+#                     and master list (D215), 1.3's chip and live status (D202) and 1.2's row actions, row secrets,
+#                     a form and pickers (D192 to D196)
 SPACE_FIELDS = ("id", "name", "settings_schema", "commands", "slow_commands", "sensitive_commands")
 PAGE_FIELDS = ("id", "category", "name", "description", "help", "related", "increment", "tag", "actions", "master",
                "tabs", "sections")

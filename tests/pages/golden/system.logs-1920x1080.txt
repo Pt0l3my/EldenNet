@@ -14,8 +14,12 @@ text    ink.mute       50, 293   51x25   glyphs 6 "Status"
 fill    tint.select     0, 325  300x40  
 fill    gold            0, 325    3x40  
 text    gold.hi        50, 333   34x25   glyphs 4 "Logs"
+line    rule           30, 365  240x1   
+text    ink.mute       30, 375   53x30   glyphs 5 "Tools"
+line    rule           30, 900  240x1   
+text    ink.mute       30, 910   85x30   glyphs 8 "Settings"
 line    rule           30, 950  240x1   
-text    ink.mute       30, 960   85x30   glyphs 8 "Settings"
+text    ink.mute       30, 960   42x30   glyphs 4 "Docs"
 line    rule           30,1000  240x1   
 text    ink.mute       30,1010  138x30   glyphs 12 "Content packs"
 fill    ground.well   340,  10  350x35   r3
@@ -73,4 +77,4 @@ stroke  edge          687,1044   42x28   r3 w1
 text    ink.body      695,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     736,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi      1502, 414  356x44   r5 w3 clip1
-# 74 items, 2736 vertices, 6120 indices, 4 commands; check_draw_list: passes
+# 78 items, 2780 vertices, 6186 indices, 4 commands; check_draw_list: passes

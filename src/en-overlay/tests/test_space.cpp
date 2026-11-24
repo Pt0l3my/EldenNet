@@ -6,14 +6,17 @@
 #include <doctest.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <fstream>
+#include <map>
 #include <sstream>
 #include <string>
 #include <vector>
 
 #include "characters_fixture.hpp"
 #include "content_fixture.hpp"
+#include "en/overlay/docs.hpp"
 #include "en/overlay/space.hpp"
 #include "graceui.h"
 
@@ -28,6 +31,7 @@ namespace {
 SpaceFacts base() {
   SpaceFacts f;
   f.version = {0, 1, 0};
+  f.label = "0.1.0";  // the build's label (EN_VERSION_LABEL)
   f.graceui = GRACEUI_VERSION_PACK(0, 2, 12);  // the GraceUI vendored (third_party/graceui-sys)
   f.floor = {0, 2, 12};
   f.build_known = true;
@@ -359,18 +363,19 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
     CHECK(p["increment"].get<std::string>() <= std::string(kIncrement));
   }
   CHECK(ids == std::vector<std::string>{"home", "system.status", "system.logs", "settings.developer", "ai.providers",
-                                        "ai.models", "ai.selftest", "characters.named", "content"});
+                                        "ai.models", "ai.selftest", "characters.named", "content", "tools.report",
+                                        "docs"});
   // The rail holds PAGES §4.2.1's categories in their order, the slice's pages in theirs.
   std::vector<std::string> rail;
   for (const json& c : pages["categories"]) rail.push_back(c["id"].get<std::string>());
   CHECK(rail == std::vector<std::string>{"home", "ai", "voice", "characters", "map", "history", "behaviour", "system",
-                                         "tools", "settings", "content"});
-  // Its foot (protocol 1.10, GraceUI D248): Settings and Content packs, after every other category.
+                                         "tools", "settings", "docs", "content"});
+  // Its foot (protocol 1.10, GraceUI D248): Settings, Docs and Content packs, after every other category.
   std::vector<std::string> foot;
   for (const json& c : pages["categories"]) {
     if (c.value("foot", false)) foot.push_back(c["id"].get<std::string>());
   }
-  CHECK(foot == std::vector<std::string>{"settings", "content"});
+  CHECK(foot == std::vector<std::string>{"settings", "docs", "content"});
   const Space s;
   REQUIRE(s.valid());
   for (const json& t : pages["topics"]) {
@@ -386,8 +391,11 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
   }
   CHECK(pages["commands"] == json::array({"settings.set", "settings.reset", "selftest.run", "models.list",
                                           "providers.add", "providers.remove", "providers.key", "profile.check",
-                                          "profile.save", "profile.reset", "profile.restore", "profile.draft"}));
-  CHECK(pages["minor"] == 10);  // the rail's foot: protocol 1.10's (GraceUI D248), on 1.8's sensitive marks (D221)
+                                          "profile.save", "profile.reset", "profile.restore", "profile.draft",
+                                          "report.build", "report.part"}));
+  // Docs' document block and Bug report's prose field and preview: protocol 1.12's (GraceUI D251), on 1.11's filter
+  // bar (D250), 1.10's foot (D248) and 1.8's sensitive marks (D221).
+  CHECK(pages["minor"] == 12);
   // GraceUI 0.2.5's checks (D183, eldennet-changes §36), met already: no topic is the server's own "pages", the id is
   // not GraceUI's reserved one, and every destructive action, a row's included, has its confirmation's text.
   CHECK(pages["space"] != "graceui");
@@ -410,13 +418,13 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
                                                                     {"key", "id"}});
         if (b["kind"] == "form") {
           ++forms;
-          CHECK(b["command"] == "providers.add");
+          CHECK((b["command"] == "providers.add" || b["command"] == "report.build"));
         }
       }
     }
   }
   CHECK(row_actions == 1);
-  CHECK(forms == 1);
+  CHECK(forms == 2);
   // Home's and System's blocks on GraceUI 0.2.7's props (D185 to D187): one topic for System › Status, its own words
   // for an empty list, the log newest first.
   std::vector<std::string> topics;
@@ -1755,6 +1763,331 @@ TEST_CASE("space: the log's rows are scrubbed of a SteamID64's shape; the clock"
   CHECK(s.log_rows()[0]["line"] == "x id=redacted");
 }
 
+// ---- Docs (PAGES §4.6.9; GraceUI D251): what tools/docs/build.py bundled, checked again as GraceUI's reader checks
+// it.
+
+namespace {
+
+std::size_t code_points(const std::string& s) {
+  std::size_t n = 0;
+  for (const char c : s) n += (static_cast<unsigned char>(c) & 0xC0) != 0x80 ? 1 : 0;
+  return n;
+}
+
+// A paragraph's, an item's or a note's spans: each a {text} with one mark at most, under 2000 characters in all; each
+// link's document one of the list's and its heading one of that document's (GraceUI D251's rules, and the README's).
+void check_spans(const json& spans, const std::map<std::string, std::vector<std::string>>& headings) {
+  REQUIRE(spans.is_array());
+  REQUIRE_FALSE(spans.empty());
+  std::size_t total = 0;
+  for (const json& s : spans) {
+    REQUIRE(s.is_object());
+    const std::string text = s.at("text").get<std::string>();
+    CHECK_FALSE(text.empty());
+    total += code_points(text);
+    CHECK(static_cast<int>(s.value("strong", false)) + static_cast<int>(s.value("code", false)) +
+              static_cast<int>(s.contains("doc")) <= 1);
+    if (s.contains("doc")) {
+      const auto d = headings.find(s["doc"].get<std::string>());
+      REQUIRE(d != headings.end());
+      if (s.contains("heading")) {
+        CHECK(std::find(d->second.begin(), d->second.end(), s["heading"].get<std::string>()) != d->second.end());
+      }
+    }
+  }
+  CHECK(total < 2000);
+}
+
+}  // namespace
+
+TEST_CASE("space: Docs: a master page, its list, and each document bundled within GraceUI's limits") {
+  const json pages = json::parse(space_pages());
+  const json* page = nullptr;
+  for (const json& p : pages["pages"]) {
+    if (p["id"] == "docs") page = &p;
+  }
+  REQUIRE(page != nullptr);
+  CHECK((*page)["category"] == "docs");
+  CHECK((*page)["increment"] == "0.2");
+  CHECK((*page)["master"]["topic"] == std::string(kDocsList));
+  CHECK((*page)["master"]["detail"] == std::string(kDocsFamily));
+  // The list's own search, on its rows' titles and headings alone (D250): never a document's body.
+  CHECK((*page)["master"]["filter_bar"] == json{{"search", {{"columns", {"title", "headings"}},
+                                                             {"label", "Find a document"}}}});
+  REQUIRE((*page)["sections"].size() == 1);
+  CHECK((*page)["sections"][0]["blocks"] == json::array({json{{"kind", "document"}, {"topic", "docs"}}}));
+
+  const Space s;
+  const SpaceFacts f = facts_of("title");
+  const json list = s.body(kDocsList, f);
+  CHECK(list["columns"] == json::array({json{{"id", "title"}, {"label", "Document"}},
+                                        json{{"id", "headings"}, {"label", "Covers"}}}));
+  std::vector<std::string> ids;
+  for (const json& r : list["rows"]) ids.push_back(r["id"].get<std::string>());
+  // PAGES §4.6.9's documents, in its order.
+  CHECK(ids == std::vector<std::string>{"getting-started", "installing", "provider", "privacy", "spoilers", "keys",
+                                        "troubleshooting", "writing-content", "licences", "about"});
+  std::map<std::string, std::vector<std::string>> headings;
+  for (const BundledDoc& d : bundled_docs()) {
+    const json body = json::parse(d.body);
+    for (const json& b : body["blocks"]) {
+      if (b.contains("heading")) headings[std::string(d.id)].push_back(b["heading"].get<std::string>());
+    }
+    headings[std::string(d.id)];
+  }
+  REQUIRE(bundled_docs().size() == list["rows"].size());
+  for (std::size_t i = 0; i < bundled_docs().size(); ++i) {
+    const BundledDoc& d = bundled_docs()[i];
+    INFO("docs/" << d.id);
+    const json& row = list["rows"][i];
+    CHECK(row["title"] == std::string(d.title));
+    CHECK(row["headings"] == std::string(d.headings));
+    // The bundled text is the body as the space writes it: nlohmann/json's form, keys sorted.
+    const json body = s.body(std::string(kDocsFamily) + "/" + std::string(d.id), f);
+    CHECK(body["title"] == std::string(d.title));
+    if (d.id != kDocsAbout) CHECK(body.dump() == std::string(d.body));
+    CHECK(d.body.size() < 64u * 1024);
+    REQUIRE(body["blocks"].is_array());
+    CHECK(body["blocks"].size() <= 400);
+    std::vector<std::string> joined;
+    for (const json& b : body["blocks"]) {
+      REQUIRE(b.is_object());
+      int kinds = 0;
+      for (const char* k : {"heading", "paragraph", "list", "note", "code", "table"}) kinds += b.contains(k) ? 1 : 0;
+      CHECK(kinds == 1);
+      if (b.contains("heading")) {
+        CHECK((b["level"] == 2 || b["level"] == 3));
+        CHECK(code_points(b["heading"].get<std::string>()) <= 120);
+        joined.push_back(b["heading"].get<std::string>());
+      }
+      if (b.contains("paragraph")) check_spans(b["paragraph"], headings);
+      if (b.contains("note")) check_spans(b["note"], headings);
+      if (b.contains("list")) {
+        CHECK(b["list"].size() <= 100);
+        for (const json& item : b["list"]) check_spans(item, headings);
+      }
+      if (b.contains("code")) CHECK(b["code"].get<std::string>().size() < 16u * 1024);
+      if (b.contains("table")) {
+        CHECK(b["table"]["columns"].size() <= 8);
+        CHECK(b["table"]["rows"].size() <= 200);
+      }
+    }
+    std::string words;
+    for (const std::string& h : joined) words += (words.empty() ? "" : " · ") + h;
+    CHECK(words == d.headings);
+    // No address of any kind (PV6, invariant 6): a scheme is named ("https://"), never followed by a host; and no
+    // slot left unfilled.
+    const std::string text = body.dump();
+    for (std::size_t at = text.find("://"); at != std::string::npos; at = text.find("://", at + 3)) {
+      CHECK(std::isalnum(static_cast<unsigned char>(text[at + 3])) == 0);
+    }
+    CHECK(text.find("{eldennet_version}") == std::string::npos);
+    CHECK(text.find("{graceui_version}") == std::string::npos);
+    CHECK(text.find("{build}") == std::string::npos);
+  }
+  CHECK(s.body("docs/none", f).empty());  // no such document: no body
+}
+
+TEST_CASE("space: Docs: About's slots from what EldenNet knows, a row left out without its value; published once") {
+  const auto about_rows = [](const json& body) {
+    std::map<std::string, std::string> rows;
+    for (const json& b : body["blocks"]) {
+      if (!b.contains("table")) continue;
+      for (const json& r : b["table"]["rows"]) rows[r["part"].get<std::string>()] = r["version"].get<std::string>();
+    }
+    return rows;
+  };
+  Space s;
+  SpaceFacts f = facts_of("title");
+  f.label = "0.1.0-test.1";
+  CHECK(about_rows(s.body("docs/about", f)) == std::map<std::string, std::string>{
+                                                   {"EldenNet", "0.1.0"}, {"GraceUI", "0.2.12"},
+                                                   {"Build", "0.1.0-test.1"}});
+  SpaceFacts unknown = f;
+  unknown.graceui = 0;
+  unknown.label = {};
+  CHECK(about_rows(s.body("docs/about", unknown)) == std::map<std::string, std::string>{{"EldenNet", "0.1.0"}});
+
+  // The list and a document when watched, and not again: they are bundled. About again when its slots change.
+  s.watched(sub("docs.list"));
+  s.watched(sub("docs/keys"));
+  s.watched(sub("docs/about"));
+  s.watched(sub("docs/none"));
+  auto out = collect(s, f, 1000);
+  std::vector<std::string> topics;
+  for (const json& o : out) topics.push_back(o["topic"].get<std::string>());
+  std::sort(topics.begin(), topics.end());
+  CHECK(topics == std::vector<std::string>{"docs.list", "docs/about", "docs/keys"});  // never docs/none
+  CHECK(collect(s, f, 2000).empty());
+  f.graceui = GRACEUI_VERSION_PACK(0, 2, 44);
+  out = collect(s, f, 3000);
+  REQUIRE(out.size() == 1);
+  CHECK(out[0]["topic"] == "docs/about");
+  CHECK(out[0]["rev"] == 2);
+  CHECK(about_rows(out[0]["body"])["GraceUI"] == "0.2.44");
+}
+
+// ---- Tools › Bug report (PAGES §4.6.8; GraceUI D251; space.hpp).
+
+TEST_CASE("space: Bug report: a form with one prose field, the preview with its command; parts in plain data") {
+  const json pages = json::parse(space_pages());
+  const json* page = nullptr;
+  for (const json& p : pages["pages"]) {
+    if (p["id"] == "tools.report") page = &p;
+  }
+  REQUIRE(page != nullptr);
+  CHECK((*page)["category"] == "tools");
+  CHECK((*page)["increment"] == "0.2");
+  REQUIRE((*page)["sections"].size() == 2);
+  CHECK_FALSE((*page)["sections"][0]["description"].get<std::string>().empty());  // the caution
+  CHECK((*page)["sections"][0]["blocks"][0] ==
+        json{{"kind", "form"}, {"command", "report.build"}, {"submit", "Add to the report"},
+             {"fields", {{{"id", "what"}, {"label", "What happened"}, {"max", 2000}, {"prose", true}}}}});
+  CHECK((*page)["sections"][1]["blocks"][0] == json{{"kind", "component"}, {"component", "report_preview"},
+                                                    {"topic", "report"}, {"command", "report.part"}});
+  // No copy or save in 0.2 (PAGES §4.6.8): neither command is the space's yet.
+  for (const json& c : pages["commands"]) CHECK((c != "report.copy" && c != "report.save"));
+
+  Space s;
+  s.log_line("boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev", 3);
+  s.log_line("tripped group=camera", 1200400);
+  const SpaceFacts f = facts_of("world");
+  const json body = s.body("report", f);
+  std::vector<std::string> ids;
+  std::map<std::string, json> parts;
+  for (const json& p : body["parts"]) {
+    ids.push_back(p["id"].get<std::string>());
+    parts[p["id"].get<std::string>()] = p;
+    CHECK(p["included"] == true);
+  }
+  CHECK(ids == std::vector<std::string>{"versions", "state", "settings", "content", "log"});  // nothing typed yet
+  CHECK(parts["versions"]["optional"] == false);
+  CHECK(parts["state"]["optional"] == false);
+  for (const char* id : {"settings", "content", "log"}) CHECK(parts[id]["optional"] == true);
+  const auto value = [&](const std::string& part, const std::string& label) {
+    for (const json& field : parts[part]["fields"]) {
+      if (field["label"] == label) return field["value"].get<std::string>();
+    }
+    return std::string("(none)");
+  };
+  CHECK(value("versions", "EldenNet") == "0.1.0");
+  CHECK(value("versions", "GraceUI") == "0.2.12");
+  CHECK(value("versions", "Game build") == "3.14.15.0, supported");
+  CHECK(value("state", "State") == "Observing");
+  CHECK(value("state", "Stopped after faults") == "The camera");
+  CHECK(value("state", "Recording") == "On");
+  CHECK(value("settings", "Values").find("debug.log_level = \"info\"") != std::string::npos);
+  CHECK(value("content", "Personas") != "(none)");
+  // The log's newest lines, its clock before each, in the mono face with its line breaks.
+  CHECK(parts["log"]["fields"][0]["code"] == true);
+  CHECK(value("log", "Newest lines").rfind("0:00:00  boot pid=4242", 0) == 0);
+  CHECK(value("log", "Newest lines").find("\n0:20:00  tripped group=camera") != std::string::npos);
+  CHECK(clean(body));
+}
+
+TEST_CASE("space: Bug report: what happened is kept for the preview alone; the switches; refusals in words") {
+  Space s;
+  s.log_line("boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev", 3);
+  const SpaceFacts f = facts_of("title");
+  for (const std::string_view topic : {"report", "status", "errors", "system.status", "settings", "content"}) {
+    s.watched(sub(topic));
+  }
+  s.watched(sub("logs"));
+  (void)collect(s, f, 1000);
+  (void)s.take_notes();
+
+  const std::string typed =
+      "  The lantern keeper stopped mid-line, and the box stayed open.\r\nPressing Esc closed it. ";
+  const std::string answer = s.command(cmd({{"what", typed}}, "report.build"), f);
+  CHECK(frame(answer)["ok"] == true);
+  CHECK(answer.find("lantern keeper") == std::string::npos);  // the answer never echoes it
+  const std::vector<SpaceNote> notes = s.take_notes();
+  REQUIRE(notes.size() == 1);
+  CHECK(notes[0].topic == "report.build");
+  CHECK(notes[0].key.empty());
+  CHECK(notes[0].result == "ok");
+  // At once, not at the preview's rate: its words, the spaces round them taken off and the line break kept.
+  auto out = collect(s, f, 1100);
+  bool published = false;
+  for (const json& o : out) {
+    const std::string text = o.dump();
+    if (o["topic"] == "report") {
+      published = true;
+      CHECK(o["body"]["parts"][0] ==
+            json{{"id", "happened"}, {"label", "What happened"}, {"optional", false}, {"included", true},
+                 {"fields", {{{"label", "In your words"},
+                              {"value", "The lantern keeper stopped mid-line, and the box stayed open.\n"
+                                        "Pressing Esc closed it."}}}}});
+    } else {
+      CHECK(text.find("lantern keeper") == std::string::npos);  // in no other topic
+    }
+  }
+  CHECK(published);
+  for (const std::string_view topic : {"status", "errors", "system.status", "settings", "content", "ai.status"}) {
+    CHECK(s.body(topic, f).dump().find("lantern keeper") == std::string::npos);
+  }
+  CHECK(s.log_rows().dump().find("lantern keeper") == std::string::npos);
+
+  // Scrubbed as the log is (PV5): a SteamID64's shape, a path, an address (a documentation range's, invented).
+  CHECK(frame(s.command(cmd({{"what", "My id 76561197960287930, my save in C:\\Users\\Someone\\Saves, "
+                                      "my server at 192.0.2.20:8080."}},
+                            "report.build"),
+                        f))["ok"] == true);
+  const std::string shown = s.body("report", f)["parts"][0]["fields"][0]["value"].get<std::string>();
+  CHECK(shown == "My id redacted, my save in redacted my server at redacted");
+  // Refused, in words, the words kept as they were: over 2000 characters, or a control character.
+  const json over = frame(s.command(cmd({{"what", std::string(2001, 'a')}}, "report.build"), f));
+  CHECK(over["error"] == "invalid_value");
+  CHECK(over["detail"] == "That is over 2000 characters: shorten it.");
+  CHECK(frame(s.command(cmd({{"what", std::string(2000, 'a')}}, "report.build"), f))["ok"] == true);
+  CHECK(frame(s.command(cmd({{"what", std::string("a\x01")}}, "report.build"), f))["error"] == "invalid_value");
+  CHECK(frame(s.command(cmd({{"what", 12}}, "report.build"), f))["error"] == "invalid_value");
+  CHECK(s.body("report", f)["parts"][0]["fields"][0]["value"] == std::string(2000, 'a'));
+  // Every field sent, an empty one as "" (D251): the words cleared, the part gone.
+  CHECK(frame(s.command(cmd({{"what", ""}}, "report.build"), f))["ok"] == true);
+  CHECK(s.body("report", f)["parts"][0]["id"] == "versions");
+
+  // An optional part's switch (D251): left out, then in again; the others are always in.
+  CHECK(frame(s.command(cmd({{"id", "log"}, {"on", false}}, "report.part"), f))["ok"] == true);
+  json parts = s.body("report", f)["parts"];
+  for (const json& p : parts) CHECK(p["included"] == (p["id"] != "log"));
+  const json always = frame(s.command(cmd({{"id", "versions"}, {"on", false}}, "report.part"), f));
+  CHECK(always["error"] == "invalid_value");
+  CHECK(always["detail"] == "That part is always in the report.");
+  CHECK(frame(s.command(cmd({{"id", "log"}, {"on", "no"}}, "report.part"), f))["error"] == "invalid_value");
+  CHECK(frame(s.command(cmd({{"id", "log"}, {"on", true}}, "report.part"), f))["ok"] == true);
+  for (const json& p : s.body("report", f)["parts"]) CHECK(p["included"] == true);
+  for (const SpaceNote& n : s.take_notes()) {
+    CHECK(n.topic.rfind("report.", 0) == 0);
+    CHECK((n.key.empty() || n.key == "log" || n.key == "versions"));
+  }
+}
+
+TEST_CASE("space: Bug report: the log's tail scrubbed again, settings without secrets or paths") {
+  Space s(R"({"schema": {"number": 1, "hash": "0"}, "settings": [
+    {"key": "a.key", "type": "secret", "default": "", "home": "settings.developer"},
+    {"key": "a.model", "type": "text", "default": "", "home": "settings.developer"},
+    {"key": "a.flag", "type": "bool", "default": true, "home": "settings.developer"}]})");
+  REQUIRE(s.valid());
+  s.set_value("a.key", "an invented key");
+  s.set_value("a.model", "C:\\Users\\Someone\\models\\lamp.gguf");
+  for (int i = 0; i < 40; ++i) s.log_line("tick n=" + std::to_string(i), 1000u * static_cast<unsigned>(i));
+  s.log_line("ai_change what=key name=76561197960287930 host=198.51.100.7", 50000);
+  const json parts = s.body("report", facts_of("title"))["parts"];
+  std::string values, lines;
+  for (const json& p : parts) {
+    for (const json& field : p["fields"]) {
+      if (field["label"] == "Values") values = field["value"].get<std::string>();
+      if (field["label"] == "Newest lines") lines = field["value"].get<std::string>();
+    }
+  }
+  CHECK(values == "a.model = (left out)\na.flag = true");  // never a secret, nor its status
+  CHECK(std::count(lines.begin(), lines.end(), '\n') == 29);  // the newest 30
+  CHECK(lines.rfind("0:00:11  tick n=11", 0) == 0);
+  CHECK(lines.substr(lines.rfind('\n') + 1) == "0:00:50  ai_change what=key name=redacted host=redacted");
+  CHECK(parts.dump().find("invented key") == std::string::npos);
+}
+
 TEST_CASE("space: the fixture states' topics.json, which grace-dev previews (tests/pages)") {
 #if defined(_WIN32)
   // The Windows builds run under Wine, outside the source tree's drive: the Linux builds compare the files.
@@ -1770,6 +2103,19 @@ TEST_CASE("space: the fixture states' topics.json, which grace-dev previews (tes
     for (const char* topic : kAiTopics) topics[topic] = s.body(topic, f);
     for (const std::string& topic : en::overlay::test::characters_topics(f.characters)) topics[topic] = s.body(topic, f);
     topics["content"] = s.body("content", f);
+    // Docs (bundled): the list, the first document, which a page's dump shows, and About, its slots filled.
+    topics["docs.list"] = s.body("docs.list", f);
+    topics["docs/getting-started"] = s.body("docs/getting-started", f);
+    topics["docs/about"] = s.body("docs/about", f);
+    // Bug report: in the world, words of the player's own (invented) and the content left out.
+    if (std::string_view(state) == "world") {
+      (void)s.command(cmd({{"what", "The lantern keeper stopped mid-line, and the box stayed open.\nPressing Esc "
+                                    "closed it."}},
+                          "report.build"),
+                      f);
+      (void)s.command(cmd({{"id", "content"}, {"on", false}}, "report.part"), f);
+    }
+    topics["report"] = s.body("report", f);
     topics["logs"] = s.log_rows();
     const std::string text = topics.dump(2) + "\n";
     const std::string path = std::string(EN_PAGES_FIXTURES) + "/" + state + "/topics.json";

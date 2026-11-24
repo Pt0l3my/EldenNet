@@ -10,8 +10,12 @@ line    rule           30, 185  240x1
 text    ink.mute       30, 195  106x30   glyphs 10 "Characters"
 line    rule           30, 235  240x1   
 text    ink.mute       30, 245   64x30   glyphs 6 "System"
+line    rule           30, 285  240x1   
+text    ink.mute       30, 295   53x30   glyphs 5 "Tools"
+line    rule           30, 860  240x1   
+text    ink.mute       30, 870   85x30   glyphs 8 "Settings"
 line    rule           30, 910  240x1   
-text    ink.mute       30, 920   85x30   glyphs 8 "Settings"
+text    ink.mute       30, 920   42x30   glyphs 4 "Docs"
 line    rule           30, 960  240x1   
 text    ink.hi         30, 970  138x30   glyphs 12 "Content packs"
 fill    tint.select     0,1010  300x40  
@@ -104,4 +108,4 @@ stroke  edge          466,1044   42x28   r3 w1
 text    ink.body      474,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     515,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi       362, 947 1496x61   r5 w3 clip1
-# 105 items, 4672 vertices, 9144 indices, 4 commands; check_draw_list: passes
+# 109 items, 4716 vertices, 9210 indices, 4 commands; check_draw_list: passes

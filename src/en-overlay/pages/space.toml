@@ -18,6 +18,9 @@
 # editor block (the family `profiles`), with its five commands, `profile.draft` a slow one (D216). And, for GraceUI
 # 0.2.25's devices at home (G9, D221; protocol 1.8, which an older GraceUI reads past): the commands and settings a
 # paired device may never send or change, marked sensitive.
+# Docs and Tools › Bug report (S11.4.a), on GraceUI 0.2.44 (D251, protocol 1.12): the bundled documents as a master
+# page whose one section holds the chosen row's document, with a search on the list's titles and headings (D250); and a
+# bug report's preview, the player's words in a prose field and the bundle's parts, the optional ones switched.
 # The rail holds every category of PAGES §4.2.1 in its order; a category with no page yet holds none,
 # and GraceUI shows no category that is empty (D173). Every word a player reads here is a draft for the owner's review
 # (the slice's notes list them). Names of the game's places and characters never appear here (PAGES §4.1 item 6, SP3).
@@ -27,7 +30,8 @@ id = "eldennet"
 name = "EldenNet"
 settings_schema = 2
 commands = ["settings.set", "settings.reset", "selftest.run", "models.list", "providers.add", "providers.remove",
-            "providers.key", "profile.check", "profile.save", "profile.reset", "profile.restore", "profile.draft"]
+            "providers.key", "profile.check", "profile.save", "profile.reset", "profile.restore", "profile.draft",
+            "report.build", "report.part"]
 # A model's draft of the player's notes: answered within 90 s (D216; NPC §4.7's 20 s to the first token, 60 s in all).
 slow_commands = ["profile.draft"]
 # From this PC alone, never a paired device (G9, D221; S11.4.e): a provider of one's own with its address, a provider's
@@ -167,8 +171,28 @@ family = true
 id = "content"
 shape = "state"
 
-# ---- The rail (PAGES §4.2.1), in its order. Settings and Content packs are its foot (protocol 1.10, GraceUI D248),
-# pinned to the rail's bottom under a rule in both views, after every other category, as the lint requires.
+# Docs (PAGES §4.6.9; GraceUI D251): the master list, a row a document ({id, title, headings}), and the family of the
+# documents keyed as its rows (`docs/<id>`, {title, blocks}), all of them bundled in eldennet.dll (src/en-overlay/docs,
+# tools/docs/build.py).
+
+[[topic]]
+id = "docs.list"
+shape = "state"
+
+[[topic]]
+id = "docs"
+shape = "state"
+family = true
+
+# Tools › Bug report (PAGES §4.6.8; GraceUI D251): the bundle's preview, {parts: [{id, label, optional, included,
+# fields}]}.
+
+[[topic]]
+id = "report"
+shape = "state"
+
+# ---- The rail (PAGES §4.2.1), in its order. Settings, Docs and Content packs are its foot (protocol 1.10, GraceUI
+# D248), pinned to the rail's bottom under a rule in both views, after every other category, as the lint requires.
 
 [[category]]
 id = "home"
@@ -213,12 +237,18 @@ pages = ["system.status", "system.logs"]
 [[category]]
 id = "tools"
 name = "Tools"
-pages = []
+pages = ["tools.report"]
 
 [[category]]
 id = "settings"
 name = "Settings"
 pages = ["settings.developer"]
+foot = true
+
+[[category]]
+id = "docs"
+name = "Docs"
+pages = ["docs"]
 foot = true
 
 [[category]]
@@ -847,3 +877,79 @@ kind = "component"
 component = "table"
 topic = "content"
 props = { field = "reloads", empty = "EldenNet has not loaded its content yet." }
+
+# ---- Tools › Bug report (PAGES §4.6.8; S11.4.a), increment 0.2: what happened in the player's own words, a form whose
+# one prose field (GraceUI D251) the space keeps in memory for the preview alone (never logged, recorded, published to
+# another topic or written to a file), and the bundle's preview (D251's report_preview), each optional part switched by
+# report.part. Copying and saving it come in 0.6, after EldenNet's scan: absent until then (PAGES §4.6.8).
+
+[[page]]
+id = "tools.report"
+category = "tools"
+name = "Bug report"
+description = "What a bug report would hold: your own words, EldenNet's versions and state, and its recent log."
+increment = "0.2"
+related = ["system.logs", "docs"]
+help.purpose = "See everything a bug report would hold before you share one."
+help.steps = [
+  "Under What happened, write what you did, what you expected and what happened instead.",
+  "Press Add to the report: your words join the preview below, kept only until the game closes.",
+  "Read the preview: it shows every field the report would hold, as it would be shared.",
+  "Switch off a part you would rather leave out.",
+  "This version shows the report only: copying or saving it comes later.",
+]
+
+[[page.sections]]
+id = "happened"
+title = "What happened"
+description = "In your own words. Leave out personal details: your name, your accounts and where you live."
+
+[[page.sections.blocks]]
+kind = "form"
+command = "report.build"
+fields = [{ id = "what", label = "What happened", max = 2000, prose = true }]
+submit = "Add to the report"
+
+[[page.sections]]
+id = "preview"
+title = "The report"
+description = "Every field the report would hold, as it would be shared. Switch off a part to leave it out."
+
+[[page.sections.blocks]]
+kind = "component"
+component = "report_preview"
+topic = "report"
+command = "report.part"
+
+# ---- The foot: Docs (PAGES §4.6.9; S11.4.a), increment 0.2. PAGES has it in the browser at 0.2 and in game at 0.6, but
+# the page format cannot keep a page out of one view (eldennet-changes §77: Docs is drawn in game too). A master page
+# (D215): the list `docs.list`, a row a document, with a search on its rows' titles and headings alone (D250), and one
+# section holding the chosen row's document, a member of the family `docs` (D251). No command.
+
+[[page]]
+id = "docs"
+category = "docs"
+name = "Docs"
+description = """EldenNet's own guides, bundled with it: getting started, privacy, spoilers, keys, troubleshooting \
+and more."""
+increment = "0.2"
+related = ["home", "tools.report"]
+help.purpose = "Read EldenNet's own guides here, with nothing fetched from anywhere."
+help.steps = [
+  "Choose a document in the list, or find one by its title or a heading.",
+  "Follow a link to another document, or to one of its headings.",
+  "Return to the list with Esc or the left arrow.",
+]
+
+[page.master]
+topic = "docs.list"
+key = "id"
+detail = "docs"
+label = "Documents"
+none = "Choose a document to read it."
+filter_bar = { search = { columns = ["title", "headings"], label = "Find a document" } }
+
+[[page.sections]]
+id = "document"
+title = "Document"
+blocks = [{ kind = "document", topic = "docs" }]

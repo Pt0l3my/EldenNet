@@ -11,6 +11,7 @@
 // are EldenNet's words and numbers only (en_shell's Line), scrubbed again here of anything shaped like a SteamID64
 // (PV5). Every word a player reads is a draft for the owner's review (the slice's notes list them).
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <map>
@@ -191,6 +192,7 @@ struct AiFacts {
 
 struct SpaceFacts {
   std::array<std::uint16_t, 3> version{};  // EldenNet's
+  std::string_view label;                  // the build's label (EN_VERSION_LABEL): Docs' About and the bug report
   std::uint32_t graceui = 0;               // the GraceUI connected (GRACEUI_VERSION_PACK)
   std::array<std::uint16_t, 3> floor{};    // the oldest GraceUI EldenNet works with
   proto::watch::InitState init = proto::watch::InitState::None;  // T1's start
@@ -228,6 +230,21 @@ struct SpaceFacts {
   // first load (the topic publishes nothing).
   const proto::ContentView* content = nullptr;
 };
+
+// ---- Tools › Bug report (PAGES §4.6.8; GraceUI D251): the bundle's preview, the topic `report`, a part a member of
+// its `parts`, each {id, label, optional, included, fields: [{label, value, code}]}. What it holds is what EldenNet
+// already has in plain data, in our words and numbers: its versions and the build's label, GraceUI's, the game's build;
+// the state and the start; the settings with no secret, their values as settings.toml would hold them (a value shaped
+// like a path left out, PV5); the content's counts, the player's own notes counted and never shown (NPC §4.7's
+// privacy); and the log's newest lines, scrubbed again (a SteamID64's shape, an IPv4 address). Never chat or model
+// text, a key, a SteamID, a path, the Windows user name, the character's name or a local address (PV5, PV7). The
+// player's words ("What happened", the form's prose field, `report.build` {what}) are kept here, in memory, for the
+// preview alone: never logged (a command's note names it alone), recorded, published to another topic or written to a
+// file. The optional parts (the settings, the content and the log) are switched by `report.part` {id, on}. Copying and
+// saving it come in 0.6, after EldenNet's scan.
+inline constexpr std::string_view kReportTopic = "report";
+inline constexpr std::size_t kReportWhatMax = 2000;  // characters: the form's prose field's max (D251)
+inline constexpr std::size_t kReportLogLines = 30;   // the log's newest lines in the preview
 
 // A long command the space took (selftest.run, models.list) or a change of providers.toml or secrets.toml it asked for
 // (providers.add, providers.remove, providers.key): answered `ok` at once, for the DLL to make; its progress and its
@@ -354,6 +371,12 @@ class Space {
     std::string time;
     std::string line;
   };
+  // Docs' documents (docs.hpp): `docs.list` and each watched `docs/<id>`, published when watched and, for About, when
+  // its slots' values change.
+  void collect_docs(const SpaceFacts& facts, std::uint64_t now_ms, std::vector<std::string>& frames);
+  // Tools › Bug report: its two commands, and the preview's body.
+  std::string report_command(const nlohmann::json& id, std::string_view name, nlohmann::json& args);
+  nlohmann::json report_body(const SpaceFacts& facts) const;
 
   const Setting* find(std::string_view key) const;
   std::string answer(const nlohmann::json& id, std::string_view error, std::string_view detail) const;
@@ -387,6 +410,9 @@ class Space {
   std::set<std::string, std::less<>> picked_;           // the jobs providers.toml holds a model for, as the facts said
   std::set<std::string, std::less<>> fallback_picked_;  // and a fallback for
   Characters characters_;  // the Characters pages and the profile editor (characters.hpp)
+  std::string about_slots_;  // About's slots' values when it was last published (collect_docs)
+  std::string report_what_;  // the player's words for the bug report: in memory, for its preview alone
+  std::set<std::string, std::less<>> report_off_;  // the optional parts of the bug report left out
   bool valid_ = false;
 };
 

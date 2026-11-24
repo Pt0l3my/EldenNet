@@ -208,6 +208,10 @@ class Browser:
         self.send({"v": 1, "t": "sub", "space": space, "id": self.next_id, "topic": topic})
         self.next_id += 1
 
+    def unsub(self, space, topic):
+        self.send({"v": 1, "t": "unsub", "space": space, "id": self.next_id, "topic": topic})
+        self.next_id += 1
+
     def state(self, space, topic, timeout=None):
         return self.next(lambda f: f.get("t") in ("state", "rows") and f.get("space") == space and
                          f.get("topic") == topic, timeout)

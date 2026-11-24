@@ -143,8 +143,9 @@ cmake --build build-cl
   (`mesa-vulkan-drivers`) for Wine's Direct3D 12, as GraceUI's harness does. Build GraceUI at the commit
   third_party/graceui-sys comes from (3fac29b, GraceUI 0.2.44), so the space and the surfaces meet the checks they will
   meet. The page lint and the preview are pinned to the same commit (`tests/pages/lint.py`): the page data is protocol
-  1.10's since the rail's foot (GraceUI D248).
-  `launcher-eldennet-graceui-pages` drives EldenNet's pages through that GraceUI, Content packs among them: F5's menu
+  1.12's since Docs' document block and Bug report's prose field and preview (GraceUI D251), the GraceUI floor 0.2.44.
+  `launcher-eldennet-graceui-pages` drives EldenNet's pages through that GraceUI, Content packs, Docs and Bug report
+  among them: F5's menu
   and, from Linux, a browser of the tests' own (`tests/pages/browser.py`) on GraceUI's server at the port the fake
   game's report names. Every
   GraceUI case sets `GRACEUI_TEST_PORT=free` (GraceUI 0.2.31's D234) in the game's environment, so the test build serves
@@ -199,7 +200,11 @@ cmake --build build-cl
   at 3fac29b>`: grace-dev serves each fixture state of `tests/pages/` and the browser reads every topic back and sends
   commands, and each page's in-game structure (`grace-dev --dump`) matches `tests/pages/golden/`. The fixture states'
   `topics.json` are what en_overlay_tests builds (`EN_UPDATE_FIXTURES=1` writes them anew; `EN_UPDATE_GOLDENS=1` the
-  dumps). Without the variables the last two are left out, with a line saying so.
+  dumps). Without the variables the last two are left out, with a line saying so. Docs' documents
+  (`src/en-overlay/docs/*.md`, converted by `python3 -I tools/docs/build.py` into `src/en-overlay/src/docs_data.cpp`)
+  have two more in every build with Python: `en_docs_build` (`--check`: every draft within its Markdown subset and
+  GraceUI's limits, its links to documents and headings that exist, and the file what the drafts build) and
+  `en_docs_tests` (the converter on invented drafts, each outside the subset in its own way).
 - Under Wine a program's exit status keeps only the low 8 bits of its Windows exit code (0xC0000005 arrives as 5).
 - The clang-cl build's harness has 125 tests with every optional part given (the prefix and 124 cases, 55 of them the
   launcher's, 27 of those eldennet.dll's and ten of these with GraceUI, above, and six the spikes' package's; counted

@@ -1,0 +1,164 @@
+# eldennet tools.report: 1920x1080, ui.scale 1.25, scale 1.250, theme grace, the fake face, settings at their defaults
+fill    scrim           0,   0 1920x1080
+fill    ground.1        0,   0 1920x1080
+fill    ground.0        0,   0  300x1080
+text    gold           30,  30  114x35   glyphs 8 "EldenNet"
+text    ink.mute       30,  95   42x30   glyphs 4 "Home"
+line    rule           30, 135  240x1   
+text    ink.mute       30, 145   21x30   glyphs 2 "AI"
+line    rule           30, 185  240x1   
+text    ink.mute       30, 195  106x30   glyphs 10 "Characters"
+line    rule           30, 235  240x1   
+text    ink.mute       30, 245   64x30   glyphs 6 "System"
+line    rule           30, 285  240x1   
+text    ink.hi         30, 295   53x30   glyphs 5 "Tools"
+fill    tint.select     0, 335  300x40  
+fill    gold            0, 335    3x40  
+text    gold.hi        50, 343   84x25   glyphs 9 "Bug report"
+line    rule           30, 900  240x1   
+text    ink.mute       30, 910   85x30   glyphs 8 "Settings"
+line    rule           30, 950  240x1   
+text    ink.mute       30, 960   42x30   glyphs 4 "Docs"
+line    rule           30,1000  240x1   
+text    ink.mute       30,1010  138x30   glyphs 12 "Content packs"
+fill    ground.well   340,  10  350x35   r3
+text    ink.faint     353,  15   51x25   glyphs 6 "Search"
+text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
+line    rule          300,  55 1620x1   
+text    ink.hi        340,  86  199x45   clip1 glyphs 9 "Bug report"
+text    ink.mute      340, 136  810x25   clip1 glyphs 80 "What a bug report would hold: your own words, EldenNet's versions and state, and its recent log."
+line    rule.strong   340, 176 1540x1    clip1
+diamond gold.deep     340, 171   11x11   w1 clip1
+fill    ground.2      340, 201 1540x304  r5 clip1
+stroke  rule          340, 201 1540x304  r5 w1 clip1
+text    gold          365, 221  125x20   clip1 glyphs 12 "What happened"
+text    ink.faint    1842, 221    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, 246  768x25   clip1 glyphs 76 "In your own words. Leave out personal details: your name, your accounts and where you live."
+line    rule          365, 281 1490x1    clip1
+text    ink.hi        365, 294  122x28   clip1 glyphs 12 "What happened"
+fill    ground.well   365, 329 1490x81   r3 clip1
+stroke  edge          365, 329 1490x81   r3 w1 clip1
+fill    gold         1656, 438  199x40   r3 clip1
+text    on.gold      1676, 444  159x28   clip1 glyphs 14 "Add to the report"
+fill    ground.2      340, 525 1540x2043 r5 clip1
+stroke  rule          340, 525 1540x2043 r5 w1 clip1
+text    gold          365, 545   96x20   clip1 glyphs 9 "The report"
+text    ink.faint    1842, 545    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, 570  776x25   clip1 glyphs 74 "Every field the report would hold, as it would be shared. Switch off a part to leave it out."
+line    rule          365, 605 1490x1    clip1
+text    ink.hi        365, 621  122x28   clip1 glyphs 12 "What happened"
+text    ink.mute      365, 670  110x25   clip1 glyphs 11 "In your words"
+text    ink.body      812, 670  717x25   clip1 glyphs 73 "The lantern keeper stopped mid-line, and the box stayed open.
+Pressing Esc closed it."
+line    rule          365, 711 1490x1    clip1
+text    ink.hi        365, 727   75x28   clip1 glyphs 8 "Versions"
+text    ink.mute      365, 776   68x25   clip1 glyphs 8 "EldenNet"
+text    ink.body      812, 776   42x25   clip1 glyphs 5 "0.1.0"
+text    ink.mute      365, 814   42x25   clip1 glyphs 5 "Build"
+text    ink.body      812, 814   42x25   clip1 glyphs 5 "0.1.0"
+text    ink.mute      365, 852   59x25   clip1 glyphs 7 "GraceUI"
+text    ink.body      812, 852   51x25   clip1 glyphs 6 "0.2.12"
+text    ink.mute      365, 890  118x25   clip1 glyphs 13 "GraceUI needed"
+text    ink.body      812, 890  127x25   clip1 glyphs 13 "0.2.12 or later"
+text    ink.mute      365, 928   84x25   clip1 glyphs 9 "Game build"
+text    ink.body      812, 928  169x25   clip1 glyphs 19 "3.14.15.0, supported"
+text    ink.mute      365, 966   84x25   clip1 glyphs 9 "Started by"
+text    ink.body      812, 966  177x25   clip1 glyphs 19 "The EldenNet launcher"
+line    rule          365,1007 1490x1    clip1
+text    ink.hi        365,1023   47x28   clip1 glyphs 5 "State"
+text    ink.mute      365,1072   42x25   clip1 glyphs 5 "State"
+text    ink.body      812,1072   76x25   clip1 glyphs 9 "Observing"
+text    ink.mute      365,1110   25x25   clip1 glyphs 3 "Why"
+text    ink.body      812,1110  903x25   clip1 glyphs 90 "EldenNet reads the game. NPCs speak once a model answers Conversation: AI › Providers says what is missing."
+text    ink.mute      365,1148   42x25   clip1 glyphs 5 "Start"
+text    ink.body      812,1148   59x25   clip1 glyphs 7 "Started"
+text    ink.mute      365,1186  135x25   clip1 glyphs 14 "Offline and solo"
+text    ink.body      812,1186   76x25   clip1 glyphs 9 "Confirmed"
+text    ink.mute      365,1224  135x25   clip1 glyphs 14 "Reading the game"
+text    ink.body      812,1224  169x25   clip1 glyphs 17 "9600 readings so far"
+text    ink.mute      365,1262  135x25   clip1 glyphs 13 "What it can read"
+text    ink.body      812,1262  363x25   clip1 glyphs 36 "9 of 11 groups have passed their self-tests"
+text    ink.mute      365,1300  169x25   clip1 glyphs 18 "Stopped after faults"
+text    ink.body      812,1300   84x25   clip1 glyphs 9 "The camera"
+text    ink.mute      365,1338   17x25   clip1 glyphs 2 "AI"
+text    ink.body      812,1338  768x25   clip1 glyphs 79 "NPCs speak once a model answers Conversation. The self-test checks your provider meanwhile."
+text    ink.mute      365,1376   59x25   clip1 glyphs 6 "The log"
+text    ink.body      812,1376   59x25   clip1 glyphs 7 "Writing"
+text    ink.mute      365,1414   76x25   clip1 glyphs 9 "Recording"
+text    ink.body      812,1414   17x25   clip1 glyphs 2 "On"
+text    ink.mute      365,1452  101x25   clip1 glyphs 11 "This session"
+text    ink.body      812,1452   76x25   clip1 glyphs 6 "1 h 5 min"
+line    rule          365,1493 1490x1    clip1
+text    ink.hi        365,1509   75x28   clip1 glyphs 8 "Settings"
+text    ink.body     1722,1511   68x25   clip1 glyphs 8 "Included"
+fill    gold         1805,1509   50x28   r14 clip1
+circle  on.gold      1831,1513   20x20   clip1
+text    ink.mute      365,1558  110x25   clip1 glyphs 12 "Settings file"
+text    ink.body      812,1558   34x25   clip1 glyphs 4 "Read"
+text    ink.mute      365,1596   51x25   clip1 glyphs 6 "Values"
+text    ink.body      812,1596  166x25   clip1 glyphs 17 "debug.panel = false"
+text    ink.body      812,1621  254x25   clip1 glyphs 27 "debug.record_sessions = false"
+text    ink.body      812,1646  210x25   clip1 glyphs 22 "debug.log_level = "info""
+text    ink.body      812,1671  228x25   clip1 glyphs 24 "ai.preset = "cloud-budget""
+text    ink.body      812,1696  245x25   clip1 glyphs 26 "slots.dialogue.provider = """
+text    ink.body      812,1721  219x25   clip1 glyphs 23 "slots.dialogue.model = """
+text    ink.body      812,1746  324x25   clip1 glyphs 35 "slots.dialogue.fallback_provider = """
+text    ink.body      812,1771  245x25   clip1 glyphs 26 "slots.dialogue.fallback = """
+text    ink.body      812,1796  254x25   clip1 glyphs 27 "slots.bark_live.provider = """
+text    ink.body      812,1821  228x25   clip1 glyphs 24 "slots.bark_live.model = """
+text    ink.body      812,1846  332x25   clip1 glyphs 36 "slots.bark_live.fallback_provider = """
+text    ink.body      812,1871  254x25   clip1 glyphs 27 "slots.bark_live.fallback = """
+text    ink.body      812,1896  254x25   clip1 glyphs 27 "slots.bark_pool.provider = """
+text    ink.body      812,1921  228x25   clip1 glyphs 24 "slots.bark_pool.model = """
+text    ink.body      812,1946  332x25   clip1 glyphs 36 "slots.bark_pool.fallback_provider = """
+text    ink.body      812,1971  254x25   clip1 glyphs 27 "slots.bark_pool.fallback = """
+text    ink.body      812,1996  228x25   clip1 glyphs 24 "slots.memory.provider = """
+text    ink.body      812,2021  201x25   clip1 glyphs 21 "slots.memory.model = """
+text    ink.body      812,2046  306x25   clip1 glyphs 33 "slots.memory.fallback_provider = """
+text    ink.body      812,2071  228x25   clip1 glyphs 24 "slots.memory.fallback = """
+text    ink.body      812,2096  245x25   clip1 glyphs 26 "slots.selftest.provider = """
+text    ink.body      812,2121  219x25   clip1 glyphs 23 "slots.selftest.model = """
+text    ink.body      812,2146  324x25   clip1 glyphs 35 "slots.selftest.fallback_provider = """
+text    ink.body      812,2171  245x25   clip1 glyphs 26 "slots.selftest.fallback = """
+line    rule          365,2212 1490x1    clip1
+text    ink.mute      365,2228   66x28   clip1 glyphs 7 "Content"
+text    ink.body     1722,2230   68x25   clip1 glyphs 7 "Left out"
+fill    ground.well  1805,2228   50x28   r14 clip1
+stroke  edge         1805,2228   50x28   r14 w1 clip1
+circle  ink.mute     1809,2232   20x20   clip1
+line    rule          365,2272 1490x1    clip1
+text    ink.hi        365,2288   94x28   clip1 glyphs 9 "Recent log"
+text    ink.body     1722,2290   68x25   clip1 glyphs 8 "Included"
+fill    gold         1805,2288   50x28   r14 clip1
+circle  on.gold      1831,2292   20x20   clip1
+text    ink.mute      365,2337  101x25   clip1 glyphs 11 "Newest lines"
+text    ink.body      812,2337  709x25   clip1 glyphs 74 "0:00:00  boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev"
+text    ink.body      812,2362  289x25   clip1 glyphs 29 "0:00:00  gate result=passed ms=11"
+text    ink.body      812,2387  245x25   clip1 glyphs 25 "0:00:00  init state=settings"
+text    ink.body      812,2412  814x25   clip1 glyphs 84 "0:00:01  connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.12"
+text    ink.body      812,2437  219x25   clip1 glyphs 22 "0:00:06  init state=ready"
+text    ink.body      812,2462  306x25   clip1 glyphs 31 "0:00:06  change what=phase to=title"
+text    ink.body      812,2487  332x25   clip1 glyphs 34 "0:01:01  change what=phase to=in_world"
+text    ink.body      812,2512  254x25   clip1 glyphs 26 "0:20:00  tripped group=camera"
+fill    ground.2      340,2588 1540x175  r5 clip1
+stroke  rule          340,2588 1540x175  r5 w1 clip1
+text    gold          365,2608   67x20   clip1 glyphs 7 "Related"
+line    rule          365,2638 1490x1    clip1
+text    ink.hi        380,2652   38x28   clip1 glyphs 4 "Logs"
+text    ink.mute      862,2653  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
+text    gold         1820,2652    9x28   clip1 glyphs 1 "→"
+line    rule          365,2693 1490x1    clip1
+text    ink.hi        380,2707   38x28   clip1 glyphs 4 "Docs"
+text    ink.mute      862,2708  903x25   clip1 glyphs 94 "EldenNet's own guides, bundled with it: getting started, privacy, spoilers, keys, troubleshooting and more."
+text    gold         1820,2707    9x28   clip1 glyphs 1 "→"
+line    rule          300,1035 1620x1   
+fill    ground.well   340,1044   60x28   r3
+stroke  edge          340,1044   60x28   r3 w1
+text    ink.body      348,1046   44x25   glyphs 5 "Enter"
+text    ink.faint     407,1045   34x25   glyphs 4 "Type"
+fill    ground.well   466,1044   42x28   r3
+stroke  edge          466,1044   42x28   r3 w1
+text    ink.body      474,1046   26x25   glyphs 3 "Esc"
+text    ink.faint     515,1045   34x25   glyphs 4 "Back"
+stroke  gold.hi       362, 326 1496x87   r5 w3 clip1
+# 161 items, 9940 vertices, 18042 indices, 4 commands; check_draw_list: passes

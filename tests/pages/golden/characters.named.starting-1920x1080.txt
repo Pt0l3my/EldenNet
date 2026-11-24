@@ -13,8 +13,12 @@ fill    gold            0, 235    3x40
 text    gold.hi        50, 243   84x25   glyphs 9 "Named NPCs"
 line    rule           30, 275  240x1   
 text    ink.mute       30, 285   64x30   glyphs 6 "System"
+line    rule           30, 325  240x1   
+text    ink.mute       30, 335   53x30   glyphs 5 "Tools"
+line    rule           30, 900  240x1   
+text    ink.mute       30, 910   85x30   glyphs 8 "Settings"
 line    rule           30, 950  240x1   
-text    ink.mute       30, 960   85x30   glyphs 8 "Settings"
+text    ink.mute       30, 960   42x30   glyphs 4 "Docs"
 line    rule           30,1000  240x1   
 text    ink.mute       30,1010  138x30   glyphs 12 "Content packs"
 fill    ground.well   340,  10  350x35   r3
@@ -53,4 +57,4 @@ stroke  edge          466,1044   42x28   r3 w1
 text    ink.body      474,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     515,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi       916, 358  942x61   r5 w3 clip1
-# 54 items, 2088 vertices, 4704 indices, 4 commands; check_draw_list: passes
+# 58 items, 2132 vertices, 4770 indices, 4 commands; check_draw_list: passes

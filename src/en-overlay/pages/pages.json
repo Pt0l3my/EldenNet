@@ -1,7 +1,7 @@
 {
   "space": "eldennet",
   "name": "EldenNet",
-  "minor": 10,
+  "minor": 12,
   "categories": [
     {
       "id": "home",
@@ -57,13 +57,23 @@
     {
       "id": "tools",
       "name": "Tools",
-      "pages": []
+      "pages": [
+        "tools.report"
+      ]
     },
     {
       "id": "settings",
       "name": "Settings",
       "pages": [
         "settings.developer"
+      ],
+      "foot": true
+    },
+    {
+      "id": "docs",
+      "name": "Docs",
+      "pages": [
+        "docs"
       ],
       "foot": true
     },
@@ -862,6 +872,109 @@
           ]
         }
       ]
+    },
+    {
+      "id": "tools.report",
+      "category": "tools",
+      "name": "Bug report",
+      "description": "What a bug report would hold: your own words, EldenNet's versions and state, and its recent log.",
+      "help": {
+        "purpose": "See everything a bug report would hold before you share one.",
+        "steps": [
+          "Under What happened, write what you did, what you expected and what happened instead.",
+          "Press Add to the report: your words join the preview below, kept only until the game closes.",
+          "Read the preview: it shows every field the report would hold, as it would be shared.",
+          "Switch off a part you would rather leave out.",
+          "This version shows the report only: copying or saving it comes later."
+        ]
+      },
+      "related": [
+        "system.logs",
+        "docs"
+      ],
+      "increment": "0.2",
+      "sections": [
+        {
+          "id": "happened",
+          "title": "What happened",
+          "description": "In your own words. Leave out personal details: your name, your accounts and where you live.",
+          "blocks": [
+            {
+              "kind": "form",
+              "command": "report.build",
+              "fields": [
+                {
+                  "id": "what",
+                  "label": "What happened",
+                  "max": 2000,
+                  "prose": true
+                }
+              ],
+              "submit": "Add to the report"
+            }
+          ]
+        },
+        {
+          "id": "preview",
+          "title": "The report",
+          "description": "Every field the report would hold, as it would be shared. Switch off a part to leave it out.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "report_preview",
+              "topic": "report",
+              "command": "report.part"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "docs",
+      "category": "docs",
+      "name": "Docs",
+      "description": "EldenNet's own guides, bundled with it: getting started, privacy, spoilers, keys, troubleshooting and more.",
+      "help": {
+        "purpose": "Read EldenNet's own guides here, with nothing fetched from anywhere.",
+        "steps": [
+          "Choose a document in the list, or find one by its title or a heading.",
+          "Follow a link to another document, or to one of its headings.",
+          "Return to the list with Esc or the left arrow."
+        ]
+      },
+      "related": [
+        "home",
+        "tools.report"
+      ],
+      "increment": "0.2",
+      "master": {
+        "topic": "docs.list",
+        "key": "id",
+        "detail": "docs",
+        "label": "Documents",
+        "none": "Choose a document to read it.",
+        "filter_bar": {
+          "search": {
+            "columns": [
+              "title",
+              "headings"
+            ],
+            "label": "Find a document"
+          }
+        }
+      },
+      "sections": [
+        {
+          "id": "document",
+          "title": "Document",
+          "blocks": [
+            {
+              "kind": "document",
+              "topic": "docs"
+            }
+          ]
+        }
+      ]
     }
   ],
   "topics": [
@@ -975,6 +1088,19 @@
     {
       "id": "content",
       "shape": "state"
+    },
+    {
+      "id": "docs.list",
+      "shape": "state"
+    },
+    {
+      "id": "docs",
+      "shape": "state",
+      "family": true
+    },
+    {
+      "id": "report",
+      "shape": "state"
     }
   ],
   "commands": [
@@ -989,7 +1115,9 @@
     "profile.save",
     "profile.reset",
     "profile.restore",
-    "profile.draft"
+    "profile.draft",
+    "report.build",
+    "report.part"
   ],
   "slow_commands": [
     "profile.draft"

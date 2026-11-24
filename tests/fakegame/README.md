@@ -207,20 +207,24 @@ check puts it in the notice-only mode, and EldenNet's banner is a notice with no
 bar, the talk popup at frames 600 to 659) and the lifecycle raise Augur's events, and the view, opened at frame 720,
 lists them, the newest first, each line after a 6 by 6 square of its source's colour; two more probes count the world's
 green squares and the lifecycle's blue ones in the view's mark column (whole squares of 36 pixels, both colours there,
-at most the list's ten, none before F11 or after it again), and the DLL's log gives the events the view opened with
-and, every 10 s, how many there have been. `launcher-eldennet-graceui-pages` (S11.4.a): EldenNet's space registered at the connect (`pages=0`) and served, at the
-title screen (in the world the fake player reads as in danger, which keeps GraceUI's menu shut): `--press-keys` opens
-F5's menu on EldenNet's Home, goes to System › Status and Logs, follows Log detail's shortcut row to its home on
-Settings › Developer and changes it there (a command EldenNet answers, applied at once), goes on to Content packs at
-the rail's foot, and closes the menu; the report gives the page and the focus at each step. Meanwhile the case's
-`during` hook, a browser of the tests' own (`tests/pages/browser.py`) on Linux, joins GraceUI's server at the port the
-report names (a page load's cookie, a ticket, a WebSocket), reads each of EldenNet's topics (the lamp and Home's card,
-Problems, System's Health, parts and read groups, Compatibility, the logs stream from its first line, the settings,
-and Content packs': the shipped cast, an overrides folder of the case's own by relative paths, its disable.toml loaded
-and turning the test persona off and a folder nested too deep left out, and the start's load) and sends three
-commands: one accepted, one value refused, a page's reset refused without its confirmation. settings.toml then holds
-both changes, written once by T11. The banner path's case also checks that EldenNet's space is registered for the
-game's view alone there, so GraceUI's server does not start for it.
+at most the list's ten, none before F11 or after it again), and the DLL's log gives the events the view opened with and,
+every 10 s, how many there have been. `launcher-eldennet-graceui-pages` (S11.4.a): EldenNet's space registered at the
+connect (`pages=0`) and served, at the title screen (in the world the fake player reads as in danger, which keeps
+GraceUI's menu shut): `--press-keys` opens F5's menu on EldenNet's Home, goes to System › Status and Logs, follows Log
+detail's shortcut row to its home on Settings › Developer and changes it there (a command EldenNet answers, applied at
+once), goes back a page to Tools › Bug report, then on to Settings › Developer, Docs and Content packs at the rail's
+foot, and closes the menu; the report gives the page and the focus at each step. Meanwhile the case's `during` hook, a
+browser of the tests' own (`tests/pages/browser.py`) on Linux, joins GraceUI's server at the port the report names (a
+page load's cookie, a ticket, a WebSocket), reads each of EldenNet's topics (the lamp and Home's card, Problems,
+System's Health, parts and read groups, Compatibility, the logs stream from its first line, the settings; Content
+packs': the shipped cast, an overrides folder of the case's own by relative paths, its disable.toml loaded and turning
+the test persona off and a folder nested too deep left out, and the start's load; Docs' list of ten documents, About
+with the versions and the build's label filled in, and Troubleshooting whole; and Bug report's preview) and sends
+commands: one accepted, one value refused, a page's reset refused without its confirmation; Bug report's words of the
+case's own, which then lead its preview and are in no other topic's frame, no log or report line, no recording and no
+file of the run; and the log's part switched off, an always part's switch refused. settings.toml then holds both
+changes, written once by T11. The banner path's case also checks that EldenNet's space is registered for the game's view
+alone there, so GraceUI's server does not start for it.
 
 v0.1's coexistence check (S10.3.d) and the chat box's last parts against GraceUI's test build (S11.4.c) have four
 cases. `launcher-eldennet-graceui-second-copy` and `-second-copy-first`: a second copy of the same test build in
