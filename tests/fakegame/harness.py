@@ -3572,7 +3572,7 @@ def check_read(result, by_flag=False, events=False, marks=False):
     with open(table) as f:
         draft = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 18, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
+    need(d["report"] == "lodestar" and d["schema"] == 19, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
          failures)
     # Numbers and the catalogue's labels: no name of the fake game's, in either file.
     for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["SaveLedger", "FG::", "Imp", "task_loom", "Fg_"]:
@@ -4128,7 +4128,7 @@ def check_read_survey(result):
     need(code == 0, "lint --report lodestar-found.json: exit %s %s" % (code, out[-400:]), failures)
     with open(report) as f:
         d = json.load(f)
-    need(d["report"] == "lodestar" and d["schema"] == 18,
+    need(d["report"] == "lodestar" and d["schema"] == 19,
          "the report's kind: %s %s" % (d.get("report"), d.get("schema")), failures)
     need(all(k not in d for k in ("state", "pair", "chars", "parts")),
          "the survey's report holds an earlier round's section: %s" % sorted(d.keys()), failures)
@@ -4166,6 +4166,39 @@ def check_read_survey(result):
     need(world.get("lacks") == 0 and world.get("calls", 0) >= 30 and len(at) == 6 and at[1]["player"] and
          at[1]["has_hp"] and at[1]["near"] == 6 and world.get("near_chr") == world.get("near_read"),
          "the world reader beside the survey: %s" % world, failures)
+    # The nineteenth round: every other frame of that reader also reads the near characters' other fields through the
+    # layout. Six characters beside the player: each with a handle and an entity's id of its own, three teams of two,
+    # no kind's number of an id's size (the fake game's are small), one dead from the start and one more from the
+    # kill, all on screen but while the tester looks around; the player's own has a handle, no kind, and a team of
+    # its own.
+    wf = {k: world.get(k, -1) for k in (
+        "fields_bound", "fields_frames", "chr_self", "chr_object", "chr_handle", "chr_param", "chr_kin", "chr_entity",
+        "chr_dead", "chr_on_screen", "handles_shared", "objects_most", "handles_most", "kinds_most", "entities_most",
+        "teams_most", "team_group_most", "self_frames", "self_handle_frames", "self_param_frames", "self_dead_frames",
+        "self_team_alone_frames")}
+    by = [world.get(k) or [] for k in ("chr_object_by", "chr_dead_by", "chr_on_screen_by")]
+    need(wf["fields_bound"] == 127 and wf["fields_frames"] >= 12 and wf["fields_frames"] <= world.get("calls", 0) // 2 + 1
+         and wf["chr_self"] == 0 and wf["chr_object"] >= 60 and wf["chr_handle"] == wf["chr_object"] and
+         wf["chr_entity"] == wf["chr_object"] and wf["chr_param"] == 0 and wf["chr_kin"] == 0 and
+         wf["handles_shared"] == 0 and wf["objects_most"] == 6 and wf["handles_most"] == 6 and
+         wf["entities_most"] == 6 and wf["kinds_most"] == 0 and wf["teams_most"] == 3 and wf["team_group_most"] == 2,
+         "the reader on the near characters' fields: %s" % wf, failures)
+    need(wf["self_frames"] >= 12 and wf["self_handle_frames"] == wf["self_frames"] and wf["self_param_frames"] == 0 and
+         wf["self_dead_frames"] == 0 and wf["self_team_alone_frames"] == wf["self_frames"],
+         "the reader on the main player's own fields: %s" % wf, failures)
+    need(all(len(b) == 6 for b in by) and sum(by[0]) == wf["chr_object"] and sum(by[1]) == wf["chr_dead"] and
+         sum(by[2]) == wf["chr_on_screen"] and by[0][1] >= 6 and by[1][1] * 6 == by[0][1] and
+         by[1][4] > by[0][4] // 6 and by[2][1] == by[0][1] and 0 < by[2][2] < by[0][2],
+         "the fields by the tester's marks (objects, dead, on screen): %s" % by, failures)
+    # The survey's checks of the open places: the round's twenty, each counted (the places are the game's, so in the
+    # fake game they only have to be read and told).
+    checks = s.get("checks") or []
+    need(len(checks) == 20 and checks[0]["check"] == "is" and checks[0]["a"] == 0x68 and checks[0]["b"] == 0 and
+         checks[1]["b"] == 5 and checks[-1]["check"] == "bits_equal" and
+         {c["check"] for c in checks} == {"is", "equal", "with_player", "block", "bits_equal", "changed"} and
+         all(c["holds_for"] <= c["of"] and c["player_holds"] <= c["player_of"] for c in checks) and
+         any(c["of"] > 0 and c["player_of"] > 0 for c in checks),
+         "the survey's checks: %s" % checks[:4], failures)
     failures += any_line(result, "ELDENNET", "connect", skipped=1, why="read_round")
     failures += check_lines(("ELDENNET", "init", {"state": "ready"}), ("LAUNCHER", "end", {"kind": "clean"}))(result)
     return failures + ready_no_call(result) + en_log_is_clean(result)

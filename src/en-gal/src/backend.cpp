@@ -962,7 +962,7 @@ ErBackend::FlagsAlone ErBackend::flags_alone(const GameThread& gt, proto::WorldS
   return done;
 }
 
-ErBackend::WorldAlone ErBackend::world_alone(const GameThread& gt) {
+ErBackend::WorldAlone ErBackend::world_alone(const GameThread& gt, bool fields) {
   WorldAlone done;
   // What the layout binds, part by part: a part with a lead missing is not read at all.
   const FieldLayout* slot_field = b_.field(Fld::SaveSlot);
@@ -982,8 +982,27 @@ ErBackend::WorldAlone ErBackend::world_alone(const GameThread& gt) {
                          b_.size_of(Cls::Motion) != 0 && b_.field(Fld::Pos) != nullptr;
   const bool has_near = has_chars && list_field != nullptr && stride >= 8 && b_.field(Fld::NearChr) != nullptr &&
                         b_.field(Fld::NearDistance) != nullptr && !d_.vtables(Cls::Character).empty();
+  // A character's other fields: each one the layout binds is read, and the others are left alone.
+  const FieldLayout* const handle_field = b_.field(Fld::ChrHandle);
+  const FieldLayout* const param_field = b_.field(Fld::ChrParam);
+  const FieldLayout* const model_field = b_.field(Fld::ChrModel);
+  const FieldLayout* const entity_field = b_.field(Fld::ChrEntity);
+  const FieldLayout* const team_field = b_.field(Fld::ChrTeam);
+  const FieldLayout* const dead_field = b_.field(Fld::ChrDead);
+  const FieldLayout* const screen_field = b_.field(Fld::ChrOnScreen);
+  if (b_.size_of(Cls::Character) != 0) {
+    done.fields_bound = (handle_field != nullptr ? WorldAlone::kHandle : 0u) |
+                        (param_field != nullptr ? WorldAlone::kParam : 0u) |
+                        (model_field != nullptr ? WorldAlone::kModel : 0u) |
+                        (entity_field != nullptr ? WorldAlone::kEntity : 0u) |
+                        (team_field != nullptr ? WorldAlone::kTeam : 0u) |
+                        (dead_field != nullptr ? WorldAlone::kDead : 0u) |
+                        (screen_field != nullptr ? WorldAlone::kOnScreen : 0u);
+  }
+  done.fields = fields && done.fields_bound != 0;
   done.lacks = (has_slot ? 0u : WorldAlone::kSlot) | (has_player ? 0u : WorldAlone::kPlayer) |
-               (has_parts ? 0u : WorldAlone::kParts) | (has_near ? 0u : WorldAlone::kNear);
+               (has_parts ? 0u : WorldAlone::kParts) | (has_near ? 0u : WorldAlone::kNear) |
+               (done.fields_bound != 0 ? 0u : WorldAlone::kFields);
   if (inert_ || (!has_slot && !has_player && !has_near)) return done;
   reader_.begin_tick();
   book_.begin_tick();
@@ -1007,14 +1026,23 @@ ErBackend::WorldAlone ErBackend::world_alone(const GameThread& gt) {
   const auto chars = item_object(gt, Group::World, Item::Characters, false);
   if (!chars) return done;
   done.characters = true;
+  std::uint64_t main = 0;
+  std::optional<std::int64_t> self_team;
   if (has_player) {
-    const std::uint64_t main = chars->ptr(main_field).value_or(0);
+    main = chars->ptr(main_field).value_or(0);
     // The class by the object's first word, one read.
     const auto first = first_word(main);
     done.player = first && player_set.contains(*first);
-    if (done.player && has_parts) {
+    if (done.player && (has_parts || done.fields)) {
       const auto chr = object(gt, Group::World, Cls::Character, main, kPlayer, nullptr, false);
-      const auto parts_addr = chr ? chr->ptr(b_.field(Fld::ChrParts)) : std::nullopt;
+      if (chr && done.fields) {
+        done.self_object = true;
+        done.self_handle = chr->u64(handle_field).value_or(0) != 0;
+        done.self_param = chr->integer(param_field).value_or(0) != 0;
+        done.self_dead = chr->bit(dead_field).value_or(false);
+        self_team = chr->integer(team_field);
+      }
+      const auto parts_addr = chr && has_parts ? chr->ptr(b_.field(Fld::ChrParts)) : std::nullopt;
       const auto parts = parts_addr && *parts_addr != 0
                              ? object(gt, Group::World, Cls::Parts, *parts_addr, kParts, nullptr, false)
                              : std::nullopt;
@@ -1052,12 +1080,16 @@ ErBackend::WorldAlone ErBackend::world_alone(const GameThread& gt) {
         const std::span<std::byte> list = scratch_->list().first(bytes);
         if (reader_.copy_into(gt, Group::World, *begin, list, 8)) {
           float last = -1.0f;
+          // What the fields' counts need of each character, for this call only: nothing of it leaves the function.
+          std::array<std::uint64_t, kWalkEntries> handles{}, params{}, entities{}, teams{};
+          std::size_t handle_n = 0, param_n = 0, entity_n = 0, team_n = 0;
           for (std::uint32_t k = 0; k < count && !reader_.spent(); ++k) {
             const ObjView entry(list.subspan(std::size_t{k} * stride, stride));
             ++done.near_read;
             const std::uint64_t chr = entry.ptr(b_.field(Fld::NearChr)).value_or(0);
             const auto first = first_word(chr);
-            if (first && d_.vtables(Cls::Character).contains(*first)) ++done.near_chr;
+            const bool is_chr = first && d_.vtables(Cls::Character).contains(*first);
+            if (is_chr) ++done.near_chr;
             // The distance, element by element: an element that holds no plain fraction is counted out, no more.
             const auto dist = entry.f32(b_.field(Fld::NearDistance));
             if (dist && std::isfinite(*dist) && *dist >= 0.0f && *dist <= 1.0e6f) {
@@ -1065,6 +1097,54 @@ ErBackend::WorldAlone ErBackend::world_alone(const GameThread& gt) {
               if (*dist >= last) ++done.near_rising;
               last = *dist;
             }
+            if (!is_chr || !done.fields) continue;
+            if (chr == main) {
+              ++done.near_self;
+              continue;
+            }
+            const auto c = object(gt, Group::World, Cls::Character, chr, kChr, nullptr, false);
+            if (!c) continue;
+            ++done.near_object;
+            if (const auto h = c->u64(handle_field); h && *h != 0) {
+              ++done.near_handle;
+              handles[handle_n++] = *h;
+            }
+            const auto param = c->integer(param_field);
+            if (param && *param >= 10'000'000 && *param < 0x8000'0000LL) {
+              ++done.near_param;
+              params[param_n++] = static_cast<std::uint64_t>(*param);
+              if (const auto model = c->integer(model_field); model && *model == *param / 10'000) ++done.near_kin;
+            }
+            if (const auto e = c->integer(entity_field); e && *e != 0) {
+              ++done.near_entity;
+              entities[entity_n++] = static_cast<std::uint64_t>(*e);
+            }
+            if (const auto t = c->integer(team_field)) teams[team_n++] = static_cast<std::uint64_t>(*t);
+            done.near_dead += c->bit(dead_field).value_or(false) ? 1 : 0;
+            done.near_on_screen += c->bit(screen_field).value_or(false) ? 1 : 0;
+          }
+          // How many different ones, and the largest group of one value.
+          const auto different = [](std::array<std::uint64_t, kWalkEntries>& v, std::size_t n, std::uint32_t* most) {
+            std::sort(v.begin(), v.begin() + static_cast<std::ptrdiff_t>(n));
+            std::uint32_t distinct = 0, run = 0;
+            for (std::size_t i = 0; i < n; ++i) {
+              run = i != 0 && v[i] == v[i - 1] ? run + 1 : 1;
+              distinct += run == 1 ? 1 : 0;
+              if (most != nullptr) *most = std::max(*most, run);
+            }
+            return distinct;
+          };
+          if (done.fields) {
+            if (self_team) {
+              done.self_team_alone = true;
+              for (std::size_t i = 0; i < team_n; ++i) {
+                if (teams[i] == static_cast<std::uint64_t>(*self_team)) done.self_team_alone = false;
+              }
+            }
+            done.near_handles = different(handles, handle_n, nullptr);
+            done.near_kinds = different(params, param_n, nullptr);
+            done.near_entities = different(entities, entity_n, nullptr);
+            done.near_teams = different(teams, team_n, &done.near_team_most);
           }
         }
       }

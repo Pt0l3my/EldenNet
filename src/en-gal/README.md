@@ -377,7 +377,15 @@ of any game is in it, and every name it looks for comes from a leads file.
   element's distance is judged by itself. The round calls it once a second and reports counts, whether the
   position moved from one frame to the next by the tester's marks, and, as the first frame after each mark read
   them, the slot, the health and its maximum (`WorldRead`; numbers of the tester's character, written with the
-  owner's word of 2026-11-24; the position never is). The parts watch now starts at the second world's mark from
+  owner's word of 2026-11-24; the position never is). With `fields` (the nineteenth round; every other call in the
+  survey's plan) it also copies each near character that is not the main player at the layout's size and reads the
+  seven other fields the layout may bind (handle, npc_param_id, model, entity_id, team, dead, on_screen), each
+  only where it is bound (`fields_bound`; `lacks` has `kFields` where none is): it counts how many have a handle
+  and how many different ones, kinds of an id's size and how many different, kinds whose number over 10,000 is
+  the model's, entity ids, teams and the largest group of one, the dead and the on-screen, and says of the main
+  player whether it has a handle, a kind, the dead bit, and a team of its own. `WorldRead` sums them over the
+  frames, keeps the most a frame had, and counts objects, dead and on-screen by the tester's marks, so that they
+  can be held against the survey of the same run; no value is kept. The parts watch now starts at the second world's mark from
   the layout's `character.parts`, and runs before the character search's look. `CharSurvey`
   (lodestar_survey.cpp, `SurveyFound`; the eighteenth round, the owner's O117) is the search for a character's other
   fields: every two seconds it reads the main player and the near list's first 48 characters for the first 0x800
@@ -388,7 +396,11 @@ of any game is in it, and every name it looks for comes from a leads file.
   alone), the eight-byte fields that differ in every character and are no addresses (a handle), the pairs in
   which one field is another divided by 10,000, the bits that flipped as a character's health went to nothing
   (each checked against every later sighting of a living or a dead character), and the bits that flipped while
-  the tester looked around and not while they stood. No value is reported. An eight-byte word counts as an
+  the tester looked around and not while they stood. The round may give it checks of its own
+  (`Options::checks`, `SurveyCheck`, 32 at most; the nineteenth round's twenty are the eighteenth's open
+  candidates): a number that is a given one, two numbers the same, a number the same as the main player's in the
+  pass, a number shaped as a block's id, two bits alike, a number changed since the sighting before; each counted
+  over the sightings, for the main player and the others apart. No value is reported. An eight-byte word counts as an
   address only if it lies in the image or near where the game's objects were met: two neighbouring numbers read
   as one word often look like one by their size. The round runs it under plan 1 (the watch block's `probe_plan`,
   the launcher's `--read-plan`), which has none of the searches of the rounds up to the seventeenth.
