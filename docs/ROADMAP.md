@@ -1273,7 +1273,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     for the count of deaths and the level, the main player's block at a crossing and its own death, the clock and the
     play time through the reader; the launcher's panel says what each task gathered. Engine's review asked for a text
     test that holds in every script; any 16-bit unit from U+0020 is now a letter. Package 0.1.0-lodestar.26, README
-    read by Engine. Awaiting the owner's run.
+    read by Engine.
+    The twentieth round ran twice and lost its report to the 256 KiB limit after the first mark (WHY§630, §631); the
+    read round's report may be 1 MiB now (the owner's word, O126; WHY§632), the round says when it cannot write, and the
+    case runs at the game's sizes (engine 033adec, merged at 3d90fe8; package 0.1.0-lodestar.27, README read by
+    Engine). Awaiting the owner's third run.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1792,8 +1796,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     `"prose": true`; `report_preview` sending the space's command for a part's switch. EldenNet's Docs and Bug report
     drop their stand-ins with its next pin, which takes 0.2.41 to 0.2.44 together. Done the same day (engine
     0538221; S11.4.a).
-- bh Quick switches and live updates, then a space's scope and paged tables (GraceUI's proposal 0014, G45 (a)) [active]
-  - refs: G45, GraceUI:D252, PAGES§4.6.1, PAGES§4.6.4, PAGES§4.9
+- bh Quick switches and live updates, then a space's scope and paged tables (GraceUI's proposal 0014, G45 (a)) [done]
+  - refs: G45, GraceUI:D252, GraceUI:D254, PAGES§4.6.1, PAGES§4.6.4, PAGES§4.9
   - gives: decided by the owner on 2026-11-24 (G45 (a), "All four, in two steps (Recommended)"): quick switches (a
     setting's shortcut or a session switch with its state) and live updates (Live, every 5 s, Paused) first, as
     protocol 1.13, for EldenNet 0.2's Home, Requests and Pause AI; then a space's scope (the Journey) and paged tables,
@@ -1808,6 +1812,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     `status.ai_paused`. Step two (the scope and paged tables, protocol 1.14) takes Engine's answers.
     GraceUI 0.2.46 the same day (D253, feat/foundations fe7d9db, its run in b83ec41): fixes from EldenNet's 0.2.44 pin,
     a document's member watched in game, so Docs shows, and a preview's fields wrapped with their line breaks kept.
+    Step two the same day as GraceUI 0.2.47 (D254, protocol 1.14, feat/foundations 7e076dd; GraceUI's
+    docs/eldennet-changes.md §80), in the formats Engine gave: the Journey as a space's scope on its own `journeys`
+    topic, scoped pages reading a family member per journey, a read-only journey greying the page, and tables and
+    master lists read a page at a time (filters, sort, search and scope sent; Show more; New rows). For EldenNet 0.3's
+    History, Playthrough and Named NPCs.
 
 ### S11.3 EldenNet v0.2
 
