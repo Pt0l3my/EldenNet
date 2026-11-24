@@ -75,13 +75,18 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    as leads: `[item.game_state]`, `game_state.save_slot` (far), `character.parts` 0x190, `character_parts.vitals`
    0x0 and `.motion` 0x68, `vitals.hp` 0x138 and `.max_hp` 0x13C, `motion.pos` 0x70. The game's exit code at the
    quit is the game's own on the owner's PC (WHY§557 to §562); the launcher keeps it quietly (O115).
-   **The seventeenth round is built** (package 0.1.0-lodestar.21, engine 1a262a7; the record's "What was changed
-   for the seventeenth round"): `ErBackend::world_alone` reads the slot, the main player, health, position and the
-   near list through the layout once a second; the report (schema 17) holds the slot, the health and its maximum
-   as read after each mark (the owner agreed on 2026-11-24, O116) and never the position. Engine read the README
-   and reviewed the entry (no change), and the package went to the owner on 2026-11-24. When its files come back: `world.lacks` 0; `at_marks` 1: slot 6, 2: not loaded,
-   3: slot 2 with health at or under its maximum, 7: lower, 8: back up; `pos_moved_by[4]` high and `[3]`, `[5]`
-   zero; `near_distance` against `near_read`; and the owner's maximum HP from the status screen against `max_hp`.
+   **The seventeenth round is reviewed (the record's "The seventeenth round in game"): EldenNet's own reader read
+   the world's leads right.** Through `ErBackend::world_alone` and the build's layout, 323 frames, no fault: the
+   slot 6 then 2 (it keeps its number at the title: the main player's presence tells the title, the slot does
+   not); the player's class at the main player's word; the health under its maximum after the hit and equal to
+   it after the heal; the position moving with the walk alone; the near list sorted by distance, a character in
+   every element, 8 of 12,720 elements without a distance yet. The game's state's item passed the table's checks
+   in the game. Open: the owner's check of the maximum HP against the status screen (asked twice).
+   **Next (WHY§460's order, and what a ready start still lacks)**: the rest of the character's fields the world's
+   and the player's groups need (handle, the ids, team, the dead and on-screen bits, the block), the save data's
+   deaths and the sheet's level and name, the place (field_area), the menus' screen and the session. The
+   executable chooses what each round checks; the reader then reads it, as in this round. Engine is changing
+   `read_world()` to walk the first 48 of a longer near list.
    **What the plan for it was:** A backend entry that reads the world's
    group alone (as `flags_alone` does the flags; `ErBackend` is Engine's to hear of first), so that a round reads
    through the layout: the game's state's slot, the main player, its parts, health and position, and the near
