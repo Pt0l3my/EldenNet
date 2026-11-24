@@ -14,6 +14,7 @@
 #include "en/gal/builds.hpp"
 #include "en/gal/derive.hpp"
 #include "en/gal/lodestar.hpp"
+#include "en/gal/lodestar_trial.hpp"
 #include "en/gal/pe.hpp"
 #include "en/gal/recipes.hpp"
 #include "en/gal/report.hpp"
@@ -326,13 +327,45 @@ TEST_CASE("the report is numbers, words and labels: it lints clean, and its voca
   }
   CHECK(linted.has_value());
   CHECK(text->find("\"report\": \"lodestar\"") != std::string::npos);
-  CHECK(text->find("\"schema\": 20") != std::string::npos);
+  CHECK(text->find("\"schema\": 21") != std::string::npos);
   CHECK(text->size() < report::kMaxReportBytes);
+  // The read round's report may be up to 1 MiB (the owner's word, 2026-11-24): with the sheet scan's numbers at
+  // their most, two objects of 2,048 each and every number as long as it can be, it is far past 256 KiB, is
+  // written, and lints. (The twentieth round's two runs in the game lost their report to the smaller limit.)
+  {
+    lodestar::Found big = r.found;
+    lodestar::SheetFound sheet;
+    sheet.phase_passes.assign(lodestar::SheetScan::kPhases, 7);
+    for (std::uint32_t which = 0; which < 2; ++which) {
+      lodestar::SheetObject o;
+      o.which = which;
+      o.there = true;
+      o.bytes = lodestar::SheetScan::kSpan;
+      o.fields_total = 16000;
+      for (std::uint32_t i = 0; i < lodestar::SheetScan::kListed; ++i) {
+        o.fields.push_back(lodestar::SheetField{0xF000 + i * 4, lodestar::SheetScan::kMost,
+                                                lodestar::SheetScan::kMost, 8, 63});
+      }
+      for (std::uint32_t i = 0; i < lodestar::SheetScan::kListedTexts; ++i) {
+        o.texts.push_back(lodestar::SheetText{0xF000 + i * 64, 9});
+      }
+      sheet.objects.push_back(std::move(o));
+    }
+    big.sheet = std::move(sheet);
+    const auto wide = lodestar::write_report(big);
+    if (!wide.has_value()) MESSAGE(report::describe(wide.error()));
+    REQUIRE(wide.has_value());
+    CHECK(wide->size() > report::kMaxReportBytes);
+    // Room for the rest of a round at its largest so far (the nineteenth's report was 249 KB).
+    CHECK(wide->size() + (250u << 10) < lodestar::vocabulary().max_bytes);
+    CHECK(report::lint(*wide, known).has_value());
+    CHECK(lodestar::vocabulary().max_bytes == report::kMaxLargeReportBytes);
+  }
   // Schema 2's promise: no key can carry a pattern (bytes) or a fraction; what is left is whole numbers, booleans,
   // fixed words, labels, and objects and arrays of those.
   const report::Vocabulary& v = lodestar::vocabulary();
   CHECK(v.kind == "lodestar");
-  CHECK(v.schema == 20);
+  CHECK(v.schema == 21);
   for (const report::Key& k : v.keys) {
     CAPTURE(k.name);
     CHECK(k.type != report::Type::Pattern);

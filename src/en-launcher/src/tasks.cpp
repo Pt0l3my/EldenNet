@@ -121,7 +121,11 @@ std::string gathered_text(const TaskRow& row) {
   return {};
 }
 
-std::string gathered_footer(const std::vector<TaskRow>& rows) {
+std::string gathered_footer(const std::vector<TaskRow>& rows, bool report_failed) {
+  if (report_failed) {
+    return "The round cannot write its report: the files will not hold this run. Finish or quit as you like, send "
+           "the two logs, and tell us.";
+  }
   std::vector<std::size_t> missed;
   std::size_t judged = 0;
   for (std::size_t i = 0; i < rows.size(); ++i) {

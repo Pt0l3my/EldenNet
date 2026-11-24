@@ -402,7 +402,10 @@ of any game is in it, and every name it looks for comes from a leads file.
   where such a run lies is told, for a name lies in the sheet and is never written. The price is a number right
   after a fraction, an id or a text, and numbers of two million or more; a text of one letter cannot be told
   from a small number, which the round's README says. A pass that reads less than an earlier one changes nothing of
-  what was told. The numbers are the tester's own character's, written with the owner's word and kept between
+  what was told. The read round's report may be up to 1 MiB for these numbers (a kind of report may say a limit
+  of its own, `Vocabulary::max_bytes`, 256 KiB where it says none; the twentieth round's first two runs in the game
+  lost their report to the smaller limit, which the scan passed with some 1,500 numbers an object), and the round
+  shortens the longer list from its far end as a last resort (`numbers_cut`) rather than write nothing. The numbers are the tester's own character's, written with the owner's word and kept between
   the owner and the reviewer. The parts watch now starts at the second world's mark from
   the layout's `character.parts`, and runs before the character search's look. `CharSurvey`
   (lodestar_survey.cpp, `SurveyFound`; the eighteenth round, the owner's O117) is the search for a character's other

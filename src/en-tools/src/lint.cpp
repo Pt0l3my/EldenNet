@@ -211,10 +211,11 @@ int run_lint(int argc, char** argv) {
     return 2;
   }
   const std::uintmax_t size = std::filesystem::file_size(path, ec);
-  if (ec || size > (recording ? kMaxRecordingBytes : en::gal::report::kMaxReportBytes)) {
+  // A report is read up to the most any kind allows; its own kind's limit is the lint's to check.
+  if (ec || size > (recording ? kMaxRecordingBytes : en::gal::report::kMaxLargeReportBytes)) {
     std::fputs(ec           ? "lint: the report cannot be read\n"
                : recording ? "lint: the recording is larger than 512 MiB\n"
-                           : "lint: the report is larger than 256 KiB\n",
+                           : "lint: the report is larger than 1 MiB\n",
                stderr);
     return 2;
   }

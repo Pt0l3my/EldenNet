@@ -299,6 +299,7 @@ bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
     else if (n == L"--kill-at-s") ok = p.number(o.kill_at_s);
     else if (n == L"--block-at-s") ok = p.number(o.block_at_s);
     else if (n == L"--die-at-s") ok = p.number(o.die_at_s);
+    else if (n == L"--wide-sheet") o.wide_sheet = true;
     else if (n == L"--retitle-at-s") ok = p.number(o.retitle_at_s);
     else if (n == L"--retitle-for-s") ok = p.number(o.retitle_for_s);
     else if (n == L"--day-book") o.day_book = true;
@@ -537,7 +538,7 @@ namespace {
 void print_usage() {
   static const char* const kUsage[] = {
       "usage: fakegame [options]   (README.md describes each)",
-      "  --frames N  --forever  --fps N  --no-window  --boot-delay-ms N  --statics-delay-ms N  --field-mirror  --pass-time  --flag-set  --clock-rate N  --day-book  --slot-by-state  --slot-copy  --screen-from-s N  --screen-to-s N  --kill-at-s N  --block-at-s N  --die-at-s N  --first-slot N  --retitle-at-s N  --retitle-for-s N",
+      "  --frames N  --forever  --fps N  --no-window  --boot-delay-ms N  --statics-delay-ms N  --field-mirror  --pass-time  --flag-set  --clock-rate N  --day-book  --slot-by-state  --slot-copy  --screen-from-s N  --screen-to-s N  --kill-at-s N  --block-at-s N  --die-at-s N  --wide-sheet  --first-slot N  --retitle-at-s N  --retitle-for-s N",
       "  --walk-from-s N  --walk-to-s N  --hit-at-s N  --heal-at-s N",
       "  --title-frames N  --load-frames N  --stay-title  --reload-every N  --actors N  --online  --online-at F",
       "  --hitch-every N  --hitch-ms M  --stall-at F  --stall-ms M  --move-every N  --move-mode poison|free|keep",

@@ -710,7 +710,7 @@ class CharSurvey {
 class SheetScan {
  public:
   static constexpr std::uint32_t kSpan = 0x10000, kPiece = 0x4000;
-  static constexpr std::size_t kObjects = 2, kListed = 1024, kListedTexts = 32;
+  static constexpr std::size_t kObjects = 2, kListed = 2048, kListedTexts = 32;
   static constexpr std::uint32_t kPhases = 6;
   static constexpr std::uint32_t kMaxChanges = 8;        // a number that changed in more passes is not listed
   static constexpr std::uint32_t kMost = 99'999'999;     // a number above it is not told (nor is nothing)

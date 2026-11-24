@@ -967,7 +967,7 @@ constexpr auto kKeys = std::to_array<Key>({
     // written with the owner's word (O122); no key holds a text, and a run that reads as one is told by its place.
     O("sheet"), B("sheet_classed"), B("sheet_is_first"), B("sheet_is_second"), AO("sheets"), W("sheet_of", kSheetOf),
     U("text_fields"), U("address_fields"), U("restless"), AO("numbers"), U("last"), U("changes"), U("phases"),
-    AO("text_runs"), U("run_fields"),
+    AO("text_runs"), U("run_fields"), B("numbers_cut"),
     // The character survey (in game): behaviour only, no value of any character.
     O("survey"), U("tracked"), U("most_listed"), U("deaths"), U("fields_total"), AO("survey_fields"), U("seen"),
     U("changed_for"), U("most"), U("zeros"), U("small"), U("block_like"), U("id_like"), B("player_alone"),
@@ -977,7 +977,7 @@ constexpr auto kKeys = std::to_array<Key>({
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 20, kKeys};
+constexpr report::Vocabulary kVocabulary{"lodestar", 21, kKeys, report::kMaxLargeReportBytes};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -1999,6 +1999,7 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.number("text_fields", o.text_fields);
       w.number("address_fields", o.address_fields);
       w.number("restless", o.restless);
+      w.boolean("numbers_cut", o.cut);
       w.begin_array("numbers");
       for (const SheetField& r : o.fields) {
         w.begin_object();

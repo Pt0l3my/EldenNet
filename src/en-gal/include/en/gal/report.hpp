@@ -33,10 +33,16 @@ struct Key {
   std::span<const std::string_view> words{};
 };
 
+inline constexpr std::size_t kMaxReportBytes = 256u << 10;       // a report, unless its kind says otherwise
+// The most any kind may say. The read round's report says it (the owner's word, 2026-11-24: "you can increase that
+// size limit a lot probably", after two runs whose report could not be written for the sheet scan's numbers).
+inline constexpr std::size_t kMaxLargeReportBytes = 1u << 20;
+
 struct Vocabulary {
   std::string_view kind;  // the value of the report's "report" key
   std::uint32_t schema = 1;
   std::span<const Key> keys;
+  std::size_t max_bytes = kMaxReportBytes;  // a report of this kind is no larger (kMaxLargeReportBytes at most)
 
   [[nodiscard]] const Key* find(std::string_view name) const noexcept;
 };
@@ -46,7 +52,6 @@ inline constexpr std::size_t kMaxPatterns = 64;      // patterns in one report
 inline constexpr std::size_t kMaxLabelBytes = 48;
 inline constexpr std::size_t kMaxArrayItems = 4096;
 inline constexpr std::size_t kMaxDepth = 16;  // objects and arrays nested
-inline constexpr std::size_t kMaxReportBytes = 256u << 10;
 
 // A label: [a-z][a-z0-9_]* of at most 48 bytes.
 [[nodiscard]] bool is_label(std::string_view s) noexcept;
