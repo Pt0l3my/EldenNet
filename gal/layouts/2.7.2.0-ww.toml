@@ -52,6 +52,19 @@
 #   seconds and in none of the 107 standing ones; and the near list's first 48 elements held a character every
 #   time, with a distance that never fell along the list in all but 8 of 12,720 elements read. Still leads: the
 #   owner's own check of the numbers against the screen, S0-A and the self-tests confirm.
+# - a character's other fields (the eighteenth read-only round, twice, 2026-11-24: the character survey, by how
+#   numbers stand among the 49 characters of a pass and over the session; no value was reported). The handle: the
+#   eight bytes 0x8 in, different in every character and never changing, their upper half shaped as a map's id. The
+#   kind's number 0x60 in: 26 values among 48 characters, the largest group 11, the main player's alone; and the
+#   model's 0x64 in, which is the kind's number divided by 10,000 in 47 of the 48. The entity's id 0x1E8 in: an
+#   id-sized number in 35 characters, each its own, and nothing in the other 14. The team 0x6C in: a small number, 10
+#   values among the 48, the largest group 32. The on-screen bit: bit 4 of the byte 0x1C4 in, which flipped 80 and
+#   101 times while the owner looked around and 4 and 0 times while they stood. The dead bit: bit 0 of the byte 0x1C6
+#   in, set as a character's health went to nothing, clear in every one of 328 and 290 sightings of the living and
+#   set in all 14 of the dead; bit 1 of that byte did the same in both runs, and bit 4 of 0x53B in the second, so
+#   one death in each run does not tell them apart. Left out, for two candidates each: the type (a small number the
+#   same in nearly all, 0x40 or 0x68 in) and the block (0x70 in, or the handle's upper half; 0x38 in changes as a
+#   character moves). All leads, by behaviour alone.
 # The other classes, fields, enums, params and self-test ids are later rounds' to find, and are left out. A release
 # build refuses this file (every entry a lead).
 schema = 2
@@ -229,10 +242,17 @@ status = "lead"
 save_slot = { off = 0xAC0, ty = "i32", far = true, group = "player" }
 
 [class.character]
-copy_size = 0x198
+copy_size = 0x1F0
 status = "lead"
 [class.character.fields]
+handle = { off = 0x8, ty = "handle", group = "world" }
+npc_param_id = { off = 0x60, ty = "u32", group = "world" }
+model = { off = 0x64, ty = "u32", group = "world" }
+team = { off = 0x6C, ty = "u8", group = "world" }
 parts = { off = 0x190, ty = "ptr", group = "world" }
+on_screen = { off = 0x1C4, ty = "bit", bit = 4, group = "world" }
+dead = { off = 0x1C6, ty = "bit", bit = 0, group = "world" }
+entity_id = { off = 0x1E8, ty = "u32", group = "world" }
 
 [class.character_parts]
 copy_size = 0x70
