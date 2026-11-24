@@ -645,6 +645,13 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 620 | 2026-11-24 | Docs' documents are converted at build time, the output committed and checked | DECIDED | #docs #pages |
 | 621 | 2026-11-24 | GraceUI 0.2.44's menu never watches a document block's member | FACT | #graceui #docs |
 | 622 | 2026-11-24 | A command's wait for its result can pass over a state frame the case then waits for | FACT | #fakegame #pages |
+| 623 | 2026-11-24 | Numbers of an object nobody has mapped are told by a scan of every 32-bit field, named afterwards by the tester's screens | METHOD | #lodestar #l6 |
+| 624 | 2026-11-24 | The launcher's panel tells, task by task, whether the round read what the task was for | METHOD | #lodestar #launcher |
+| 625 | 2026-11-24 | The parts watch starts over when the main player's object changes, as a death makes a new one in the fake game | FACT | #lodestar #tests |
+| 626 | 2026-11-24 | To keep a text out of a scan of numbers, every 16-bit unit from U+0020 up is a letter | METHOD | #lodestar #privacy |
+| 627 | 2026-11-24 | The model calls' record holds only what the DLL sends, the client's events and the commits on display | DECIDED | #engine #pages #privacy |
+| 628 | 2026-11-24 | Pause AI for this session is a core input, not the handle's gate | DECIDED | #engine |
+| 629 | 2026-11-24 | A reply's cost is kept only where the provider reports it | LIKELY | #engine #llm |
 
 ## Entries
 
@@ -9207,3 +9214,60 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   published before the third command's result, and the wait for a result consumes every other frame, so the state wait
   timed out. Reading the newest state seen of a watched topic, or the next, has no such race; the case uses it since.
   The fake game's AI case also checks the page data's protocol minor, so a pin that moves it moves that check too.
+
+### 623. Numbers of an object nobody has mapped are told by a scan of every 32-bit field, named afterwards by the tester's screens
+
+`2026-11-24` · METHOD · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the twentieth round"), engine a9d0649
+
+- The twentieth round's sheet scan keeps, for every 32-bit field of the save data's object and the character's sheet,
+  its first and last reading, its changes and the tester's phases they fell in (O121, O122); the owner's own screens,
+  shared in chat, name the fields afterwards. What reads as text is never told, only where it lies.
+
+### 624. The launcher's panel tells, task by task, whether the round read what the task was for
+
+`2026-11-24` · METHOD · `#lodestar` `#launcher` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the twentieth round"), the owner's words of 2026-11-24, engine 1ca93fd
+
+- Two bits a task in the watch block (version 3, probe_gathered) carry the round's own verdict; the panel shows "got
+  it" or "not gathered" under each finished task and, at the end, whether the run is usable. A verdict is the round's
+  reading, so "not gathered" may be the round's own fault, and the panel says to send the files all the same.
+
+### 625. The parts watch starts over when the main player's object changes, as a death makes a new one in the fake game
+
+`2026-11-24` · FACT · `#lodestar` `#tests` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the twentieth round")
+
+- A watch that must remember a phase before a death has to end before it; in the twentieth round's plan it runs from
+  the first mark to the ride's end. If the real game keeps the player's object through a death, nothing is lost.
+
+### 626. To keep a text out of a scan of numbers, every 16-bit unit from U+0020 up is a letter
+
+`2026-11-24` · METHOD · `#lodestar` `#privacy` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the twentieth round"), engine a36c799 (Engine's review)
+
+- No list of scripts will do: two letters of a missing script below U+0600 make a number small enough to be told, and
+  the last letter of an odd-length text in any missing script, with the nothing after it, is a small number by
+  itself. So every unit from U+0020 up but 0xFFFE and 0xFFFF is a letter, and two or more in a row are text, never
+  told. The cost is the numbers beside fractions, ids and addresses. A text of one letter cannot be told from a
+  number at all; the README tells the tester not to run the round with a one-letter name.
+
+### 627. The model calls' record holds only what the DLL sends, the client's events and the commits on display
+
+`2026-11-24` · DECIDED · `#engine` `#pages` `#privacy` · refs: PAGES§4.6.1, PAGES§4.6.2, PAGES§4.9, D15, D18, engine b8371f3, 46705d3 and 05f13d4 (merged at c9f35cb)
+
+- A row's only text is the displayed pages, so no prompt, unshown answer, key, base URL or server message can reach
+  it by construction; a model id shaped like a path is left out (PV5). The self-test and the model list submit inside
+  en-llm, so their rows are made at their first event. 20 rows are kept, 200 in developer mode, newest first.
+
+### 628. Pause AI for this session is a core input, not the handle's gate
+
+`2026-11-24` · DECIDED · `#engine` · refs: ARCH§6.8, D15, engine b8371f3, 46705d3 and 05f13d4 (merged at c9f35cb)
+
+- The ladder's level and its reason ("AI paused") live in the core's state, logged and recorded as any level change.
+  Closing the handle's gate instead would stop calls already sent and name the wrong cause, so EldenNet refuses its
+  own calls: the core drops requests while paused, and the DLL refuses submits, the self-test, model lists and drafts.
+  A reply already in flight finishes. A lint regeneration below L3 now fails at once rather than being sent.
+
+### 629. A reply's cost is kept only where the provider reports it
+
+`2026-11-24` · LIKELY · `#engine` `#llm` · refs: D18, engine b8371f3, 46705d3 and 05f13d4 (merged at c9f35cb)
+
+- OpenRouter reports `usage.cost` in each reply; en-llm keeps it where it is a finite number from 0 on (-1 when not
+  reported), and no price table is used. Other providers' cost fields are not read until one is checked.

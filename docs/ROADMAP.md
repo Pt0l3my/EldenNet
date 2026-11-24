@@ -1269,6 +1269,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     tip passed the fake game's suite under Wine, 140 of 140, GraceUI's cases included. The twentieth round (the save
     data's deaths, the sheet's level, the player's block at a crossing and its own death, with a mark per task on the
     panel at the owner's request) is being prepared, its reading and tasks to be asked of the owner outright.
+    The twentieth round built the same day (engine a9d0649 and 5ffdf5a; WHY§623 to §626; O121 to O124): the sheet scan
+    for the count of deaths and the level, the main player's block at a crossing and its own death, the clock and the
+    play time through the reader; the launcher's panel says what each task gathered. Engine's review asked for a text
+    test that holds in every script; any 16-bit unit from U+0020 is now a letter. Package 0.1.0-lodestar.26, README
+    read by Engine. Awaiting the owner's run.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1801,6 +1806,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     of a state topic; pad Start opens them in game, the power button in the browser) and live updates (Live, every
     5 s, Paused; Paused keeps watching and counts what came). EldenNet's Pause AI binds as `ai.pause` with
     `status.ai_paused`. Step two (the scope and paged tables, protocol 1.14) takes Engine's answers.
+    GraceUI 0.2.46 the same day (D253, feat/foundations fe7d9db, its run in b83ec41): fixes from EldenNet's 0.2.44 pin,
+    a document's member watched in game, so Docs shows, and a preview's fields wrapped with their line breaks kept.
 
 ### S11.3 EldenNet v0.2
 
@@ -1963,6 +1970,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     page cannot yet be kept out of one view; in game its documents show "Nothing to show." until GraceUI watches a
     document's member (WHY§621), and a preview field is one line (both asked of Grace). The pages' new words accepted
     as built by the owner the same day (O125). Copy and save of the report stay 0.6's.
+    The model calls' record and Pause AI for this session built on the engine's side the same day (engine b8371f3,
+    46705d3, 05f13d4, merged at c9f35cb; WHY§627 to §629): a row per call v0.2 makes, its displayed text only if shown,
+    the session's usage, the cost only where reported; Pause AI as a core input that holds the ladder at L2 and sends
+    nothing. Next: GraceUI 0.2.46's pin, wiring AI › Requests, Home's Model calls card and the Pause AI quick switch.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
