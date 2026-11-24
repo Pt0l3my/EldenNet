@@ -265,6 +265,32 @@ TEST_CASE("backend: a vtable that does not match skips its group, and is a fault
   CHECK(r.task.backend().book().breaker_total(Group::World) == 1);
 }
 
+TEST_CASE("backend: a near list longer than a snapshot walks is read for its nearest, and is no fault (WHY§572)") {
+  Running r;
+  r.start();
+  r.w.world();
+  r.run(1.0, 60);
+  REQUIRE(state_of(r, Group::World) == GroupState::Ok);
+  // 119 elements, as the game's in the open world: the characters nearest first, a metre and a half apart.
+  const std::uint64_t roster = r.w.instance("characters");
+  const std::uint64_t run = r.w.mem.alloc(119 * 0x10);
+  for (std::uint32_t i = 0; i < 119; ++i) {
+    r.w.mem.put<std::uint64_t>(run + 0x10 * i, r.w.npcs[i % r.w.npcs.size()]);
+    r.w.mem.put<float>(run + 0x10 * i + 0x8, 2.0f + 1.5f * static_cast<float>(i));
+  }
+  r.w.mem.put<std::uint64_t>(roster + 0x20, run);
+  r.w.mem.put<std::uint64_t>(roster + 0x28, run + 119 * 0x10);
+  r.run(1.0, 60);  // three snapshots
+  CHECK(r.task.backend().near_all() == 119);
+  CHECK(r.task.backend().book().breaker_total(Group::World) == 0);
+  CHECK(state_of(r, Group::World) == GroupState::Ok);
+  CHECK_FALSE(r.io.last().chars.empty());
+  // Bounds that make no sense are still a fault: the end before the start, three snapshots in a row.
+  r.w.mem.put<std::uint64_t>(roster + 0x28, run - 0x10);
+  r.run(1.0, 60);
+  CHECK(r.task.backend().book().breaker_total(Group::World) >= 1);
+}
+
 TEST_CASE("backend: real faults trip an optional group's breaker (L3), and a structural one makes the task inert") {
   Running r;
   r.start();
@@ -467,6 +493,202 @@ TEST_CASE("backend: a replaced watch list goes back to the core, never freed on 
   CHECK_FALSE(first_weak.expired());  // the core holds it now, and frees it on its own thread
   r.io.retired[0].reset();
   CHECK(first_weak.expired());
+}
+
+TEST_CASE("backend: the world's leads alone read through a layout that places them and little else") {
+  // As the game's layout stands after the sixteenth read-only round: the items' statics, the characters manager's
+  // far fields, a character's parts with the health and the position, the near list's element, the game's state's
+  // slot, the flags; no other class. Discovery is not ready to start, and the world's and the player's groups are
+  // not live; the backend reads their leads alone.
+  WorldOptions wo;
+  wo.far_roster = true;
+  FakeWorld w(wo);
+  w.world();
+  const auto cut = [&](std::initializer_list<std::string_view> classes) {
+    std::string layout;
+    bool keep = true;
+    for (std::size_t at = 0; at < w.layout.size();) {
+      const std::size_t end = std::min(w.layout.find('\n', at), w.layout.size() - 1) + 1;
+      const std::string_view line(w.layout.data() + at, end - at);
+      if (line.starts_with("[")) {
+        keep = !line.starts_with("[class.");
+        for (const std::string_view c : classes) {
+          keep = keep || line.starts_with("[class." + std::string(c) + "]") ||
+                 line.starts_with("[class." + std::string(c) + ".");
+        }
+      }
+      if (keep) layout.append(line);
+      at = end;
+    }
+    return layout;
+  };
+  const std::string layout = cut({"characters", "near_entry", "character", "character_parts", "vitals", "motion",
+                                  "game_state", "event_flags", "flag_node"});
+  REQUIRE(layout.find("[class.vitals]") != std::string::npos);
+  REQUIRE(layout.find("[class.player_character]") == std::string::npos);
+  REQUIRE(layout.find("[class.menus]") == std::string::npos);
+  auto gated = gate_image(*w.sys, w.builds);
+  REQUIRE(gated.has_value());
+  DiscoveryOptions options;
+  options.frame = FrameProvider::OwnThread;
+  options.partial = true;
+  const auto d = discover(*w.sys, *gated, w.patterns, layout, options);
+  if (!d.has_value()) {
+    for (const auto& e : d.error()) MESSAGE(e.where << ": " << e.problem);
+  }
+  REQUIRE(d.has_value());
+  CHECK_FALSE(d->report().ready);
+  ErBackend backend(*w.sys, *d);
+  CHECK_FALSE(backend.inert());
+  const auto gt = en::proto::GameThread::issue();
+  (void)backend.first_tick(gt, false);
+  const std::uint64_t game = w.instance("game_state");
+  const std::uint64_t parts = w.mem.get<std::uint64_t>(w.player + 0x30);
+  const std::uint64_t vitals = w.mem.get<std::uint64_t>(parts + 0x0), motion = w.mem.get<std::uint64_t>(parts + 0x8);
+  w.mem.put<std::int32_t>(game + 0x8, 6);
+  w.mem.put<std::int32_t>(vitals + 0x0, 812);
+  w.mem.put<std::int32_t>(vitals + 0x4, 1450);
+  const auto n = static_cast<std::uint32_t>(w.npcs.size());
+  REQUIRE(n >= 3);
+  ErBackend::WorldAlone a = backend.world_alone(gt);
+  CHECK(a.lacks == 0);
+  CHECK(a.state);
+  REQUIRE(a.save_slot.has_value());
+  CHECK(*a.save_slot == 6);
+  CHECK(a.characters);
+  CHECK(a.player);
+  REQUIRE(a.hp.has_value());
+  CHECK(a.hp->cur == 812);
+  CHECK(a.hp->max == 1450);
+  REQUIRE(a.pos.has_value());
+  CHECK((*a.pos)[0] == w.mem.get<float>(motion + 0x10));
+  CHECK((*a.pos)[2] == w.mem.get<float>(motion + 0x18));
+  CHECK(a.list);
+  CHECK(a.near_all == n);
+  CHECK(a.near_read == n);
+  CHECK(a.near_chr == n);
+  CHECK(a.near_distance == n);
+  CHECK(a.near_rising == n);
+  // What changes in the game shows at the next call; an element that holds no fraction, or no character, is counted
+  // out by itself and the list is read on (WHY§569).
+  w.mem.put<std::int32_t>(vitals + 0x0, 300);
+  w.mem.put<float>(motion + 0x10, w.mem.get<float>(motion + 0x10) + 2.5f);
+  w.mem.put<std::uint32_t>(w.near + 0x10 * 1 + 0x8, 0x7FC00000u);  // not a number
+  w.mem.put<std::uint64_t>(w.near + 0x10 * 2, w.mem.alloc(0x40));  // an address of memory that is no character
+  ErBackend::WorldAlone b = backend.world_alone(gt);
+  REQUIRE(b.hp.has_value());
+  CHECK(b.hp->cur == 300);
+  REQUIRE(b.pos.has_value());
+  CHECK((*b.pos)[0] == (*a.pos)[0] + 2.5f);
+  CHECK(b.near_all == n);
+  CHECK(b.near_read == n);
+  CHECK(b.near_chr == n - 1);
+  CHECK(b.near_distance == n - 1);
+  // A list longer than a snapshot allows is told whole and read for its first kWalkEntries elements.
+  const std::uint64_t roster = w.instance("characters");
+  const std::uint64_t run = w.mem.alloc(119 * 0x10);
+  for (std::uint32_t i = 0; i < 119; ++i) {
+    w.mem.put<std::uint64_t>(run + 0x10 * i, w.npcs[i % w.npcs.size()]);
+    w.mem.put<float>(run + 0x10 * i + 0x8, static_cast<float>(i));
+  }
+  w.mem.put<std::uint64_t>(roster + 0x10000 + 0x20, run);
+  w.mem.put<std::uint64_t>(roster + 0x10000 + 0x28, run + 119 * 0x10);
+  ErBackend::WorldAlone c = backend.world_alone(gt);
+  CHECK(c.list);
+  CHECK(c.near_all == 119);
+  CHECK(c.near_read == 48);
+  CHECK(c.near_chr == 48);
+  CHECK(c.near_distance == 48);
+  CHECK(c.near_rising == 48);
+  // Bounds that make no sense are no list, and nothing is read through them.
+  w.mem.put<std::uint64_t>(roster + 0x10000 + 0x28, run - 0x10);
+  ErBackend::WorldAlone bad = backend.world_alone(gt);
+  CHECK_FALSE(bad.list);
+  CHECK(bad.near_all == 0);
+  CHECK(bad.near_read == 0);
+  CHECK(bad.player);  // the rest is read all the same
+  // At the title: no main player, an empty list, and no save's slot.
+  w.title();
+  w.mem.put<std::int32_t>(game + 0x8, -1);
+  ErBackend::WorldAlone t = backend.world_alone(gt);
+  CHECK(t.state);
+  REQUIRE(t.save_slot.has_value());
+  CHECK(*t.save_slot == -1);
+  CHECK(t.characters);
+  CHECK_FALSE(t.player);
+  CHECK_FALSE(t.hp.has_value());
+  CHECK_FALSE(t.pos.has_value());
+  // The game's state not there yet (its static empty): nothing of it, and no fault.
+  w.mem.put<std::uint64_t>(w.at("st_game_state"), 0);
+  ErBackend::WorldAlone none = backend.world_alone(gt);
+  CHECK_FALSE(none.state);
+  CHECK_FALSE(none.save_slot.has_value());
+  CHECK(backend.reader().faults(FaultKind::Copy) == 0);
+  CHECK_FALSE(backend.inert());
+  // The snapshot itself reads none of it with such a layout.
+  en::proto::WorldSnapshot whole;
+  (void)backend.snapshot(gt, whole);
+  CHECK_FALSE(whole.player.has_value());
+}
+
+TEST_CASE("backend: the world's leads alone read nothing of a part the layout does not bind, and say which") {
+  WorldOptions wo;
+  wo.far_roster = true;
+  FakeWorld w(wo);
+  w.world();
+  const auto backend_of = [&](std::initializer_list<std::string_view> classes, auto&& then) {
+    std::string layout;
+    bool keep = true;
+    for (std::size_t at = 0; at < w.layout.size();) {
+      const std::size_t end = std::min(w.layout.find('\n', at), w.layout.size() - 1) + 1;
+      const std::string_view line(w.layout.data() + at, end - at);
+      if (line.starts_with("[")) {
+        keep = !line.starts_with("[class.");
+        for (const std::string_view c : classes) {
+          keep = keep || line.starts_with("[class." + std::string(c) + "]") ||
+                 line.starts_with("[class." + std::string(c) + ".");
+        }
+      }
+      if (keep) layout.append(line);
+      at = end;
+    }
+    auto gated = gate_image(*w.sys, w.builds);
+    REQUIRE(gated.has_value());
+    DiscoveryOptions options;
+    options.frame = FrameProvider::OwnThread;
+    options.partial = true;
+    const auto d = discover(*w.sys, *gated, w.patterns, layout, options);
+    REQUIRE(d.has_value());
+    ErBackend backend(*w.sys, *d);
+    const auto gt = en::proto::GameThread::issue();
+    (void)backend.first_tick(gt, false);
+    then(backend.world_alone(gt), backend);
+  };
+  using WA = ErBackend::WorldAlone;
+  // No vitals: the parts are not read; the slot, the player's class and the list are.
+  backend_of({"characters", "near_entry", "character", "character_parts", "motion", "game_state"},
+             [&](const WA& a, ErBackend&) {
+               CHECK(a.lacks == WA::kParts);
+               CHECK(a.player);
+               CHECK_FALSE(a.hp.has_value());
+               CHECK_FALSE(a.pos.has_value());
+               CHECK(a.save_slot.has_value());
+               CHECK(a.near_all == w.npcs.size());
+             });
+  // No state and no element: the slot and the list are not read.
+  backend_of({"characters", "character", "character_parts", "vitals", "motion"}, [&](const WA& a, ErBackend&) {
+    CHECK(a.lacks == (WA::kSlot | WA::kNear));
+    CHECK_FALSE(a.state);
+    CHECK(a.player);
+    CHECK(a.hp.has_value());
+    CHECK_FALSE(a.list);
+  });
+  // Nothing of it at all (the flags' layout): nothing is read, not even the statics.
+  backend_of({"event_flags", "flag_node"}, [&](const WA& a, ErBackend& backend) {
+    CHECK(a.lacks == (WA::kSlot | WA::kPlayer | WA::kParts | WA::kNear));
+    CHECK_FALSE(a.characters);
+    CHECK(backend.reader().copies() == 0);
+  });
 }
 
 TEST_CASE("backend: the flags group alone reads through a layout that places the flags and nothing else") {

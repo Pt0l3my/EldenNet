@@ -617,18 +617,24 @@ void ErBackend::read_camera(const GameThread& gt, proto::WorldSnapshot&) {
 
 void ErBackend::read_world(const GameThread& gt, proto::WorldSnapshot& out) {
   seen_count_ = 0;
+  near_all_ = 0;
   const auto chars = item_object(gt, Group::World, Item::Characters);
   if (!chars) return;
   const FieldLayout* vec = b_.field(Fld::ByDistance);
   const auto begin = chars->u64(vec);
   const auto end = chars->second(vec);
   const std::uint32_t stride = b_.stride_of(Cls::NearEntry);
-  if (!begin || !end || stride == 0 || *end < *begin || (*end - *begin) % stride != 0 ||
-      (*end - *begin) / stride > kWalkEntries) {
-    fault(Group::World);  // ARCH §6.6 #4: an aligned list of at most 48 entries
+  // ARCH §6.6 #4: bounds that make sense (aligned, the end not before the start, a whole number of entries, no
+  // more than a megabyte of them; an empty list may be two nulls) or a fault. A list longer than a snapshot walks
+  // is no fault: the game's held 119 in the open world (WHY§572). It is nearest first, so its first kWalkEntries
+  // are walked and the rest are farther.
+  if (!begin || !end || stride == 0 || (*begin == 0 && *end != 0) || *begin % 8 != 0 || *end < *begin ||
+      (*end - *begin) % stride != 0 || *end - *begin > kMaxNearListBytes) {
+    fault(Group::World);
     return;
   }
-  const auto count = static_cast<std::uint32_t>((*end - *begin) / stride);
+  near_all_ = static_cast<std::uint32_t>((*end - *begin) / stride);
+  const std::uint32_t count = std::min(near_all_, kWalkEntries);
   // Steady reading: the list's two ends are still these when the snapshot is done.
   if (vec != nullptr && instance(Item::Characters) != 0) {
     remember(instance(Item::Characters) + vec->off, *begin);
@@ -951,6 +957,117 @@ ErBackend::FlagsAlone ErBackend::flags_alone(const GameThread& gt, proto::WorldS
       }
     } else if (!reader_.spent()) {
       done.known = false;  // no such group: its flags read false (ARCH §6.9)
+    }
+  }
+  return done;
+}
+
+ErBackend::WorldAlone ErBackend::world_alone(const GameThread& gt) {
+  WorldAlone done;
+  // What the layout binds, part by part: a part with a lead missing is not read at all.
+  const FieldLayout* slot_field = b_.field(Fld::SaveSlot);
+  const FieldLayout* main_field = b_.field(Fld::MainPlayer);
+  const FieldLayout* list_field = b_.field(Fld::ByDistance);
+  const std::uint32_t stride = b_.stride_of(Cls::NearEntry);
+  const bool has_slot = d_.address(Item::GameState).has_value() && slot_field != nullptr;
+  const bool has_chars = d_.address(Item::Characters).has_value();
+  // The player's class where the build gives its tables of methods, a character's otherwise (the player's is one).
+  const VtableSet& player_set =
+      !d_.vtables(Cls::PlayerCharacter).empty() ? d_.vtables(Cls::PlayerCharacter) : d_.vtables(Cls::Character);
+  const bool has_player = has_chars && main_field != nullptr && !player_set.empty();
+  const bool has_parts = has_player && b_.size_of(Cls::Character) != 0 && b_.field(Fld::ChrParts) != nullptr &&
+                         b_.size_of(Cls::Parts) != 0 && b_.field(Fld::PartsVitals) != nullptr &&
+                         b_.field(Fld::PartsMotion) != nullptr && b_.size_of(Cls::Vitals) != 0 &&
+                         b_.field(Fld::Hp) != nullptr && b_.field(Fld::MaxHp) != nullptr &&
+                         b_.size_of(Cls::Motion) != 0 && b_.field(Fld::Pos) != nullptr;
+  const bool has_near = has_chars && list_field != nullptr && stride >= 8 && b_.field(Fld::NearChr) != nullptr &&
+                        b_.field(Fld::NearDistance) != nullptr && !d_.vtables(Cls::Character).empty();
+  done.lacks = (has_slot ? 0u : WorldAlone::kSlot) | (has_player ? 0u : WorldAlone::kPlayer) |
+               (has_parts ? 0u : WorldAlone::kParts) | (has_near ? 0u : WorldAlone::kNear);
+  if (inert_ || (!has_slot && !has_player && !has_near)) return done;
+  reader_.begin_tick();
+  book_.begin_tick();
+  tick_.fill(kUnread);
+  read_statics(gt);
+  // An object's first word, one read; nothing where the address is none or the read is refused.
+  const auto first_word = [&](std::uint64_t at) -> std::optional<std::uint64_t> {
+    if (at == 0 || at % 8 != 0) return std::nullopt;
+    const auto word = reader_.copy<std::uint64_t>(gt, Group::World, at);
+    return word ? std::optional<std::uint64_t>(*word) : std::nullopt;
+  };
+  if (has_slot) {
+    if (const auto game = item_object(gt, Group::Player, Item::GameState, false)) {
+      done.state = true;
+      if (const auto slot = game->integer(slot_field); slot && *slot >= -1 && *slot <= 255) {
+        done.save_slot = static_cast<std::int32_t>(*slot);
+      }
+    }
+  }
+  if (!has_player && !has_near) return done;
+  const auto chars = item_object(gt, Group::World, Item::Characters, false);
+  if (!chars) return done;
+  done.characters = true;
+  if (has_player) {
+    const std::uint64_t main = chars->ptr(main_field).value_or(0);
+    // The class by the object's first word, one read.
+    const auto first = first_word(main);
+    done.player = first && player_set.contains(*first);
+    if (done.player && has_parts) {
+      const auto chr = object(gt, Group::World, Cls::Character, main, kPlayer, nullptr, false);
+      const auto parts_addr = chr ? chr->ptr(b_.field(Fld::ChrParts)) : std::nullopt;
+      const auto parts = parts_addr && *parts_addr != 0
+                             ? object(gt, Group::World, Cls::Parts, *parts_addr, kParts, nullptr, false)
+                             : std::nullopt;
+      const std::uint64_t vit_addr = parts ? parts->ptr(b_.field(Fld::PartsVitals)).value_or(0) : 0;
+      const std::uint64_t mot_addr = parts ? parts->ptr(b_.field(Fld::PartsMotion)).value_or(0) : 0;
+      if (vit_addr != 0) {
+        if (const auto vit = object(gt, Group::World, Cls::Vitals, vit_addr, kVitals, nullptr, false)) {
+          const auto cur = vit->integer(b_.field(Fld::Hp));
+          const auto max = vit->integer(b_.field(Fld::MaxHp));
+          if (cur && max && *cur >= 0 && *max >= 0 && *cur <= 0xFFFF'FFFF && *max <= 0xFFFF'FFFF) {
+            done.hp = proto::Meter{static_cast<std::uint32_t>(*cur), static_cast<std::uint32_t>(*max)};
+          }
+        }
+      }
+      if (mot_addr != 0) {
+        if (const auto mot = object(gt, Group::World, Cls::Motion, mot_addr, kMotion, nullptr, false)) {
+          std::array<float, 3> pos{};
+          for (std::size_t i = 0; i < 3; ++i) pos[i] = mot->f32(b_.field(Fld::Pos), i).value_or(NAN);
+          if (finite3(pos)) done.pos = pos;
+        }
+      }
+    }
+  }
+  if (has_near) {
+    const auto begin = chars->u64(list_field);
+    const auto end = chars->second(list_field);
+    // Bounds that make sense: aligned, the end not before the start, and no more than a megabyte of elements.
+    if (begin && end && *begin != 0 && *begin % 8 == 0 && *end >= *begin && (*end - *begin) % stride == 0 &&
+        *end - *begin <= kMaxNearListBytes) {
+      done.list = true;
+      done.near_all = static_cast<std::uint32_t>((*end - *begin) / stride);
+      const std::uint32_t count = std::min<std::uint32_t>(done.near_all, kWalkEntries);
+      const std::size_t bytes = std::size_t{count} * stride;
+      if (count != 0 && bytes <= scratch_->list().size()) {
+        const std::span<std::byte> list = scratch_->list().first(bytes);
+        if (reader_.copy_into(gt, Group::World, *begin, list, 8)) {
+          float last = -1.0f;
+          for (std::uint32_t k = 0; k < count && !reader_.spent(); ++k) {
+            const ObjView entry(list.subspan(std::size_t{k} * stride, stride));
+            ++done.near_read;
+            const std::uint64_t chr = entry.ptr(b_.field(Fld::NearChr)).value_or(0);
+            const auto first = first_word(chr);
+            if (first && d_.vtables(Cls::Character).contains(*first)) ++done.near_chr;
+            // The distance, element by element: an element that holds no plain fraction is counted out, no more.
+            const auto dist = entry.f32(b_.field(Fld::NearDistance));
+            if (dist && std::isfinite(*dist) && *dist >= 0.0f && *dist <= 1.0e6f) {
+              ++done.near_distance;
+              if (*dist >= last) ++done.near_rising;
+              last = *dist;
+            }
+          }
+        }
+      }
     }
   }
   return done;

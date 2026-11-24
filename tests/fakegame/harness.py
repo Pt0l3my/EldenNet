@@ -3263,7 +3263,7 @@ def check_read(result, by_flag=False, events=False, marks=False):
     with open(table) as f:
         draft = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 16, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
+    need(d["report"] == "lodestar" and d["schema"] == 17, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
          failures)
     # Numbers and the catalogue's labels: no name of the fake game's, in either file.
     for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["SaveLedger", "FG::", "Imp", "task_loom", "Fg_"]:
@@ -3611,6 +3611,15 @@ def read_state_gal(gal):
     changed = changed.replace(lead, 'game_state = { rtti = "FG::RunWardenImp" }')
     with open(path, "w") as f:
         f.write(changed)
+    # And the save's slot as a far field, as the game's layout has it (the object is large there): EldenNet's own
+    # reader takes it by a copy of its own.
+    layout = os.path.join(gal, "layouts", "fakegame.toml")
+    with open(layout) as f:
+        text = f.read()
+    slot = 'save_slot = { off = 0x14, ty = "i32", group = "player", range = [0, 9] }'
+    assert slot in text, "the layout's save_slot was not found"
+    with open(layout, "w") as f:
+        f.write(text.replace(slot, slot.replace('ty = "i32",', 'ty = "i32", far = true,')))
 
 
 def check_read_state(result, first=6):
@@ -3732,7 +3741,28 @@ def check_read_chars(result):
          "the position by its moving in the walk alone: %s" % parts["moves"][:8], failures)
     falls = [x for x in parts["falls"] if x["part"] == 0 and x["offset"] == 4]
     need(len(falls) == 1 and falls[0]["fell"] >= 1 and falls[0]["rose"] >= 1 and falls[0]["has_max"] and
-         falls[0]["max_at"] == 0 and parts["falls"][0] is falls[0], "the health by the hit and the heal: %s" % parts["falls"][:8], failures)
+         falls[0]["max_at"] == 0 and parts["falls"][0] is falls[0],
+         "the health by the hit and the heal: %s" % parts["falls"][:8], failures)
+    # EldenNet's own reader on the world's leads, once a second through the fake game's layout: the save's slot in
+    # each world and none at the title, the main player's health at the hit and after the heal, the position moving
+    # in the walk alone, and the near list element by element.
+    world = d.get("world") or {"at_marks": [], "pos_moved_by": [], "pos_frames_by": []}
+    at = {a["mark"]: a for a in world["at_marks"]}
+    need(world.get("lacks") == 0 and world.get("calls", 0) >= 30 and len(world["at_marks"]) == 9 and
+         world.get("hp_over") == 0 and world.get("state_frames", 0) >= 30 and world.get("list_frames", 0) >= 20,
+         "the world reader's frames: %s" % {k: v for k, v in world.items() if k != "at_marks"}, failures)
+    need(len(at) == 9 and at[1]["loaded"] and at[1]["slot"] == 6 and at[1]["player"] and at[1]["has_hp"] and
+         not at[2]["loaded"] and not at[2]["player"] and not at[2]["has_hp"] and
+         at[3]["loaded"] and at[3]["slot"] == 2 and at[3]["player"] and at[3]["has_hp"] and
+         200 < at[3]["hp"] <= at[3]["max_hp"] and at[3]["near"] >= 1 and at[6]["hp"] == at[3]["hp"] and
+         at[7]["hp"] == at[3]["hp"] - 200 and at[7]["max_hp"] == at[3]["max_hp"] and at[8]["hp"] == at[3]["hp"],
+         "the world reader at the marks: %s" % world["at_marks"], failures)
+    moved, frames = world["pos_moved_by"], world["pos_frames_by"]
+    need(len(moved) == 9 and moved[4] >= 3 and moved[3] == 0 and moved[5] == 0 and frames[3] >= 5 and frames[5] >= 5,
+         "the position moved in the walk alone: moved %s of frames %s" % (moved, frames), failures)
+    need(world.get("near_read", 0) >= 20 and world.get("near_chr") == world.get("near_read") and
+         world.get("near_distance") == world.get("near_read"),
+         "the near list, element by element: %s" % {k: v for k, v in world.items() if k.startswith("near")}, failures)
     failures += check_lines(("ELDENNET", "init", {"state": "ready"}), ("LAUNCHER", "end", {"kind": "clean"}))(result)
     return failures + ready_no_call(result) + en_log_is_clean(result)
 

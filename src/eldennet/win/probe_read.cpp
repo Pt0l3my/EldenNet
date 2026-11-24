@@ -46,6 +46,7 @@
 #include <cstdio>
 #include <cstring>
 #include <map>
+#include <mutex>
 #include <optional>
 #include <set>
 #include <span>
@@ -94,6 +95,7 @@ constexpr std::size_t kFlagHops = 8;            // objects one step on from the 
 constexpr std::size_t kFlagHopsDeeper = 4;      // objects one step more, from each of those
 constexpr std::size_t kFlagHopsDeeperAll = 32;  // and of those in all
 constexpr std::uint64_t kBackendEveryUs = 10'000'000;  // EldenNet's own reader on the flags: every ten seconds
+constexpr std::uint64_t kWorldEveryUs = 1'000'000;     // and on the world's leads: once a second
 constexpr std::size_t kBackendFlags = 64;              // flags it is asked for at most
 constexpr std::uint64_t kSearchShareUs = 4'000;  // of each step of the reader's thread, for all the searches together
 
@@ -259,11 +261,14 @@ class Body final : public en::gal::TaskBody {
       watch = nullptr;
       sweep = nullptr;
       tree = nullptr;
-    } else if (auto* chars = chars_.load(std::memory_order_acquire); chars != nullptr && chars->due()) {
-      // The character search's look, next: it too reads the game in the state the tester put it in.
+    } else if (auto* parts = parts_.load(std::memory_order_acquire);
+               parts != nullptr && parts->due(quiet_.now_us())) {
+      // The parts watch's pass, once a second: some forty reads, and the tester's phases are short. It goes before
+      // the character search's look, which may take a minute (71 s in the sixteenth round) and left the watch five
+      // standing passes then.
       const std::uint64_t start = quiet_.now_us();
       for (;;) {
-        const bool ended = chars->step(gt, reader_, quiet_.now_us());
+        const bool ended = parts->step(gt, reader_, quiet_.now_us());
         if (ended || reader_.spent() || quiet_.now_us() - start >= kSearchShareUs) break;
       }
       slots = nullptr;
@@ -272,12 +277,11 @@ class Body final : public en::gal::TaskBody {
       watch = nullptr;
       sweep = nullptr;
       tree = nullptr;
-    } else if (auto* parts = parts_.load(std::memory_order_acquire);
-               parts != nullptr && parts->due(quiet_.now_us())) {
-      // The parts watch's pass, once a second: some forty reads, and the tester's phases are short.
+    } else if (auto* chars = chars_.load(std::memory_order_acquire); chars != nullptr && chars->due()) {
+      // The character search's look, next: it too reads the game in the state the tester put it in.
       const std::uint64_t start = quiet_.now_us();
       for (;;) {
-        const bool ended = parts->step(gt, reader_, quiet_.now_us());
+        const bool ended = chars->step(gt, reader_, quiet_.now_us());
         if (ended || reader_.spent() || quiet_.now_us() - start >= kSearchShareUs) break;
       }
       slots = nullptr;
@@ -365,6 +369,11 @@ class Body final : public en::gal::TaskBody {
           }
           flag_version_.store(snapshot_.flags->watch_version, std::memory_order_release);
         }
+      } else if (frame.qpc_now_us - world_at_us_ >= kWorldEveryUs) {
+        // EldenNet's own reader on the world's leads (WHY§567 to §569): the game's state's slot, the main player
+        // with its health and position, and the near list, through the build's layout, once a second.
+        world_at_us_ = frame.qpc_now_us;
+        world_frame(backend->world_alone(gt));
       }
     }
     steps_.fetch_add(1, std::memory_order_release);
@@ -398,6 +407,13 @@ class Body final : public en::gal::TaskBody {
     std::uint32_t version = 0;  // the list the states belong to
     std::array<std::uint8_t, kBackendFlags> states{};  // bit 0: valid; bit 1: set
   };
+  // The tester's next mark, from T1: the world reader's frames are counted by the marks so far.
+  void world_mark() noexcept { world_marks_.fetch_add(1, std::memory_order_release); }
+  // What the world reader's frames gave so far, for T1 (a copy, under the lock T2 only ever tries).
+  [[nodiscard]] lodestar::WorldRead world_read() const {
+    const std::lock_guard<std::mutex> lock(world_mutex_);
+    return world_shared_;
+  }
   [[nodiscard]] en::gal::SysLayer& careful_sys() noexcept { return quiet_; }
   void set_backend(en::gal::ErBackend* backend) noexcept { backend_.store(backend, std::memory_order_release); }
   void set_flag_list(const FlagList* list) noexcept { flag_list_.store(list, std::memory_order_release); }
@@ -432,6 +448,90 @@ class Body final : public en::gal::TaskBody {
   en::proto::WorldSnapshot snapshot_;  // the backend's, of which only the flags are filled
   bool backend_bound_ = false;
   std::uint64_t backend_at_us_ = 0;
+
+  // One frame of the world reader, counted by the marks so far. Nothing is allocated here: the lists were sized
+  // when the body was made. The position stays on this thread: only whether it moved is kept.
+  void world_frame(const en::gal::ErBackend::WorldAlone& a) {
+    lodestar::WorldRead& w = world_local_;
+    const std::size_t span =
+        std::min<std::size_t>(world_marks_.load(std::memory_order_acquire), lodestar::WorldRead::kSpans - 1);
+    w.lacks = a.lacks;
+    ++w.calls;
+    w.state_frames += a.state ? 1 : 0;
+    w.slot_frames += a.save_slot && *a.save_slot >= 0 ? 1 : 0;
+    w.player_frames += a.player ? 1 : 0;
+    if (a.hp) {
+      ++w.hp_frames;
+      w.hp_over += a.hp->max == 0 || a.hp->cur > a.hp->max ? 1 : 0;
+    }
+    w.list_frames += a.list ? 1 : 0;
+    w.near_most = std::max(w.near_most, a.near_all);
+    w.near_read += a.near_read;
+    w.near_chr += a.near_chr;
+    w.near_distance += a.near_distance;
+    w.near_rising += a.near_rising;
+    if (a.pos) {
+      ++w.pos_frames;
+      if (world_prev_ok_ && world_prev_span_ == span) {
+        ++w.pos_frames_by[span];
+        const float dx = (*a.pos)[0] - world_prev_[0], dz = (*a.pos)[2] - world_prev_[2];
+        if (std::fabs(dx) > 0.01f || std::fabs(dz) > 0.01f) ++w.pos_moved_by[span];
+      }
+      world_prev_ = *a.pos;
+      world_prev_span_ = span;
+    }
+    world_prev_ok_ = a.pos.has_value();
+    // The span's first frame: what the reader read just after the tester's mark (at the title's mark, the title).
+    if (world_at_set_[span] == 0) {
+      lodestar::WorldAt& at = w.at_marks[span];
+      at = lodestar::WorldAt{};
+      at.mark = static_cast<std::uint32_t>(span);
+      at.there = a.state;
+      at.loaded = a.save_slot && *a.save_slot >= 0;
+      at.slot = at.loaded ? static_cast<std::uint32_t>(*a.save_slot) : 0;
+      at.player = a.player;
+      at.has_hp = a.hp.has_value();
+      at.hp = a.hp ? a.hp->cur : 0;
+      at.max_hp = a.hp ? a.hp->max : 0;
+      at.near_all = a.near_all;
+      world_at_set_[span] = 1;
+    }
+    const std::unique_lock<std::mutex> lock(world_mutex_, std::try_to_lock);
+    if (!lock.owns_lock()) return;  // T1 is copying the last one: the next frame publishes
+    world_shared_.lacks = w.lacks;
+    world_shared_.calls = w.calls;
+    world_shared_.state_frames = w.state_frames;
+    world_shared_.slot_frames = w.slot_frames;
+    world_shared_.player_frames = w.player_frames;
+    world_shared_.hp_frames = w.hp_frames;
+    world_shared_.hp_over = w.hp_over;
+    world_shared_.pos_frames = w.pos_frames;
+    world_shared_.list_frames = w.list_frames;
+    world_shared_.near_most = w.near_most;
+    world_shared_.near_read = w.near_read;
+    world_shared_.near_chr = w.near_chr;
+    world_shared_.near_distance = w.near_distance;
+    world_shared_.near_rising = w.near_rising;
+    std::copy(w.pos_frames_by.begin(), w.pos_frames_by.end(), world_shared_.pos_frames_by.begin());
+    std::copy(w.pos_moved_by.begin(), w.pos_moved_by.end(), world_shared_.pos_moved_by.begin());
+    std::copy(w.at_marks.begin(), w.at_marks.end(), world_shared_.at_marks.begin());
+  }
+  static lodestar::WorldRead sized_world() {
+    lodestar::WorldRead w;
+    w.pos_frames_by.assign(lodestar::WorldRead::kSpans, 0);
+    w.pos_moved_by.assign(lodestar::WorldRead::kSpans, 0);
+    w.at_marks.assign(lodestar::WorldRead::kSpans, lodestar::WorldAt{});
+    return w;
+  }
+  std::uint64_t world_at_us_ = 0;
+  std::atomic<std::uint32_t> world_marks_{0};
+  lodestar::WorldRead world_local_ = sized_world();   // this thread's
+  lodestar::WorldRead world_shared_ = sized_world();  // under world_mutex_
+  mutable std::mutex world_mutex_;
+  std::array<std::uint8_t, lodestar::WorldRead::kSpans> world_at_set_{};  // 1: the span's first frame is kept
+  std::array<float, 3> world_prev_{};
+  std::size_t world_prev_span_ = 0;
+  bool world_prev_ok_ = false;
   std::size_t flag_count_ = 0;
   std::atomic<std::uint64_t> backend_calls_{0};
   std::atomic<std::uint64_t> backend_reads_{0};
@@ -734,6 +834,25 @@ class Round {
   // The parts watch, once the character search's look in the second world is through: it gives where in the manager
   // the main player's address stands, and which of the player's addresses is the holder of its parts (the one whose
   // target begins with the most addresses of classed objects).
+  // The parts watch from the build's layout alone (the main player's word and the holder's place), at the second
+  // world's mark: the tester's standing task is then the watch's from its start.
+  void make_parts_by_layout() {
+    if (parts_ != nullptr || parts_tried_ || body_ == nullptr) return;
+    if (main_player_word_ == 0 || parts_holder_at_ == 0 || chars_manager_ == 0) return;
+    parts_tried_ = true;
+    lodestar::PartsWatch::Options o;
+    o.player_word = main_player_word_;
+    o.holder_at = parts_holder_at_;
+    o.base = s_.sys->module_base();
+    o.image_size = s_.sys->image().size();
+    o.manager_slot = chars_manager_;
+    o.image = &s_.sys->image();
+    parts_ = new lodestar::PartsWatch(o);  // lives for the process
+    body_->set_parts(parts_);
+    log(Line("read").word("stage", "parts").flag("made", true).num("player_word", o.player_word)
+            .num("holder_at", o.holder_at).flag("by_layout", true).num("mark", marks_seen_));
+  }
+
   void make_parts(const lodestar::CharFound& chars) {
     if (parts_ != nullptr || parts_tried_ || body_ == nullptr) return;
     const lodestar::CharLook* look = nullptr;
@@ -837,6 +956,11 @@ class Round {
       if (chars_ != nullptr) chars_->set_main_player_word(main->off);
     }
     // And a list's place there (`characters.by_distance`): the character search judges the run at it first.
+    // And the holder of a character's parts (`character.parts`): with both, the parts watch starts at the second
+    // world's mark, without waiting for the character search's look.
+    if (const en::gal::FieldLayout* parts = discovery_->bound().field(en::gal::roles::Fld::ChrParts)) {
+      parts_holder_at_ = parts->off;
+    }
     if (const en::gal::FieldLayout* list = discovery_->bound().field(en::gal::roles::Fld::ByDistance)) {
       list_word_ = list->off;
       if (chars_ != nullptr) chars_->set_list_word(list->off);
@@ -1475,6 +1599,19 @@ class Round {
       }
       found_.parts = std::move(f);
     }
+    if (backend_ != nullptr && body_ != nullptr) {
+      // EldenNet's own reader on the world's leads: the spans the tester's marks have opened so far.
+      lodestar::WorldRead f = body_->world_read();
+      const std::size_t spans = std::min<std::size_t>(std::size_t{marks_seen_} + 1, lodestar::WorldRead::kSpans);
+      f.pos_frames_by.resize(spans);
+      f.pos_moved_by.resize(spans);
+      f.at_marks.resize(spans);
+      if (f.calls != 0 && !world_said_) {
+        world_said_ = true;
+        log(Line("read").word("stage", "world").num("lacks", f.lacks));
+      }
+      if (f.calls != 0) found_.world = std::move(f);
+    }
     // A report the writer refuses (too large, most likely: a long round's watch) is written again smaller, a step
     // at a time: the watched object with the most words loses them (and says so), then the next, the flags' objects
     // last (theirs are what this round is after); with no words left, the sweep's flips go, the longest list
@@ -1578,6 +1715,10 @@ class Round {
           if (chars_ != nullptr) chars_->ask(marks_seen_);
         }
         if (parts_ != nullptr) parts_->mark(marks_kept_.back());  // the tester's next phase
+        // The second world's mark opens the parts watch's first phase (the standing task), where the layout can
+        // start it; the marks after it move it on.
+        if (marks_seen_ == kSecondWorldMark) make_parts_by_layout();
+        if (body_ != nullptr) body_->world_mark();
         log(Line("read").word("stage", "mark").num("n", marks_seen_).flag("sweep", sweep_ != nullptr));
       }
       for (; sweep_ != nullptr && marks_given_ < marks_kept_.size(); ++marks_given_) {
@@ -1662,6 +1803,7 @@ class Round {
   std::uint32_t chars_manager_ = 0;                 // the characters manager's static
   std::uint32_t main_player_word_ = 0;              // in the manager's object, by the build's layout; 0: not there
   std::uint32_t list_word_ = 0;                     // a list's bounds there, by the build's layout; 0: not there
+  std::uint32_t parts_holder_at_ = 0;               // the holder of parts in a character, by the layout; 0: not there
   lodestar::PairSearch* pair_ = nullptr;
   bool pair_said_ = false;
   std::map<std::uint32_t, std::uint32_t> pair_sites_;  // by slot: the code's references to it
@@ -1670,6 +1812,7 @@ class Round {
   lodestar::PartsWatch* parts_ = nullptr;
   bool parts_tried_ = false;
   std::uint32_t parts_phase_said_ = 0;
+  bool world_said_ = false;
   std::size_t chars_looks_said_ = 0;                // looks whose end the log has told
   std::size_t state_looks_said_ = 0;                // looks whose end the log has told
   std::map<std::uint32_t, std::uint32_t> state_sites_;  // by slot: the code's references to it

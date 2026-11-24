@@ -8,31 +8,30 @@ so on), without knowing which is which. This round starts the game with EldenNet
 the game as it runs, which of those places holds which of the eleven managers EldenNet needs. Then it tries, for a few
 minutes, the way EldenNet v1 will read the game: from a thread of its own, about ten times a second.
 
-This is the sixteenth such round. The fifteenth worked: GraceUI stayed out, Pause worked on the panel, and the
-round found three things. Where the game keeps which save is loaded: one number read 6 with the last character of
-your list and 2 with your usual one, as your save file said it should. Your health: one number fell at your hit and
-rose at your heal, with its maximum beside it. And the numbers that moved only while you walked, your position
-among them.
+This is the seventeenth such round. The sixteenth worked. It named the place where the game keeps which save is
+loaded, by its own checks. It found the list of the characters near you where the thirteenth round had found it,
+your health where the fifteenth had, and your position: three numbers in a row, of which the middle one is your
+height.
 
-The game ended with an error code when you quit, in that round as in every session that afternoon and evening
-with a save loaded. The control runs you then made, with nothing of ours loaded and from Steam as you usually
-start it, ended the same way, so the code is the game's own on your PC, not EldenNet's and not GraceUI's. Your
-later runs ended clean, and we do not know what decides it. If it shows again at the end of this round, the
-launcher now keeps its record quietly and says nothing at its next start; an error while the game is still on
-screen is still explained.
+Until now the rounds searched: they read a great deal and looked for numbers that behave as health or a position
+must. This round is the first that reads those places the way EldenNet itself will: through EldenNet's own reader
+and its table of places for your game's build, a few small reads once a second, with no search. If it reads
+right, those places are known.
 
-This round has the same tasks as the last and finishes what it left open:
+To show that it reads right, THIS ROUND WRITES THREE NUMBERS OF YOUR CHARACTER INTO ITS REPORT, which no earlier
+round did, and to which you agreed on 24 November: your health, your maximum health, and the number of the save
+slot (6 for the last character of your list, 2 for your usual one). It writes them as they stood at up to nine
+moments: just after each of your confirmations and each standing or walking task. You can hold them against the
+screen, and we ask you for one of them at the end (step 6). It still never writes where your character stands:
+of the position it writes only whether it moved from one second to the next.
 
-  - The number for the loaded save stood in 17 places. For each of them the round now reads the first eight bytes
-    of the object, once, and asks the game's own type information, which it has read already, what kind of object
-    it is. The place whose object is of the kind EldenNet's design expects for the game's state goes into the
-    table.
-  - The list of the characters near you is looked for first where the thirteenth round found it. The fifteenth
-    did not get that far: other runs of addresses had used up its tries.
-  - Of the numbers that fell at your hit, the one that rose again at your heal is now listed first, whichever part
-    of your character it is in. Of the numbers that moved while you walked, the round also writes how far each
-    ranged, as one of four classes (within 2, within 8, within 10,000, further): that tells a position from a
-    direction.
+The game may again end with an error code when you quit. That code is the game's own on your PC (it shows with
+nothing of ours loaded, and Windows' own log has it from before EldenNet's first run), it does not show every
+time, and we do not know what decides it. If it shows, the launcher keeps its record quietly and says nothing at
+its next start; an error while the game is still on screen is still explained.
+
+The tasks are the same as the last round's. The searches of the earlier rounds run once more beside the reader,
+unchanged, so that what the reader reads can be held against what they find.
 
 So this round asks three things of you, all of which you have agreed to.
 
@@ -52,9 +51,9 @@ would rather not, press Pause at those two tasks without doing them, and the rou
 character dies at the hit, the run is not spoilt: press Pause, then at the heal press Pause again without healing;
 the round then says it saw no heal, and everything else still counts.
 
-Of your character's parts the round writes only where a number lies and how it behaved (stood still, moved and
-in which of the four classes of range, fell, rose), never the numbers themselves: not your health, not where you
-stand.
+Of your character's parts the searches write only where a number lies and how it behaved (stood still, moved and
+in which of the four classes of range, fell, rose). The three numbers named above (health, maximum health, save
+slot) are written by the reader, and no others: nothing of where you stand, and nothing else your character has.
 
 The other reading is as before, at the same careful pace. At the title and at each of your first three
 confirmations: the first 8 KiB of every object the game's data points at (about 1,400 objects at the title, some
@@ -62,7 +61,8 @@ confirmations: the first 8 KiB of every object the game's data points at (about 
 when you stand in the world with your usual character: the character manager, its lists and your character's
 object, as in the thirteenth round (it took 17 to 39 seconds then, which is why the first standing task is long).
 And in the background, as since the seventh round: memory near the event flags' own object (about 24 MiB in all at
-most), the flags' reader, the clock, the play time. If the game stutters, quit it and tell us.
+most), the flags' reader, the clock, the play time. New in this round, once a second: EldenNet's reader on your
+character, about 2 KiB a time ("What it does" says exactly what). If the game stutters, quit it and tell us.
 
 It only reads. It calls nothing in the game, adds nothing to it and changes nothing in it. The panel is a window of
 the launcher's own, outside the game. Nothing in this package is for playing with yet.
@@ -88,8 +88,9 @@ What is in it
   eldennet-engine.exe     EldenNet's command-line tool, here to check the report (its lint command).
   gal\                    What the round works from: the build's fingerprint (builds.toml), how a manager's place is
                           recognised (recipes.toml, with its note in derivations\), EldenNet's own numbers and labels
-                          for the places it needs (ids.toml), and what to look for (leads.toml). Numbers and names of
-                          the design's own, nothing taken from the game.
+                          for the places it needs (ids.toml), what to look for (leads.toml), and the table of
+                          places the rounds have found so far for your game's build (layouts\). Numbers and names
+                          of the design's own, nothing taken from the game.
   README-READ.txt         This file.
   SHA256SUMS              The SHA-256 of every other file in this package.
   LICENSE.txt             EldenNet's licence (MIT).
@@ -181,6 +182,10 @@ The steps
      eldennet-engine.exe lint --report "%APPDATA%\EldenNet\probe\lodestar-found.json"
 
    It must say "lint: the report is clean". The launcher has checked it the same way already.
+
+6. Tell us one number: your character's maximum HP, as the game's status screen shows it. The report holds what
+   EldenNet's reader read as your maximum health; if the two are the same, the reader reads the right place. If
+   you happen to remember your HP just after the hit, tell us that too.
 
 If anything else happens (the console says the build is not supported, or that the round stopped, or the game closes),
 do not try again: send the two logs and tell us what the console said. That is a useful result too.
@@ -303,9 +308,9 @@ What it does
     the first 4,096 bytes of the save data's, and writes for each
     address in them the offset, the kind of object behind it as the place of its type table (a number) or none,
     and how many addresses that object begins with. A look stops at 12,000 reads.
-  - From the same thread, after that, once a second until the game ends, the parts watch: it reads your character's
-    address from the character manager (8 bytes), the address of the holder of its parts from your character's
-    object (8 bytes), the holder's first 256 bytes (32 addresses), and the first 4,096 bytes behind each of those
+  - From the same thread, from your third confirmation on, once a second until the game ends, the parts watch: it
+    reads your character's address from the character manager (8 bytes), the address of the holder of its parts
+    from your character's object (8 bytes), the holder's first 256 bytes (32 addresses), and the first 4,096 bytes behind each of those
     addresses (less where memory ends sooner). It compares each 32-bit number with what it read a second before and
     counts, by the task you are at, how often it changed, fell or rose. It writes: which parts there are (the place
     of each one's type table, a number); which numbers changed in at least half of the walk's seconds and never
@@ -314,11 +319,26 @@ What it does
     hit's task, having never changed before, how often they rose during the heal's task, and whether a number
     beside them never changed and is at least as large, the one that fell once and rose once first. It never
     writes what a number held.
+  - EldenNet's own reader on your character, from the same thread, once a second, through the table of places for
+    your game's build (gal\layouts): the address of the game's state's object and the save's slot in it (4
+    bytes); from the character manager, your character's address and the two ends of the list of characters near
+    you (32 bytes); the first eight bytes of your character's object, to see that it is of the player's kind, then
+    its first 408 bytes, the first 112 bytes of the holder of its parts, the first 320 bytes of the part with
+    your health and the first 128 bytes of the part with your position; and of the list of characters near you
+    the first 48 elements (768 bytes) with the first eight bytes of each one's object. About 2 KiB a second. It
+    writes: how many times each of these was there to be read; how long the list was, and for how many of its
+    elements a character lay behind the address and a plain distance beside it; for each stretch between two of
+    your confirmations, in how many seconds your position had moved more than a centimetre since the second
+    before; and, as it stood just after each of your confirmations and tasks: whether a save was loaded and in
+    which slot, whether your character was there, YOUR HEALTH AND YOUR MAXIMUM HEALTH, and the length of the
+    list. It never writes the position itself. Where the table lacks one of these places the reader reads
+    nothing of it and says which.
   - Every two seconds it writes lodestar-found.json into %APPDATA%\EldenNet\probe, and lodestar-table.toml when
     another manager is named. If the report ever grows past its limit, it is written without the detail of the
     watched object that has the most, then of the next, and says which were left out. They hold only numbers
-    (offsets, sizes, counts, and the jumps' numbers named above) and EldenNet's own labels: no names of the game's,
-    no text, no paths, nothing of your character or your PC.
+    (offsets, sizes, counts, the jumps' numbers named above, and in this round your character's health, maximum
+    health and save slot) and EldenNet's own labels: no names of the game's, no text, no paths, nothing else of
+    your character and nothing of your PC.
   - Watches the game until it ends, and keeps a short record if it ends badly: the error's code, which module it was
     in and the time, never a memory dump.
 
