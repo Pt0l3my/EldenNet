@@ -8663,6 +8663,9 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   hit, the maximum after the heal, never above it), the position (moving in 26 of the walk's 29 seconds and in none
   of the 107 standing ones) and the near list (a character behind every address read). The game ended clean.
   Open: the owner's check of the maximum against the status screen.
+- Later (2026-11-24): the owner checked the reader's maximum health against the game's status screen: the same
+  number, and the health at rest equals it; the one point below the maximum through the standing was a point
+  the owner had not noticed missing from the bar. vitals.hp and vitals.max_hp are read from the right place.
 
 ### 575. The save's slot keeps its number at the title: it does not tell the title from the world
 

@@ -2333,3 +2333,44 @@ within O111; nothing personal.
 **Owner's words.** "Yes, write them (Recommended)" (Lodestar's question dialog, 2026-11-24).
 
 **Follows from.** O105, O111; WHY§567 to §569.
+
+## O117
+
+**The eighteenth read-only round reads the first 2 KiB of each near character's object** · *2026-11-24 · Decided by the owner, as recommended*
+
+**Question.** For the other facts EldenNet needs about each character near the Tarnished (its type, its team, whether
+it is dead, whether it is on screen, its area), asked by Lodestar in its chat, in these words: "The eighteenth round is
+to find the other facts EldenNet needs about each character near you (its type, its team, whether it is dead, whether
+it is on screen, its area). To do that it would read the first 2 KiB of the object of each of up to 48 characters near
+you, and of your own, every two seconds: about 100 KiB a time, less than the 130 KiB a second you already agreed to for
+your own character's parts. It only reads, and it would write no ids or values of those characters, only where a
+number lies and how it behaves (for example 'the same for all enemies of one kind', 'flips when one dies'). May the
+round read that?" **Options:** 2 KiB each; 1 KiB each; or no.
+
+**Recommendation.** 2 KiB each.
+
+**Decision.** Read it: the first 2 KiB of each of up to 48 near characters' objects and of the main player's, every two
+seconds, with their health through their parts so that a death is seen; behaviour per place only, no ids or values
+written.
+
+**Owner's words.** "Yes, read it (Recommended)" (Lodestar's question dialog, 2026-11-24).
+
+**Follows from.** O105, O111, O116; WHY§574.
+
+## O118
+
+**The eighteenth read-only round's tasks: one character, a few weak enemies, one killed** · *2026-11-24 · Decided by the owner, as recommended*
+
+**Question.** Asked by Lodestar in its chat, in these words: "That round would need a different set of tasks from the
+last four rounds: one character only (your usual one), standing near a few weak enemies; look around slowly for half a
+minute so they pass on and off screen; kill one of them; then quit. About 10 minutes in all, no second character and no
+deliberate hit on you. Is that set of tasks acceptable?" **Options:** those tasks; or the same without the kill.
+
+**Recommendation.** Those tasks.
+
+**Decision.** Those tasks: wait at the title; load the usual character near a few weak enemies; stand still 40 s; look
+around slowly 40 s; kill one; stand 20 s; quit (five marks).
+
+**Owner's words.** "Yes, those tasks (Recommended)" (Lodestar's question dialog, 2026-11-24).
+
+**Follows from.** O117.
