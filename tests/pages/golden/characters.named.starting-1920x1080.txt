@@ -13,10 +13,10 @@ fill    gold            0, 235    3x40
 text    gold.hi        50, 243   84x25   glyphs 9 "Named NPCs"
 line    rule           30, 275  240x1   
 text    ink.mute       30, 285   64x30   glyphs 6 "System"
-line    rule           30, 325  240x1   
-text    ink.mute       30, 335   85x30   glyphs 8 "Settings"
-line    rule           30, 375  240x1   
-text    ink.mute       30, 385  138x30   glyphs 12 "Content packs"
+line    rule           30, 950  240x1   
+text    ink.mute       30, 960   85x30   glyphs 8 "Settings"
+line    rule           30,1000  240x1   
+text    ink.mute       30,1010  138x30   glyphs 12 "Content packs"
 fill    ground.well   340,  10  350x35   r3
 text    ink.faint     353,  15   51x25   glyphs 6 "Search"
 text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"

@@ -1,7 +1,7 @@
 {
   "space": "eldennet",
   "name": "EldenNet",
-  "minor": 8,
+  "minor": 10,
   "categories": [
     {
       "id": "home",
@@ -64,14 +64,16 @@
       "name": "Settings",
       "pages": [
         "settings.developer"
-      ]
+      ],
+      "foot": true
     },
     {
       "id": "content",
       "name": "Content packs",
       "pages": [
         "content"
-      ]
+      ],
+      "foot": true
     }
   ],
   "pages": [

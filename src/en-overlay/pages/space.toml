@@ -167,7 +167,8 @@ family = true
 id = "content"
 shape = "state"
 
-# ---- The rail (PAGES §4.2.1), in its order.
+# ---- The rail (PAGES §4.2.1), in its order. Settings and Content packs are its foot (protocol 1.10, GraceUI D248),
+# pinned to the rail's bottom under a rule in both views, after every other category, as the lint requires.
 
 [[category]]
 id = "home"
@@ -218,11 +219,13 @@ pages = []
 id = "settings"
 name = "Settings"
 pages = ["settings.developer"]
+foot = true
 
 [[category]]
 id = "content"
 name = "Content packs"
 pages = ["content"]
+foot = true
 
 # ---- Settings: those v0.1 reads whose home is on these pages (PAGES §4.5's debug.*). Their effect is v0.1's own: the
 # F11 view is made at the connect and the recorder opened at the core's start, so both wait for the next launch, and

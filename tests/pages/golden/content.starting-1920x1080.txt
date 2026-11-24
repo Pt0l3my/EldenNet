@@ -10,13 +10,13 @@ line    rule           30, 185  240x1
 text    ink.mute       30, 195  106x30   glyphs 10 "Characters"
 line    rule           30, 235  240x1   
 text    ink.mute       30, 245   64x30   glyphs 6 "System"
-line    rule           30, 285  240x1   
-text    ink.mute       30, 295   85x30   glyphs 8 "Settings"
-line    rule           30, 335  240x1   
-text    ink.hi         30, 345  138x30   glyphs 12 "Content packs"
-fill    tint.select     0, 385  300x40  
-fill    gold            0, 385    3x40  
-text    gold.hi        50, 393  110x25   glyphs 12 "Content packs"
+line    rule           30, 910  240x1   
+text    ink.mute       30, 920   85x30   glyphs 8 "Settings"
+line    rule           30, 960  240x1   
+text    ink.hi         30, 970  138x30   glyphs 12 "Content packs"
+fill    tint.select     0,1010  300x40  
+fill    gold            0,1010    3x40  
+text    gold.hi        50,1018  110x25   glyphs 12 "Content packs"
 fill    ground.well   340,  10  350x35   r3
 text    ink.faint     353,  15   51x25   glyphs 6 "Search"
 text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"

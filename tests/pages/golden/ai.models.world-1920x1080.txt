@@ -15,10 +15,10 @@ line    rule           30, 305  240x1
 text    ink.mute       30, 315  106x30   glyphs 10 "Characters"
 line    rule           30, 355  240x1   
 text    ink.mute       30, 365   64x30   glyphs 6 "System"
-line    rule           30, 405  240x1   
-text    ink.mute       30, 415   85x30   glyphs 8 "Settings"
-line    rule           30, 455  240x1   
-text    ink.mute       30, 465  138x30   glyphs 12 "Content packs"
+line    rule           30, 950  240x1   
+text    ink.mute       30, 960   85x30   glyphs 8 "Settings"
+line    rule           30,1000  240x1   
+text    ink.mute       30,1010  138x30   glyphs 12 "Content packs"
 fill    ground.well   340,  10  350x35   r3
 text    ink.faint     353,  15   51x25   glyphs 6 "Search"
 text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
@@ -314,17 +314,20 @@ text    ink.hi        380,3980   84x28   clip1 glyphs 9 "Self-test"
 text    ink.mute      862,3981  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
 text    gold         1820,3980    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
-fill    ground.well   340,1044   42x28   r3
-stroke  edge          340,1044   42x28   r3 w1
-text    ink.body      348,1046   26x25   glyphs 2 "← →"
-text    ink.faint     389,1045   51x25   glyphs 6 "Choose"
-fill    ground.well   465,1044   25x28   r3
-stroke  edge          465,1044   25x28   r3 w1
-text    ink.body      473,1046    9x25   glyphs 1 "R"
-text    ink.faint     497,1045   42x25   glyphs 5 "Reset"
-fill    ground.well   564,1044   42x28   r3
-stroke  edge          564,1044   42x28   r3 w1
-text    ink.body      572,1046   26x25   glyphs 3 "Esc"
-text    ink.faint     613,1045   34x25   glyphs 4 "Back"
+fill    ground.well   340,1044   55x28   r3
+stroke  edge          340,1044   55x28   r3 w1
+fill    ink.body      354,1057    9x2   
+tri     ink.body      348,1051    7x14   <
+fill    ink.body      372,1057    9x2   
+tri     ink.body      380,1051    7x14   >
+text    ink.faint     402,1045   51x25   glyphs 6 "Choose"
+fill    ground.well   477,1044   25x28   r3
+stroke  edge          477,1044   25x28   r3 w1
+text    ink.body      485,1046    9x25   glyphs 1 "R"
+text    ink.faint     509,1045   42x25   glyphs 5 "Reset"
+fill    ground.well   576,1044   42x28   r3
+stroke  edge          576,1044   42x28   r3 w1
+text    ink.body      584,1046   26x25   glyphs 3 "Esc"
+text    ink.faint     626,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi      1502, 414  356x44   r5 w3 clip1
-# 328 items, 11584 vertices, 25308 indices, 4 commands; check_draw_list: passes
+# 331 items, 11596 vertices, 25350 indices, 4 commands; check_draw_list: passes

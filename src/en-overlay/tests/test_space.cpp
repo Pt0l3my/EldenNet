@@ -365,6 +365,12 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
   for (const json& c : pages["categories"]) rail.push_back(c["id"].get<std::string>());
   CHECK(rail == std::vector<std::string>{"home", "ai", "voice", "characters", "map", "history", "behaviour", "system",
                                          "tools", "settings", "content"});
+  // Its foot (protocol 1.10, GraceUI D248): Settings and Content packs, after every other category.
+  std::vector<std::string> foot;
+  for (const json& c : pages["categories"]) {
+    if (c.value("foot", false)) foot.push_back(c["id"].get<std::string>());
+  }
+  CHECK(foot == std::vector<std::string>{"settings", "content"});
   const Space s;
   REQUIRE(s.valid());
   for (const json& t : pages["topics"]) {
@@ -381,7 +387,7 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
   CHECK(pages["commands"] == json::array({"settings.set", "settings.reset", "selftest.run", "models.list",
                                           "providers.add", "providers.remove", "providers.key", "profile.check",
                                           "profile.save", "profile.reset", "profile.restore", "profile.draft"}));
-  CHECK(pages["minor"] == 8);  // sensitive marks: protocol 1.8's (GraceUI D221), on 1.7's editor (D217)
+  CHECK(pages["minor"] == 10);  // the rail's foot: protocol 1.10's (GraceUI D248), on 1.8's sensitive marks (D221)
   // GraceUI 0.2.5's checks (D183, eldennet-changes §36), met already: no topic is the server's own "pages", the id is
   // not GraceUI's reserved one, and every destructive action, a row's included, has its confirmation's text.
   CHECK(pages["space"] != "graceui");

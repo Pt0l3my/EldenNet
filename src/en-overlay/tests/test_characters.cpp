@@ -81,7 +81,7 @@ TEST_CASE("characters: the page data: Named NPCs' master list, its families, the
   // nothing and stay open to a paired device.
   CHECK(pages["sensitive_commands"] == json{"providers.add", "providers.remove", "providers.key", "profile.save",
                                             "profile.reset", "profile.restore"});
-  CHECK(pages["minor"] == 8);
+  CHECK(pages["minor"] == 10);  // the rail's foot (GraceUI D248), on 1.8's marks
   for (const char* c : {"profile.check", "profile.save", "profile.reset", "profile.restore", "profile.draft"}) {
     CHECK(std::find(pages["commands"].begin(), pages["commands"].end(), c) != pages["commands"].end());
   }
