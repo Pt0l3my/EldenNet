@@ -444,7 +444,7 @@ struct Conversation::Impl {
         return;
       }
       conv->box_open = true;
-      conv->box_draft = take_draft(conv->persona_id);
+      conv->box_draft = kept_draft(conv->persona_id);
       conv->esc_closed = false;  // opened again while its reply paces: the conversation goes on
       ++epoch;
       return;
@@ -494,14 +494,14 @@ struct Conversation::Impl {
     }
   }
 
-  std::string take_draft(const std::string& persona) {
-    std::string text;
-    std::erase_if(drafts, [&](const KeptDraft& d) {
-      if (d.persona != persona) return false;
-      if (d.until > now) text = d.text;
-      return true;
-    });
-    return text;
+  // The draft kept for `persona`, within its 60 s (NPC §5.4). The store keeps its copy, on its first clock, until the
+  // box's next close replaces it (keep_draft) or a line is sent: a box GraceUI refuses at its opening (not now, or
+  // refused: it never held input, so its close carries no draft) loses nothing (WHY§586).
+  [[nodiscard]] std::string kept_draft(const std::string& persona) const {
+    for (const KeptDraft& d : drafts) {
+      if (d.persona == persona && d.until > now) return d.text;
+    }
+    return {};
   }
 
   void keep_draft(const std::string& persona, const std::string& text) {
@@ -518,7 +518,7 @@ struct Conversation::Impl {
     a.name = p.display_name_fallback;
     a.handle = snap()->chars[c.chr].handle;
     a.box_open = true;
-    a.box_draft = take_draft(p.id);
+    a.box_draft = kept_draft(p.id);
     a.idle_from = now;
     conv = std::move(a);
     ++epoch;  // a box opening is an input epoch (§5.9)
@@ -534,6 +534,7 @@ struct Conversation::Impl {
     if (!conv || !conv->box_open || conv->ending) return;
     std::string line = clean_line(typed);
     if (line.empty()) return;
+    keep_draft(conv->persona_id, {});  // the box held input: its own text, not the store's copy, is the draft now
     if (conv->reply) {
       if (conv->reply->acked == 0) {
         conv->queued = std::move(line);  // a later line replaces it, never committed (§6.3)
@@ -956,6 +957,7 @@ struct Conversation::Impl {
     // stops a reply that paces.
     if (e.reason == proto::CloseReason::Escape && !conv->box_open) return;
     conv->box_open = false;
+    // A box refused at its opening never held input: the store's copy of its draft stays as it was (kept_draft).
     if (e.reason != proto::CloseReason::Refused && e.reason != proto::CloseReason::NotNow) {
       keep_draft(conv->persona_id, e.draft);
     }

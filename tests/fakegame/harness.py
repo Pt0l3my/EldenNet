@@ -2571,9 +2571,11 @@ case("launcher-eldennet-graceui-talk-chord", LGAME + ["--dll", "{eldennetdll}", 
 # while the player is locked on to a target (en-overlay's world.hpp), which its conversation's own rules (en-core's
 # safe_context) do not count, so that the box is closed by GraceUI alone: the holder ended with GRACEUI_CLOSED_DANGER,
 # which EldenNet takes as input lost, its draft kept (NPC §5.4). The box opened, "abc" typed, the lock-on from frame
-# 1700 to 1900; T again after it gives the draft back, which is sent; nothing typed reaches the game.
-DANGER_KEYS = "1500:t,2000:t,2100:return,2400:escape"
-DANGER_REPORTS = "1440,1540,1680,1760,1960,2060,2460"
+# 1700 to 1900; T during it (1800) reopens the box in the core, whose rules see no danger, and GraceUI answers not now
+# (danger): the conversation ends with no line said, and the draft stays kept (WHY§586); T again after it (2000) gives
+# the draft back, which is sent; nothing typed reaches the game.
+DANGER_KEYS = "1500:t,1800:t,2000:t,2100:return,2400:escape"
+DANGER_REPORTS = "1440,1540,1680,1760,1860,1960,2060,2460"
 
 
 def check_talk_danger(r):
@@ -2600,6 +2602,10 @@ def check_talk_danger(r):
     need(keys(1760) == keys(1440) and chars(1760) == chars(1440),
          "keys or characters reached the game: %s %s, %s %s" % (keys(1440), keys(1760), chars(1440), chars(1760)),
          failures)
+    # T during the danger: not now, the box never shown, the conversation ended, the draft not lost.
+    failures += any_line(r, "ELDENNET", "chat", what="close", reason="not_now", detail="danger")
+    failures += any_line(r, "ELDENNET", "conversation", ended="closed")
+    failures += want_grace(r, 1860, holder=0, world="0x1")
     # The danger over (1900): the claim withdrawn; T opens the box again with its draft, which is sent.
     failures += want_grace(r, 1960, holder=0, world="0x0")
     failures += want_grace(r, 2060, holder=2)
@@ -2616,8 +2622,9 @@ case("launcher-eldennet-graceui-talk-danger", LGAME + ["--dll", "{eldennetdll}",
      env=dict(GRACE_ENV, ELDENNET_TEST_REALM="eval"), timeout=240,
      prepare=install_eldennet(TALK_SETTINGS, probe=True, then=install_talk), check=check_talk_danger,
      what="Danger closes the chat box through GraceUI: the player locked on, EldenNet claims danger as the world-state "
-          "provider, GraceUI ends the box's holder at once (danger), the draft kept and given back when the box opens "
-          "again once the danger is over; nothing typed reaches the game")
+          "provider, GraceUI ends the box's holder at once (danger), the draft kept through a talk key GraceUI answers "
+          "not now during it, and given back when the box opens again once the danger is over; nothing typed reaches "
+          "the game")
 case("launcher-eldennet-realm-release", LGAME + ["--dll", "{eldennetdll}", "--console"] + game(frames=600),
      program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",),
      env=dict(EN_ENV, ELDENNET_TEST_REALM="eval"), timeout=120,

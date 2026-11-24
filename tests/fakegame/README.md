@@ -219,7 +219,9 @@ invariant 16). With the other mod's connection, they are also two mods connected
 sent, none of it the game's; Esc closes the box. `launcher-eldennet-graceui-talk-danger`: the box open with a draft,
 the player locks on (`--lock-on-at`), which EldenNet claims as danger, and GraceUI ends the box's holder at once
 (danger, which EldenNet takes as input lost and keeps the draft, while its own conversation's rules do not count a
-lock-on); nothing typed reaches the game, and once the lock-on ends T gives the draft back, which is sent.
+lock-on); T pressed during the lock-on reopens the box in EldenNet's core, GraceUI answers not now (danger) and the
+conversation ends with no line said, the draft still kept (WHY§586); nothing typed reaches the game, and once the
+lock-on ends T gives the draft back, which is sent.
 
 The derivation's offline round (part 3) joined it so: `probe-exe`, `probe-exe-slots` and `probe-exe-lint` run the
 Windows `eldennet-engine.exe` under Wine on `fakegame.exe` with `derive-leads.toml` (the fake game's own names under our
