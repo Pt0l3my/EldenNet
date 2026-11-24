@@ -42,8 +42,7 @@ inline constexpr std::uint32_t kTextInk = rgba(0xE8, 0xE2, 0xD0, 0xFF);
 inline constexpr std::uint32_t kShadow = rgba(0x00, 0x00, 0x00, 0xB3);      // #000 at 0.7
 inline constexpr std::uint32_t kBoxGround = rgba(0x00, 0x00, 0x00, 0xB3);   // #000 at 0.70
 inline constexpr std::uint32_t kBoxEdge = rgba(0xC8, 0xB2, 0x7A, 0x80);     // #C8B27A at 0.5
-inline constexpr std::uint32_t kPlayerLine = rgba(0xA8, 0xA3, 0x98, 0xFF);  // the Tarnished's lines (italic in the
-                                                                            // design: GraceUI has no italic face yet)
+inline constexpr std::uint32_t kPlayerLine = rgba(0xA8, 0xA3, 0x98, 0xFF);  // the Tarnished's lines, in italic
 inline constexpr std::uint32_t kHintInk = rgba(0xE8, 0xE2, 0xD0, 0xD9);     // #E8E2D0 at 0.85
 inline constexpr std::uint32_t kMarker = rgba(0xC8, 0xB2, 0x7A, 0xD9);      // #C8B27A at 0.85
 inline constexpr std::uint32_t kSelection = rgba(0xC8, 0xB2, 0x7A, 0x59);
@@ -58,6 +57,10 @@ inline constexpr float kHistoryPx = 20.0f;  // the box's history strip
 inline constexpr float kInputPx = 24.0f;    // the box's input
 inline constexpr float kHintPx = 18.0f;     // the hint
 inline constexpr float kNameTracking = 0.08f;
+// The corners' radii, GraceUI's own (its tokens/grace.toml, [radius]), so that EldenNet's panels and GraceUI's menu
+// round alike: a card's for the box (NPC §10.1's 4 px), a control's for the hint's key box. Scaled with the content.
+inline constexpr float kCardRadius = 4.0f;
+inline constexpr float kControlRadius = 2.0f;
 
 // The fades and the pulse (NPC §8.6, §10.1), and T6's pace.
 inline constexpr std::uint64_t kFadeInMs = 120;
@@ -102,12 +105,16 @@ struct Face {
   [[nodiscard]] const GraceUiGlyph* find(char32_t cp) const noexcept;
 };
 
-// The surfaces' two faces: the serif's (the page, the history and the input) and the sans's (the box's header, the
-// hint). Either may be GraceUI's notices' face when EldenNet's own could not be registered.
+// The surfaces' faces: the serif's (the page, the history and the input) and the sans's (the box's header, the hint),
+// either of which may be GraceUI's notices' face when EldenNet's own could not be registered; and the serif's italic,
+// for the Tarnished's lines (NPC §10.1), where GraceUI's folder has it (GraceUI 0.2.36, D241): without it they are the
+// serif's, upright.
 struct Faces {
   Face serif;
   Face sans;
+  Face italic;
   [[nodiscard]] bool usable() const noexcept { return serif.usable() && sans.usable(); }
+  [[nodiscard]] const Face& tarnished() const noexcept { return italic.usable() ? italic : serif; }
 };
 
 // ---- Text ----
@@ -135,6 +142,12 @@ class Painter {
   void reset(float width, float height, std::uint64_t white, float u, float v);
   void rect(float x0, float y0, float x1, float y1, std::uint32_t colour);
   void edge(float x0, float y0, float x1, float y1, float thickness, std::uint32_t colour);  // a frame inside the rect
+  // The same with rounded corners of `radius` (at most half the shorter side): each corner a fan of a few points (more
+  // as the radius grows), the outline smoothed by a half-pixel fringe on each side whose alpha fades to nothing, as
+  // Dear ImGui's anti-aliased shapes are, all on the white texel. Along a straight side on whole pixels they cover the
+  // pixels rect() and edge() do. A radius under half a pixel draws rect() and edge().
+  void round_rect(float x0, float y0, float x1, float y1, float radius, std::uint32_t colour);
+  void round_edge(float x0, float y0, float x1, float y1, float radius, float thickness, std::uint32_t colour);
   void diamond(float cx, float cy, float radius, std::uint32_t colour);
   // A line of text from the pen at (x, y), the line's top, as GraceUI's glyph quads are measured; answers the pen's x
   // after it. A glyph's quad is clipped by the current clip.
@@ -155,7 +168,15 @@ class Painter {
   void quad(std::uint64_t texture, float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1,
             std::uint32_t colour);
   void poly(std::uint64_t texture, const GraceUiDrawVert* v, std::size_t n);  // a convex fan
+  // Triangles: `n` vertices and `m` indices into them (from 0), in one command, or none of them.
+  void mesh(std::uint64_t texture, const GraceUiDrawVert* v, std::size_t n, const std::uint16_t* idx, std::size_t m);
+  // The command the next `vertices` and `indices` go into, or null where GraceUI's bounds leave no room for them.
+  GraceUiDrawCommand* room(std::uint64_t texture, std::size_t vertices, std::size_t indices);
   GraceUiDrawCommand& command_for(std::uint64_t texture, std::size_t vertices);
+  // A rounded rectangle's outline moved `inset` pixels inwards (outwards when negative), clockwise from the top left's
+  // first point, `per_corner` points a corner, appended to `out`.
+  void outline(float x0, float y0, float x1, float y1, float radius, float inset, std::size_t per_corner,
+               std::uint32_t colour, std::vector<GraceUiDrawVert>& out) const;
 
   float width_ = 0;
   float height_ = 0;
@@ -168,6 +189,8 @@ class Painter {
   std::vector<GraceUiDrawVert> vertices_;
   std::vector<std::uint16_t> indices_;
   std::vector<GraceUiDrawCommand> commands_;
+  std::vector<GraceUiDrawVert> shape_;  // a rounded shape's vertices and indices, kept for their room
+  std::vector<std::uint16_t> shape_indices_;
 };
 
 // ---- The surfaces, laid out ----

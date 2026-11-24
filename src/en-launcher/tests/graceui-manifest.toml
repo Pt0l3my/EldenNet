@@ -1,9 +1,9 @@
 # GraceUI's version file (DESIGN §2.7, D52): written by tools/release/manifest.py; do not edit.
-graceui = "0.2.31"
-abi = [1, 6]
+graceui = "0.2.38"
+abi = [1, 7]
 protocol = [1, 9]
 caps = []
-released = "2026-11-23"
+released = "2026-11-24"
 
 [files]
 "LICENSE.txt" = { size = 51, sha256 = "6449d33343b48d9427c424e17659f94837c379f4c0c2a27afc6674c4508aa945" }

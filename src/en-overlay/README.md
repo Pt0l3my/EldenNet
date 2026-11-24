@@ -9,13 +9,14 @@ moved it to GraceUI 0.2.5's ABI 1.2 (§19, §23, §24, §26 to §29, §33, §34 
 C; WHY§364) adds EldenNet's own surfaces on GraceUI 0.2.20's ABI 1.5 (§31, §33, §47 to §50): the lower third, the chat
 box, the hint and the toasts. Later increments add the call-out box (v0.6) and the rest of its pages.
 
-It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 386d1ba, GraceUI
-0.2.31, ABI 1.6, protocol 1.9, whose uploads it does not use; its floor, 0.2.22, for the profile editor's families, slow
-commands, editor block and chosen row, on 0.2.17's wait handle): its look for GraceUI and `GraceUI_RequestApi(1)`
-(`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size
-(`graceui_sys.hpp`), and the headless Dear ImGui helper (`graceui_imgui.hpp`). It links no hook library and no Dear
-ImGui backend and hooks nothing (R12, GraceUI's invariant 16); it never links en-core or en-gal, so it can never reach
-the game's memory (ARCH §2.3, checked by `en_link_rule`); and nothing in it waits but the look, on T1 (R6).
+It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 3ea17b6, GraceUI
+0.2.38, ABI 1.7, protocol 1.9, whose uploads it does not use; its floor, 0.2.22, for the profile editor's families, slow
+commands, editor block and chosen row, on 0.2.17's wait handle; 0.2.36's italic face where GraceUI's folder has it,
+and 0.2.38's word for what pressed a hotkey behind its cap): its look for GraceUI and `GraceUI_RequestApi(1)`
+(`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size (`graceui_sys.hpp`), and the headless
+Dear ImGui helper (`graceui_imgui.hpp`). It links no hook library and no Dear ImGui backend and hooks nothing (R12,
+GraceUI's invariant 16); it never links en-core or en-gal, so it can never reach the game's memory (ARCH §2.3, checked
+by `en_link_rule`); and nothing in it waits but the look, on T1 (R6).
 
 ## Two parts
 
@@ -81,28 +82,36 @@ The view takes no input (D142): F11 shows it and hides it.
   Dear ImGui's vertex layout, 16-bit indices, a command per texture and clip, within ABI 1's bounds). The text is
   GraceUI's faces only: each glyph's quad from a glyph table, emitted on the shared atlas's texture id and scaled from
   the size GraceUI baked it at to the surface's size at the content scale (NPC §10.1's sizes at 1080 lines); solid
-  shapes on a 4 by 4 white texture of EldenNet's own. The lower third (a name line in gold, upper case, +0.08 em, and
-  two wrapped lines, with a shadow; the card's "…"), the box (its header "Speak to … — heard by: …", the history
-  strip's newest lines, a waiting line greyed, the input with its selection and caret, scrolled so the caret shows, or
-  the strip alone), and the hint ("[T] Speak — …", its key boxed in the words describe_hotkey gives, under the
+  shapes on a 4 by 4 white texture of EldenNet's own, the box's ground and frame and the hint's key box with rounded
+  corners (GraceUI's own radii from its token file, a card's 4 px and a control's 2 px, scaled: a fan of points a
+  corner and a half-pixel fringe each side fading to nothing, as Dear ImGui's anti-aliased shapes; the sides cover the
+  pixels a square rectangle does). The lower third (a name line in gold, upper case, +0.08 em, and two wrapped lines,
+  with a shadow; the card's "…"; no ground, as NPC §10.1 has it), the box (its header "Speak to … — heard by: …", the
+  history strip's newest lines, the Tarnished's in EB Garamond Italic where GraceUI has it and upright otherwise, a
+  waiting line greyed, the input with its selection and caret, scrolled so the caret shows, or the strip alone), and
+  the hint ("[T] Speak — …", its key boxed in the words describe_hotkey gives, under the
   marker's diamond, at (0.50 W, 0.68 H): no render feed yet). The fades are stepped at T6's pace (120 ms in, a 120 ms
   cross-fade, 350 ms out), and a Speech page's first submitted frame, never transparent, is the one PageShown names
   (WHY§364 (3)). Toasts are GraceUI notices under EldenNet's keys 3 and 4, each id posted once and let go when the
   model no longer lists it. The box's input mapping: Enter and the pad's A send, Esc and the pad's B close, Tab skips,
   the rest goes to the editor; the holder's end by its reason; the opening key's own character within 100 ms
   swallowed (NPC §5.1).
-- **Through GraceUI, on T6** (`chat.hpp`, Windows): at connect, in the registration window, the white texture and two
+- **Through GraceUI, on T6** (`chat.hpp`, Windows): at connect, in the registration window, the white texture and
   GRACEUI_FACE_SCALED faces, GraceUI's own EB Garamond (30 px) and Noto Sans (18 px) as the DLL reads them from
-  GraceUI's folder (too late after warm-up: then GraceUI's notices' face); the hotkeys `talk` (T, with the pad chord
+  GraceUI's folder (too late after warm-up: then GraceUI's notices' face), and its EB Garamond Italic (30 px) where the
+  folder has it (GraceUI 0.2.36, D241; three of the eight faces EldenNet may register, D139; none below it, and the
+  Tarnished's lines are drawn upright); the hotkeys `talk` (T, with the pad chord
   D-pad Up then View behind `has_cap("pad-chords")`) and `skip-page` (Tab), named "Talk" and "Skip the page";
-  `wake_event`'s handle behind `has_cap("wake")`. Then, from poll: the talk key opens (OpenChat), Tab skips, the
-  display's event sizes the three panels (made for it, at most one set per display), and a hotkey changed is described
-  again. `Overlay::show(model, now)`, after the core's step: each panel submitted at most every 100 ms (the box's
-  first frame at once), shown once it holds a list; the box's own panel shown, then `request_input` with
-  GRACEUI_INPUT_EVENTS for the keyboard, mouse and pad; granted, the holder's events go to the box's own headless Dear
-  ImGui (the line's text, caret and selection; NPC §8.5's 240 characters), the caret set for the IME; refused and not
-  now answered as Close with the holder's id or the reason; the model closing the box answered as Close{Shut} with the
-  draft; a fault releases input first.
+  `wake_event`'s handle behind `has_cap("wake")`. Then, from poll: the talk hotkey opens (OpenChat, by the pad chord
+  where GraceUI's `hotkey_by` says the chord alone pressed it, behind `has_cap("hotkey-by")`, 0.2.38's D243; by the key
+  otherwise, and the key's own character swallowed only then), Tab skips, the display's event sizes the three panels
+  (made for it, at most one set per display), and a hotkey changed is described again. `Overlay::show(model, now)`,
+  after the core's step: each panel submitted at most every 100 ms (the box's first frame at once), shown once it holds
+  a list; the box's own panel shown, then `request_input` with GRACEUI_INPUT_EVENTS for the keyboard and the pad (never
+  the mouse, O113); granted, the holder's events go to the box's own headless Dear ImGui (the line's text, caret and
+  selection; NPC §8.5's 240 characters), the caret set for the IME; refused and not now answered as Close with the
+  holder's id or the reason; the model closing the box answered as Close{Shut} with the draft; a fault releases input
+  first.
 
 ## The F11 view (`view.hpp`)
 
@@ -278,7 +287,7 @@ or note), what is published and when, the logs stream's batches and ring, the wo
 (no lamp while starting, the banner's own, absence silent, nothing personal), and in the Linux builds the five fixture
 states' `tests/pages/<state>/topics.json` (EN_UPDATE_FIXTURES=1 writes them anew). In the
 Windows builds, under Wine, the connection against a fake GraceUI of our own (`tests/fake_grace.hpp`; graceui-sys has no
-C mock): ABI 1.6's table, answering as GraceUI 0.2.31 answers and checking as it checks (connect's answers, notices
+C mock): ABI 1.7's table, answering as GraceUI 0.2.38 answers and checking as it checks (connect's answers, notices
 under keys, the registration window, hidden panels, hotkeys, poll's events by the event's size, the space's slots, and
 submit's draw-list checks: counts, bounds, ranges, indices, clip rectangles inside the panel, known textures, the
 stride). The cases: the space registered once for its views, or not without the cap or beside anti-cheat; watched

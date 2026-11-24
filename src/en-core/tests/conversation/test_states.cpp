@@ -509,6 +509,50 @@ TEST_CASE("the draft is kept 60 s for its target") {
   CHECK(r.last.ui.chat.draft.empty());
 }
 
+TEST_CASE("a box GraceUI refuses at its opening keeps the draft for the next, within the first 60 s") {
+  // WHY§586: GraceUI's danger close keeps the draft; the talk key during that danger, which the core does not count,
+  // reopens the box, GraceUI answers not now (the close carries no draft: the box never held input), and the
+  // conversation ends with no line said. The draft comes back at the next opening, its 60 s from the first close.
+  for (const proto::CloseReason why : {proto::CloseReason::NotNow, proto::CloseReason::Refused}) {
+    CAPTURE(static_cast<int>(why));
+    Rig r;
+    r.open_box();
+    r.close(proto::CloseReason::InputLost, "my half line");
+    r.wait(1000);
+    r.open();
+    CHECK(r.last.ui.chat.draft == "my half line");
+    r.ui(proto::UiEvent{proto::UiEvent::Close{why, "", why == proto::CloseReason::NotNow ? "danger" : "graceui"}});
+    CHECK(r.ended == std::vector<EndReason>{EndReason::Closed});
+    r.wait(1000);
+    r.open();
+    REQUIRE(r.conv.box_open());
+    CHECK(r.last.ui.chat.draft == "my half line");
+    // Refused again, then 60 s from the first close: gone.
+    r.ui(proto::UiEvent{proto::UiEvent::Close{why, "", "danger"}});
+    r.wait(58100);
+    r.open();
+    CHECK(r.last.ui.chat.draft.empty());
+  }
+  // A line sent from the box: the store's copy goes with it, so that no later box offers what was sent, even where
+  // no close of the box's came after the line (here the core's own danger close, which the rig never answers).
+  Rig r;
+  r.open_box();
+  r.close(proto::CloseReason::FocusLost, "sent at once");
+  r.open();
+  REQUIRE(r.last.ui.chat.draft == "sent at once");
+  r.say("sent at once");
+  proto::Chr wolf = character(kWolf, 9900, 10.0f);
+  wolf.team = 6;
+  r.add(wolf);
+  r.wait(10500);
+  CHECK(r.ended == std::vector<EndReason>{EndReason::Danger});
+  r.remove(kWolf);
+  r.wait(1000);
+  r.open();
+  REQUIRE(r.conv.box_open());
+  CHECK(r.last.ui.chat.draft.empty());
+}
+
 TEST_CASE("Retarget: the talk key on another conversable persona ends this one after its page and opens that one") {
   Rig r;
   r.add(character(kWren, 4100, 6.0f, 40.0f));

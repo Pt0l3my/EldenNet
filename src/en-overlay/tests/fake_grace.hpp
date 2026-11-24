@@ -1,6 +1,6 @@
 #pragma once
-// A fake GraceUI of our own for en-overlay's tests (the Windows builds): ABI 1.6's table, as graceui.h declares it at
-// GraceUI 386d1ba, with the calls en-overlay makes answered as GraceUI 0.2.31 answers them (eldennet-changes §14 to
+// A fake GraceUI of our own for en-overlay's tests (the Windows builds): ABI 1.7's table, as graceui.h declares it at
+// GraceUI 3ea17b6, with the calls en-overlay makes answered as GraceUI 0.2.38 answers them (eldennet-changes §14 to
 // §50; not 1.6's uploaded files, D226, since EldenNet's space has no file command) and checked as GraceUI checks them:
 // connect's answers, notices under keys (replaced in place, withdrawn by an empty text, at most four), textures in the
 // registration window, faces before warm-up and the glyph tables after it, panels hidden until shown, hotkeys (a
@@ -47,10 +47,10 @@ struct Grace {
   // How it answers.
   GraceUiStatus connect_status = GRACEUI_OK;
   std::uint32_t connect_reason = 0;
-  std::uint32_t version = GRACEUI_VERSION_PACK(0, 2, 31);
+  std::uint32_t version = GRACEUI_VERSION_PACK(0, 2, 38);
   std::vector<std::string> caps = {"notices", "panels",        "textures", "faces",      "input",           "world-state",
                                    "hotkeys", "pages",         "holder-events", "display", "pad-chords",
-                                   "hotkey-bindings", "wake"};
+                                   "hotkey-bindings", "wake", "hotkey-by"};
   std::uint32_t table_size = sizeof(GraceUiApi1);  // a shorter table: an older GraceUI (D74)
   bool refuse_textures = false;
   GraceUiStatus poll_status = GRACEUI_OK;  // GRACEUI_NOT_CONNECTED: the mod was disconnected
@@ -78,6 +78,7 @@ struct Grace {
   std::uint32_t faces_too_late = 0;
   bool warmed = false;              // the atlas baked: faces too late, glyph tables ready
   std::uint32_t glyph_tables = 0;   // glyph_table calls answered ok
+  std::map<std::uint32_t, std::uint32_t> glyph_tables_of;  // the same, by face id
   // Input (D77, D176).
   std::uint32_t requests = 0;
   GraceUiInputRequest last_request{};
@@ -118,8 +119,9 @@ struct Grace {
 
   const GraceUiApi1* api();  // the table, its size as `table_size` says
   // A press of a hotkey (by its action), as poll gives it: bound or not, as if the player had bound it since. Silent
-  // while a holder has input, as GraceUI's are (D77).
-  void press(const std::string& action, std::uint32_t count = 1);
+  // while a holder has input, as GraceUI's are (D77). `by`: what pressed it (GRACEUI_HOTKEY_BY_*, D243), written only
+  // with the "hotkey-by" cap, as GraceUI 0.2.38 writes it (an older one leaves 0).
+  void press(const std::string& action, std::uint32_t count = 1, std::uint32_t by = GRACEUI_HOTKEY_BY_KEY);
   // The overlay's warm-up: the atlas baked (faces too late after it, glyph tables ready), then the display's event.
   void warm_up();
   // A holder's events, while it holds (D176): a key, the characters of `utf8`, a pad button, and its end.

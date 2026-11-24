@@ -49,11 +49,11 @@ extern "C" {
 
 /* The ABI major this header describes, and its minor: the number of the newest appends (0: the first table). */
 #define GRACEUI_ABI_MAJOR 1u
-#define GRACEUI_ABI1_MINOR 6u /* 1: a holder's events and set_caret (GraceUI 0.2.1, D176); 2: the display and scaled
+#define GRACEUI_ABI1_MINOR 7u /* 1: a holder's events and set_caret (GraceUI 0.2.1, D176); 2: the display and scaled
                                  faces (GraceUI 0.2.2, D180); 3: pad chords (GraceUI 0.2.14, D204); 4: a hotkey's
                                  binding as the player set it (GraceUI 0.2.16, D210); 5: a wait handle for the mod's
                                  events (GraceUI 0.2.17, D212); 6: an uploaded file with its command (GraceUI 0.2.26,
-                                 D226) */
+                                 D226); 7: what pressed a hotkey, its key or its pad chord (GraceUI 0.2.38, D243) */
 
 /*
  * GraceUI's own version (GRACEUI_VERSION_PACK). Needs no start: callable from any thread, at any time after the DLL is
@@ -151,6 +151,7 @@ typedef uint32_t GraceUiStatus;
 #define GRACEUI_CAP_HOTKEY_BINDINGS "hotkey-bindings" /* describe_hotkey, GRACEUI_EVENT_HOTKEY_CHANGED: since 0.2.16, ABI
                                                         1.4 (D210) */
 #define GRACEUI_CAP_WAKE "wake" /* wake_event: since 0.2.17, ABI 1.5 (D212) */
+#define GRACEUI_CAP_HOTKEY_BY "hotkey-by" /* GraceUiEvent.hotkey_by: since 0.2.38, ABI 1.7 (D243) */
 
 /* A connected mod's handle, which every slot after connect takes; 0 is none. */
 typedef uint64_t GraceUiConsumer;
@@ -489,6 +490,10 @@ typedef struct GraceUiHotkeyDesc {
 #define GRACEUI_BUTTON_X1 3u
 #define GRACEUI_BUTTON_X2 4u
 
+/* What pressed a hotkey (GraceUiEvent.hotkey_by, ABI 1.7, D243). */
+#define GRACEUI_HOTKEY_BY_KEY 1u   /* its key */
+#define GRACEUI_HOTKEY_BY_CHORD 2u /* its pad chord (D204) */
+
 typedef struct GraceUiEvent {
   uint32_t size;       /* set by the caller to sizeof(GraceUiEvent) */
   uint32_t kind;       /* GRACEUI_EVENT_* */
@@ -522,7 +527,10 @@ typedef struct GraceUiEvent {
   float scale;             /* the effective scale, (display_height / 1080) x ui_scale, GraceUI's own text's (§3.13) */
   float content_scale;     /* scale / ui_scale_default: a mod's design size at 1080 lines and the default Menu size */
   float faces_scale;       /* the content scale the mod's GRACEUI_FACE_SCALED faces were baked at (0 if it has none) */
-  uint32_t reserved3;
+  /* From ABI 1.7 (D243), in a word that was reserved, so an event of 1.2's size holds it: with GRACEUI_EVENT_HOTKEY,
+   * what made the presses `count` counts, GRACEUI_HOTKEY_BY_KEY and GRACEUI_HOTKEY_BY_CHORD (both, when both did).
+   * 0 from a GraceUI without has_cap("hotkey-by"), which wrote 0 here. */
+  uint32_t hotkey_by;
   /* From ABI 1.6 (D226): a file command's file, uploaded in the browser view on this PC (§7.2 item 18). With
    * GRACEUI_EVENT_COMMAND, GraceUI writes the file's bytes into the mod's buffer beside the frame; a buffer too small
    * answers GRACEUI_FULL with both lengths set, and the event waits for the next poll. GraceUI keeps no copy once it is

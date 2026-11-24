@@ -187,7 +187,8 @@ GraceUiStatus register_texture(GraceUiConsumer me, const GraceUiTextureDesc* t, 
   return GRACEUI_OK;
 }
 
-// A face before warm-up (D139): a file of some bytes (the fake reads no font), 6 to 128 px; too late after it.
+// A face before warm-up (D139): a file of some bytes (the fake reads no font), 6 to 128 px; too late after it. A mod
+// may register two (GRACEUI_FACES_PER_MOD), and EldenNet (the id `eldennet`) eight.
 GraceUiStatus register_face(GraceUiConsumer me, const GraceUiFaceDesc* face, uint32_t* id) {
   Grace& g = *g_fake;
   if (const GraceUiStatus a = admitted(me); a != GRACEUI_OK) return a;
@@ -199,7 +200,7 @@ GraceUiStatus register_face(GraceUiConsumer me, const GraceUiFaceDesc* face, uin
       face->pixel_height > 128 || (face->flags & ~GRACEUI_FACE_SCALED) != 0) {
     return GRACEUI_REFUSED;
   }
-  if (g.faces.size() >= GRACEUI_FACES_PER_MOD) return GRACEUI_FULL;
+  if (g.faces.size() >= (g.id == "eldennet" ? 8u : GRACEUI_FACES_PER_MOD)) return GRACEUI_FULL;
   g.faces.push_back(Face{face->pixel_height, face->flags, face->data_length});
   *id = kFirstModFace + static_cast<std::uint32_t>(g.faces.size() - 1);
   return GRACEUI_OK;
@@ -226,6 +227,7 @@ GraceUiStatus glyph_table(GraceUiConsumer me, uint32_t face, GraceUiGlyphTable* 
   table->atlas = kAtlas;
   table->glyphs = glyphs.data();
   ++g.glyph_tables;
+  ++g.glyph_tables_of[face];
   return GRACEUI_OK;
 }
 
@@ -575,13 +577,14 @@ const GraceUiApi1* Grace::api() {
   return &table;
 }
 
-void Grace::press(const std::string& action, std::uint32_t count) {
+void Grace::press(const std::string& action, std::uint32_t count, std::uint32_t by) {
   if (holding) return;  // a hotkey fires only while no holder has input (D77)
   for (std::size_t i = 0; i < hotkeys.size(); ++i) {
     if (hotkeys[i].action == action) {
       GraceUiEvent e = event_of(GRACEUI_EVENT_HOTKEY);
       e.hotkey_id = static_cast<std::uint32_t>(i + 1);
       e.count = count;
+      e.hotkey_by = std::find(caps.begin(), caps.end(), "hotkey-by") != caps.end() ? by : 0u;
       queue(*this, e);
     }
   }

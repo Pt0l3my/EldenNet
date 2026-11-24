@@ -8,6 +8,7 @@
 #include <dxgi1_4.h>
 #include <tlhelp32.h>
 
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -216,7 +217,16 @@ HMODULE reported_copy() {
 }
 
 // In one copy: GraceUI's own notices (owner 0) that name another copy, the last one's text and tone, and the log lines
-// still kept that do (GraceUI's abi.cpp words both).
+// still kept that do (GraceUI's abi.cpp words both; from 0.2.38, D244, in other words where GraceUI's own copy idles).
+bool names_a_copy(const char* text) {
+  return std::strstr(text, "A second copy of GraceUI") != nullptr ||
+         std::strstr(text, "GraceUI's own copy is idle") != nullptr;
+}
+bool logs_a_copy(const char* line) {
+  return std::strstr(line, "a second copy of GraceUI is loaded, and idle") != nullptr ||
+         (std::strstr(line, "GraceUI's own copy (") != nullptr && std::strstr(line, "is loaded and idle") != nullptr);
+}
+
 struct CopyNames {
   std::uint32_t notices = 0;
   std::uint32_t logs = 0;
@@ -232,7 +242,7 @@ CopyNames copy_names(HMODULE module) {
     GraceUiTestNotice n{};
     n.size = sizeof n;
     if (get_notice(i, &n) == 0) break;
-    if (n.owner == 0 && std::strstr(n.text, "A second copy of GraceUI") != nullptr) {
+    if (n.owner == 0 && names_a_copy(n.text)) {
       ++out.notices;
       out.notice = word_of(n.text);
       out.tone = n.tone;
@@ -240,14 +250,49 @@ CopyNames copy_names(HMODULE module) {
   }
   char line[512];
   for (uint32_t i = 0; get_log != nullptr && get_log(i, line, sizeof line) != 0; ++i) {
-    if (std::strstr(line, "a second copy of GraceUI is loaded, and idle") != nullptr) ++out.logs;
+    if (logs_a_copy(line)) ++out.logs;
+  }
+  return out;
+}
+
+// Where a copy's installed hooks lead now (GraceUI_Test_GetHookLead, 0.2.35's D240; invariant 16), in
+// GraceUI_Test_GetHookName's order: how many it answers (an idle copy none, from index 0), how many lead to its own
+// detour in its own module, the jumps each followed, and which of them is the window procedure's (-1 for none).
+// `known` is false where the copy has no such export (GraceUI before 0.2.35).
+struct HookLeads {
+  bool known = false;
+  std::uint32_t answered = 0;
+  std::uint32_t here = 0;
+  std::string jumps = "none";
+  int window_procedure = -1;
+};
+
+HookLeads hook_leads(HMODULE module) {
+  HookLeads out;
+  const auto get_lead = export_of<uint32_t (*)(uint32_t, GraceUiTestHookLead*)>(module, "GraceUI_Test_GetHookLead");
+  const auto get_name = export_of<uint32_t (*)(uint32_t, char*, uint32_t)>(module, "GraceUI_Test_GetHookName");
+  if (get_lead == nullptr) return out;
+  out.known = true;
+  const auto self = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(module));
+  for (uint32_t i = 0; i < 32; ++i) {
+    GraceUiTestHookLead lead{};
+    lead.size = sizeof lead;
+    if (get_lead(i, &lead) == 0) break;
+    ++out.answered;
+    if (lead.leads_here == 1 && lead.module_base == self) ++out.here;
+    out.jumps = (i == 0 ? std::string() : out.jumps + ",") + std::to_string(lead.jumps);
+    char name[128] = {};
+    if (get_name != nullptr && get_name(i, name, sizeof name) != 0 &&
+        std::strncmp(name, "the game's window procedure", 27) == 0) {
+      out.window_procedure = static_cast<int>(i);
+    }
   }
   return out;
 }
 
 // --grace-report's line of every copy, where more than one is loaded: for each, in load order, its name, host state,
-// init threads, hook installs, hooks, mods connected and other copies named; then the reported copy's notices and log
-// lines naming a copy, and the last such notice's text and tone.
+// init threads, hook installs, hooks, mods connected, other copies named and where its hooks lead; then the reported
+// copy's notices and log lines naming a copy, and the last such notice's text and tone.
 void report_copies(std::uint64_t frame, HMODULE reported) {
   const std::vector<GraceCopy> copies = grace_copies();
   if (copies.size() < 2) return;
@@ -261,6 +306,13 @@ void report_copies(std::uint64_t frame, HMODULE reported) {
                   st.host, i + 1, st.init_threads_started, i + 1, st.hook_install_runs, i + 1, st.hooks_installed,
                   i + 1, st.consumers, i + 1, st.copies_named);
     line += part;
+    const HookLeads leads = hook_leads(copies[i].module);
+    if (leads.known) {
+      std::snprintf(part, sizeof part, " c%zu_leads=%u c%zu_leads_here=%u c%zu_jumps=%s c%zu_window_procedure=%d",
+                    i + 1, leads.answered, i + 1, leads.here, i + 1, leads.jumps.c_str(), i + 1,
+                    leads.window_procedure);
+      line += part;
+    }
   }
   std::size_t reported_index = 0;
   for (std::size_t i = 0; i < copies.size(); ++i) {
