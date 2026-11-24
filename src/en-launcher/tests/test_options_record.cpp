@@ -183,6 +183,18 @@ TEST_CASE("options: --read brings the console, and keeps the backup, EldenNet's 
   CHECK(parse_ok({"--read", "--read-pace-s", "5"}).read_pace_s == 5);
   CHECK(rd.read_pace_s == 0);
   CHECK(parse_error({"--read-pace-s", "5"}) == "--read-pace-s goes with --read");
+  // The round's plan: 0 where none is given, 0 or 1 with --read, and nothing else.
+  CHECK(rd.read_plan == 0);
+  CHECK_FALSE(rd.read_plan_given);
+  CHECK(parse_ok({"--read", "--read-plan", "1"}).read_plan == 1);
+  CHECK(parse_ok({"--read", "--read-plan", "0"}).read_plan == 0);
+  CHECK(parse_ok({"--read", "--read-plan", "0"}).read_plan_given);
+  CHECK(parse_error({"--read", "--read-plan", "2"}) ==
+        "--read-plan is 0 (the rounds up to the seventeenth) or 1 (the survey)");
+  CHECK(parse_error({"--read", "--read-plan", "x"}) ==
+        "--read-plan is 0 (the rounds up to the seventeenth) or 1 (the survey)");
+  CHECK(parse_error({"--read-plan", "1"}) == "--read-plan goes with --read");
+  CHECK(usage_text().find("--read-plan") != std::string::npos);
   CHECK(parse_error({"--read", "--read-pace-s", "0"}) == "--read-pace-s is 1 to 600 seconds");
   // --probe went with R1 (retired 2026-11-22, O106): an unknown option now, alone or beside --read.
   CHECK(parse_error({"--probe"}) == "unknown option: --probe");

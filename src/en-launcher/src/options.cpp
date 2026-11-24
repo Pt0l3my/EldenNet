@@ -116,6 +116,15 @@ proto::Expected<Options, std::string> parse_options(const std::vector<std::strin
       if ((ok = flag())) o.console = true;
     } else if (arg == "--read") {
       if ((ok = flag())) o.read = true;
+    } else if (arg == "--read-plan") {
+      if ((ok = need())) {
+        if (const auto n = number(v, 0, proto::watch::kPlanCount - 1)) {
+          o.read_plan = *n;
+          o.read_plan_given = true;
+        } else {
+          ok = proto::Unexpected{std::string("--read-plan is 0 (the rounds up to the seventeenth) or 1 (the survey)")};
+        }
+      }
     } else if (arg == "--read-pace-s") {
       if ((ok = need())) {
         if (const auto n = number(v, 1, 600))
@@ -233,6 +242,8 @@ proto::Expected<Options, std::string> parse_options(const std::vector<std::strin
     o.console = true;  // its plain lines
   } else if (o.read_pace_s != 0) {
     return proto::Unexpected{std::string("--read-pace-s goes with --read")};
+  } else if (o.read_plan_given) {
+    return proto::Unexpected{std::string("--read-plan goes with --read")};
   }
   if (o.spike_pace_s != 0 && !run_folder(o.spike)) {
     return proto::Unexpected{std::string("--spike-pace-s goes with --spike s0a, s0b, s0c, s0d, s0d-crash, s0e, "
@@ -262,7 +273,8 @@ std::string usage_text() {
          "  --read               the read-only round, with the probe build of eldennet.dll: the console; EldenNet\n"
          "                       names the managers it reads and tries its reader, and calls nothing in the game;\n"
          "                       a panel beside the game lists the tester's tasks, each with its timer, and the\n"
-         "                       Pause key confirms the task under way (--read-pace-s S: the tests' pace)\n"
+         "                       Pause key confirms the task under way (--read-pace-s S: the tests' pace;\n"
+         "                       --read-plan N: which tasks, 0 the rounds up to the seventeenth, 1 the survey)\n"
          "  --spike s0a|s0b|s0c|s0d|s0d-crash  [--runs N] [--run-timeout S]   the S0 spikes: each run's folder\n"
          "                       spikes\\<word>-<n> holds EldenNet's report of it, and a panel beside the game lists\n"
          "                       the tester's tasks (--spike-pace-s S: the tests' pace)\n"

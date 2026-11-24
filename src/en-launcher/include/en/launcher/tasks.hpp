@@ -91,6 +91,7 @@ class TaskList {
 [[nodiscard]] std::string timer_text(const TaskRow& row);
 
 // The read-only round's tasks (--read), in the order the tester does them.
-[[nodiscard]] std::vector<Task> read_tasks();
+// `plan`: watch.hpp's kPlan*. 0: the rounds up to the seventeenth; 1: the character survey.
+[[nodiscard]] std::vector<Task> read_tasks(std::uint32_t plan = 0);
 
 }  // namespace en::launcher

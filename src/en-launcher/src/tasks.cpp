@@ -109,7 +109,39 @@ std::string timer_text(const TaskRow& row) {
   return {};
 }
 
-std::vector<Task> read_tasks() {
+namespace {
+
+// The eighteenth read-only round, the character survey (the owner agreed to its reading and its tasks on
+// 2026-11-24, O117 and O118): one character, near a few weak enemies. Standing, then looking around so that the
+// characters near pass on and off the screen, then one of them killed. The waits are marked, so that the round
+// knows when each ends; the load and the kill are the tester's to confirm. Five marks.
+std::vector<Task> survey_tasks() {
+  using K = TaskKind;
+  return {
+      {K::Round, "Wait at the title screen",
+       "EldenNet is reading the game. Do not load a save yet: this row turns grey when it is time.", 0, false, ""},
+      {K::Do, "Load your usual character",
+       "Go to a place with a few weak enemies in sight, at a safe distance. When you stand there, press Pause, "
+       "and let go of the controls.",
+       0, true, "I stand near enemies"},
+      {K::Wait, "Stand still", "Hands off the keyboard and the mouse: do not move or turn the camera.", 40, true, ""},
+      {K::Wait, "Look around slowly",
+       "Turn the camera all the way round, slowly, two or three times, so that the enemies pass on and off the "
+       "screen. Do not walk.",
+       40, true, ""},
+      {K::Do, "Kill one weak enemy", "Any one will do. When it is dead, press Pause, and stay near it.", 0, true,
+       "It is dead"},
+      {K::Wait, "Stand still again", "Stay near the one you killed. Hands off the keyboard and the mouse.", 20,
+       true, ""},
+      {K::End, "Quit the game", "Quit as you usually do. The round's files are checked when the game has ended.", 0,
+       false, ""},
+  };
+}
+
+}  // namespace
+
+std::vector<Task> read_tasks(std::uint32_t plan) {
+  if (plan == 1) return survey_tasks();
   // The fourteenth read-only round. First the save's slot, by the two numbers it must read: the last character of
   // the tester's list is loaded, then the usual one (the owner agreed, 2026-11-23, and the owner's save file gave
   // their slots). Then, with the usual character, the parts watch's phases: standing, walking, standing, one hit,

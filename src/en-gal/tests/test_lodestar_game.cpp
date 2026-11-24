@@ -2588,6 +2588,180 @@ TEST_CASE("in game: a long run of rising addresses does not use up the lists' ca
   CHECK(gone[0].offset == 0x1000);
 }
 
+TEST_CASE("in game: the character survey tells a character's fields by how they stand among them and over time") {
+  // An invented world: a manager with the main player's word and a near list; characters of 2 KiB each with a
+  // handle, a kind's number and that number divided by 10,000, an id of their own, a type, a team, a block's id, a
+  // byte of flags (on screen, dead), a counter that never keeps still, and an address of their own; each with a holder
+  // of parts and a health. The tester stands, looks around (the on-screen bit flips), and one character dies.
+  FakeWorld w;
+  w.world();
+  const auto rva = [&](std::uint64_t at) { return static_cast<std::uint32_t>(at - w.base); };
+  const std::uint64_t manager = w.mem.alloc(0x100), run = w.mem.alloc(16 * 0x10);
+  w.mem.put<std::uint64_t>(w.at("st_characters"), manager);
+  struct Made {
+    std::uint64_t at = 0, vitals = 0;
+  };
+  std::vector<Made> chars;
+  const auto make = [&](bool hero, std::uint32_t index) {
+    Made c;
+    c.at = w.mem.alloc(0x800);
+    w.set_vtable(c.at, hero ? "hero" : "npc");
+    const std::uint32_t kind = hero ? 0 : 43'400'000 + (index % 3) * 10'000;
+    w.mem.put<std::uint64_t>(c.at + 0x08, 0xFFF0'0015'0000'0001ull + index * 3);  // a handle: no address
+    w.mem.put<std::uint32_t>(c.at + 0x10, kind);
+    w.mem.put<std::uint32_t>(c.at + 0x14, kind / 10'000);
+    w.mem.put<std::uint32_t>(c.at + 0x18, hero ? 0 : (index % 4 == 0 ? 0 : 1'044'360'000 + index));
+    w.mem.put<std::int32_t>(c.at + 0x1C, hero ? 0 : 3);
+    w.mem.put<std::uint8_t>(c.at + 0x20, hero ? 1 : 6);
+    w.mem.put<std::uint8_t>(c.at + 0x21, 0x02);  // on screen
+    w.mem.put<std::uint32_t>(c.at + 0x24, 0x3C2C'2400u);
+    const std::uint64_t holder = w.mem.alloc(0x40);
+    c.vitals = w.mem.alloc(0x20);
+    w.mem.put<std::uint64_t>(c.at + 0x30, holder);
+    w.mem.put<std::uint64_t>(holder + 0x0, c.vitals);
+    w.mem.put<std::int32_t>(c.vitals + 0x8, 500);
+    w.mem.put<std::int32_t>(c.vitals + 0xC, 500);
+    w.mem.put<std::uint64_t>(c.at + 0x100, w.mem.alloc(0x10));  // an address of its own
+    w.mem.put<std::uint32_t>(c.at + 0x200, 0x3F80'0000u);       // the same in all: 1.0
+    chars.push_back(c);
+    return c.at;
+  };
+  w.mem.put<std::uint64_t>(manager + 0x10, make(true, 0));
+  for (std::uint32_t i = 1; i <= 9; ++i) w.mem.put<std::uint64_t>(run + 0x10 * (i - 1), make(false, i));
+  w.mem.put<std::uint64_t>(manager + 0x20, run);
+  w.mem.put<std::uint64_t>(manager + 0x28, run + 9 * 0x10);
+  lodestar::CharSurvey::Options o;
+  o.base = w.base;
+  o.image_size = w.sys->image().size();
+  o.manager_slot = rva(w.at("st_characters"));
+  o.main_player_word = 0x10;
+  o.list_word = 0x20;
+  o.parts_at = 0x30;
+  o.vitals_at = 0x0;
+  o.hp_at = 0x8;
+  o.character_vtables = {rva(w.vtable("chr")), rva(w.vtable("hero")), rva(w.vtable("npc")), rva(w.vtable("beast"))};
+  o.image = &w.sys->image();
+  lodestar::CharSurvey survey(o);
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  std::uint64_t now = 10'000'000;
+  std::uint32_t tick = 0;
+  const auto pass = [&](bool looking) {
+    now += lodestar::CharSurvey::kEveryUs;
+    ++tick;
+    for (std::size_t i = 0; i < chars.size(); ++i) {
+      w.mem.put<std::uint32_t>(chars[i].at + 0x40, tick);  // a counter: some of its bits flip in one phase only
+      if (looking && i >= 1 && i <= 6) w.mem.put<std::uint8_t>(chars[i].at + 0x21, tick % 2 == 0 ? 0x02 : 0x00);
+    }
+    for (int steps = 0; steps < 2000; ++steps) {
+      reader.begin_tick();
+      if (survey.step(gt, reader, now)) return;
+    }
+    FAIL("a pass did not end");
+  };
+  CHECK(survey.due(now));
+  for (int i = 0; i < 6; ++i) pass(false);  // standing
+  CHECK_FALSE(survey.due(now));
+  survey.mark(now);
+  for (int i = 0; i < 8; ++i) pass(true);   // looking around
+  survey.mark(now);
+  for (std::size_t i = 1; i <= 6; ++i) w.mem.put<std::uint8_t>(chars[i].at + 0x21, 0x02);
+  pass(false);
+  // One dies: its health goes to nothing, its dead bit is set, and it leaves the screen's count as it was.
+  w.mem.put<std::int32_t>(chars[4].vitals + 0x8, 0);
+  w.mem.put<std::uint8_t>(chars[4].at + 0x21, 0x22);
+  pass(false);
+  survey.mark(now);
+  for (int i = 0; i < 4; ++i) pass(false);
+  const lodestar::SurveyFound f = survey.found();
+  CHECK(f.passes == 20);
+  CHECK(f.absent == 0);
+  CHECK(f.tracked == 10);
+  CHECK(f.most_listed == 10);
+  CHECK(f.phase == 3);
+  REQUIRE(f.phase_passes.size() == 4);
+  CHECK(f.phase_passes[0] == 6);
+  CHECK(f.phase_passes[1] == 8);
+  CHECK(f.phase_passes[2] == 2);
+  CHECK(f.phase_passes[3] == 4);
+  CHECK(f.deaths == 1);
+  const auto field = [&](std::uint32_t offset) -> const lodestar::SurveyField* {
+    for (const lodestar::SurveyField& r : f.fields) {
+      if (r.offset == offset) return &r;
+    }
+    return nullptr;
+  };
+  // The kind's number: three kinds among nine, numbers of an id's size, and the player's (none) stands alone.
+  REQUIRE(field(0x10) != nullptr);
+  CHECK(field(0x10)->seen == 10);
+  CHECK(field(0x10)->changed_for == 0);
+  CHECK(field(0x10)->distinct == 4);
+  CHECK(field(0x10)->most == 3);
+  CHECK(field(0x10)->id_like == 9);
+  CHECK(field(0x10)->player_alone);
+  REQUIRE(field(0x14) != nullptr);
+  CHECK(field(0x14)->distinct == 4);
+  // The type: small, the same in every other character, and the player's alone.
+  REQUIRE(field(0x1C) != nullptr);
+  CHECK(field(0x1C)->small == 9);
+  CHECK(field(0x1C)->distinct == 2);
+  CHECK(field(0x1C)->player_alone);
+  // The block's id: the same in all, and listed all the same for its shape; a plain 1.0 in all is not.
+  REQUIRE(field(0x24) != nullptr);
+  CHECK(field(0x24)->block_like == 10);
+  CHECK(field(0x24)->distinct == 1);
+  CHECK(field(0x200) == nullptr);
+  // The timer changes in every character, and an address is no field: neither is listed.
+  CHECK(field(0x40) == nullptr);
+  CHECK(field(0x100) == nullptr);
+  CHECK(field(0x30) == nullptr);
+  // The handle: eight bytes, different in every character, never changed, no address. The address of its own
+  // differs in every character too, and is left out for being one.
+  REQUIRE(f.handles.size() == 1);
+  CHECK(f.handles[0] == 0x08);
+  // The kind's number divided by 10,000 is its neighbour, for every character but the player.
+  REQUIRE_FALSE(f.pairs.empty());
+  CHECK(f.pairs[0].a == 0x10);
+  CHECK(f.pairs[0].b == 0x14);
+  CHECK(f.pairs[0].holds == 9);
+  CHECK(f.pairs[0].of == 9);
+  // The dead bit: it was set as the one died, clear in every living character at every sighting since, and set
+  // in the dead one. The on-screen bit flipped before in the looking phase, so it is no candidate.
+  REQUIRE(f.dead_bits.size() == 1);
+  CHECK(f.dead_total == 1);
+  CHECK(f.dead_bits[0].offset == 0x21);
+  CHECK(f.dead_bits[0].bit == 5);
+  CHECK(f.dead_bits[0].set);
+  CHECK(f.dead_bits[0].against == 0);
+  CHECK(f.dead_bits[0].agree_dead == 5);
+  CHECK(f.dead_bits[0].agree_alive == 9 * 5 - 4);  // the four read before it at its death's pass are not counted
+  // The on-screen bit: flipped in six characters while the tester looked around, never while they stood.
+  REQUIRE_FALSE(f.screen_bits.empty());
+  CHECK(f.screen_bits[0].offset == 0x21);
+  CHECK(f.screen_bits[0].bit == 1);
+  CHECK(f.screen_bits[0].still == 0);
+  CHECK(f.screen_bits[0].look >= 6 * 7);
+  CHECK(f.screen_bits[0].flipped_in >= 6);
+  CHECK(f.screen_bits[0].passes == 8);
+  CHECK(f.screen_total == 1);
+  // At the title: no main player and an empty list. A pass that reads no character is counted as absent.
+  w.mem.put<std::uint64_t>(manager + 0x10, 0);
+  w.mem.put<std::uint64_t>(manager + 0x28, run);
+  pass(false);
+  CHECK(survey.found().absent == 1);
+  // The report carries where the fields lie and how they behaved, and lints clean; no value is written.
+  lodestar::Found found = round_of(w).found;
+  found.survey = f;
+  const auto text = lodestar::write_report(found);
+  if (!text.has_value()) MESSAGE(report::describe(text.error()));
+  REQUIRE(text.has_value());
+  const report::Vocabulary* known[] = {&lodestar::vocabulary()};
+  CHECK(report::lint(*text, known).has_value());
+  CHECK(text->find("\"survey_fields\": [") != std::string::npos);
+  CHECK(text->find("43400000") == std::string::npos);
+  CHECK(text->find("1044360") == std::string::npos);
+}
+
 TEST_CASE("in game: the round's searches at the game's sizes keep within their buffers (a large manager, full parts)") {
   // What the unit cases above do not reach: a manager of 256 KiB full of addresses (some of nothing, some of runs,
   // many of characters), a holder with all 32 parts of 4 KiB each changing all over, and thousands of slots for the

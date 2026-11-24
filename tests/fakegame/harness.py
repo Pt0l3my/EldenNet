@@ -3263,7 +3263,7 @@ def check_read(result, by_flag=False, events=False, marks=False):
     with open(table) as f:
         draft = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 17, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
+    need(d["report"] == "lodestar" and d["schema"] == 18, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
          failures)
     # Numbers and the catalogue's labels: no name of the fake game's, in either file.
     for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["SaveLedger", "FG::", "Imp", "task_loom", "Fg_"]:
@@ -3794,6 +3794,83 @@ case("launcher-eldennet-read-chars", LBASE + ["--no-steam-check", "--game", "{ga
      what="the fourteenth round's second world: the character search's one look at the roster (the player's word, the "
           "near list, the player set, the holder of parts), and the parts watch through the tester's phases (the "
           "position told by its moving in the walk alone, the health by a hit and a heal)")
+
+
+def check_read_survey(result):
+    """The survey's plan (--read-plan 1; the eighteenth round): the launcher writes the plan, lists its seven tasks and
+    stamps five marks; the round reads the plan, makes none of the earlier rounds' searches, and from the first mark
+    surveys the roster's near characters and the player every two seconds. The fake characters pass on and off the
+    screen while the tester looks around (--screen-from-s to --screen-to-s) and the first of them dies (--kill-at-s):
+    the survey tells the on-screen bit by its flipping in the looking phase alone, the dead bit by the death, and
+    lists the fields that keep still. EldenNet's own reader runs beside it."""
+    failures = any_line(result, "LAUNCHER", "tasks", count=7, plan=1)
+    failures += any_line(result, "LAUNCHER", "task", n=2, of=7, by="time", mark=1)
+    failures += any_line(result, "LAUNCHER", "task", n=6, of=7, by="time", mark=1)
+    failures += any_line(result, "ELDENNET", "read", stage="plan", plan=1, known=1)
+    failures += any_line(result, "ELDENNET", "read", stage="survey", made=1, health=1, mark=1)
+    for stage in ("state", "pair", "chars", "chars_look", "parts"):
+        need(not [e for e in result.events("ELDENNET", "read") if e.get("stage") == stage],
+             "the survey's plan ran the earlier rounds' %s" % stage, failures)
+    folder = os.path.join(result.paths["appdata"], "EldenNet", "probe")
+    report = os.path.join(folder, "lodestar-found.json")
+    if not os.path.exists(report):
+        return failures + ["no lodestar-found.json in the probe folder"]
+    code, out, _ = run_engine(result.args, result.env, ["lint", "--report", result.as_win(report)])
+    need(code == 0, "lint --report lodestar-found.json: exit %s %s" % (code, out[-400:]), failures)
+    with open(report) as f:
+        d = json.load(f)
+    need(d["report"] == "lodestar" and d["schema"] == 18,
+         "the report's kind: %s %s" % (d.get("report"), d.get("schema")), failures)
+    need(all(k not in d for k in ("state", "pair", "chars", "parts")),
+         "the survey's report holds an earlier round's section: %s" % sorted(d.keys()), failures)
+    s = d.get("survey") or {"survey_fields": [], "dead_bits": [], "screen_bits": [], "phase_passes": [], "handles": []}
+    passes = s.get("phase_passes") or [0, 0, 0, 0]
+    need(s.get("passes", 0) >= 20 and s.get("tracked") == 7 and s.get("most_listed") == 7 and s.get("deaths") == 1 and
+         s.get("phase") == 3 and passes[0] >= 4 and passes[1] >= 4 and passes[2] >= 3 and passes[3] >= 3,
+         "the survey's passes: %s" % {k: v for k, v in s.items() if not isinstance(v, list)} + " %s" % passes, failures)
+    # The dead bit: bit 6 of the flags' byte, set as the first character died; the one dead from the start agrees.
+    dead = s["dead_bits"]
+    need(len(dead) == 1 and dead[0]["offset"] == 0x25 and dead[0]["bit"] == 6 and dead[0]["set"] is True and
+         dead[0]["against"] == 0 and dead[0]["agree_dead"] >= 4 and dead[0]["agree_alive"] >= 10,
+         "the dead bit: %s" % dead, failures)
+    # The on-screen bit: bit 2 of the same byte, flipping while the tester looked around and never while they stood.
+    screen = s["screen_bits"]
+    need(len(screen) == 1 and screen[0]["offset"] == 0x25 and screen[0]["bit"] == 2 and screen[0]["still"] == 0 and
+         screen[0]["look"] >= 8 and screen[0]["passes"] >= 3 and screen[0]["flipped_in"] >= 4,
+         "the on-screen bit: %s" % screen, failures)
+    # The fields that keep still: the character's ids and its type; the handle is the one eight-byte field that
+    # differs in every character and is no address. The word with the flags' byte changes, and is not listed.
+    fields = {r["offset"]: r for r in s["survey_fields"]}
+    need(0x08 in fields and fields[0x08]["distinct"] == 7 and 0x18 in fields and fields[0x18]["player_alone"] and
+         0x1C in fields and fields[0x1C]["player_alone"] and fields[0x1C]["small"] == 6 and 0x24 not in fields and
+         0x30 not in fields and all(r["changed_for"] == 0 for r in fields.values()),
+         "the survey's fields: %s" % sorted(fields.items())[:10], failures)
+    # (The id and the model side by side read as eight bytes of the same kind: both places are listed.)
+    need(0x10 in s["handles"] and len(s["handles"]) <= 2, "the handle: %s" % s["handles"], failures)
+    # EldenNet's own reader beside it, through the fake game's layout.
+    world = d.get("world") or {"at_marks": []}
+    at = {a["mark"]: a for a in world["at_marks"]}
+    need(world.get("lacks") == 0 and world.get("calls", 0) >= 30 and len(at) == 6 and at[1]["player"] and
+         at[1]["has_hp"] and at[1]["near"] == 6 and world.get("near_chr") == world.get("near_read"),
+         "the world reader beside the survey: %s" % world, failures)
+    failures += any_line(result, "ELDENNET", "connect", skipped=1, why="read_round")
+    failures += check_lines(("ELDENNET", "init", {"state": "ready"}), ("LAUNCHER", "end", {"kind": "clean"}))(result)
+    return failures + ready_no_call(result) + en_log_is_clean(result)
+
+
+case("launcher-eldennet-read-survey", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
+                                               "--read", "--read-plan", "1", "--read-pace-s", "12"] +
+     game("--field-mirror", "--title-frames", "720", "--screen-from-s", "24", "--screen-to-s", "32",
+          "--kill-at-s", "40", frames=4800),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     # The fake game's seconds of the world against the launcher's tasks at twelve seconds each: the world begins some
+     # 12 s in and the round is ready some 10 s in, so the load's mark comes at about 10 of the world's seconds, the
+     # standing task runs to 22, the looking task to 34 and the kill's to 46.
+     prepare=install_eldennet(None, probe=True, gal_change=read_state_gal, then=with_saves),
+     check=check_read_survey,
+     what="the survey's plan (--read-plan 1): the plan read by the round, seven tasks and five marks, no search of the "
+          "earlier rounds; the survey of the near characters tells the dead bit by a death, the on-screen bit by its "
+          "flipping while the tester looks around, the handle and the fields that keep still")
 
 
 def check_read_graceui(result):

@@ -652,4 +652,50 @@ class PartsWatch {
   std::unique_ptr<Impl> impl_;
 };
 
+// The character survey (lodestar.hpp's SurveyFound; the eighteenth round): every kEveryUs it reads the main player's
+// address and the near list's bounds from the characters manager, the list's first kMaxList elements, and of the
+// main player and each listed character the first kSpan bytes of the object (less where memory ends sooner) and,
+// through the holder of its parts, its health (two reads of 8 bytes). A character is followed by its address
+// (kMaxTracked at most). Per pass it compares each character's copy with the one before and counts; nothing is
+// allocated on the stepping thread, and one careful read is made a call at most.
+class CharSurvey {
+ public:
+  static constexpr std::uint32_t kSpan = 0x800;
+  static constexpr std::size_t kMaxList = 48;
+  static constexpr std::size_t kMaxTracked = 128;
+  static constexpr std::uint32_t kPhases = 4;
+  static constexpr std::uint64_t kEveryUs = 2'000'000;
+  static constexpr std::size_t kListedFields = 160, kListedHandles = 16, kListedPairs = 16, kListedBits = 32,
+                               kMaxDeadBits = 512;
+
+  struct Options {
+    std::uint64_t base = 0;
+    std::uint64_t image_size = 0;
+    std::uint32_t manager_slot = 0;       // the characters manager's static
+    std::uint32_t main_player_word = 0;   // in the manager's object
+    std::uint32_t list_word = 0;          // the near list's first address there
+    std::uint32_t stride = 0x10;          // an element's size
+    std::uint32_t chr_at = 0;             // where in an element the character's address lies
+    std::uint32_t parts_at = 0;           // where in a character the holder of its parts lies
+    std::uint32_t vitals_at = 0;          // where in the holder the health's object lies
+    std::uint32_t hp_at = 0;              // where in that object the health lies (32 bits)
+    std::vector<std::uint32_t> character_vtables;  // of the character's class and every class deriving from it
+    const ByteSource* image = nullptr;
+    std::uint32_t still = 0, look = 1;    // which phase is which
+  };
+  explicit CharSurvey(Options options);
+  ~CharSurvey();
+  CharSurvey(const CharSurvey&) = delete;
+  CharSurvey& operator=(const CharSurvey&) = delete;
+
+  void mark(std::uint64_t now_us) noexcept;  // the next phase begins; from one thread
+  [[nodiscard]] bool due(std::uint64_t now_us) const noexcept;  // the stepping thread's
+  bool step(const proto::GameThread& gt, GuardedReader& reader, std::uint64_t now_us);  // whether a pass ended
+  [[nodiscard]] SurveyFound found() const;
+
+ private:
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
+};
+
 }  // namespace en::gal::lodestar

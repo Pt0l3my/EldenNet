@@ -245,7 +245,7 @@ of any game is in it, and every name it looks for comes from a leads file.
   those the accessor's own sites reach too (`known`) and with the same class object (`agreeing`), and the statics
   that are new, each with its class object, count of sites and witnesses; `all_statics` is the accessor's own and
   then the variants' new ones, which the naming goes through. A variant never changes the accessor's own counts or
-  `complete`. `write_report` writes kind `lodestar`, schema 17, through the numbers-only writer: whole
+  `complete`. `write_report` writes kind `lodestar`, schema 18, through the numbers-only writer: whole
   numbers, booleans, fixed words and the leads' labels. Its vocabulary holds no key of the pattern type and no
   fraction, which a test pins, so a report cannot carry a byte, a pattern, text, a name or an instruction.
   **The in-game round (step L5; proposal 0005 §6.1's `instance_class`, O92)** adds, all read-only:
@@ -378,7 +378,20 @@ of any game is in it, and every name it looks for comes from a leads file.
   position moved from one frame to the next by the tester's marks, and, as the first frame after each mark read
   them, the slot, the health and its maximum (`WorldRead`; numbers of the tester's character, written with the
   owner's word of 2026-11-24; the position never is). The parts watch now starts at the second world's mark from
-  the layout's `character.parts`, and runs before the character search's look.
+  the layout's `character.parts`, and runs before the character search's look. `CharSurvey`
+  (lodestar_survey.cpp, `SurveyFound`; the eighteenth round, the owner's O117) is the search for a character's other
+  fields: every two seconds it reads the main player and the near list's first 48 characters for the first 0x800
+  bytes of their objects and, through `character.parts`, their health; follows each by its address (128 at
+  most); and counts how every 32-bit field stands among the characters and over the session. It reports the
+  fields that keep still in four characters of five (how many values, the largest group sharing one, zeros, small
+  numbers, addresses, numbers shaped as a block's id or as large as an id, and whether the player's stands
+  alone), the eight-byte fields that differ in every character and are no addresses (a handle), the pairs in
+  which one field is another divided by 10,000, the bits that flipped as a character's health went to nothing
+  (each checked against every later sighting of a living or a dead character), and the bits that flipped while
+  the tester looked around and not while they stood. No value is reported. An eight-byte word counts as an
+  address only if it lies in the image or near where the game's objects were met: two neighbouring numbers read
+  as one word often look like one by their size. The round runs it under plan 1 (the watch block's `probe_plan`,
+  the launcher's `--read-plan`), which has none of the searches of the rounds up to the seventeenth.
   The round watches each named manager, the objects the event flags' store's first addresses lead to and the
   objects those lead to (and sweeps the stretches all of them start), each place the member search found a
   pointer to an unnamed lead's object at with the object that holds it (0x4000 bytes of both for the world's
