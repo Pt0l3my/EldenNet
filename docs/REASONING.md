@@ -8928,3 +8928,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   five passes found no character and the report kept the last (fields_total 0), while the log a pass earlier held
   273. The unit case and the fake game's case both ended with characters present. Mended: only a pass with two
   characters or more tells them, and both cases now end at the title. The listed fields grow from 160 to 512.
+- Later (2026-11-24, engine de126c7, merged at b511cef): two characters were too low a bar, since a pass with two or
+  three left as the world goes would still replace a full pass's fields and clear the handles. A pass now tells them
+  only with four characters or more and at least half as many as the fullest pass so far; the unit case adds a pass
+  with three of ten left.
