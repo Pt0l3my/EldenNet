@@ -68,19 +68,20 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    a save was loaded. It is the game's own on that PC since 2026-11-23; the fault is in the game's teardown of its
    file system (the record has the reading of Engine's stack from the executable). The rounds go on; the README
    says the code will show.
-   **The sixteenth round is with the owner** (package 0.1.0-lodestar.20, engine 6ee4d5d, after Engine's read;
-   the record's "What was changed for the sixteenth round"; the quit's code is the game's own, what decides it
-   is not known, WHY§557 to §562). Read the other sessions' messages before a package goes out: a correction of
-   Engine's to its own read lay unread while the first pack was sent. The round: the same fourteen
-   tasks; the pair search's hit in an object of the class the leads' `[statics]` give for the game's state names
-   the slot (no number from the executable is given to the round); the layout's list is judged first; the falls
-   and the moves list the likeliest first, a move with the class of its range. Report schema 16. When its files
-   come back: `pair`: `leads` 1 and one hit with `lead` (64,424,360 + 2,752) and `[item.game_state]` in the draft
-   table, then `[class.game_state]` with `save_slot` at 0xAC0 goes into the layout and the item into the table;
-   `chars`: the first list `expected` at 0x1F1E8 with `has_fraction`; `parts`: the first fall part 0 + 0x138 with
-   its bound at 0x13C, the first moves `span` 3 (three in a row are the position).
-   Then: the vitals and the position as leads in the layout, and a backend entry that reads the world's group
-   alone, so that EldenNet's own reader reads the main player, the near list and the health in a round.
+   **The sixteenth round is reviewed (the record's "The sixteenth round in game").** It named the game's state by
+   its own checks (the one of 22 fields in an object of the lead's class: 0x3D709A8 + 0xAC0), found the near list
+   at the layout's place (119 elements; no fraction in every element this time), health at part 0 + 0x138 again
+   (nine other fields behaved alike), and the position in part 13 from 0x70 (x, height, z). The layout now holds,
+   as leads: `[item.game_state]`, `game_state.save_slot` (far), `character.parts` 0x190, `character_parts.vitals`
+   0x0 and `.motion` 0x68, `vitals.hp` 0x138 and `.max_hp` 0x13C, `motion.pos` 0x70. The game's exit code at the
+   quit is the game's own on the owner's PC (WHY§557 to §562); the launcher keeps it quietly (O115).
+   **Next, the seventeenth round: EldenNet's own reader on the world.** A backend entry that reads the world's
+   group alone (as `flags_alone` does the flags; `ErBackend` is Engine's to hear of first), so that a round reads
+   through the layout: the game's state's slot, the main player, its parts, health and position, and the near
+   list, and reports numbers the owner can check on screen (health and its maximum; the slot) and whether the
+   position moves with the walk. With it: the near entry's fraction counted over the elements, not required in
+   all; the character search's look shortened (71 s in the sixteenth round). Then WHY§460's next subjects.
+   Read the other sessions' messages before a package goes out (a correction of Engine's lay unread once).
    **Leads from the owner's executable (the record's "The offline study of the owner's executable")**: the game's
    state's static is 0x3D709A8 (its class's table of methods 0x2A84210; made with the event flags' store, so not
    there at the title), the save's slot the 32-bit number 0xAC0 into its object (compared with -1 and with the
