@@ -3096,6 +3096,19 @@ TEST_CASE("in game: the sheet scan tells the numbers of the save data's object a
     const char16_t name[] = u"Wren of Oak";
     for (std::size_t i = 0; i < 11; ++i) w.mem.put<std::uint16_t>(at + 0x9C + i * 2, static_cast<std::uint16_t>(name[i]));
     w.mem.put<std::uint32_t>(at + 0xB8, 77);       // a number right after the name's end: a field of its own
+    // Texts in scripts no list of ours had (Engine's review): two Hebrew letters, which as one number are small
+    // enough to be told; and three Arabic letters, whose last, with the nothing after it, reads as a small number.
+    w.mem.put<std::uint16_t>(at + 0x60, 0x05D0);
+    w.mem.put<std::uint16_t>(at + 0x62, 0x05D1);
+    w.mem.put<std::uint16_t>(at + 0x70, 0x0627);
+    w.mem.put<std::uint16_t>(at + 0x72, 0x0628);
+    w.mem.put<std::uint16_t>(at + 0x74, 0x062A);
+    // What is no text: an unset number (all bits set) with a number after it. And the price: a number right after
+    // a fraction that is not round goes with it.
+    w.mem.put<std::uint32_t>(at + 0x80, 0xFFFF'FFFFu);
+    w.mem.put<std::uint32_t>(at + 0x84, 64);
+    w.mem.put<std::uint32_t>(at + 0x88, 0x41A3'D70Au);  // 20.48
+    w.mem.put<std::uint32_t>(at + 0x8C, 50);
     w.mem.put<std::uint32_t>(at + 0xFF0, 9);       // near the object's end
   };
   fill_sheet(sheet_a);
@@ -3223,10 +3236,33 @@ TEST_CASE("in game: the sheet scan tells the numbers of the save data's object a
   // The name: eleven letters from 0x9C on, six fields of text. Not one of them is told, the last (one letter and
   // nothing after it) included; where the run lies is. The number after it is a field of its own, and told.
   for (std::uint32_t at = 0x9C; at < 0xB4; at += 4) CHECK(field(sh, at) == nullptr);
-  CHECK(sh.text_fields == 6);
-  REQUIRE(sh.texts.size() == 1);
-  CHECK(sh.texts[0].offset == 0x9C);
-  CHECK(sh.texts[0].fields == 6);
+  // The two Hebrew letters (as one number 97,584,592, which is under what is told) and the three Arabic ones
+  // (the last as a number 1,578): never told. The unset number is no text and the number after it is told. The
+  // number after the fraction is lost with it.
+  CHECK(field(sh, 0x60) == nullptr);
+  CHECK(field(sh, 0x70) == nullptr);
+  CHECK(field(sh, 0x74) == nullptr);
+  CHECK(field(sh, 0x80) == nullptr);
+  REQUIRE(field(sh, 0x84) != nullptr);
+  CHECK(field(sh, 0x84)->last == 64);
+  CHECK(field(sh, 0x88) == nullptr);
+  CHECK(field(sh, 0x8C) == nullptr);
+  CHECK(sh.text_fields == 11);
+  REQUIRE(sh.texts.size() == 4);
+  CHECK(sh.texts[0].offset == 0x60);
+  CHECK(sh.texts[0].fields == 1);
+  CHECK(sh.texts[1].offset == 0x70);
+  CHECK(sh.texts[1].fields == 2);
+  CHECK(sh.texts[2].offset == 0x88);
+  CHECK(sh.texts[2].fields == 2);
+  CHECK(sh.texts[3].offset == 0x9C);
+  CHECK(sh.texts[3].fields == 6);
+  for (const lodestar::SheetField& r : sh.fields) {
+    // No told number is made of two letters, in any script, or is a lone letter's code from the texts above.
+    const std::uint16_t low = static_cast<std::uint16_t>(r.last), high = static_cast<std::uint16_t>(r.last >> 16);
+    CHECK_FALSE((low >= 0x20 && low < 0xFFFE && high >= 0x20 && high < 0xFFFE));
+    CHECK(r.last != 0x062A);
+  }
   REQUIRE(field(sh, 0xB8) != nullptr);
   CHECK(field(sh, 0xB8)->last == 77);
   for (const lodestar::SheetField& r : sh.fields) {

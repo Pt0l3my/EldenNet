@@ -749,7 +749,9 @@ struct SurveyFound {
 // player's sheet, read every two seconds, and every 32-bit number in them that may be a count or a level told with
 // its place: as first read, as last read, in how many passes it changed and in which of the tester's phases. The
 // owner chose the numbers written; they go from the owner to the reviewer and no further. What reads as text is
-// never told (a name lies in the sheet): only where such a run lies and how long it is. Nor is an address.
+// never told (a name lies in the sheet): only where such a run lies and how long it is. Nor is an address. Text is
+// two 16-bit units or more in a row from U+0020 up, in any script; a text of one single letter cannot be told from
+// a small number by its shape, and the round's README says so.
 struct SheetField {
   std::uint32_t offset = 0;
   std::uint32_t first = 0;    // as first read

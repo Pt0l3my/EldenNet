@@ -38,13 +38,14 @@ std::uint64_t slot_value(const ByteSource* image, std::uint32_t rva) {
   return plausible(at) ? at : 0;
 }
 
-// A 16-bit unit that may be a letter of a text a player types: Latin and its marks, Greek and Cyrillic, general
-// punctuation, the kana, the CJK ideographs, Hangul, and the full-width forms.
-bool letter(std::uint16_t u) {
-  return (u >= 0x20 && u <= 0x7E) || (u >= 0xA0 && u <= 0x24F) || (u >= 0x370 && u <= 0x52F) ||
-         (u >= 0x2000 && u <= 0x206F) || (u >= 0x3000 && u <= 0x30FF) || (u >= 0x4E00 && u <= 0x9FFF) ||
-         (u >= 0xAC00 && u <= 0xD7A3) || (u >= 0xFF00 && u <= 0xFFEF);
-}
+// A 16-bit unit that may be a letter of a text a player types, in whatever script: every unit from U+0020 up but the
+// two that are no character (0xFFFE, 0xFFFF: what an unset 16-bit number reads as). A list of scripts would not do
+// (Engine's review, and what it led to): two letters of a script it lacks make a number small enough to be told
+// where both lie below U+0600, and the last letter of an odd-length text in any script it lacks, with the nothing
+// after it, reads as a small number by itself. The price is numbers: one that stands right after a fraction, an id
+// or any other field whose upper half is 32 or more goes with it, and so does a number of two million or more whose
+// lower half is 32 or more.
+bool letter(std::uint16_t u) { return u >= 0x20 && u < 0xFFFE; }
 
 }  // namespace
 
@@ -212,19 +213,20 @@ struct SheetScan::Impl {
       const std::span<const std::byte> last(ob.before.data(), ob.bytes);  // each part as it was last read
       for (std::size_t f = 0; f < kFields; ++f) {
         if ((ob.marks[f] & kSeen) == 0) continue;
+        // An address first: its halves read as letters too, and are no text. Neither is ever told.
+        if ((ob.marks[f] & kAddress) != 0) {
+          ++t.address_fields;
+          continue;
+        }
         if ((ob.marks[f] & kText) != 0) {
           ++t.text_fields;
           // Where the text lies, run by run, and never what it is: a run of one field alone may be a number lost.
-          if (f != 0 && (ob.marks[f - 1] & kText) != 0 && t.text_count != 0 &&
+          if (f != 0 && (ob.marks[f - 1] & (kText | kAddress)) == kText && t.text_count != 0 &&
               t.texts[t.text_count - 1].offset + t.texts[t.text_count - 1].fields * 4 == f * 4) {
             ++t.texts[t.text_count - 1].fields;
           } else if (t.text_count < kListedTexts) {
             t.texts[t.text_count++] = SheetText{static_cast<std::uint32_t>(f * 4), 1};
           }
-          continue;
-        }
-        if ((ob.marks[f] & kAddress) != 0) {
-          ++t.address_fields;
           continue;
         }
         const std::uint32_t now = field_at(last, f * 4);
