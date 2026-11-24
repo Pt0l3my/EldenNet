@@ -82,12 +82,16 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    it after the heal; the position moving with the walk alone; the near list sorted by distance, a character in
    every element, 8 of 12,720 elements without a distance yet. The game's state's item passed the table's checks
    in the game. The owner checked the maximum HP against the status screen: it is the number the reader read.
-   **The eighteenth round's first run lost its fields (mine; the record's "The eighteenth round in game")**: the
-   survey's last, empty passes at the quit replaced them with nothing. It did find the dead bits (byte 0x1C6, bits
-   0 and 1) and on-screen candidates (0x1C4 bit 4 first). Mended (engine de126c7: only a pass that is full enough
-   replaces the summary), with cases that end as a quit does; package 0.1.0-lodestar.23 repeats the round and is
-   with the owner. A summary that is recomputed every pass must not be
-   overwritten by a pass that saw nothing: test the ending a real run has.
+   **The eighteenth round is reviewed, after its rerun (the record's "The eighteenth round again, in game").** The
+   survey gave a character's other fields by behaviour: handle 0x8 (u64), npc_param_id 0x60, model 0x64 (the
+   kind's number over 10,000), entity_id 0x1E8, team 0x6C, on_screen 0x1C4 bit 4, dead 0x1C6 bit 0 (bit 1 and
+   0x53B bit 4 behave alike). In the layout as leads (engine e816200). Open: chr_type (0x68 or 0x40), block_id (0x70,
+   0xC or the moving 0x38). The first run lost its fields to empty passes at the quit (mine): a summary recomputed
+   every pass must not be replaced by a pass that saw little, and a case must end as a real run ends.
+   **Next, the nineteenth round**: EldenNet's own reader on the near list's characters (handle, ids, team, dead,
+   on screen), as Engine asked, with what tells the type and the block; then the save data's deaths and the
+   sheet's level and name (the owner's status screen of 2026-11-24, in chat only, is there to check against),
+   field_area, the menus' screen, the session.
    **The eighteenth round as first sent** (package 0.1.0-lodestar.22, engine 02b0f27, after Engine's read; the record's "What was changed
    for the eighteenth round"): the character survey under plan 1 (`--read-plan 1`; the watch block's `probe_plan`,
    version 2), the owner's O117 and O118. When its files come back: `survey.survey_fields` for the type (small,
