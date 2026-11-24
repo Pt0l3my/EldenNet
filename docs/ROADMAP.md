@@ -1733,13 +1733,14 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     each arrow in a footer's key cap drawn as a shaft and a head, centred, instead of the mono face's glyph.
     EldenNet's footers with arrows move at its next pin after S11.2.bc, which takes 0.2.41 and 0.2.42 (S11.2.be)
     together; GraceUiTestMenu.footer is unchanged.
-- be The rail's foot for a mod's categories, and empty words without "yet" (GraceUI 0.2.42, protocol 1.10) [planned]
-  - refs: GraceUI:D246, PAGES§4.2.1, PAGES§4.6.9, O119
+- be The rail's foot for a mod's categories, and empty words without "yet" (GraceUI 0.2.42, protocol 1.10) [done]
+  - refs: GraceUI:D248, GraceUI:D249, PAGES§4.2.1, PAGES§4.6.9, O119
   - gives: asked by Engine from Content packs on 2026-11-24; Grace builds both as framework details of the design
     decided (its D248 and D249): a category may say "foot": true, and both views pin such categories to the rail's
     bottom under a rule; a block with no items and no words of its own reads "Nothing to show." in both views (no
     "yet", which SP5 and GraceUI's invariant 2 both forbid for anything not reached). EldenNet then marks Settings,
-    Content packs and Docs as its foot.
+    Content packs and Docs as its foot. Built the same day (GraceUI feat/foundations 9157984, its run in b36bd2a);
+    foot categories come after every other. EldenNet takes 0.2.41 and 0.2.42 in one pin after S11.2.bc.
 - bf A table's own filter bar and sort, done in the view (GraceUI's proposal 0012, G43 (a); protocol 1.11) [next]
   - refs: G43, PAGES§4.6.2
   - gives: put to the owner on 2026-11-24 and decided as recommended (G43 (a), the owner's words "(a) Filter bar now,
