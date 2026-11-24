@@ -83,7 +83,7 @@ endif()
 
 # GraceUI's graceui-sys (its C helper, C++ wrapper and headless Dear ImGui helper), the ABI header it includes, and
 # graceui_test.h, the test build's exports, which the fake game reads in the tests alone: all five vendored unmodified
-# from GraceUI at 3fac29b (GraceUI 0.2.44, protocol 1.12, ABI 1.7; graceui-sys's three unchanged since beca859,
+# from GraceUI at fe7d9db (GraceUI 0.2.46, protocol 1.13, ABI 1.7; graceui-sys's three unchanged since beca859,
 # graceui.h last changed at 8d30ac3 and graceui_test.h at a9755cb) with GraceUI's licence (third_party/graceui-sys,
 # THIRD_PARTY.md).
 # Each file is checked against its SHA-256 here, so that an edit is caught when the build is configured.
@@ -99,7 +99,7 @@ foreach(pin IN ITEMS
   list(GET pin 1 _en_sha256)
   file(SHA256 ${CMAKE_CURRENT_SOURCE_DIR}/third_party/graceui-sys/${_en_path} _en_have)
   if(NOT _en_have STREQUAL _en_sha256)
-    message(FATAL_ERROR "third_party/graceui-sys/${_en_path} is not GraceUI 3fac29b's (SHA-256 ${_en_have})")
+    message(FATAL_ERROR "third_party/graceui-sys/${_en_path} is not GraceUI fe7d9db's (SHA-256 ${_en_have})")
   endif()
 endforeach()
 add_library(en_graceui_sys INTERFACE)

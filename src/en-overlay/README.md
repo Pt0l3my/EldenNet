@@ -9,8 +9,8 @@ moved it to GraceUI 0.2.5's ABI 1.2 (§19, §23, §24, §26 to §29, §33, §34 
 C; WHY§364) adds EldenNet's own surfaces on GraceUI 0.2.20's ABI 1.5 (§31, §33, §47 to §50): the lower third, the chat
 box, the hint and the toasts. Later increments add the call-out box (v0.6) and the rest of its pages.
 
-It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 3fac29b, GraceUI
-0.2.44, ABI 1.7, protocol 1.12, whose uploads it does not use; its floor, 0.2.44, for Docs' document block and Bug
+It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at fe7d9db, GraceUI
+0.2.46, ABI 1.7, protocol 1.13, whose uploads it does not use; its floor, 0.2.44, for Docs' document block and Bug
 report's prose field and preview, which an older GraceUI refuses, with the profile editor's families, slow commands,
 editor block and chosen row, on 0.2.17's wait handle; 0.2.36's italic face where GraceUI's folder has it, and 0.2.38's
 word for what pressed a hotkey behind its cap): its look for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI
@@ -369,7 +369,7 @@ cleared by an empty field, the optional parts' switches and an always part's ref
 scrubbed again, settings without a secret or a path), and in the Linux builds the five fixture states'
 `tests/pages/<state>/topics.json` (EN_UPDATE_FIXTURES=1 writes them anew). In the
 Windows builds, under Wine, the connection against a fake GraceUI of our own (`tests/fake_grace.hpp`; graceui-sys has no
-C mock): ABI 1.7's table, answering as GraceUI 0.2.44 answers and checking as it checks (connect's answers, notices
+C mock): ABI 1.7's table, answering as GraceUI 0.2.46 answers and checking as it checks (connect's answers, notices
 under keys, the registration window, hidden panels, hotkeys, poll's events by the event's size, the space's slots, and
 submit's draw-list checks: counts, bounds, ranges, indices, clip rectangles inside the panel, known textures, the
 stride). The cases: the space registered once for its views, or not without the cap or beside anti-cheat; watched
