@@ -1820,6 +1820,15 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     GraceUI 0.2.48 (D255, feat/foundations b9eb970): four fixes to D254's paging found by a review of 0.2.47; EldenNet's
     0.3 pin takes 0.2.48, and publishes its History pages' changes topic when a character loads.
 
+- bi What is out of view costs nothing, pages open at their top, a row drawer and a header switch (GraceUI 0.2.49, protocol 1.15) [done]
+  - refs: GraceUI:D256, GraceUI:D253, WHY§633, WHY§635, WHY§636, WHY§637
+  - gives: built on 2026-11-24 (GraceUI feat/foundations b5b7204; GraceUI's docs/eldennet-changes.md §82) from
+    EldenNet's 0.2.46 pin: the tessellator skips what lies wholly outside its clip, so Docs stays within a mod's draw
+    limits; a page opens on its first stop with its header in view; a table's body column may be `"drawer": true`, in
+    a row's drawer; a page's header action may be a switch on a state topic's boolean. EldenNet's next pin (after
+    S11.4.a's System pages) takes 0.2.49: Docs' exit dropped, Requests' Why and Text shown in the drawer, Home's Pause AI
+    chip beside the quick switch.
+
 ### S11.3 EldenNet v0.2
 
 - S11.3.a The LLM client in the DLL (built in S8.1.a and g; config file only), the chat box, input capture and gating, the talk observer
