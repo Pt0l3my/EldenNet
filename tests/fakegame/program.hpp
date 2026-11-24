@@ -49,6 +49,11 @@ struct Options {
   // screen_to_s the characters near pass on and off the screen, each every two seconds (the tester looks around;
   // outside it they are on screen by their distance, as always); at kill_at_s the first of them dies (never, where 0).
   std::uint32_t screen_from_s = 0, screen_to_s = 0, kill_at_s = 0;
+  // The sheet's world (the twentieth read-only round), by the world's seconds: at block_at_s the player crosses into
+  // another block (its block id changes); at die_at_s it dies: its health goes to nothing and its dead bit is set,
+  // the save ledger counts the death and the sheet's runes are lost, and three seconds on the world loads again,
+  // with a new player in it. Never, where 0.
+  std::uint32_t block_at_s = 0, die_at_s = 0;
   std::uint32_t clock_rate = 60;       // game seconds a second of real time in the world (a game minute a second)
   bool day_book = false;               // the first decoy static holds a plain block that keeps the clock's packed word
                                        // twice (0x10 and 0x18 bytes in): a clock behind a static no lead names

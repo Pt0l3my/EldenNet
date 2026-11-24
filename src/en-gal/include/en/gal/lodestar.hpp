@@ -745,6 +745,48 @@ struct SurveyFound {
   std::vector<SurveyCheck> checks;      // the round's own checks, in the order given (32 at most)
 };
 
+// The sheet scan (in game; the twentieth round, the owner's O121 and O122): the save data's object and the main
+// player's sheet, read every two seconds, and every 32-bit number in them that may be a count or a level told with
+// its place: as first read, as last read, in how many passes it changed and in which of the tester's phases. The
+// owner chose the numbers written; they go from the owner to the reviewer and no further. What reads as text is
+// never told (a name lies in the sheet): only where such a run lies and how long it is. Nor is an address. Text is
+// two 16-bit units or more in a row from U+0020 up, in any script; a text of one single letter cannot be told from
+// a small number by its shape, and the round's README says so.
+struct SheetField {
+  std::uint32_t offset = 0;
+  std::uint32_t first = 0;    // as first read
+  std::uint32_t last = 0;     // as last read
+  std::uint32_t changes = 0;  // passes in which it was another number than in the pass before
+  std::uint32_t phases = 0;   // bit n: it changed in the tester's phase n
+};
+struct SheetText {
+  std::uint32_t offset = 0;   // where a run that reads as text begins
+  std::uint32_t fields = 0;   // how many 32-bit fields it touches
+};
+struct SheetObject {
+  std::uint32_t which = 0;           // 0: the save data's object; 1: the sheet
+  bool there = false;                // it was read at least once
+  std::uint32_t bytes = 0;           // the most a pass read of it
+  std::uint32_t passes = 0;          // passes that read it
+  std::uint32_t moved = 0;           // passes in which it lay at another address than before
+  std::uint32_t fields_total = 0;    // numbers that would be listed
+  std::uint32_t text_fields = 0;     // fields left out for being text
+  std::uint32_t address_fields = 0;  // fields left out for being half of an address
+  std::uint32_t restless = 0;        // numbers left out for changing in more than eight passes
+  std::vector<SheetField> fields;    // by offset, 1,024 at most
+  std::vector<SheetText> texts;      // by offset, 32 at most
+};
+struct SheetFound {
+  std::uint32_t passes = 0;
+  std::uint32_t absent = 0;          // passes that read neither object
+  std::uint32_t phase = 0;
+  std::vector<std::uint32_t> phase_passes;
+  bool sheet_classed = false;        // the sheet's first word lies in the image: an object of a class
+  bool sheet_is_first = false;       // the sheet is the object the save data's first given word leads to
+  bool sheet_is_second = false;      // or its second
+  std::vector<SheetObject> objects;
+};
+
 // EldenNet's own reader on the world's leads (in game; ErBackend::world_alone, the seventeenth round): the game's
 // state's slot, the main player with its health and position, and the near list, read through the build's layout
 // once a second. Counts over the frames, and what the first frame after each of the tester's marks read. The
@@ -807,6 +849,29 @@ struct WorldRead {
   std::vector<std::uint32_t> chr_object_by;     // by span: the others' objects copied,
   std::vector<std::uint32_t> chr_dead_by;       //   of them with the dead bit set,
   std::vector<std::uint32_t> chr_on_screen_by;  //   and with the on-screen bit set
+  // The type and the block through the layout (the twentieth round), over the same frames.
+  std::uint64_t chr_block = 0;             // the others with a block that reads as a block's id
+  std::uint64_t chr_block_self = 0;        // of them, in the block the main player is in
+  std::uint64_t chr_type_main = 0;         // the others of the frame's largest group of one type, summed
+  std::uint32_t types_most = 0;            // the most different types a frame had
+  std::uint64_t self_type_none_frames = 0; // frames in which the main player's type read nothing
+  std::uint64_t self_block_frames = 0;     // frames in which its block read as one
+  std::uint64_t zero_fields_frames = 0;    // frames with the fields in which its health read nothing
+  std::uint64_t dead_at_zero = 0;          // of them, with its dead bit set
+  std::vector<std::uint32_t> self_frames_by;         // by span: frames with the main player's fields,
+  std::vector<std::uint32_t> self_dead_by;           //   of them with its dead bit set,
+  std::vector<std::uint32_t> self_block_changes_by;  //   and in which its block was another than in the frame before
+  // In every frame.
+  std::vector<std::uint32_t> calls_by;     // by span: frames,
+  std::vector<std::uint32_t> player_by;    //   with the main player there,
+  std::vector<std::uint32_t> hp_zero_by;   //   and with its health reading nothing
+  std::uint64_t clock_frames = 0;          // frames with a clock (an hour below 24, a minute below 60)
+  std::uint64_t clock_steps = 0;           // of them: the minute one on from the frame's before (the hour with it)
+  std::uint64_t clock_same = 0;            //   the same minute as before
+  std::uint64_t clock_jumps = 0;           //   anything else
+  std::uint64_t play_frames = 0;           // frames with a play time
+  std::uint64_t play_rose = 0;             // of them: above the frame's before
+  std::uint64_t play_fell = 0;             //   below it
 };
 
 struct PairHit {
@@ -937,6 +1002,7 @@ struct Found {
   std::optional<PartsFound> parts;
   std::optional<WorldRead> world;
   std::optional<SurveyFound> survey;
+  std::optional<SheetFound> sheet;
   std::vector<InvariantFound> invariants;
 };
 

@@ -123,7 +123,8 @@ class ErBackend final : public proto::GameBackend {
   // the distance is judged element by element, never for the list (WHY§569). Nothing of a snapshot is touched, and
   // the book's phase B is not set.
   struct WorldAlone {
-    static constexpr std::uint32_t kSlot = 1, kPlayer = 2, kParts = 4, kNear = 8, kFields = 16;
+    static constexpr std::uint32_t kSlot = 1, kPlayer = 2, kParts = 4, kNear = 8, kFields = 16, kClock = 32,
+                                   kPlay = 64;
     std::uint32_t lacks = 0;                  // the parts the layout does not bind (the bits above)
     bool state = false;                       // the game's state's object was there
     std::optional<std::int32_t> save_slot;    // as read: -1 where no save is loaded
@@ -141,7 +142,7 @@ class ErBackend final : public proto::GameBackend {
     // counted, over the list's characters that are not the main player, and told of the main player apart. Read
     // where `fields` asks for them; `lacks` has kFields where the layout binds none of them.
     static constexpr std::uint32_t kHandle = 1, kParam = 2, kModel = 4, kEntity = 8, kTeam = 16, kDead = 32,
-                                   kOnScreen = 64;
+                                   kOnScreen = 64, kType = 128, kBlock = 256;
     std::uint32_t fields_bound = 0;           // which of them the layout binds (the bits above)
     bool fields = false;                      // they were asked for, and the layout binds one at least
     std::uint32_t near_self = 0;              // of near_chr, the main player itself
@@ -162,6 +163,17 @@ class ErBackend final : public proto::GameBackend {
     bool self_param = false;                  // its kind's number is not nothing (a player has none)
     bool self_dead = false;                   // its dead bit set
     bool self_team_alone = false;             // its team is no other's in the list
+    // The type and the block (the twentieth round), with the fields above and counted the same way.
+    std::uint32_t near_types = 0;             // how many different types among the others
+    std::uint32_t near_type_most = 0;         // the largest group of one type
+    std::uint32_t near_block = 0;             // a block that reads as a block's id (the round's shape for one)
+    std::uint32_t near_block_self = 0;        // of those, the block the main player is in
+    bool self_type_none = false;              // the main player's type reads nothing
+    std::optional<std::uint32_t> self_block;  // its block, where it reads as one: for the caller to see it change
+    // The world's clock and the play time, each read where the layout binds it (`lacks` has kClock, kPlay
+    // otherwise), in every call: the clock where its hour is below 24 and its minute below 60.
+    std::optional<proto::Clock> clock;
+    std::optional<std::uint64_t> play_time;
   };
   // `fields`: the list's characters' other fields too (one copy of a character each; the round asks every other call).
   WorldAlone world_alone(const proto::GameThread& gt, bool fields = false);

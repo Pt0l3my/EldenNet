@@ -189,10 +189,11 @@ TEST_CASE("options: --read brings the console, and keeps the backup, EldenNet's 
   CHECK(parse_ok({"--read", "--read-plan", "1"}).read_plan == 1);
   CHECK(parse_ok({"--read", "--read-plan", "0"}).read_plan == 0);
   CHECK(parse_ok({"--read", "--read-plan", "0"}).read_plan_given);
-  CHECK(parse_error({"--read", "--read-plan", "2"}) ==
-        "--read-plan is 0 (the rounds up to the seventeenth) or 1 (the survey)");
+  CHECK(parse_ok({"--read", "--read-plan", "2"}).read_plan == 2);
+  CHECK(parse_error({"--read", "--read-plan", "3"}) ==
+        "--read-plan is 0 (the rounds up to the seventeenth), 1 (the survey) or 2 (the sheet)");
   CHECK(parse_error({"--read", "--read-plan", "x"}) ==
-        "--read-plan is 0 (the rounds up to the seventeenth) or 1 (the survey)");
+        "--read-plan is 0 (the rounds up to the seventeenth), 1 (the survey) or 2 (the sheet)");
   CHECK(parse_error({"--read-plan", "1"}) == "--read-plan goes with --read");
   CHECK(usage_text().find("--read-plan") != std::string::npos);
   CHECK(parse_error({"--read", "--read-pace-s", "0"}) == "--read-pace-s is 1 to 600 seconds");

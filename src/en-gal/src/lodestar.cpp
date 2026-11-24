@@ -860,6 +860,7 @@ constexpr std::array<std::string_view, 4> kHolds = {"nothing", "unread", "unclas
 constexpr std::array<std::string_view, 6> kWordKinds = {"zero", "small", "vtable", "image", "heap", "other"};
 constexpr std::array<std::string_view, 3> kJumpAs = {"fraction", "whole", "hour"};
 constexpr std::array<std::string_view, 3> kTreeMatch = {"start", "index", "address"};
+constexpr std::array<std::string_view, 2> kSheetOf = {"save_data", "sheet"};
 constexpr std::array<std::string_view, 6> kCheck = {"is", "equal", "with_player", "block", "bits_equal", "changed"};
 constexpr std::array<std::string_view, 9> kRefusal = {"unreadable",    "static_section", "static_alignment",
                                                       "class_section", "getter_section", "getter_not_function",
@@ -958,6 +959,15 @@ constexpr auto kKeys = std::to_array<Key>({
     U("handles_most"), U("kinds_most"), U("entities_most"), U("teams_most"), U("team_group_most"), U("self_frames"),
     U("self_handle_frames"), U("self_param_frames"), U("self_dead_frames"), U("self_team_alone_frames"),
     AU("chr_object_by"), AU("chr_dead_by"), AU("chr_on_screen_by"),
+    U("chr_block"), U("chr_block_self"), U("chr_type_main"), U("types_most"), U("self_type_none_frames"),
+    U("self_block_frames"), U("zero_fields_frames"), U("dead_at_zero"), AU("self_frames_by"), AU("self_dead_by"),
+    AU("self_block_changes_by"), AU("calls_by"), AU("player_by"), AU("hp_zero_by"), U("clock_frames"),
+    U("clock_steps"), U("clock_same"), U("clock_jumps"), U("play_frames"), U("play_rose"), U("play_fell"),
+    // The sheet scan (in game). `first` and `last` under `numbers` are numbers of the tester's own character,
+    // written with the owner's word (O122); no key holds a text, and a run that reads as one is told by its place.
+    O("sheet"), B("sheet_classed"), B("sheet_is_first"), B("sheet_is_second"), AO("sheets"), W("sheet_of", kSheetOf),
+    U("text_fields"), U("address_fields"), U("restless"), AO("numbers"), U("last"), U("changes"), U("phases"),
+    AO("text_runs"), U("run_fields"),
     // The character survey (in game): behaviour only, no value of any character.
     O("survey"), U("tracked"), U("most_listed"), U("deaths"), U("fields_total"), AO("survey_fields"), U("seen"),
     U("changed_for"), U("most"), U("zeros"), U("small"), U("block_like"), U("id_like"), B("player_alone"),
@@ -967,7 +977,7 @@ constexpr auto kKeys = std::to_array<Key>({
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 19, kKeys};
+constexpr report::Vocabulary kVocabulary{"lodestar", 20, kKeys};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -1943,6 +1953,74 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     numbers(w, "chr_object_by", f.chr_object_by);
     numbers(w, "chr_dead_by", f.chr_dead_by);
     numbers(w, "chr_on_screen_by", f.chr_on_screen_by);
+    w.number("chr_block", f.chr_block);
+    w.number("chr_block_self", f.chr_block_self);
+    w.number("chr_type_main", f.chr_type_main);
+    w.number("types_most", f.types_most);
+    w.number("self_type_none_frames", f.self_type_none_frames);
+    w.number("self_block_frames", f.self_block_frames);
+    w.number("zero_fields_frames", f.zero_fields_frames);
+    w.number("dead_at_zero", f.dead_at_zero);
+    numbers(w, "self_frames_by", f.self_frames_by);
+    numbers(w, "self_dead_by", f.self_dead_by);
+    numbers(w, "self_block_changes_by", f.self_block_changes_by);
+    numbers(w, "calls_by", f.calls_by);
+    numbers(w, "player_by", f.player_by);
+    numbers(w, "hp_zero_by", f.hp_zero_by);
+    w.number("clock_frames", f.clock_frames);
+    w.number("clock_steps", f.clock_steps);
+    w.number("clock_same", f.clock_same);
+    w.number("clock_jumps", f.clock_jumps);
+    w.number("play_frames", f.play_frames);
+    w.number("play_rose", f.play_rose);
+    w.number("play_fell", f.play_fell);
+    w.end_object();
+  }
+
+  if (found.sheet) {
+    const SheetFound& f = *found.sheet;
+    w.begin_object("sheet");
+    w.number("passes", f.passes);
+    w.number("absent", f.absent);
+    w.number("phase", f.phase);
+    numbers(w, "phase_passes", f.phase_passes);
+    w.boolean("sheet_classed", f.sheet_classed);
+    w.boolean("sheet_is_first", f.sheet_is_first);
+    w.boolean("sheet_is_second", f.sheet_is_second);
+    w.begin_array("sheets");
+    for (const SheetObject& o : f.objects) {
+      w.begin_object();
+      w.word("sheet_of", kSheetOf[std::min<std::size_t>(o.which, kSheetOf.size() - 1)]);
+      w.boolean("there", o.there);
+      w.number("bytes", o.bytes);
+      w.number("passes", o.passes);
+      w.number("moved", o.moved);
+      w.number("fields_total", o.fields_total);
+      w.number("text_fields", o.text_fields);
+      w.number("address_fields", o.address_fields);
+      w.number("restless", o.restless);
+      w.begin_array("numbers");
+      for (const SheetField& r : o.fields) {
+        w.begin_object();
+        w.number("offset", r.offset);
+        w.number("first", r.first);
+        w.number("last", r.last);
+        w.number("changes", r.changes);
+        w.number("phases", r.phases);
+        w.end_object();
+      }
+      w.end_array();
+      w.begin_array("text_runs");
+      for (const SheetText& r : o.texts) {
+        w.begin_object();
+        w.number("offset", r.offset);
+        w.number("run_fields", r.fields);
+        w.end_object();
+      }
+      w.end_array();
+      w.end_object();
+    }
+    w.end_array();
     w.end_object();
   }
 

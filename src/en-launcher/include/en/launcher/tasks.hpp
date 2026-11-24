@@ -39,6 +39,8 @@ struct TaskRow {
   std::uint32_t elapsed_s = 0;  // Now: since it began. Done: how long it took
   std::uint32_t seconds = 0;    // a Wait's length
   std::string button;           // a Do task's word for the panel's button; empty for every other kind
+  std::uint32_t mark = 0;       // the mark its end stamps, 1 the first; 0 for a task that stamps none
+  std::uint32_t gathered = 0;   // Done, with a mark: what the round said of it (watch.hpp's kGather*)
 };
 
 class TaskList {
@@ -66,6 +68,9 @@ class TaskList {
   [[nodiscard]] std::size_t current() const noexcept { return current_; }
   [[nodiscard]] std::size_t size() const noexcept { return tasks_.size(); }
   [[nodiscard]] std::vector<TaskRow> rows(std::uint64_t now_ms) const;
+  // What the round says it gathered, task by task (the watch block's probe_gathered, two bits a mark): the rows of
+  // done tasks carry it from then on.
+  void set_gathered(std::uint32_t word) noexcept { gathered_ = word; }
 
  private:
   Change next(std::uint64_t now_ms, bool mark) noexcept;
@@ -76,6 +81,7 @@ class TaskList {
   std::size_t current_ = 0;
   std::uint64_t began_ms_ = 0;         // the task under way
   std::uint32_t pace_s_ = 0;
+  std::uint32_t gathered_ = 0;
   bool started_ = false;
 };
 
@@ -89,6 +95,11 @@ class TaskList {
 // A row's timer as the panel shows it: a Wait under way counts down ("2:41 left"), anything else under way counts up
 // ("0:12"); a done row says how long it took; a later Wait says how long it will be; a later Do or Round nothing.
 [[nodiscard]] std::string timer_text(const TaskRow& row);
+// What the panel says under a done task the round has judged: "Got it." or "Not gathered."; nothing otherwise.
+[[nodiscard]] std::string gathered_text(const TaskRow& row);
+// The line for the run as a whole, once every task with a mark is done and the round has judged them all: that the
+// run is usable, or which tasks were not gathered. Empty until then, and for a round that judges nothing.
+[[nodiscard]] std::string gathered_footer(const std::vector<TaskRow>& rows);
 
 // The read-only round's tasks (--read), in the order the tester does them.
 // `plan`: watch.hpp's kPlan*. 0: the rounds up to the seventeenth; 1: the character survey.

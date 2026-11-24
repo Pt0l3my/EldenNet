@@ -102,6 +102,12 @@ constexpr std::uint64_t kWorldEveryUs = 1'000'000;     // and on the world's lea
 constexpr std::uint32_t kTypeAtA = 0x68, kTypeAtB = 0x40, kDesignNpcType = 5;
 constexpr std::uint32_t kBlockNowAt = 0x38, kBlockHomeAtA = 0x70, kBlockHomeAtB = 0xC;
 constexpr std::uint32_t kDeadBit = 0x1C6 * 8 + 0, kDeadRivalA = 0x1C6 * 8 + 1, kDeadRivalB = 0x53B * 8 + 4;
+// The sheet's plan (the twentieth round). The sheet's place in the main player's object and the two words of the
+// save data's object it may be behind are the fifteenth round's leads (our own numbers); where the build's layout
+// binds save_data.player_data, that field is used instead.
+constexpr std::uint32_t kSheetAt = 0x580, kSaveSheetWordA = 0x8, kSaveSheetWordB = 0x10;
+constexpr std::uint32_t kSheetRideEndMark = 3;      // plan 2: the mark that ends the ride
+constexpr std::uint32_t kBlockNone = 0xFFFF'FFFFu;  // what a character with no block may hold there (to be seen)
 constexpr std::uint32_t kSurveyMark = 1;               // plan 1: the mark at which the tester stands in the world
 constexpr std::size_t kBackendFlags = 64;              // flags it is asked for at most
 constexpr std::uint64_t kSearchShareUs = 4'000;  // of each step of the reader's thread, for all the searches together
@@ -311,6 +317,20 @@ class Body final : public en::gal::TaskBody {
       watch = nullptr;
       sweep = nullptr;
       tree = nullptr;
+    } else if (auto* sheet = sheet_.load(std::memory_order_acquire);
+               sheet != nullptr && sheet->due(quiet_.now_us())) {
+      // The sheet scan's pass (plan 2), every two seconds: a dozen reads, eight of them of 16 KiB.
+      const std::uint64_t start = quiet_.now_us();
+      for (;;) {
+        const bool ended = sheet->step(gt, reader_, quiet_.now_us());
+        if (ended || reader_.spent() || quiet_.now_us() - start >= kSearchShareUs) break;
+      }
+      slots = nullptr;
+      members = nullptr;
+      rising = nullptr;
+      watch = nullptr;
+      sweep = nullptr;
+      tree = nullptr;
     } else if (tree != nullptr) {
       // The tree's walk, likewise, until it is through: it is read once, and what the round compares waits for it.
       // With a share among the others it took seven minutes, and the eleventh round's session ended 47 records
@@ -419,6 +439,7 @@ class Body final : public en::gal::TaskBody {
   void set_pair(lodestar::PairSearch* pair) noexcept { pair_.store(pair, std::memory_order_release); }
   void set_parts(lodestar::PartsWatch* parts) noexcept { parts_.store(parts, std::memory_order_release); }
   void set_survey(lodestar::CharSurvey* survey) noexcept { survey_.store(survey, std::memory_order_release); }
+  void set_sheet(lodestar::SheetScan* sheet) noexcept { sheet_.store(sheet, std::memory_order_release); }
   // EldenNet's own reader: built by T1 over this thread's careful reads, stepped here. A list of flags is handed
   // over by its address; T1 keeps every list it ever handed over.
   struct FlagList {
@@ -471,6 +492,7 @@ class Body final : public en::gal::TaskBody {
   std::atomic<lodestar::PairSearch*> pair_{nullptr};
   std::atomic<lodestar::PartsWatch*> parts_{nullptr};
   std::atomic<lodestar::CharSurvey*> survey_{nullptr};
+  std::atomic<lodestar::SheetScan*> sheet_{nullptr};
   std::atomic<en::gal::ErBackend*> backend_{nullptr};
   std::atomic<const FlagList*> flag_list_{nullptr};
   en::proto::WorldSnapshot snapshot_;  // the backend's, of which only the flags are filled
@@ -485,6 +507,27 @@ class Body final : public en::gal::TaskBody {
         std::min<std::size_t>(world_marks_.load(std::memory_order_acquire), lodestar::WorldRead::kSpans - 1);
     w.lacks = a.lacks;
     ++w.calls;
+    ++w.calls_by[span];
+    w.player_by[span] += a.player ? 1 : 0;
+    w.hp_zero_by[span] += a.hp && a.hp->cur == 0 ? 1 : 0;
+    // The clock and the play time against the frame's before: whether the minute stepped on, and the time rose.
+    if (a.clock) {
+      ++w.clock_frames;
+      if (world_clock_prev_) {
+        const unsigned before = world_clock_prev_->h * 60u + world_clock_prev_->m;
+        const unsigned now = a.clock->h * 60u + a.clock->m;
+        ++(now == before ? w.clock_same : now == (before + 1) % 1440 ? w.clock_steps : w.clock_jumps);
+      }
+    }
+    world_clock_prev_ = a.clock;
+    if (a.play_time) {
+      ++w.play_frames;
+      if (world_play_prev_) {
+        w.play_rose += *a.play_time > *world_play_prev_ ? 1 : 0;
+        w.play_fell += *a.play_time < *world_play_prev_ ? 1 : 0;
+      }
+    }
+    world_play_prev_ = a.play_time;
     w.state_frames += a.state ? 1 : 0;
     w.slot_frames += a.save_slot && *a.save_slot >= 0 ? 1 : 0;
     w.player_frames += a.player ? 1 : 0;
@@ -533,7 +576,25 @@ class Body final : public en::gal::TaskBody {
         w.self_param_frames += a.self_param ? 1 : 0;
         w.self_dead_frames += a.self_dead ? 1 : 0;
         w.self_team_alone_frames += a.self_team_alone ? 1 : 0;
+        // The twentieth round: the main player's type, its block (kept on this thread: only whether it changed is
+        // told), and its dead bit by the tester's marks and against a health that reads nothing.
+        w.self_type_none_frames += a.self_type_none ? 1 : 0;
+        ++w.self_frames_by[span];
+        w.self_dead_by[span] += a.self_dead ? 1 : 0;
+        if (a.self_block) {
+          ++w.self_block_frames;
+          if (world_block_prev_ && *world_block_prev_ != *a.self_block) ++w.self_block_changes_by[span];
+          world_block_prev_ = a.self_block;
+        }
+        if (a.hp && a.hp->cur == 0) {
+          ++w.zero_fields_frames;
+          w.dead_at_zero += a.self_dead ? 1 : 0;
+        }
       }
+      w.chr_block += a.near_block;
+      w.chr_block_self += a.near_block_self;
+      w.chr_type_main += a.near_type_most;
+      w.types_most = std::max(w.types_most, a.near_types);
       w.chr_object_by[span] += a.near_object;
       w.chr_dead_by[span] += a.near_dead;
       w.chr_on_screen_by[span] += a.near_on_screen;
@@ -597,6 +658,26 @@ class Body final : public en::gal::TaskBody {
     std::copy(w.chr_object_by.begin(), w.chr_object_by.end(), world_shared_.chr_object_by.begin());
     std::copy(w.chr_dead_by.begin(), w.chr_dead_by.end(), world_shared_.chr_dead_by.begin());
     std::copy(w.chr_on_screen_by.begin(), w.chr_on_screen_by.end(), world_shared_.chr_on_screen_by.begin());
+    world_shared_.chr_block = w.chr_block;
+    world_shared_.chr_block_self = w.chr_block_self;
+    world_shared_.chr_type_main = w.chr_type_main;
+    world_shared_.types_most = w.types_most;
+    world_shared_.self_type_none_frames = w.self_type_none_frames;
+    world_shared_.self_block_frames = w.self_block_frames;
+    world_shared_.zero_fields_frames = w.zero_fields_frames;
+    world_shared_.dead_at_zero = w.dead_at_zero;
+    world_shared_.clock_frames = w.clock_frames;
+    world_shared_.clock_steps = w.clock_steps;
+    world_shared_.clock_same = w.clock_same;
+    world_shared_.clock_jumps = w.clock_jumps;
+    world_shared_.play_frames = w.play_frames;
+    world_shared_.play_rose = w.play_rose;
+    world_shared_.play_fell = w.play_fell;
+    for (const auto by : {&lodestar::WorldRead::self_frames_by, &lodestar::WorldRead::self_dead_by,
+                          &lodestar::WorldRead::self_block_changes_by, &lodestar::WorldRead::calls_by,
+                          &lodestar::WorldRead::player_by, &lodestar::WorldRead::hp_zero_by}) {
+      std::copy((w.*by).begin(), (w.*by).end(), (world_shared_.*by).begin());
+    }
   }
   static lodestar::WorldRead sized_world() {
     lodestar::WorldRead w;
@@ -606,11 +687,19 @@ class Body final : public en::gal::TaskBody {
     w.chr_object_by.assign(lodestar::WorldRead::kSpans, 0);
     w.chr_dead_by.assign(lodestar::WorldRead::kSpans, 0);
     w.chr_on_screen_by.assign(lodestar::WorldRead::kSpans, 0);
+    for (const auto by : {&lodestar::WorldRead::self_frames_by, &lodestar::WorldRead::self_dead_by,
+                          &lodestar::WorldRead::self_block_changes_by, &lodestar::WorldRead::calls_by,
+                          &lodestar::WorldRead::player_by, &lodestar::WorldRead::hp_zero_by}) {
+      (w.*by).assign(lodestar::WorldRead::kSpans, 0);
+    }
     return w;
   }
   std::uint64_t world_at_us_ = 0;
   std::atomic<bool> world_fields_{false};
   bool world_fields_now_ = false;                     // this thread's: the last frame read the fields
+  std::optional<en::proto::Clock> world_clock_prev_;  // this thread's: the frame's before
+  std::optional<std::uint64_t> world_play_prev_;
+  std::optional<std::uint32_t> world_block_prev_;     // the main player's block as last read (never told)
   std::atomic<std::uint32_t> world_marks_{0};
   lodestar::WorldRead world_local_ = sized_world();   // this thread's
   lodestar::WorldRead world_shared_ = sized_world();  // under world_mutex_
@@ -704,7 +793,7 @@ class Round {
     trial_->set_stage(en::gal::roles::info(en::gal::roles::Item::Characters).id);
     add_named();
     body_ = new Body(*s_.sys, *trial_);
-    body_->set_world_fields(plan_ == w::kPlanSurvey);
+    body_->set_world_fields(plan_ != w::kPlanRounds);
     // The watch: what the named managers' objects hold, by how their first bytes behave. It asks before each read,
     // as the searches do, and asks Windows what stands behind a word that could be an address (nothing is read).
     {
@@ -992,6 +1081,7 @@ class Round {
       check(Check::kChanged, type_at, 0);
     }
     check(Check::kBlock, kBlockNowAt, 0);
+    check(Check::kIs, kBlockNowAt, kBlockNone);
     check(Check::kChanged, kBlockNowAt, 0);
     check(Check::kWithPlayer, kBlockNowAt, kBlockNowAt);
     for (const std::uint32_t home_at : {kBlockHomeAtA, kBlockHomeAtB}) {
@@ -1010,6 +1100,119 @@ class Round {
     body_->set_survey(survey_);
     log(Line("read").word("stage", "survey").flag("made", true).num("classes", classes).flag("health", health)
             .num("mark", marks_seen_));
+  }
+
+  // The sheet scan (plan 2), from the first mark on: the save data's object by its static, and the sheet by the
+  // layout's own field of the save data where it binds one, else by the round's lead in the main player's object.
+  void make_sheet() {
+    if (sheet_ != nullptr || sheet_tried_ || body_ == nullptr || discovery_ == nullptr) return;
+    sheet_tried_ = true;
+    namespace roles = en::gal::roles;
+    const auto save = discovery_->address(roles::Item::SaveData);
+    const auto chars = discovery_->address(roles::Item::Characters);
+    const en::gal::FieldLayout* main = discovery_->bound().field(roles::Fld::MainPlayer);
+    const en::gal::FieldLayout* own = discovery_->bound().field(roles::Fld::SavePlayerData);
+    const std::uint64_t base = s_.sys->module_base();
+    const std::uint32_t lacks = (save ? 0u : 1u) | (chars && main != nullptr ? 0u : 2u);
+    if (lacks == 3 || (!save && own != nullptr)) {
+      log(Line("read").word("stage", "sheet").flag("made", false).num("lacks", lacks), LogLevel::Warn);
+      return;
+    }
+    lodestar::SheetScan::Options o;
+    o.base = base;
+    o.image_size = s_.sys->image().size();
+    o.image = &s_.sys->image();
+    o.save_slot = save ? static_cast<std::uint32_t>(*save - base) : 0;
+    if (chars && main != nullptr) {
+      o.manager_slot = static_cast<std::uint32_t>(*chars - base);
+      o.main_player_word = main->off;
+    }
+    if (own != nullptr) {
+      o.save_sheet_word = own->off;
+      o.save_first_word = own->off;
+      o.save_second_word = own->off;
+    } else {
+      o.sheet_at = kSheetAt;
+      o.save_first_word = kSaveSheetWordA;
+      o.save_second_word = kSaveSheetWordB;
+    }
+    sheet_ = new lodestar::SheetScan(o);  // lives for the process
+    for (std::uint32_t m = kSurveyMark; m < marks_seen_; ++m) sheet_->mark(s_.sys->now_us());
+    body_->set_sheet(sheet_);
+    log(Line("read").word("stage", "sheet").flag("made", true).num("lacks", lacks).flag("by_layout", own != nullptr)
+            .num("mark", marks_seen_));
+  }
+
+  // The parts watch in the sheet's plan, from the first mark to the third: the stand and the ride or run (its
+  // walk). It is the second reading of the position beside the reader's, in one run (WHY§614). It ends with the
+  // ride: the tester's death makes a new main player, at which the watch starts over and would forget the ride.
+  void make_parts_for_sheet() {
+    if (parts_ != nullptr || parts_tried_ || body_ == nullptr || discovery_ == nullptr) return;
+    namespace roles = en::gal::roles;
+    const auto chars = discovery_->address(roles::Item::Characters);
+    if (main_player_word_ == 0 || parts_holder_at_ == 0 || !chars) return;
+    parts_tried_ = true;
+    lodestar::PartsWatch::Options o;
+    o.player_word = main_player_word_;
+    o.holder_at = parts_holder_at_;
+    o.base = s_.sys->module_base();
+    o.image_size = s_.sys->image().size();
+    o.manager_slot = static_cast<std::uint32_t>(*chars - s_.sys->module_base());
+    o.image = &s_.sys->image();
+    o.still_a = 0;
+    o.walk = 1;
+    o.hit = 4;      // phases it never comes to
+    o.heal = 4;
+    o.still_b = 5;
+    parts_ = new lodestar::PartsWatch(o);  // lives for the process
+    for (std::uint32_t m = kSurveyMark; m < marks_seen_; ++m) parts_->mark(s_.sys->now_us());
+    body_->set_parts(parts_);
+    log(Line("read").word("stage", "parts").flag("made", true).num("player_word", o.player_word)
+            .num("holder_at", o.holder_at).flag("by_layout", true).num("mark", marks_seen_));
+  }
+
+  // What each task of the sheet's plan gathered, for the launcher's panel (the owner's wish, 2026-11-24): judged
+  // from the reader's own frames once the task's mark has come, and again at every report, so that a verdict may
+  // still mend. The spans are the marks so far: 1 the stand, 2 the ride, 3 the death, 4 the last stand.
+  void judge() {
+    if (plan_ != w::kPlanSheet || body_ == nullptr || backend_ == nullptr || marks_seen_ == 0) return;
+    const lodestar::WorldRead f = body_->world_read();
+    const auto by = [](const std::vector<std::uint32_t>& v, std::size_t span) {
+      return span < v.size() ? v[span] : 0u;
+    };
+    const auto at = [&](std::size_t span) { return span < f.at_marks.size() ? f.at_marks[span] : lodestar::WorldAt{}; };
+    std::uint32_t word = 0;
+    const auto say = [&](std::uint32_t mark, bool ok) {
+      word = w::with_gathered(word, mark, ok ? w::kGathered : w::kNotGathered);
+    };
+    // The load: at its mark a save was loaded and the main player was there.
+    if (marks_seen_ >= 1 && by(f.calls_by, 1) != 0) say(1, at(1).loaded && at(1).player);
+    // The stand: the main player was there, and its position kept still.
+    if (marks_seen_ >= 2) say(2, by(f.player_by, 1) >= 5 && by(f.pos_frames_by, 1) >= 5 && by(f.pos_moved_by, 1) == 0);
+    // The ride: the position moved in a third of its seconds or more, and the block changed once at least.
+    if (marks_seen_ >= 3) {
+      const std::uint32_t moved = by(f.pos_moved_by, 2);
+      say(3, moved >= 5 && moved * 3 >= by(f.calls_by, 2) && by(f.self_block_changes_by, 2) >= 1);
+    }
+    // The death: the main player's health read nothing in some frame up to its mark, and it is back with health.
+    if (marks_seen_ >= 4 && by(f.calls_by, 4) != 0) {
+      std::uint32_t zero = 0;
+      for (std::size_t span = 0; span <= 3; ++span) zero += by(f.hp_zero_by, span);
+      say(4, zero != 0 && at(4).player && at(4).has_hp && at(4).hp != 0);
+    }
+    // The last stand: the main player was there, and the sheet scan made two passes or more in it.
+    if (marks_seen_ >= 5) {
+      std::uint32_t passes = 0;
+      if (sheet_ != nullptr) {
+        const lodestar::SheetFound sheet = sheet_->found();
+        passes = sheet.phase_passes.size() > 3 ? sheet.phase_passes[3] : 0;
+      }
+      say(5, by(f.player_by, 4) >= 5 && passes >= 2);
+    }
+    if (word == gathered_said_) return;
+    gathered_said_ = word;
+    block::probe_gathered(word);
+    log(Line("read").word("stage", "gathered").num("word", word).num("mark", marks_seen_));
   }
 
   // The parts watch from the build's layout alone (the main player's word and the holder's place), at the second
@@ -1777,7 +1980,23 @@ class Round {
       }
       found_.parts = std::move(f);
     }
-    if (plan_ == w::kPlanSurvey && survey_ == nullptr && marks_seen_ >= kSurveyMark) make_survey();
+    if (plan_ != w::kPlanRounds && survey_ == nullptr && marks_seen_ >= kSurveyMark) make_survey();
+    if (plan_ == w::kPlanSheet && marks_seen_ >= kSurveyMark) {
+      if (sheet_ == nullptr) make_sheet();
+      if (parts_ == nullptr && marks_seen_ < kSheetRideEndMark) make_parts_for_sheet();
+    }
+    if (sheet_ != nullptr) {
+      lodestar::SheetFound f = sheet_->found();
+      if (f.phase != sheet_phase_said_) {
+        sheet_phase_said_ = f.phase;
+        log(Line("read").word("stage", "sheet_phase").num("phase", f.phase).num("passes", f.passes)
+                .num("absent", f.absent)
+                .num("save_numbers", f.objects.empty() ? 0 : f.objects[0].fields_total)
+                .num("sheet_numbers", f.objects.size() < 2 ? 0 : f.objects[1].fields_total));
+      }
+      found_.sheet = std::move(f);
+    }
+    judge();
     if (survey_ != nullptr) {
       lodestar::SurveyFound f = survey_->found();
       if (f.phase != survey_phase_said_ || (f.deaths != survey_deaths_said_)) {
@@ -1800,6 +2019,11 @@ class Round {
       f.chr_object_by.resize(spans);
       f.chr_dead_by.resize(spans);
       f.chr_on_screen_by.resize(spans);
+      for (const auto by : {&lodestar::WorldRead::self_frames_by, &lodestar::WorldRead::self_dead_by,
+                            &lodestar::WorldRead::self_block_changes_by, &lodestar::WorldRead::calls_by,
+                            &lodestar::WorldRead::player_by, &lodestar::WorldRead::hp_zero_by}) {
+        (f.*by).resize(spans);
+      }
       if (f.calls != 0 && !world_said_) {
         world_said_ = true;
         log(Line("read").word("stage", "world").num("lacks", f.lacks).num("fields_bound", f.fields_bound));
@@ -1915,12 +2139,30 @@ class Round {
           if (marks_seen_ == kSecondWorldMark) make_parts_by_layout();
         } else {
           // The survey's plan: its first mark (the tester stands in the world) starts the survey, in its standing
-          // phase; each mark after it moves the survey on.
+          // phase; each mark after it moves the survey on. The sheet's plan has the survey too, and beside it the
+          // sheet scan and the parts watch, from the same mark.
           if (survey_ != nullptr) survey_->mark(marks_kept_.back());
           if (marks_seen_ == kSurveyMark) make_survey();
+          if (plan_ == w::kPlanSheet) {
+            if (sheet_ != nullptr) sheet_->mark(marks_kept_.back());
+            // The parts watch has the stand and the ride, and is through at the ride's end (the third mark).
+            if (parts_ != nullptr && marks_seen_ < kSheetRideEndMark) parts_->mark(marks_kept_.back());
+            if (parts_ != nullptr && marks_seen_ == kSheetRideEndMark && body_ != nullptr) body_->set_parts(nullptr);
+            if (marks_seen_ == kSurveyMark) {
+              make_sheet();
+              make_parts_for_sheet();
+            }
+          }
         }
         if (body_ != nullptr) body_->world_mark();
         log(Line("read").word("stage", "mark").num("n", marks_seen_).flag("sweep", sweep_ != nullptr));
+        marks_judged_ = false;
+      }
+      // A mark's task is judged a moment after the mark (the reader's next frame opens the span), and at every
+      // report after it.
+      if (!marks_judged_ && !marks_kept_.empty() && s_.sys->now_us() - marks_kept_.back() >= 1'500'000) {
+        marks_judged_ = true;
+        judge();
       }
       for (; sweep_ != nullptr && marks_given_ < marks_kept_.size(); ++marks_given_) {
         sweep_->mark(marks_kept_[marks_given_]);
@@ -2017,6 +2259,11 @@ class Round {
   std::uint32_t plan_ = 0;                          // the round's plan (watch.hpp's kPlan*), read once at its start
   lodestar::CharSurvey* survey_ = nullptr;          // plan 1
   bool survey_tried_ = false;
+  lodestar::SheetScan* sheet_ = nullptr;            // plan 2
+  bool sheet_tried_ = false;
+  std::uint32_t sheet_phase_said_ = 0;
+  std::uint32_t gathered_said_ = 0;                 // the verdicts as last written for the launcher's panel
+  bool marks_judged_ = true;                        // the newest mark's task has had its first verdict
   std::uint32_t survey_phase_said_ = 0;
   std::uint32_t survey_deaths_said_ = 0;
   std::size_t chars_looks_said_ = 0;                // looks whose end the log has told

@@ -88,11 +88,13 @@
 #   once three things hold in one run: EldenNet's own reader read it through this file in the game; a second,
 #   independent reading agrees; and the behaviour that gives the field its meaning was seen at least once. Such a
 #   field says status = "confirmed" itself; its class stays a lead until every field of it is. So far: from the
-#   seventeenth round the fields named above, and from the nineteenth a character's handle, npc_param_id, model,
-#   entity_id, team and on_screen. Waiting: dead (for the main player's own death), chr_type and block_id (for the
-#   reader), the position (for a second reading in the reader's run), player_set, and the classes the reader has not
-#   read through this file with a second reading beside it. The startup self-tests still run every session and stop a
-#   failing field whatever its status.
+#   twelfth round the event flags' nine fields (the reader went through all of them to five flags, four of which the
+#   owner had just set, and the round's own walk of the tree agreed on all five); from the seventeenth the fields
+#   named above; from the nineteenth a character's handle, npc_param_id, model, entity_id, team and on_screen.
+#   Waiting: dead (for the main player's own death), chr_type and block_id (for the reader), the position (for a
+#   second reading in the reader's run), player_set, and the clock's fields and the play time, which the reader has
+#   not read through this file in the game. The startup self-tests still run every session and stop a failing field
+#   whatever its status.
 # The other classes, fields, enums, params and self-test ids are later rounds' to find, and are left out. A release
 # build refuses this file (its classes and items are leads still).
 schema = 2
@@ -336,17 +338,17 @@ play_time = { off = 0xA0, ty = "u32", group = "player" }
 copy_size = 0x48
 status = "lead"
 [class.event_flags.fields]
-divisor = { off = 0x1C, ty = "u32", group = "flags" }
-map = { off = 0x38, ty = "dlmap", group = "flags" }
-holder_base = { off = 0x28, ty = "ptr", group = "flags" }
+divisor = { off = 0x1C, ty = "u32", group = "flags", status = "confirmed" }
+map = { off = 0x38, ty = "dlmap", group = "flags", status = "confirmed" }
+holder_base = { off = 0x28, ty = "ptr", group = "flags", status = "confirmed" }
 
 [class.flag_node]
 copy_size = 0x40
 status = "lead"
 [class.flag_node.fields]
-left = { off = 0x0, ty = "ptr", group = "flags" }
-parent = { off = 0x8, ty = "ptr", group = "flags" }
-right = { off = 0x10, ty = "ptr", group = "flags" }
-key = { off = 0x20, ty = "u32", group = "flags" }
-mode = { off = 0x28, ty = "u32", group = "flags" }
-value = { off = 0x30, ty = "u64", group = "flags" }
+left = { off = 0x0, ty = "ptr", group = "flags", status = "confirmed" }
+parent = { off = 0x8, ty = "ptr", group = "flags", status = "confirmed" }
+right = { off = 0x10, ty = "ptr", group = "flags", status = "confirmed" }
+key = { off = 0x20, ty = "u32", group = "flags", status = "confirmed" }
+mode = { off = 0x28, ty = "u32", group = "flags", status = "confirmed" }
+value = { off = 0x30, ty = "u64", group = "flags", status = "confirmed" }
