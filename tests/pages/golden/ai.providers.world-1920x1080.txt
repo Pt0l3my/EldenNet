@@ -102,13 +102,13 @@ fill    ground.2      340,1366 1540x175  r5 clip1
 stroke  rule          340,1366 1540x175  r5 w1 clip1
 text    gold          365,1386   67x20   clip1 glyphs 7 "Related"
 line    rule          365,1416 1490x1    clip1
-text    ink.hi        365,1421   56x28   clip1 glyphs 6 "Models"
-text    ink.mute      862,1424  515x25   clip1 glyphs 50 "Which model does each job, and the preset that sets them all."
-text    gold         1835,1421    9x28   clip1 glyphs 1 "→"
+text    ink.hi        380,1430   56x28   clip1 glyphs 6 "Models"
+text    ink.mute      862,1431  515x25   clip1 glyphs 50 "Which model does each job, and the preset that sets them all."
+text    gold         1820,1430    9x28   clip1 glyphs 1 "→"
 line    rule          365,1471 1490x1    clip1
-text    ink.hi        365,1476   84x28   clip1 glyphs 9 "Self-test"
-text    ink.mute      862,1479  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
-text    gold         1835,1476    9x28   clip1 glyphs 1 "→"
+text    ink.hi        380,1485   84x28   clip1 glyphs 9 "Self-test"
+text    ink.mute      862,1486  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
+text    gold         1820,1485    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 text    ink.faint     340,1045  202x25   glyphs 16 "Enter  Open    Esc  Back"
 stroke  gold.hi      1444,  86  280x46   r5 w3 clip1

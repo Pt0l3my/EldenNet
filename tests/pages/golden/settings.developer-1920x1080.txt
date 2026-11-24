@@ -50,13 +50,13 @@ fill    ground.2      340, 496 1540x175  r5 clip1
 stroke  rule          340, 496 1540x175  r5 w1 clip1
 text    gold          365, 516   67x20   clip1 glyphs 7 "Related"
 line    rule          365, 546 1490x1    clip1
-text    ink.hi        365, 551   38x28   clip1 glyphs 4 "Logs"
-text    ink.mute      862, 554  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
-text    gold         1835, 551    9x28   clip1 glyphs 1 "→"
+text    ink.hi        380, 560   38x28   clip1 glyphs 4 "Logs"
+text    ink.mute      862, 561  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
+text    gold         1820, 560    9x28   clip1 glyphs 1 "→"
 line    rule          365, 601 1490x1    clip1
-text    ink.hi        365, 606   56x28   clip1 glyphs 6 "Status"
-text    ink.mute      862, 609  599x25   clip1 glyphs 58 "Whether EldenNet is healthy on this PC and game build, and if not, why."
-text    gold         1835, 606    9x28   clip1 glyphs 1 "→"
+text    ink.hi        380, 615   56x28   clip1 glyphs 6 "Status"
+text    ink.mute      862, 616  599x25   clip1 glyphs 58 "Whether EldenNet is healthy on this PC and game build, and if not, why."
+text    gold         1820, 615    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 text    ink.faint     340,1045  321x25   glyphs 24 "Enter  Toggle    R  Reset    Esc  Back"
 stroke  gold.hi      1802, 269   56x34   r5 w3 clip1

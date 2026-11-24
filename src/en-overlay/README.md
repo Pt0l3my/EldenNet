@@ -9,8 +9,8 @@ moved it to GraceUI 0.2.5's ABI 1.2 (§19, §23, §24, §26 to §29, §33, §34 
 C; WHY§364) adds EldenNet's own surfaces on GraceUI 0.2.20's ABI 1.5 (§31, §33, §47 to §50): the lower third, the chat
 box, the hint and the toasts. Later increments add the call-out box (v0.6) and the rest of its pages.
 
-It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 3ea17b6, GraceUI
-0.2.38, ABI 1.7, protocol 1.9, whose uploads it does not use; its floor, 0.2.22, for the profile editor's families, slow
+It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at c9d699e, GraceUI
+0.2.39, ABI 1.7, protocol 1.9, whose uploads it does not use; its floor, 0.2.22, for the profile editor's families, slow
 commands, editor block and chosen row, on 0.2.17's wait handle; 0.2.36's italic face where GraceUI's folder has it,
 and 0.2.38's word for what pressed a hotkey behind its cap): its look for GraceUI and `GraceUI_RequestApi(1)`
 (`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size (`graceui_sys.hpp`), and the headless
@@ -99,9 +99,10 @@ The view takes no input (D142): F11 shows it and hides it.
 - **Through GraceUI, on T6** (`chat.hpp`, Windows): at connect, in the registration window, the white texture and
   GRACEUI_FACE_SCALED faces, GraceUI's own EB Garamond (30 px) and Noto Sans (18 px) as the DLL reads them from
   GraceUI's folder (too late after warm-up: then GraceUI's notices' face), and its EB Garamond Italic (30 px) where the
-  folder has it (GraceUI 0.2.36, D241; three of the eight faces EldenNet may register, D139; none below it, and the
-  Tarnished's lines are drawn upright); the hotkeys `talk` (T, with the pad chord
-  D-pad Up then View behind `has_cap("pad-chords")`) and `skip-page` (Tab), named "Talk" and "Skip the page";
+  folder has it (GraceUI 0.2.36, D241; three of the eight faces EldenNet may register, D139, graceui.h's
+  GRACEUI_FACES_ELDENNET since 0.2.39; none below it, and the Tarnished's lines are drawn upright); the hotkeys `talk`
+  (T, with the pad chord D-pad Up then View behind `has_cap("pad-chords")`) and `skip-page` (Tab), named "Talk" and
+  "Skip the page";
   `wake_event`'s handle behind `has_cap("wake")`. Then, from poll: the talk hotkey opens (OpenChat, by the pad chord
   where GraceUI's `hotkey_by` says the chord alone pressed it, behind `has_cap("hotkey-by")`, 0.2.38's D243; by the key
   otherwise, and the key's own character swallowed only then), Tab skips, the display's event sizes the three panels
@@ -287,7 +288,7 @@ or note), what is published and when, the logs stream's batches and ring, the wo
 (no lamp while starting, the banner's own, absence silent, nothing personal), and in the Linux builds the five fixture
 states' `tests/pages/<state>/topics.json` (EN_UPDATE_FIXTURES=1 writes them anew). In the
 Windows builds, under Wine, the connection against a fake GraceUI of our own (`tests/fake_grace.hpp`; graceui-sys has no
-C mock): ABI 1.7's table, answering as GraceUI 0.2.38 answers and checking as it checks (connect's answers, notices
+C mock): ABI 1.7's table, answering as GraceUI 0.2.39 answers and checking as it checks (connect's answers, notices
 under keys, the registration window, hidden panels, hotkeys, poll's events by the event's size, the space's slots, and
 submit's draw-list checks: counts, bounds, ranges, indices, clip rectangles inside the panel, known textures, the
 stride). The cases: the space registered once for its views, or not without the cap or beside anti-cheat; watched

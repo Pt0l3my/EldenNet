@@ -120,13 +120,13 @@ fill    ground.2      340, 900 1540x175  r5 clip1
 stroke  rule          340, 900 1540x175  r5 w1 clip1
 text    gold          365, 920   67x20   clip1 glyphs 7 "Related"
 line    rule          365, 950 1490x1    clip1
-text    ink.hi        365, 955   38x28   clip1 glyphs 4 "Logs"
-text    ink.mute      862, 958  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
-text    gold         1835, 955    9x28   clip1 glyphs 1 "→"
+text    ink.hi        380, 964   38x28   clip1 glyphs 4 "Logs"
+text    ink.mute      862, 965  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
+text    gold         1820, 964    9x28   clip1 glyphs 1 "→"
 line    rule          365,1005 1490x1    clip1
-text    ink.hi        365,1010   38x28   clip1 glyphs 4 "Home"
-text    ink.mute      862,1013  591x25   clip1 glyphs 56 "Whether EldenNet is working on this game, and what to do if it is not."
-text    gold         1835,1010    9x28   clip1 glyphs 1 "→"
+text    ink.hi        380,1019   38x28   clip1 glyphs 4 "Home"
+text    ink.mute      862,1020  591x25   clip1 glyphs 56 "Whether EldenNet is working on this game, and what to do if it is not."
+text    gold         1820,1019    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 text    ink.faint     340,1045  202x25   glyphs 16 "Enter  Open    Esc  Back"
 stroke  gold.hi       362, 947 1496x61   r5 w3 clip1

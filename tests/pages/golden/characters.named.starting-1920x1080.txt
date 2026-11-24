@@ -34,14 +34,14 @@ fill    ground.2      894, 311  986x175  r5 clip1
 stroke  rule          894, 311  986x175  r5 w1 clip1
 text    gold          919, 331   67x20   clip1 glyphs 7 "Related"
 line    rule          919, 361  936x1    clip1
-text    ink.hi        919, 366   56x28   clip1 glyphs 6 "Models"
-text    ink.mute     1231, 369  515x25   clip1 glyphs 50 "Which model does each job, and the preset that sets them all."
-text    gold         1835, 366    9x28   clip1 glyphs 1 "→"
+text    ink.hi        934, 375   56x28   clip1 glyphs 6 "Models"
+text    ink.mute     1231, 376  515x25   clip1 glyphs 50 "Which model does each job, and the preset that sets them all."
+text    gold         1820, 375    9x28   clip1 glyphs 1 "→"
 line    rule          919, 416  936x1    clip1
-text    ink.hi        919, 421   38x28   clip1 glyphs 4 "Home"
-text    ink.mute     1231, 424  582x25   clip1 glyphs 55 "Whether EldenNet is working on this game, and what to do if it is not."
-text    gold         1835, 421    9x28   clip1 glyphs 1 "→"
+text    ink.hi        934, 430   38x28   clip1 glyphs 4 "Home"
+text    ink.mute     1231, 431  565x25   clip1 glyphs 53 "Whether EldenNet is working on this game, and what to do if it is not."
+text    gold         1820, 430    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 text    ink.faint     340,1045  202x25   glyphs 16 "Enter  Open    Esc  Back"
 stroke  gold.hi       916, 358  942x61   r5 w3 clip1
-# 45 items, 1900 vertices, 4002 indices, 4 commands; check_draw_list: passes
+# 45 items, 1892 vertices, 3990 indices, 4 commands; check_draw_list: passes
