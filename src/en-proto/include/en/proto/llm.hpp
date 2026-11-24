@@ -118,6 +118,9 @@ struct Usage {
   int prompt_tokens = -1;  // -1: not reported
   int completion_tokens = -1;
   int cached_tokens = -1;
+  // What the call cost, where the provider's reply says (its usage's `cost`, as OpenRouter reports it, in its own
+  // unit): never worked out from a price table (D18). -1: not reported.
+  double cost = -1;
 
   bool operator==(const Usage&) const = default;
 };

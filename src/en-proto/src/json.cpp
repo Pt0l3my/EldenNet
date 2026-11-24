@@ -240,7 +240,7 @@ void read(const json& j, const At& at, ChatRequest& out) {
 void read(const json& j, const At& at, Usage& out) {
   out = Usage{};
   Fields(j, at)("prompt_tokens", out.prompt_tokens)("completion_tokens", out.completion_tokens)(
-      "cached_tokens", out.cached_tokens)
+      "cached_tokens", out.cached_tokens)("cost", out.cost)
       .done();
 }
 
@@ -394,7 +394,8 @@ json write(const ChatRequest& v) {
 json write(const Usage& v) {
   return {{"prompt_tokens", v.prompt_tokens},
           {"completion_tokens", v.completion_tokens},
-          {"cached_tokens", v.cached_tokens}};
+          {"cached_tokens", v.cached_tokens},
+          {"cost", v.cost}};
 }
 
 json write(const TopLogprob& v) { return {{"token", v.token}, {"logprob", v.logprob}}; }

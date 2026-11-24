@@ -161,9 +161,25 @@ struct ConversationInput {
   const proto::LlmEvent* llm = nullptr;  // the step's model event, if that is what it is
 };
 
+// What the model calls' record (calls.hpp) needs of the conversation's requests, which their ChatRequest does not say:
+// the reply each is for and its speaker as the Tarnished sees them (the speaker card's name, SP3); and a reply whose
+// answer a check withheld (the lint's deflection: the persona's own line shows in its place, so the model's did not).
+struct CallNote {
+  enum class What : std::uint8_t { Sent, Withheld };
+  What what = What::Sent;
+  proto::RequestId request = 0;  // Sent: the request
+  proto::ConvId conv = 0;
+  proto::ReplyId reply = 0;
+  std::string slot;              // Sent: the request's slot
+  std::string speaker;           // Sent: as shown
+
+  friend bool operator==(const CallNote&, const CallNote&) = default;
+};
+
 struct ConversationOutput {
   proto::UiModel ui;                        // what the surfaces show after the step
   std::vector<proto::LlmRequest> requests;  // to submit, in order (C9)
+  std::vector<CallNote> calls;              // for the model calls' record, in order
   std::vector<proto::RequestId> cancels;    // to cancel (a cut-off, a regeneration, an ending)
   std::vector<Commit> commits;              // for the event log, in order, in this step
   std::optional<EndReason> ended;           // the conversation ended on this step

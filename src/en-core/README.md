@@ -354,6 +354,32 @@ the conversation part B's (above); the core holds both.
   the notes nor the current text hold (a capitalised word that is not the first; "I" is no name), and discards the whole
   draft on a word of the safety list.
 
+## The model calls' record and Pause AI (`calls.hpp`; PAGES §4.6.1, §4.6.2; D15, D18; S11.4.a)
+
+- **The record.** `CallRecord` builds en-proto's `CallsView` (its rows newest first, 20 kept or 200 with
+  `debug.panel`, and the session's usage) from what the DLL tells it on T6, with the time since T1's start: each
+  request it hands the model client (`sent`; `not_sent` for one the client did not take), each of the client's events
+  (`event`: Started, Ended, ModelsEnded; the self-test's requests and every model list are made rows at their first
+  event, from the `CallStart` the DLL gives), and each step of the core (`record_step`: the conversation's notes, then
+  the pages committed on display). A reply is one row: en-llm's retries, fallback and backups are one request's
+  attempts, and the lint's regeneration joins its reply's row (`CallNote::Sent` with the same reply), its attempts,
+  tokens and cost summed, the times and the model the last request's. The outcome (PAGES' words): a page shown first
+  (fallback model when the answer came from another model than the request's first attempt, the first failure's class
+  kept), then waiting, then the end's class (timed out, refused, failed; stopped or answered with nothing shown is not
+  shown; the self-test, a model list and a draft answered). A page committed after the end turns not shown to shown;
+  a deflection (`CallNote::Withheld`) keeps its row not shown, with no text. The usage counts every call of the
+  session: tokens and costs where reported (D18), failures as the rows stand now, own-initiative calls in the last
+  hour, and the client's own count of the hour against `budget.requests_per_hour` (`hour`). PV4: the only text a row
+  holds is the displayed pages, cut at 2,048 bytes; nothing is read from a request or a result's text or message, and
+  a model id that looks like a path is left out (PV5). `withdraw` takes back a request refused before it left (Pause
+  AI): no call, so no row.
+- **Pause AI** (`CoreInput::Pause`, `State::ai_paused`): a session flag, off in every new core and never stored. On,
+  the ladder stands at L2 (the reason "AI paused", en-proto's `kAiPausedReason`): speech is off, so the box closes as
+  when the ladder falls, a line sent gets the "…" page, a lint's regeneration is not sent ("No answer: no model is
+  ready"), and the core drops any request it would send (with its note), as it does while gated (C4). The handle's gate
+  (`ai_allowed`) stays the gate's: a call already sent ends as it ends. Off, the ladder climbs back to what the rest
+  of the state gives (L4, L3 with an optional group tripped, L2 without a healthy model); L1 stays for the session.
+
 ## Tests
 
 `en_core_tests` (doctest), on Linux with GCC and Clang and under Wine: the predicate's every clause alone, values not
@@ -399,4 +425,11 @@ id, and a file of the wrong shape refusing the pack with the old content kept; C
 (`tests/content/test_view.cpp`): the realm's cast whatever the overrides hold, warnings by line, a layer refused alone,
 a refused load's file and line with the rest waiting and the earlier content's turned-off list kept, the errors of no
 file of the folder and an unfit path on a row of their own, what the shell left out, the reloads' cap, and no value of
-a file anywhere in it.
+a file anywhere in it. The model calls' record and Pause AI (`tests/conversation/test_calls.cpp`): the ring's 20 and
+200 newest first, a row made at its end in its place, every purpose and outcome in PAGES' words, a reply waiting then
+shown with its displayed text alone, not shown turning shown, each failure counted while it stands, a fallback model,
+a regeneration's row with its attempts and tokens summed, a deflection not shown, the self-test, the model lists and a
+draft answered, PV4 and PV5 (no unshown answer, prompt, key, address or path in a row), the text's cut, the usage and
+the hour, a withdrawn request; through the core, a reply's row with the speaker as shown, the banned word's
+regeneration and deflection, and Pause AI: L2 with the box closed and nothing sent, the ladder's return to L4 or L3 or
+L2, a regeneration refused while paused, and a pause before T1 is ready and at L1.

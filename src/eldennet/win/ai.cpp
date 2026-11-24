@@ -13,6 +13,8 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
+#include <variant>
 
 #include "dll.hpp"
 #include "en/core/conversation.hpp"
@@ -59,6 +61,7 @@ struct AiState {
   bool gate = false;      // as the handle was last told
   bool gate_now = false;  // the core's, at the last wake
   std::optional<llm::SelfTest> selftest;
+  llm::RequestId selftest_first = 0;  // its latency request's id; its JSON check's is the next (the calls' record)
   std::uint64_t selftest_at = 0;
   bool selftest_logged = false;
   std::optional<llm::SelfTest> listing;
@@ -521,6 +524,17 @@ bool apply_preset(AiState& st, const std::string& preset, const char* what) {
   return change_providers(st, edit, what);
 }
 
+// What an event of the self-test is for the calls' record: its latency request on the selftest slot, its JSON check on
+// the memory slot (SelfTest's ids), and the providers' lists it asks for.
+en::core::CallStart run_start(const AiState& st, const llm::LlmEvent& e) {
+  en::core::CallStart start;
+  start.purpose = en::proto::CallPurpose::SelfTest;
+  if (e.kind != en::proto::EventKind::ModelsEnded) {
+    start.slot = std::string(e.id == st.selftest_first ? llm::kSelftest : llm::kMemory);
+  }
+  return start;
+}
+
 AiState* state(Shell& s) {
   if (g_ai != nullptr) return g_ai;
   AiFilesRead* files = s.ai_files.load(std::memory_order_acquire);
@@ -605,6 +619,11 @@ void ai_pump(Shell& s, bool allowed, std::vector<en::proto::LlmEvent>& conversat
     AiState* st = state(s);
     if (st == nullptr) return;
     st->gate_now = allowed;
+    const std::uint64_t at = since_ms();
+    // The calls' record: the client's count of the hour's requests, and the bound they count against.
+    const auto bound = static_cast<std::uint32_t>(st->config ? st->config->requests_per_hour : 0);
+    const int hour = st->service ? st->service->client().requests_last_hour() : 0;
+    s.calls.hour(static_cast<std::uint32_t>(std::max(hour, 0)), bound, at);
     if (!st->service) return;
     if (allowed != st->gate) {
       st->gate = allowed;
@@ -613,8 +632,19 @@ void ai_pump(Shell& s, bool allowed, std::vector<en::proto::LlmEvent>& conversat
     std::vector<llm::LlmEvent> events;
     st->service->drain(events);
     for (llm::LlmEvent& e : events) {
-      if (st->selftest && st->selftest->take(e)) continue;
-      if (st->listing && st->listing->take(e)) continue;
+      // Each event into the calls' record first (it keeps no text but the pages shown, PV4): the runs' requests and
+      // lists are made rows at their first event, the rest were made when sent.
+      if (st->selftest && st->selftest->take(e)) {
+        const en::core::CallStart start = run_start(*st, e);
+        s.calls.event(e, at, &start);
+        continue;
+      }
+      if (st->listing && st->listing->take(e)) {
+        const en::core::CallStart start{std::string(), en::proto::CallPurpose::ModelList, std::string()};
+        s.calls.event(e, at, &start);
+        continue;
+      }
+      s.calls.event(e, at);
       // The profile editor's drafts (their ids from kDraftRequests, below the conversation's): to its glue.
       if (e.id >= kDraftRequests && e.id < en::core::kConversationRequests) {
         if (e.kind == en::proto::EventKind::Ended) st->live.erase(e.id);
@@ -647,14 +677,34 @@ void ai_pump(Shell& s, bool allowed, std::vector<en::proto::LlmEvent>& conversat
 
 bool ai_submit(Shell& s, en::proto::LlmRequest request) noexcept {
   return en::proto::ffi_guard(en::proto::Component::DllMain, false, [&] {
-    AiState* st = state(s);
-    if (st == nullptr || !st->config || !ensure_service(s, *st)) {
-      log(Line("llm").word("what", "submit").word("result", "no_service").num("id", request.id), LogLevel::Warn);
+    const llm::RequestId id = request.id;
+    const std::uint64_t at = since_ms();
+    // Pause AI (D15): refused before it leaves; it was no call, so the record keeps no row of it.
+    if (s.ai_paused) {
+      s.calls.withdraw(id);
+      log(Line("llm").word("what", "submit").word("result", "paused").num("id", id));
       return false;
     }
-    const llm::RequestId id = request.id;
+    // A profile draft's row (the conversation's were made from the core's notes, conversation_out).
+    if (id >= kDraftRequests && id < en::core::kConversationRequests) {
+      const auto* chat = std::get_if<en::proto::ChatRequest>(&request.body);
+      s.calls.sent(id, en::core::CallStart{chat != nullptr ? chat->slot : std::string(llm::kDraft),
+                                           en::proto::CallPurpose::ProfileDraft, std::string()},
+                   at);
+    }
+    AiState* st = state(s);
+    if (st == nullptr || !st->config || !ensure_service(s, *st)) {
+      s.calls.not_sent(id, llm::ErrorClass::NoHealthyProvider, at);
+      log(Line("llm").word("what", "submit").word("result", "no_service").num("id", id), LogLevel::Warn);
+      return false;
+    }
     const llm::SubmitResult r = st->service->submit(std::move(request));
-    if (r == llm::SubmitResult::Accepted) st->live.insert(id);
+    if (r == llm::SubmitResult::Accepted) {
+      st->live.insert(id);
+    } else {
+      s.calls.not_sent(id, r == llm::SubmitResult::Full ? llm::ErrorClass::Dropped : llm::ErrorClass::NoHealthyProvider,
+                       at);
+    }
     // Words and numbers only: never a message of the request (PV rules).
     log(Line("llm").word("what", "submit").word("result", llm::to_string(r)).num("id", id),
         r == llm::SubmitResult::Accepted ? LogLevel::Debug : LogLevel::Warn);
@@ -808,6 +858,10 @@ void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest& r) 
     const llm::ProviderConfig* provider = st->config ? st->config->provider(r.id) : nullptr;
     switch (r.kind) {
       case ov::AiRequest::Kind::SelfTest:
+        if (s.ai_paused) {  // Pause AI (D15): nothing is sent (the space says kAiPausedSelfTest)
+          log(Line("selftest").word("result", "refused").word("why", "paused"));
+          return;
+        }
         if (!st->config || !ensure_service(s, *st)) return;
         if (st->selftest) {
           const llm::SelfTestReport& prev = st->selftest->report();
@@ -816,6 +870,7 @@ void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest& r) 
           if (st->earlier.size() > 10) st->earlier.resize(10);
         }
         st->selftest.emplace(*st->config, false, st->next_id);
+        st->selftest_first = st->next_id;
         st->next_id += 2;
         st->selftest_at = since_ms();
         st->selftest_logged = false;
@@ -823,6 +878,10 @@ void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest& r) 
         log(Line("selftest").word("result", "started").num("lists", st->selftest->report().lists.size()));
         return;
       case ov::AiRequest::Kind::ListModels:
+        if (s.ai_paused) {  // Pause AI (D15): no provider is asked (the space says kAiPausedModelList)
+          log(Line("models_list").word("result", "refused").word("why", "paused"));
+          return;
+        }
         if (!st->config || !ensure_service(s, *st)) return;
         st->listing.emplace(*st->config, true, st->next_id);
         st->next_id += 2;
@@ -893,6 +952,47 @@ void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest& r) 
         (void)edit_key(*st, provider->key_ref.substr(8), nullptr);
         return;
     }
+  });
+}
+
+void ai_pause(Shell& s, bool on) noexcept {
+  en::proto::ffi_guard(en::proto::Component::DllMain, [&] { s.pause_asked = on; });
+}
+
+bool ai_paused(const Shell& s) noexcept { return s.ai_paused; }
+
+const en::proto::CallsView& ai_calls(const Shell& s) noexcept { return s.calls.view(); }
+
+void ai_pause_taken(Shell& s, bool on) noexcept {
+  en::proto::ffi_guard(en::proto::Component::DllMain, [&] {
+    const bool changed = s.ai_paused != on;
+    s.ai_paused = on;
+    bool selftest_stopped = false;
+    bool list_stopped = false;
+    // What runs now would start more calls (the self-test's latency and JSON checks follow its lists): stopped, its
+    // steps not done reading Skipped. A list or a request already sent ends as it ends, and is recorded.
+    if (AiState* st = g_ai; on && st != nullptr && st->service) {
+      if (st->selftest && !st->selftest->done()) {
+        st->selftest->cancel(*st->service);
+        selftest_stopped = true;
+      }
+      if (st->listing && !st->listing->done()) {
+        st->listing->cancel(*st->service);
+        list_stopped = true;
+      }
+    }
+    log(Line("ai_pause").flag("on", on).flag("changed", changed).flag("selftest_stopped", selftest_stopped)
+            .flag("list_stopped", list_stopped));
+  });
+}
+
+void ai_test_pause(Shell& s) noexcept {
+  en::proto::ffi_guard(en::proto::Component::DllMain, [&] {
+    wchar_t buf[8];
+    const DWORD n = GetEnvironmentVariableW(L"ELDENNET_TEST_PAUSE", buf, 8);
+    if (n != 2 || std::wstring_view(buf, n) != L"on") return;
+    log(Line("ai_pause").word("asked", "test").flag("accepted", kProbeBuild));
+    if (kProbeBuild) s.pause_asked = true;
   });
 }
 

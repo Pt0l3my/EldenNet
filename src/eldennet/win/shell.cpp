@@ -172,6 +172,10 @@ DWORD WINAPI core_main(void* param) noexcept {
     bool net_told = false;
     std::vector<en::proto::UiEvent> ui_in;
     std::vector<en::proto::LlmEvent> llm_in;
+    // The model calls' record keeps 20 rows, 200 in developer mode (PAGES §4.6.2); Pause AI starts off, but for the
+    // tests' switch in a probe build (ai.cpp).
+    s.calls.set_kept(s.settings.debug_panel ? en::proto::kCallsKeptDeveloper : en::proto::kCallsKept);
+    ai_test_pause(s);
     const auto step = [&](en::core::CoreInput in, std::uint64_t now) {
       en::core::Outputs out = core->step(std::move(in), now);
       for (auto& c : out.game) {
@@ -187,6 +191,15 @@ DWORD WINAPI core_main(void* param) noexcept {
       conversation_out(s, out);  // its requests to the model client, its cancels, its commits logged as numbers
       ui_model = std::move(out.ui);
     };
+    // Pause AI (D15): the pages' ask (ai_pause) or the tests' switch, taken by the core at once: the ladder to L2, or
+    // back to what the rest of the state gives.
+    const auto take_pause = [&](std::uint64_t now) {
+      if (!s.pause_asked) return;
+      const bool on = *s.pause_asked;
+      s.pause_asked.reset();
+      step(en::core::CoreInput{en::core::CoreInput::Pause{on}}, now);
+      ai_pause_taken(s, core->state().ai_paused);
+    };
     for (;;) {
       // One wake signal, and GraceUI's wait handle once connected (ABI 1.5, D212): its events (the talk key, the box's
       // typing) wake T6 at once, so the box opens within NPC §5.1's 50 ms; 100 ms is the fallback either way.
@@ -197,6 +210,7 @@ DWORD WINAPI core_main(void* param) noexcept {
         WaitForSingleObject(s.wake, 100);
       }
       const std::uint64_t now = mono_ms();
+      take_pause(now);
       (void)content_tick(s, *core);  // the conversation's content, once T1 has read it
       en::core::BootBanner banner;
       while (s.banners.try_pop(banner)) {
@@ -287,6 +301,7 @@ DWORD WINAPI core_main(void* param) noexcept {
         if (en::shell::edit_behaviour(b, e)) behaviour(b, "pages");
       }
       s.behaviour_edits.clear();
+      take_pause(now);  // asked by a command of this wake's
       profiles_tick(s, *core);  // the profile editor's writes answered, and the content loaded again after one
       // What the player did goes to the core in the same wake, and the newest model to the surfaces; what they raise
       // (PageShown, Close) goes to the core at once, and the model is drawn again (a few rounds at most).
@@ -303,6 +318,7 @@ DWORD WINAPI core_main(void* param) noexcept {
         l.flag("badge", cs.badge).num("snapshots", snapshots).num("renders", io.renders.load());
         l.num("recorded", rec.lines()).num("refused", rec.refused()).num("log_dropped", log_dropped());
         l.num("events", overlay_events_seen());
+        l.flag("ai_paused", s.ai_paused).num("calls", s.calls.view().usage.calls);  // Pause AI, the calls' record
         log(l);
         if (task != nullptr) {
           const en::gal::GuardedReader& reader = task->backend().reader();

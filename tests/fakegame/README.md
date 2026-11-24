@@ -250,7 +250,10 @@ the player locks on (`--lock-on-at`), which EldenNet claims as danger, and Grace
 (danger, which EldenNet takes as input lost and keeps the draft, while its own conversation's rules do not count a
 lock-on); T pressed during the lock-on reopens the box in EldenNet's core, GraceUI answers not now (danger) and the
 conversation ends with no line said, the draft still kept (WHY§586); nothing typed reaches the game, and once the
-lock-on ends T gives the draft back, which is sent.
+lock-on ends T gives the draft back, which is sent. `launcher-eldennet-graceui-talk-paused`: Pause AI from the start
+(D15) by the tests' switch `ELDENNET_TEST_PAUSE=on`, which the probe build alone takes, with the talk case's set-up and
+a ready model: the ladder held at L2, the talk key reaching EldenNet and opening no box, nothing submitted or
+committed, and the local model server asked nothing at all.
 
 The derivation's offline round (part 3) joined it so: `probe-exe`, `probe-exe-slots` and `probe-exe-lint` run the
 Windows `eldennet-engine.exe` under Wine on `fakegame.exe` with `derive-leads.toml` (the fake game's own names under our
