@@ -88,6 +88,16 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    0x53B bit 4 behave alike). In the layout as leads (engine e816200). Open: chr_type (0x68 or 0x40), block_id (0x70,
    0xC or the moving 0x38). The first run lost its fields to empty passes at the quit (mine): a summary recomputed
    every pass must not be replaced by a pass that saw little, and a case must end as a real run ends.
+   **The twentieth round** (package 0.1.0-lodestar.25, engine a9d0649; the record's "What was changed for the
+   twentieth round"; built, verified, waiting for Engine's read and then the owner's run): plan 2 (`--read-plan
+   2`): load somewhere quiet, stand 20 s, ride or run one way 60 s, the tester's own death, stand 20 s. The
+   sheet scan (O121, O122: numbers written, the report between the owner and me only; text never told) for the
+   count of deaths and the level; the reader on the type, the block (its change at a crossing), the main
+   player's dead bit against its health at nothing, the clock and the play time; the survey with 21 checks and
+   the parts watch (to the ride's end) beside it; and the round tells the launcher's panel what each task
+   gathered (watch block version 3, the owner's wish). After the run the owner sends the status screen and other
+   pages in chat, to name the numbers. Engine's rule for a confirmed field is WHY§614; 24 fields are confirmed
+   in the layout (a field may state its own status).
    **The nineteenth round, run and reviewed** (package 0.1.0-lodestar.24, engine 20825c7; the record's "The
    nineteenth round in game"): EldenNet's own reader read the near characters' seven fields through the layout
    (2,784 characters over 58 frames: every handle its own, the kind and its model, the entity's id in three of
