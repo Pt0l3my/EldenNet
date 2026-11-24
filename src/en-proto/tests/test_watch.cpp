@@ -65,6 +65,10 @@ TEST_CASE("watch block: what the round gathered, two bits a mark, in the room th
   CHECK(with_gathered(word, 0, kGathered) == word);  // no such mark: nothing changes
   CHECK(with_gathered(word, kGatherMarks + 1, kGathered) == word);
   CHECK(gathered_of(word, kGatherMarks + 1) == kGatherUntold);
+  // The highest bit is no mark's: the round could not write its report.
+  CHECK(kGatherMarks == 15);
+  CHECK((with_gathered(0, kGatherMarks, 3) & kGatherReportFailed) == 0);
+  CHECK(gathered_of(word | kGatherReportFailed, 1) == gathered_of(word, 1));
 }
 
 TEST_CASE("watch block: a module's file name is kept as ASCII, anything else '?', cut to fit") {

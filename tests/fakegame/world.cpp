@@ -481,7 +481,18 @@ void world_create_singletons() {
   fg_static_strayling = make<FG::Prop>();
 
   // The AOB statics: the ledger (with the hero sheet and the settings), the warden and the plot.
-  auto* hero = make<FG::HeroSheet>();
+  // --wide-sheet: each of the two lies at the start of 68 KiB that is full of small numbers after it (every 32-bit
+  // field from 1 to 5,000), as the game's objects lie among others in its heap.
+  const auto wide = [](std::size_t own) {
+    constexpr std::size_t kZone = 0x11000;
+    auto* zone = static_cast<std::uint8_t*>(alloc_block(kZone));
+    for (std::size_t at = (own + 7) & ~std::size_t{7}; at + 4 <= kZone; at += 4) {
+      const std::uint32_t v = static_cast<std::uint32_t>(at / 4 % 5000 + 1);
+      std::memcpy(zone + at, &v, 4);
+    }
+    return static_cast<void*>(zone);
+  };
+  auto* hero = options().wide_sheet ? new (wide(sizeof(FG::HeroSheet))) FG::HeroSheet() : make<FG::HeroSheet>();
   hero->h.level = 12;
   hero->h.runes = 4321;
   hero->h.archetype = 3;
@@ -490,7 +501,8 @@ void world_create_singletons() {
   for (std::size_t i = 0; i + 1 < sizeof kHeroName / sizeof kHeroName[0]; ++i) hero->h.name[i] = kHeroName[i];
   const std::uint32_t gear[6] = {1100000, 2200000, 3300000, 3301000, 3302000, 3303000};
   std::copy(std::begin(gear), std::end(gear), std::begin(hero->h.gear));
-  auto* ledger = make<FG::SaveLedgerImp>();
+  auto* ledger = options().wide_sheet ? new (wide(sizeof(FG::SaveLedgerImp))) FG::SaveLedgerImp()
+                                      : make<FG::SaveLedgerImp>();
   ledger->f.hero = hero;
   ledger->f.settings = make<FG::SettingsBlock>();
   ledger->f.settings->show_subtitles = 1;

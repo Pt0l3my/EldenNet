@@ -99,7 +99,9 @@ class TaskList {
 [[nodiscard]] std::string gathered_text(const TaskRow& row);
 // The line for the run as a whole, once every task with a mark is done and the round has judged them all: that the
 // run is usable, or which tasks were not gathered. Empty until then, and for a round that judges nothing.
-[[nodiscard]] std::string gathered_footer(const std::vector<TaskRow>& rows);
+// `report_failed`: the round says it could not write its report (the word's kGatherReportFailed). That line comes
+// at once, whatever the tasks' verdicts are.
+[[nodiscard]] std::string gathered_footer(const std::vector<TaskRow>& rows, bool report_failed = false);
 
 // The read-only round's tasks (--read), in the order the tester does them.
 // `plan`: watch.hpp's kPlan*. 0: the rounds up to the seventeenth; 1: the character survey.

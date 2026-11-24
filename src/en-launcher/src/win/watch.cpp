@@ -250,12 +250,14 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
           tasks->set_gathered(gathered);
           say("gathered word=%u", gathered);
         }
-        std::string line = gathered_footer(tasks->rows(now));
+        const bool failed = (gathered & w::kGatherReportFailed) != 0;
+        std::string line = gathered_footer(tasks->rows(now), failed);
         if (line != gathered_line) {
           gathered_line = std::move(line);
           if (!gathered_line.empty()) {
             console_line(gathered_line, "EldenNet read: ");
-            say("gathered line=1 usable=%d", gathered_line.rfind("This run is usable", 0) == 0 ? 1 : 0);
+            say("gathered line=1 usable=%d report_failed=%d",
+                gathered_line.rfind("This run is usable", 0) == 0 ? 1 : 0, failed ? 1 : 0);
           }
         }
       }

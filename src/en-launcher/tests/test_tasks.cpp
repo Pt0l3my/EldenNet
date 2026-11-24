@@ -263,6 +263,9 @@ TEST_CASE("tasks: a done task says what the round gathered, and the run's own li
         "Tasks 4 and 6 were not gathered: send the files all the same; run again only if you have the time.");
   list.set_gathered(w::with_gathered(word, 3, w::kGathered));
   CHECK(gathered_footer(list.rows(110000)) == "This run is usable: send it.");
+  // The round could not write its report: that line comes at once and stands above every verdict.
+  CHECK(gathered_footer(list.rows(110000), true).find("cannot write its report") != std::string::npos);
+  CHECK(gathered_footer(rows, true).find("cannot write its report") != std::string::npos);
   // A round that judges nothing (the earlier plans) leaves the rows and the line as they were.
   TaskList old(read_tasks(1));
   old.start(0);
