@@ -75,7 +75,14 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    as leads: `[item.game_state]`, `game_state.save_slot` (far), `character.parts` 0x190, `character_parts.vitals`
    0x0 and `.motion` 0x68, `vitals.hp` 0x138 and `.max_hp` 0x13C, `motion.pos` 0x70. The game's exit code at the
    quit is the game's own on the owner's PC (WHY§557 to §562); the launcher keeps it quietly (O115).
-   **Next, the seventeenth round: EldenNet's own reader on the world.** A backend entry that reads the world's
+   **The seventeenth round is built** (package 0.1.0-lodestar.21, engine 1a262a7; the record's "What was changed
+   for the seventeenth round"): `ErBackend::world_alone` reads the slot, the main player, health, position and the
+   near list through the layout once a second; the report (schema 17) holds the slot, the health and its maximum
+   as read after each mark (the owner agreed on 2026-11-24, in the record) and never the position. It waits for
+   Engine's read of its README. When its files come back: `world.lacks` 0; `at_marks` 1: slot 6, 2: not loaded,
+   3: slot 2 with health at or under its maximum, 7: lower, 8: back up; `pos_moved_by[4]` high and `[3]`, `[5]`
+   zero; `near_distance` against `near_read`; and the owner's maximum HP from the status screen against `max_hp`.
+   **What the plan for it was:** A backend entry that reads the world's
    group alone (as `flags_alone` does the flags; `ErBackend` is Engine's to hear of first), so that a round reads
    through the layout: the game's state's slot, the main player, its parts, health and position, and the near
    list, and reports numbers the owner can check on screen (health and its maximum; the slot) and whether the
