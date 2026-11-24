@@ -113,10 +113,16 @@ struct PlaythroughId {
 
 struct CoreInput {
   struct Tick {};  // C16: the 100 ms tick, for time that passes with no snapshot
+  // Pause AI for this session (D15; PAGES §4.6.1): on, the ladder stands at L2 with the reason "AI paused" and no model
+  // request goes out (ARCH §1.5, §6.8); off, it climbs back to what the rest of the state gives. Never stored: every
+  // core starts with it off.
+  struct Pause {
+    bool on = false;
+  };
   // C1's snapshot, C2's lifecycle message, T1's banner, the tick; then the surfaces' event (C7), the model client's
-  // event (C10) and the model client's health, which the shell passes when it changes.
+  // event (C10) and the model client's health, which the shell passes when it changes; and the player's Pause AI.
   std::variant<std::unique_ptr<proto::WorldSnapshot>, proto::Lifecycle, BootBanner, Tick, proto::UiEvent,
-               proto::LlmEvent, proto::NetHealth>
+               proto::LlmEvent, proto::NetHealth, Pause>
       payload;
 };
 
@@ -128,6 +134,7 @@ struct State {
   Unclean gate_why = Unclean::Loading;  // the last snapshot's verdict
   bool dormant = true;                  // speech off: the gate is closed, or not in a world (§6.8)
   bool badge = false;                   // "EldenNet paused (multiplayer)" is up
+  bool ai_paused = false;               // Pause AI is on (D15): L2 at most, for the reason "AI paused"
   std::optional<BannerReason> banner;   // the L1 banner, once shown (it stays)
   std::uint64_t snapshots = 0;          // processed
   std::uint64_t playthroughs = 0;       // entered (a new identity each)
@@ -156,7 +163,9 @@ struct Outputs {
   std::vector<Change> changes;
   std::vector<augur::Event> events;  // Augur's events of the step, in dispatch order (ARCH §8.9)
   proto::UiModel ui;                 // C6: what the surfaces show after this step, whole (the newest wins)
-  std::vector<proto::LlmRequest> requests;  // C9: to submit, in order (Service::submit); none while !ai_allowed (C4)
+  // C9: to submit, in order (Service::submit); none while !ai_allowed (C4) or while AI is paused (D15).
+  std::vector<proto::LlmRequest> requests;
+  std::vector<CallNote> calls;              // the conversation's notes of `requests`, for the calls' record (calls.hpp)
   std::vector<proto::RequestId> cancels;    // C9: live requests to cancel (Service::cancel)
   // The step's commits, already applied to the core's event log (log()): chat text, so never for a log file, a
   // recording or a numbers-only report (PV rules).

@@ -677,7 +677,9 @@ struct Conversation::Impl {
     if (!rendered) return false;
     r.request = next_request++;
     r.live = true;
-    out->requests.push_back(proto::LlmRequest::chat(r.request, dialogue_request(std::move(*rendered))));
+    proto::ChatRequest request = dialogue_request(std::move(*rendered));
+    out->calls.push_back(CallNote{CallNote::What::Sent, r.request, conv->id, r.id, request.slot, conv->name});
+    out->requests.push_back(proto::LlmRequest::chat(r.request, std::move(request)));
     return true;
   }
 
@@ -831,6 +833,10 @@ struct Conversation::Impl {
   // §8.4: cancel, and resend once with block 11's reminder; a fresh first-token timer, the same 20 s total.
   void regenerate(ReplyRun& r, std::optional<HardList> hit) {
     cancel_request(r);
+    if (!in->world.speech || in->world.dormant) {  // C4, and Pause AI: nothing goes out below L3, a resend neither
+      failure(ToastClass::Provider, proto::ToastLevel::Error, kNoModel);
+      return;
+    }
     r.regenerated = true;
     r.reminder = hit ? hit : std::optional<HardList>(HardList::Banned);
     open_parts(r);
@@ -840,6 +846,8 @@ struct Conversation::Impl {
   // §8.4: the persona's own deflection in place of the reply (content, never an invented answer).
   void deflect(ReplyRun& r) {
     cancel_request(r);
+    // The model's answer is withheld: what shows is the persona's own line (the calls' record reads it not shown).
+    out->calls.push_back(CallNote{CallNote::What::Withheld, r.request, conv->id, r.id, {}, {}});
     const Persona& p = cast()->persona(conv->persona);
     if (p.deflections.empty()) {
       failure(ToastClass::Provider, proto::ToastLevel::Error, kProviderFailed);
