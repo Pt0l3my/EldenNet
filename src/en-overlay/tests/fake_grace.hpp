@@ -50,7 +50,7 @@ struct Grace {
   std::uint32_t version = GRACEUI_VERSION_PACK(0, 2, 38);
   std::vector<std::string> caps = {"notices", "panels",        "textures", "faces",      "input",           "world-state",
                                    "hotkeys", "pages",         "holder-events", "display", "pad-chords",
-                                   "hotkey-bindings", "wake"};
+                                   "hotkey-bindings", "wake", "hotkey-by"};
   std::uint32_t table_size = sizeof(GraceUiApi1);  // a shorter table: an older GraceUI (D74)
   bool refuse_textures = false;
   GraceUiStatus poll_status = GRACEUI_OK;  // GRACEUI_NOT_CONNECTED: the mod was disconnected
@@ -119,8 +119,9 @@ struct Grace {
 
   const GraceUiApi1* api();  // the table, its size as `table_size` says
   // A press of a hotkey (by its action), as poll gives it: bound or not, as if the player had bound it since. Silent
-  // while a holder has input, as GraceUI's are (D77).
-  void press(const std::string& action, std::uint32_t count = 1);
+  // while a holder has input, as GraceUI's are (D77). `by`: what pressed it (GRACEUI_HOTKEY_BY_*, D243), written only
+  // with the "hotkey-by" cap, as GraceUI 0.2.38 writes it (an older one leaves 0).
+  void press(const std::string& action, std::uint32_t count = 1, std::uint32_t by = GRACEUI_HOTKEY_BY_KEY);
   // The overlay's warm-up: the atlas baked (faces too late after it, glyph tables ready), then the display's event.
   void warm_up();
   // A holder's events, while it holds (D176): a key, the characters of `utf8`, a pad button, and its end.

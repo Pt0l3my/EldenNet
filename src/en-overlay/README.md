@@ -102,14 +102,16 @@ The view takes no input (D142): F11 shows it and hides it.
   folder has it (GraceUI 0.2.36, D241; three of the eight faces EldenNet may register, D139; none below it, and the
   Tarnished's lines are drawn upright); the hotkeys `talk` (T, with the pad chord
   D-pad Up then View behind `has_cap("pad-chords")`) and `skip-page` (Tab), named "Talk" and "Skip the page";
-  `wake_event`'s handle behind `has_cap("wake")`. Then, from poll: the talk key opens (OpenChat), Tab skips, the
-  display's event sizes the three panels (made for it, at most one set per display), and a hotkey changed is described
-  again. `Overlay::show(model, now)`, after the core's step: each panel submitted at most every 100 ms (the box's
-  first frame at once), shown once it holds a list; the box's own panel shown, then `request_input` with
-  GRACEUI_INPUT_EVENTS for the keyboard, mouse and pad; granted, the holder's events go to the box's own headless Dear
-  ImGui (the line's text, caret and selection; NPC §8.5's 240 characters), the caret set for the IME; refused and not
-  now answered as Close with the holder's id or the reason; the model closing the box answered as Close{Shut} with the
-  draft; a fault releases input first.
+  `wake_event`'s handle behind `has_cap("wake")`. Then, from poll: the talk hotkey opens (OpenChat, by the pad chord
+  where GraceUI's `hotkey_by` says the chord alone pressed it, behind `has_cap("hotkey-by")`, 0.2.38's D243; by the key
+  otherwise, and the key's own character swallowed only then), Tab skips, the display's event sizes the three panels
+  (made for it, at most one set per display), and a hotkey changed is described again. `Overlay::show(model, now)`,
+  after the core's step: each panel submitted at most every 100 ms (the box's first frame at once), shown once it holds
+  a list; the box's own panel shown, then `request_input` with GRACEUI_INPUT_EVENTS for the keyboard and the pad (never
+  the mouse, O113); granted, the holder's events go to the box's own headless Dear ImGui (the line's text, caret and
+  selection; NPC §8.5's 240 characters), the caret set for the IME; refused and not now answered as Close with the
+  holder's id or the reason; the model closing the box answered as Close{Shut} with the draft; a fault releases input
+  first.
 
 ## The F11 view (`view.hpp`)
 

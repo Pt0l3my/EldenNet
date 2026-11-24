@@ -215,8 +215,9 @@ which takes none ("2,2,2,2,2,0" under Wine: the render half's five and the windo
 DirectInput or XInput in these runs), and that the idle copy answers no hook: one hook holder in the process (GraceUI's
 invariant 16). With the other mod's connection, they are also two mods connected each way round.
 `launcher-eldennet-graceui-talk-chord`: the talk hotkey's pad chord read through GraceUI's XInput filter
-(`--pad-chord-at`) opens the chat box with no key pressed, the game seeing the anchor and never View; a line typed and
-sent, none of it the game's; Esc closes the box. `launcher-eldennet-graceui-talk-danger`: the box open with a draft,
+(`--pad-chord-at`) opens the chat box with no key pressed, by the chord (`via=pad_chord`, GraceUI 0.2.38's
+`hotkey_by`), the game seeing the anchor and never View; a line typed and sent, none of it the game's; Esc closes the
+box. `launcher-eldennet-graceui-talk-danger`: the box open with a draft,
 the player locks on (`--lock-on-at`), which EldenNet claims as danger, and GraceUI ends the box's holder at once
 (danger, which EldenNet takes as input lost and keeps the draft, while its own conversation's rules do not count a
 lock-on); T pressed during the lock-on reopens the box in EldenNet's core, GraceUI answers not now (danger) and the

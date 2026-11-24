@@ -2516,8 +2516,9 @@ case("launcher-eldennet-graceui-talk-leaks", LGAME + ["--dll", "{eldennetdll}", 
 # The talk hotkey's pad chord (S11.4.c; GraceUI D204, ABI 1.3, "pad-chords"), D-pad Up then View, against GraceUI's real
 # test build: the fake game reads pad 0 through GraceUI's XInput filter once a frame (--pad-chord-at; Wine has no pad):
 # Up alone for 250 ms, then Up and View for 650 ms. The game sees Up (the anchor) and never View; the hotkey fires once,
-# and EldenNet opens the box as for T (GraceUI's hotkey event does not say which of the two fired it: `via=talk_key`);
-# no key is pressed. Then a line typed and sent, and Esc closing the box.
+# and EldenNet opens the box as for T, by the chord (`via=pad_chord`: GraceUI 0.2.38's hotkey_by, D243, says the chord
+# alone pressed it; `via=talk_key` from an older GraceUI, whose event does not say); no key is pressed. Then a line
+# typed and sent, and Esc closing the box.
 CHORD_KEYS = "1700:return,2400:escape"
 CHORD_REPORTS = "1440,1600,1680,2460"
 
@@ -2538,8 +2539,10 @@ def check_talk_chord(r):
     # GraceUI hid both (the fire), so that the game reads the change.
     failures += want(r, "FAKEGAME", "pad_chord", up_seen=(1, 1e9), view_reads=(20, 1e9), packets=(1, 1e9))
     need(not [e for e in r.events("FAKEGAME", "key_down") if e.get("key") == "0x54"], "T was pressed", failures)
-    # The hotkey's event: the box opened by the core, input held.
-    failures += any_line(r, "ELDENNET", "chat", what="open_key", via="talk_key")
+    # The hotkey's event, by the chord where GraceUI says so: the box opened by the core, input held.
+    version, _ = graceui_version(r)
+    by_chord = tuple(int(n) for n in version.split(".")) >= (0, 2, 38)
+    failures += any_line(r, "ELDENNET", "chat", what="open_key", via="pad_chord" if by_chord else "talk_key")
     need([e for e in r.events("ELDENNET", "chat") if e.get("what") == "opened"], "no box opened", failures)
     failures += want_grace(r, 1440, holder=0) + want_grace(r, 1600, holder=2, refused=0)
     # The line typed reaches the box and is sent, none of it the game's.

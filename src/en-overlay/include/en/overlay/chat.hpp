@@ -3,14 +3,16 @@
 // and its own Dear ImGui, the talk and skip hotkeys, the toasts as notices, all on T6 (GraceUI's G15: T6 alone calls
 // GraceUI). surfaces.hpp lays them out; this calls GraceUI. Overlay (overlay.hpp) owns one and hands it its events.
 //
-// - At connect, on T1 (EldenNet's registration window): a small white texture of its own, for the solid shapes; its two
-//   faces (GraceUI's own EB Garamond and Noto Sans, from GraceUI's folder, as GRACEUI_FACE_SCALED faces, before
-//   warm-up: GraceUI eldennet-changes §33); the hotkeys talk (T, with the pad chord D-pad Up then View behind
-//   has_cap("pad-chords"), §47) and skip (Tab), by their stable action ids and players' names (§48, §49).
-// - On T6, each event poll gives it: the talk key opens (OpenChat), Tab skips the page up; while the box holds input,
-//   GraceUI's holder events (D176): keys, characters and the pad to the box's own Dear ImGui context, Enter sends, Esc
-//   and the pad's B close, and the holder's end closes with its reason; the display's event (D180); a hotkey changed
-//   (D210), whose words the hint takes from describe_hotkey.
+// - At connect, on T1 (EldenNet's registration window): a small white texture of its own, for the solid shapes; its
+//   faces (GraceUI's own EB Garamond and Noto Sans, and EB Garamond Italic where GraceUI's folder has it, 0.2.36's
+//   D241, from GraceUI's folder, as GRACEUI_FACE_SCALED faces, before warm-up: GraceUI eldennet-changes §33, §69); the
+//   hotkeys talk (T, with the pad chord D-pad Up then View behind has_cap("pad-chords"), §47) and skip (Tab), by their
+//   stable action ids and players' names (§48, §49).
+// - On T6, each event poll gives it: the talk hotkey opens (OpenChat, by the key or the pad chord as GraceUI's
+//   hotkey_by says, D243), Tab skips the page up; while the box holds input, GraceUI's holder events (D176): keys,
+//   characters and the pad to the box's own Dear ImGui context, Enter sends, Esc and the pad's B close, and the
+//   holder's end closes with its reason; the display's event (D180); a hotkey changed (D210), whose words the hint
+//   takes from describe_hotkey.
 // - On T6, after the core's step (`show`): the newest model drawn, each panel submitted at most every 100 ms; the box's
 //   input asked for when the model opens it (request_input with the holder's events, the box's own panel shown first),
 //   refused and not now answered as Close; the box closed by the model answered as Close{Shut} with its draft; the
@@ -186,6 +188,8 @@ class Surfaces {
   std::optional<proto::TalkHint> last_hint_;
   std::string last_hint_words_;
   std::uint64_t pressed_ = 0;   // the last talk key's poll
+  bool pressed_by_key_ = true;  // ... and whether its key pressed it (not the pad chord alone), as far as GraceUI says
+  bool hotkey_by_ = false;      // GraceUI says what pressed a hotkey (has_cap("hotkey-by"), ABI 1.7, D243)
   std::optional<Opened> opened_;
   Counts counts_;
 };

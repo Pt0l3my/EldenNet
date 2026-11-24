@@ -68,12 +68,12 @@ Overlay* Overlay::connect(const graceui::Api& api, const Options& options, Repor
   report.graceui_version = api.version();
   // The caps EldenNet uses (D138): notices for the banner and the badge, world-state as a provider, hotkeys for F11 and
   // the Mark, for the view panels and textures (its atlas), pages for its space (D169), and for the conversation's
-  // surfaces their faces, the input with its holder's events, the display, the pad chord, the hotkeys' bindings and the
-  // wait handle (D176, D180, D204, D210, D212).
+  // surfaces their faces, the input with its holder's events, the display, the pad chord, the hotkeys' bindings, the
+  // wait handle and what pressed a hotkey (D176, D180, D204, D210, D212, D243).
   std::string caps = "notices world-state hotkeys";
   if (options.view || options.surfaces) caps += " panels textures";
   if (options.space_views != 0) caps += " pages";
-  if (options.surfaces) caps += " faces input holder-events display pad-chords hotkey-bindings wake";
+  if (options.surfaces) caps += " faces input holder-events display pad-chords hotkey-bindings wake hotkey-by";
   graceui::Mod mod;
   mod.id = kId;
   mod.name = kName;

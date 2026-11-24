@@ -6,6 +6,7 @@
 // words and their change, a fault, the wait handle's wake, and no input left with the box once it has closed.
 #include <doctest.h>
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <string>
@@ -101,7 +102,7 @@ TEST_CASE("chat: connect registers the surfaces' texture, faces, hotkeys and wai
   REQUIRE(o != nullptr);
   REQUIRE(o->surfaces() != nullptr);
   CHECK(g.mod_caps == "notices world-state hotkeys panels textures faces input holder-events display pad-chords "
-                      "hotkey-bindings wake");
+                      "hotkey-bindings wake hotkey-by");
   CHECK(std::string(r.surfaces.state) == "ready");
   CHECK(g.textures.size() == 1);  // the white texture, in the registration window
   CHECK_FALSE(g.window_closed);
@@ -452,6 +453,55 @@ TEST_CASE("chat: toasts as notices under EldenNet's keys, withdrawn when no long
   m.toasts.clear();
   (void)s.show(m);
   CHECK(s.g.notices.empty());
+}
+
+TEST_CASE("chat: what pressed the talk hotkey (ABI 1.7): the chord alone opens by the chord, with no swallow") {
+  // GraceUI 0.2.38's hotkey_by (D243). The chord: OpenChat by the pad chord, and a T typed at once is the player's.
+  const auto typed_after = [](fake::Grace& g, std::unique_ptr<Overlay>& o, std::uint64_t& now, std::uint32_t by,
+                              proto::OpenVia& via) {
+    g.press("talk", 1, by);
+    const auto ev = o->step(status(), nullptr, nullptr, now).ui;
+    const auto open = find<proto::UiEvent::OpenChat>(ev);
+    REQUIRE(open.has_value());
+    via = open->via;
+    REQUIRE(o->show(open_box(), now).empty());
+    REQUIRE(g.holding);
+    g.type("t");  // within 100 ms of the open, as the key's own WM_CHAR would come
+    g.key(0x0D, true);
+    now += 20;
+    const auto sent = find<proto::UiEvent::Submit>(o->step(status(), nullptr, nullptr, now).ui);
+    return sent ? sent->text : std::string();
+  };
+  {
+    Session s;
+    proto::OpenVia via{};
+    CHECK(typed_after(s.g, s.o, s.now, GRACEUI_HOTKEY_BY_CHORD, via) == "t");
+    CHECK(via == proto::OpenVia::PadChord);
+    CHECK(s.o->surfaces()->counts().swallowed == 0);
+  }
+  // The key, and the key and the chord both before one poll: by the key, its character swallowed.
+  for (const std::uint32_t by : {GRACEUI_HOTKEY_BY_KEY, GRACEUI_HOTKEY_BY_KEY | GRACEUI_HOTKEY_BY_CHORD}) {
+    CAPTURE(by);
+    Session s;
+    proto::OpenVia via{};
+    CHECK(typed_after(s.g, s.o, s.now, by, via).empty());
+    CHECK(via == proto::OpenVia::TalkKey);
+    CHECK(s.o->surfaces()->counts().swallowed == 1);
+  }
+  // An older GraceUI (no "hotkey-by"): 0 whatever pressed it, taken as the key, as before 0.2.38.
+  fake::Grace g;
+  g.caps.pop_back();
+  REQUIRE(std::find(g.caps.begin(), g.caps.end(), "hotkey-by") == g.caps.end());
+  Report r;
+  auto o = connect(g, options(), r);
+  REQUIRE(o != nullptr);
+  g.warm_up();
+  std::uint64_t now = 10'000;
+  (void)o->step(status(), nullptr, nullptr, now);
+  proto::OpenVia via{};
+  CHECK(typed_after(g, o, now, GRACEUI_HOTKEY_BY_CHORD, via).empty());
+  CHECK(via == proto::OpenVia::TalkKey);
+  CHECK(o->surfaces()->counts().swallowed == 1);
 }
 
 TEST_CASE("chat: the hint's key words from describe_hotkey, again on a change; the swallow follows the new key") {

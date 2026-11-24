@@ -577,13 +577,14 @@ const GraceUiApi1* Grace::api() {
   return &table;
 }
 
-void Grace::press(const std::string& action, std::uint32_t count) {
+void Grace::press(const std::string& action, std::uint32_t count, std::uint32_t by) {
   if (holding) return;  // a hotkey fires only while no holder has input (D77)
   for (std::size_t i = 0; i < hotkeys.size(); ++i) {
     if (hotkeys[i].action == action) {
       GraceUiEvent e = event_of(GRACEUI_EVENT_HOTKEY);
       e.hotkey_id = static_cast<std::uint32_t>(i + 1);
       e.count = count;
+      e.hotkey_by = std::find(caps.begin(), caps.end(), "hotkey-by") != caps.end() ? by : 0u;
       queue(*this, e);
     }
   }
