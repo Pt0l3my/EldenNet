@@ -199,6 +199,9 @@ bool content_tick(Shell& s, en::core::Core& core) noexcept {
 void conversation_out(Shell& s, en::core::Outputs& out) noexcept {
   en::proto::ffi_guard(en::proto::Component::DllMain, [&] {
     for (const en::proto::RequestId id : out.cancels) ai_cancel(s, id);
+    // The model calls' record (en-core's calls.hpp): each request's row and the pages shown, before the requests go,
+    // so that one the model client does not take ends its row.
+    en::core::record_step(s.calls, out, since_ms());
     for (en::proto::LlmRequest& r : out.requests) (void)ai_submit(s, std::move(r));
     for (const en::core::Commit& c : out.commits) {
       // A commit by its kind and numbers: its text is chat, never for the log (PV rules).

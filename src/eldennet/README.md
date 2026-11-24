@@ -118,7 +118,8 @@ spikes.
   `ersc.dll`) join each snapshot's session before the core judges it. It sends the core's commands on C4 (an outbox
   past a full ring), frees retired watch lists (C5), keeps the status block (the core's phase, level and gate flags,
   snapshots, faults, the groups tripped, the task's p99), records the Marks, logs each change and a status line every
-  10 s (with `events=`, how many of Augur's events there have been), hands each change and each of Augur's events of
+  10 s (with `events=`, how many of Augur's events there have been, `ai_paused=`, and `calls=`, the model calls
+  recorded), hands each change and each of Augur's events of
   the step to the F11 view's rings, and notes a stall (a running task with no snapshot for 5 s; WHY§175). A probe build honours the launcher's
   crash request (S0-D's `s0d-crash`) on this thread.
 - **T10, the watcher**, repeats the anti-cheat module check every 60 s and notes `ersc.dll` (C14). Hot reload waits
@@ -223,6 +224,21 @@ After each wake, once T1 has published the connection:
   cancelled. A save that takes a draft's proposal marks the layer `drafted = "assisted"` (PL12). The log holds
   `profile what=check|save|reset|restore|draft target=… rev=… result=…`, `profile_file op=… ok=… bytes=…` and
   `content_load why=profile …`: never the player's text, notes or the draft.
+- **The model calls' record and Pause AI** (`ai.cpp`, `conversation.cpp`, `shell.cpp`; PAGES §4.6.1, §4.6.2; D15,
+  S11.4.a): T6 keeps en-core's `CallRecord` in the Shell (20 rows, 200 with `debug.panel`) and tells it of every call
+  v0.2 makes: the core's requests with their notes and the pages it committed (`record_step`, before the requests go),
+  a draft as it is handed over, a request the handle did not take, and each of the handle's events (`ai_pump`), the
+  self-test's and the model list's made rows at their first event; and, each wake, the client's count of the hour's
+  requests and `budget.requests_per_hour`. `ai_calls` answers it for the space's `calls` and `usage`. Pause AI for this
+  session: `ai_pause(on)` (the space's `ai.pause` with `{"on": bool}`) is taken by the core in the same wake, after
+  `overlay_tick` (`CoreInput::Pause`: L2, or back), then `ai_pause_taken` keeps the flag for the DLL's own refusals and
+  stops a running self-test or model list (`ai_pause on=… changed=… selftest_stopped=… list_stopped=…`); `ai_paused`
+  answers it for `status.ai_paused`. While it is on, `ai_submit` refuses and the record keeps no row (`llm what=submit
+  result=paused`), the self-test and the model list are refused (`selftest result=refused why=paused`, `models_list
+  result=refused why=paused`), and a draft is blocked with en-proto's `kAiPausedDraft`. Never stored: every start has it
+  off. The tests' switch, `ELDENNET_TEST_PAUSE=on` in the environment, pauses from T6's start in a probe build alone;
+  the release DLL logs `ai_pause asked=test accepted=0` and refuses. The space's command, its state and the words of a
+  refused self-test or model list (en-proto's `kAiPausedSelfTest`, `kAiPausedModelList`) are bound by the pages' job.
 - GraceUI gone (`poll` answers not connected or inactive): `overlay lost=1`, and nothing more is called.
 
 ## The watch block and the crash filter (O71, O90)
@@ -364,4 +380,6 @@ GraceUI, so EldenNet's Mark registers unbound and the launcher keeps Pause; the 
 Augur's events from the fake game's world and the lifecycle listed in F11's view, their squares counted on the frame;
 and the AI pages against a fake model server on loopback (`launcher-eldennet-graceui-ai`): a provider added, a key set,
 the self-test from the browser and from the menu, the model list, a provider removed with its key, and the key in no
-frame, log line, recording or file.
+frame, log line, recording or file. `launcher-eldennet-graceui-talk-paused` pauses AI by the tests' switch with the
+first conversation's set-up and a ready model: the ladder held at L2, the talk key opening no box, and the local model
+server asked nothing; `launcher-eldennet-realm-release` also checks that the release DLL refuses the switch.

@@ -395,6 +395,8 @@ const ov::CharacterFacts* profiles_facts(Shell& s, const ec::Core& core, bool ga
     std::string blocked;
     if (provider.empty()) {
       blocked = "Drafts need a model: set one up on AI › Models.";
+    } else if (ai_paused(s)) {
+      blocked = std::string(en::proto::kAiPausedDraft);  // Pause AI (D15): no call leaves
     } else if (!gate_open) {
       blocked = "Drafts wait until EldenNet may use the network.";
     } else if (st->drafts >= ec::kDraftsPerSession) {

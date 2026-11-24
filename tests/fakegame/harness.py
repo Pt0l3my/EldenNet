@@ -2483,10 +2483,59 @@ def check_talk(r):
     return failures
 
 
+# Pause AI for this session (D15; S11.4.a), the DLL's side without the pages: the tests' switch ELDENNET_TEST_PAUSE=on,
+# which the probe build alone takes, pauses AI from the start, and the first conversation's set-up then sends nothing.
+# The ladder stays at L2 though the model is ready, the talk key reaches EldenNet and opens no box, and the fake model
+# server is asked nothing at all, neither a chat nor a model list.
+PAUSED_KEYS = "1500:t,1700:return"
+
+
+def check_talk_paused(r):
+    server = TALK_RUNS.pop(r.paths["case"], None)
+    counts = server.snapshot() if server is not None else {}
+    if server is not None:
+        server.close()
+    failures = check_lines(("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main"}),
+                           ("ELDENNET", "surfaces", {"state": "ready", "talk": "bound"}),
+                           ("ELDENNET", "realm", {"asked": "eval", "accepted": 1}),
+                           ("ELDENNET", "content_load", {"ok": 1, "personas": 1, "bound": 1}),
+                           ("LAUNCHER", "end", {"kind": "clean"}))(r)
+    failures += any_line(r, "ELDENNET", "ai_pause", asked="test", accepted=1)
+    failures += any_line(r, "ELDENNET", "ai_pause", on=1, changed=1)
+    failures += any_line(r, "ELDENNET", "net", dialogue=1)  # the model is ready: the pause alone holds the ladder
+    failures += any_line(r, "ELDENNET", "change", what="level", to="L2")
+    levels = [e.get("to") for e in r.events("ELDENNET", "change") if e.get("what") == "level"]
+    need("L3" not in levels and "L4" not in levels, "the ladder climbed while AI was paused: %s" % levels, failures)
+    failures += any_line(r, "ELDENNET", "chat", what="open_key", via="talk_key")
+    for what in ("opened", "submit"):
+        need(not [e for e in r.events("ELDENNET", "chat") if e.get("what") == what],
+             "a chat %s line while AI was paused" % what, failures)
+    need(not r.events("ELDENNET", "commit"), "a commit while AI was paused", failures)
+    need(not [e for e in r.events("ELDENNET", "llm") if e.get("what") == "submit"],
+         "a request submitted while AI was paused", failures)
+    need(server is not None and sum(counts.values()) == 0, "the model server was asked: %s" % counts, failures)
+    return failures + en_log_is_clean(r)
+
+
+case("launcher-eldennet-graceui-talk-paused", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--calm", "--press-keys", PAUSED_KEYS, "--type-at", "1560:" + TALK_TYPED, frames=2100),
+     program="{launcher}", needs=GRACE_NEEDS + ("eldennet_probe",), toolchains=("clang-cl",),
+     env=dict(GRACE_ENV, ELDENNET_TEST_REALM="eval", ELDENNET_TEST_PAUSE="on"), timeout=240,
+     prepare=install_eldennet(TALK_SETTINGS, probe=True, then=install_talk), check=check_talk_paused,
+     what="Pause AI from the start (the tests' switch, a probe build's alone): the first conversation's set-up with "
+          "the model ready, the ladder held at L2, the talk key opening no box, and the local model server asked "
+          "nothing")
+
+
 def check_realm_release(r):
-    return (check_lines(("ELDENNET", "realm", {"asked": "eval", "accepted": 0, "probe_build": 0}),
-                        ("ELDENNET", "content", {"overrides": 1, "files": 1, "realm": "game"}),
-                        ("ELDENNET", "content_load", {"ok": 1, "bound": 0}))(r) + en_log_is_clean(r))
+    failures = check_lines(("ELDENNET", "realm", {"asked": "eval", "accepted": 0, "probe_build": 0}),
+                           ("ELDENNET", "content", {"overrides": 1, "files": 1, "realm": "game"}),
+                           ("ELDENNET", "content_load", {"ok": 1, "bound": 0}),
+                           ("ELDENNET", "ai_pause", {"asked": "test", "accepted": 0}))(r)
+    # The tests' pause switch refused likewise: no pause was ever taken.
+    need(not [e for e in r.events("ELDENNET", "ai_pause") if e.get("on") is not None],
+         "the release DLL took the tests' pause", failures)
+    return failures + en_log_is_clean(r)
 
 
 case("launcher-eldennet-graceui-talk", LGAME + ["--dll", "{eldennetdll}", "--console"] +
@@ -2668,10 +2717,10 @@ case("launcher-eldennet-graceui-talk-danger", LGAME + ["--dll", "{eldennetdll}",
           "the game")
 case("launcher-eldennet-realm-release", LGAME + ["--dll", "{eldennetdll}", "--console"] + game(frames=600),
      program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",),
-     env=dict(EN_ENV, ELDENNET_TEST_REALM="eval"), timeout=120,
+     env=dict(EN_ENV, ELDENNET_TEST_REALM="eval", ELDENNET_TEST_PAUSE="on"), timeout=120,
      prepare=install_eldennet(TALK_SETTINGS, then=install_overrides), check=check_realm_release,
      what="The release DLL refuses the tests' realm: asked for it, it logs the refusal and keeps the game's, and the "
-          "test persona of the overrides folder stays out (NPC 2.1)")
+          "test persona of the overrides folder stays out (NPC 2.1); it refuses the tests' pause switch likewise")
 case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--console"] +
      game("--d3d12", "--stay-title", "--press-keys", AI_KEYS, "--grace-report", AI_REPORTS, frames=5520),
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),

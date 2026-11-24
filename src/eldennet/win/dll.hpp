@@ -23,6 +23,7 @@
 #include <string_view>
 #include <vector>
 
+#include "en/core/calls.hpp"
 #include "en/core/core.hpp"
 #include "en/llm/edit.hpp"
 #include "en/llm/secret.hpp"
@@ -212,6 +213,12 @@ struct Shell {
   std::atomic<SpikeState*> spike{nullptr};       // an S0 run's (spike.cpp); null in every other start
   // T6's: the pages' changes of a behaviour key (features.*, range.*; WHY§476), for the core after overlay_tick.
   std::vector<en::shell::SettingsEdit> behaviour_edits;
+  // T6's: the model calls' record (en-core's calls.hpp; PAGES §4.6.2's Requests, Home's Model calls), 20 rows kept or
+  // 200 with debug.panel; and Pause AI for this session (D15): what was asked, for the core's next step, and what the
+  // core holds, for the DLL's own refusals. Never stored: every start has it off.
+  en::core::CallRecord calls;
+  std::optional<bool> pause_asked;
+  bool ai_paused = false;
 };
 // The one Shell, made on T1 (never destroyed), or null before.
 [[nodiscard]] Shell* shell() noexcept;
@@ -267,8 +274,26 @@ void ai_cancel(Shell& s, en::proto::RequestId id) noexcept;
 // T6: a change of the space's `ai.preset` or a job's model (`slots.<slot>.model`), made and written to providers.toml.
 void ai_change(Shell& s, en::overlay::Space& space, en::overlay::Space::Change& change) noexcept;
 // T6: a request the space took (selftest.run, models.list, providers.add, providers.remove, providers.key); a key's
-// value is taken out of the request and the request's copy overwritten.
+// value is taken out of the request and the request's copy overwritten. While AI is paused the self-test and the model
+// list are refused (logged; the space shows en-proto's kAiPausedSelfTest and kAiPausedModelList).
 void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest& request) noexcept;
+
+// ---- Pause AI and the model calls' record (ai.cpp; PAGES §4.6.1, §4.6.2; D15, D18): what the pages bind ----
+// T6: Pause AI for this session, as the space's `ai.pause` with {"on": bool} asks: the core takes it in the same wake
+// (shell.cpp, after overlay_tick): on, the ladder stands at L2 for the reason "AI paused", every model call EldenNet
+// would start is refused before it leaves (the core's requests, a draft, the self-test, the model list), and a
+// self-test or model list running is stopped; off, the ladder climbs back to what the rest of the state gives.
+void ai_pause(Shell& s, bool on) noexcept;
+// T6: whether AI is paused now, as the core holds it (State::ai_paused): the space's `status.ai_paused`.
+[[nodiscard]] bool ai_paused(const Shell& s) noexcept;
+// T6: the model calls' record and the session's usage (en-proto's calls.hpp): the space's `calls` and `usage`.
+[[nodiscard]] const en::proto::CallsView& ai_calls(const Shell& s) noexcept;
+// T6, once the core took a pause: the flag kept for the refusals, the self-test and the model list stopped when it
+// turned on, one log line (`ai_pause on=… changed=… selftest_stopped=… list_stopped=…`).
+void ai_pause_taken(Shell& s, bool on) noexcept;
+// T6 at its start: the tests' switch, ELDENNET_TEST_PAUSE=on in the environment, which a probe build alone takes (the
+// release DLL logs that it was asked and refuses): AI paused from the start.
+void ai_test_pause(Shell& s) noexcept;
 
 // ---- The conversation (conversation.cpp; WHY§364, part C) ----
 // T1, on the main path: the overrides folder (%APPDATA%\EldenNet\overrides\) and the realm (the game's, or the
