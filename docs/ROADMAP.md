@@ -1218,6 +1218,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The sixteenth round's package (0.1.0-lodestar.20, engine 6ee4d5d, merged at c6472f0) is with the owner after
     Engine's read of its README (sent again with the README corrected, the programs the same). Awaiting the
     owner's run.
+    The sixteenth round reviewed on 2026-11-24 (WHY§567 to §569): game_state named by the class the leads give
+    and entered in the build's table, with save_slot (engine 8441e8d, merged at b1b2e2b); the near list
+    confirmed at the layout's place; health and position as leads in the layout. Next: the seventeenth round
+    reads them through EldenNet's own reader (a backend entry beside flags_alone, Lodestar's).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
