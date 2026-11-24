@@ -234,12 +234,12 @@ Content, identity, the conversation and the core's wiring; the eval is en-tools'
   key rejected: paste it again on AI › Providers" (O120), "Provider rate limit, try again shortly", "No answer: the
   provider failed", "No answer: the conversation's prompt could not be made", "No answer: no model is ready", "Chat
   cannot take the keyboard just now.", "Conversation paused: part of the game EldenNet reads stopped working.",
-  "Conversation closed after a fault in EldenNet." A box GraceUI refused names the holder by the id GraceUI gives (WHY§442): "Chat cannot take the
-  keyboard: GraceUI's menu has the controls." (`graceui`), "Chat cannot take the keyboard: another mod (‹id›) has the
-  controls." (an id as GraceUI checks one: 3 to 32 of a-z, 0-9 and '-'), "Chat cannot take the keyboard: another mod
-  has the controls." (anything else); a not-now box its reason: "Chat cannot take the keyboard: danger is near.",
-  "Chat cannot take the keyboard while the game loads.", "Chat cannot take the keyboard while a game menu is open.",
-  and the generic words for not ready or any other.
+  "Conversation closed after a fault in EldenNet." A box GraceUI refused names the holder by the id GraceUI gives
+  (WHY§442): "Chat cannot take the keyboard: GraceUI's menu has the controls." (`graceui`), "Chat cannot take the
+  keyboard: another mod (‹id›) has the controls." (an id as GraceUI checks one: 3 to 32 of a-z, 0-9 and '-'), "Chat
+  cannot take the keyboard: another mod has the controls." (anything else); a not-now box its reason: "Chat cannot take
+  the keyboard: danger is near.", "Chat cannot take the keyboard while the game loads.", "Chat cannot take the keyboard
+  while a game menu is open.", and the generic words for not ready or any other.
 - **The core** (`core.hpp`). `Core()` uses the built-in speech parts (`BuiltinSpeech`: part A's, below),
   `Core(SpeechParts)` the caller's (the tests' stubs); `load_content(files, realm)` loads content (on any error the old
   stays); before any load no persona exists and no conversation opens. `directory()`, `log()` and `conversation()`
