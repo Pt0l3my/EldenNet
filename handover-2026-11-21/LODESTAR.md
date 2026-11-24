@@ -82,7 +82,12 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    it after the heal; the position moving with the walk alone; the near list sorted by distance, a character in
    every element, 8 of 12,720 elements without a distance yet. The game's state's item passed the table's checks
    in the game. The owner checked the maximum HP against the status screen: it is the number the reader read.
-   **The eighteenth round is with the owner** (package 0.1.0-lodestar.22, engine 02b0f27, after Engine's read; the record's "What was changed
+   **The eighteenth round's first run lost its fields (mine; the record's "The eighteenth round in game")**: the
+   survey's last, empty passes at the quit replaced them with nothing. It did find the dead bits (byte 0x1C6, bits
+   0 and 1) and on-screen candidates (0x1C4 bit 4 first). Mended (engine bf36cbe), with cases that end as a quit
+   does; package 0.1.0-lodestar.23 repeats the round. A summary that is recomputed every pass must not be
+   overwritten by a pass that saw nothing: test the ending a real run has.
+   **The eighteenth round as first sent** (package 0.1.0-lodestar.22, engine 02b0f27, after Engine's read; the record's "What was changed
    for the eighteenth round"): the character survey under plan 1 (`--read-plan 1`; the watch block's `probe_plan`,
    version 2), the owner's O117 and O118. When its files come back: `survey.survey_fields` for the type (small,
    the player's alone), the team, the kind's number (`id_like`, groups), the block (`block_like`); `handles`;
