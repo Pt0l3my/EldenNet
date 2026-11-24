@@ -2187,7 +2187,11 @@ json Space::report_body(const SpaceFacts& f) const {
   for (const Setting& s : settings_) {
     if (s.type == "secret") continue;  // never a secret, nor its status (PV2)
     const auto v = values_.find(s.key);
-    values += (values.empty() ? "" : "\n") + s.key + " = " + setting_words(v != values_.end() ? *v : s.fallback);
+    const json& value = v != values_.end() ? *v : s.fallback;
+    // A text value shaped like an address is left out too, as the log's are (PV5); setting_words leaves out paths.
+    const bool address = value.is_string() && unshowable(value.get_ref<const std::string&>());
+    values += (values.empty() ? "" : "\n") + s.key + " = " +
+              (address ? std::string("(left out)") : setting_words(value));
   }
   json settings = json::array();
   settings.push_back(

@@ -1977,6 +1977,21 @@ TEST_CASE("space: Bug report: a form with one prose field, the preview with its 
   CHECK(value("state", "Stopped after faults") == "The camera");
   CHECK(value("state", "Recording") == "On");
   CHECK(value("settings", "Values").find("debug.log_level = \"info\"") != std::string::npos);
+  // A text value shaped like a local address or a path is left out, as the log's are (PV5): an invented one here.
+  s.set_value("slots.dialogue.model", "http://192.0.2.7:8080/v1");
+  s.set_value("slots.memory.model", "C:\\models\\invented.gguf");
+  const json again = s.body("report", f);
+  std::string values_now;
+  for (const json& p : again["parts"]) {
+    if (p["id"] != "settings") continue;
+    for (const json& field : p["fields"]) {
+      if (field["label"] == "Values") values_now = field["value"].get<std::string>();
+    }
+  }
+  CHECK(values_now.find("slots.dialogue.model = (left out)") != std::string::npos);
+  CHECK(values_now.find("slots.memory.model = (left out)") != std::string::npos);
+  CHECK(values_now.find("192.0.2.7") == std::string::npos);
+  CHECK(values_now.find("invented.gguf") == std::string::npos);
   CHECK(value("content", "Personas") != "(none)");
   // The log's newest lines, its clock before each, in the mono face with its line breaks.
   CHECK(parts["log"]["fields"][0]["code"] == true);
