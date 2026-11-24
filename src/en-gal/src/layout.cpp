@@ -139,8 +139,14 @@ bool Layout::has_leads() const noexcept {
   if (task_ && lead(task_->status)) return true;
   if (fmg_ && lead(fmg_->status)) return true;
   if (dlrf_ && lead(dlrf_->status)) return true;
-  return std::any_of(classes_.begin(), classes_.end(), [&](const ClassLayout& c) { return lead(c.status); }) ||
-         std::any_of(params_.begin(), params_.end(), [&](const ParamLayout& p) { return lead(p.status); }) ||
+  // A field's own status counts where it states one: a lead field in a confirmed class is a lead all the same.
+  const auto lead_field = [&](const std::vector<FieldLayout>& fields) {
+    return std::any_of(fields.begin(), fields.end(), [&](const FieldLayout& f) { return f.status && lead(*f.status); });
+  };
+  return std::any_of(classes_.begin(), classes_.end(),
+                     [&](const ClassLayout& c) { return lead(c.status) || lead_field(c.fields); }) ||
+         std::any_of(params_.begin(), params_.end(),
+                     [&](const ParamLayout& p) { return lead(p.status) || lead_field(p.fields); }) ||
          std::any_of(items_.begin(), items_.end(), [&](const ItemEntry& i) { return lead(i.status); });
 }
 
@@ -209,7 +215,7 @@ std::optional<LayoutStatus> read_status(Table& t, Errors& errors) {
   return std::nullopt;
 }
 
-// One field: { off, ty, far?, group?, range?, bit?, word?, shift?, width?, to?, enum?, elem?, len?, stride? }. `param`
+// One field: { off, ty, far?, group?, range?, bit?, word?, shift?, width?, to?, enum?, elem?, len?, stride?, status? }. `param`
 // fields take off and ty only. A far field's off may lie anywhere below kMaxFarOffset.
 std::optional<FieldLayout> read_field(const toml::table& t, std::string name, const std::string& path, Errors& errors,
                                       bool param) {
@@ -338,6 +344,10 @@ std::optional<FieldLayout> read_field(const toml::table& t, std::string name, co
         ok = false;
       }
     }
+  }
+  if (f.has("status")) {
+    out.status = read_status(f, errors);
+    if (!out.status) ok = false;
   }
   f.done();
   if (!ok) return std::nullopt;
@@ -1014,11 +1024,26 @@ Expected<Layout, SchemaErrors> Layout::read(const BuildEntry& entry, proto::Buil
     if (layout.task_ && layout.task_->status == LayoutStatus::Lead) refuse("task");
     if (layout.fmg_ && layout.fmg_->status == LayoutStatus::Lead) refuse("fmg");
     if (layout.dlrf_ && layout.dlrf_->status == LayoutStatus::Lead) refuse("dlrf");
+    // A lead class is refused whole, whatever its fields say of themselves; in a confirmed one, each field that
+    // says it is a lead.
+    const auto refuse_fields = [&](const std::string& path, const std::vector<FieldLayout>& fields) {
+      for (const FieldLayout& f : fields) {
+        if (f.status == LayoutStatus::Lead) refuse(path + ".fields." + f.name);
+      }
+    };
     for (const ClassLayout& c : layout.classes_) {
-      if (c.status == LayoutStatus::Lead) refuse("class." + c.name);
+      if (c.status == LayoutStatus::Lead) {
+        refuse("class." + c.name);
+      } else {
+        refuse_fields("class." + c.name, c.fields);
+      }
     }
     for (const ParamLayout& p : layout.params_) {
-      if (p.status == LayoutStatus::Lead) refuse("param." + p.name);
+      if (p.status == LayoutStatus::Lead) {
+        refuse("param." + p.name);
+      } else {
+        refuse_fields("param." + p.name, p.fields);
+      }
     }
     for (const ItemEntry& i : layout.items_) {
       if (i.status == LayoutStatus::Lead) refuse("item." + i.label);
