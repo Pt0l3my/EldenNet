@@ -65,6 +65,23 @@
 #   one death in each run does not tell them apart. Left out, for two candidates each: the type (a small number the
 #   same in nearly all, 0x40 or 0x68 in) and the block (0x70 in, or the handle's upper half; 0x38 in changes as a
 #   character moves). All leads, by behaviour alone.
+# - a character's fields through EldenNet's own reader, and its type and block (the nineteenth read-only round,
+#   2026-11-24). The reader read the seven fields above through this file, every two seconds, beside the survey: of
+#   2,784 characters over 58 frames (48 a frame) each had a handle and no two in a frame shared one; 2,726 a kind's
+#   number of an id's size, of which 2,652 with the model's number its own over 10,000; 2,053 an entity's id (36
+#   different at most); 9 teams at most with 32 characters in the largest; two dead before the owner's kill and four
+#   after it; and more on screen while the owner stood facing them than while they looked around. The main player's
+#   own: a handle in every frame, a kind's number and the dead bit in none, a team no other shares in every one. The
+#   survey of the same run counts the same. The type: of the two candidates, 0x68 in reads nothing for the main player
+#   in all 24 passes and, for the others, the number the design's research gives a character of the world (5) in 1,127
+#   of 1,151 sightings; 0x40 in reads nothing for the player too, but never that number. The block: 0x38 in is shaped
+#   as a block's id for the main player in every pass and for the others in 856 of 1,151 sightings (it is not for
+#   those that have no entity's id), is the main player's own number in 218 of them, equals the map's id of the
+#   character (0x70 in, which is the handle's upper half in every character, the player included) in 796, and changed
+#   in a few characters over the minutes and never in the standing player: where a character is now, as the design
+#   means it. The dead bit's rivals: bit 1 of the byte 0x1C6 read as bit 0 in every sighting, the dead from the start
+#   included, so the two are not told apart and bit 0 stays; bit 4 of 0x53B read otherwise in 7 sightings and is no
+#   dead bit. Leads still: the player's block has not been seen to change at a crossing.
 # The other classes, fields, enums, params and self-test ids are later rounds' to find, and are left out. A release
 # build refuses this file (every entry a lead).
 schema = 2
@@ -246,8 +263,10 @@ copy_size = 0x1F0
 status = "lead"
 [class.character.fields]
 handle = { off = 0x8, ty = "handle", group = "world" }
+block_id = { off = 0x38, ty = "u32", group = "world" }
 npc_param_id = { off = 0x60, ty = "u32", group = "world" }
 model = { off = 0x64, ty = "u32", group = "world" }
+chr_type = { off = 0x68, ty = "i32", group = "world" }
 team = { off = 0x6C, ty = "u8", group = "world" }
 parts = { off = 0x190, ty = "ptr", group = "world" }
 on_screen = { off = 0x1C4, ty = "bit", bit = 4, group = "world" }
