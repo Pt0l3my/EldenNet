@@ -713,7 +713,7 @@ struct SurveyFound {
   std::vector<std::uint32_t> phase_passes;
   std::uint32_t deaths = 0;         // characters whose health went from more than nothing to nothing
   std::uint32_t fields_total = 0;
-  std::vector<SurveyField> fields;  // at most 160, by offset
+  std::vector<SurveyField> fields;  // by offset; as the last pass with two characters or more told them
   std::vector<std::uint32_t> handles;  // 8-byte fields that never changed, differ in every character seen and are
                                        // no address: at most 16
   std::vector<SurveyPair> pairs;    // at most 16, the best first

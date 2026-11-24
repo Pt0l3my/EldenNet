@@ -266,10 +266,6 @@ struct CharSurvey::Impl {
     s.phase = phase_now;
     s.deaths = deaths;
     s.phase_passes = phase_passes;
-    s.fields_total = 0;
-    s.field_count = 0;
-    s.handle_count = 0;
-    s.pair_count = 0;
     s.dead_total = 0;
     s.dead_count = 0;
     s.screen_total = 0;
@@ -291,7 +287,17 @@ struct CharSurvey::Impl {
     };
     std::array<std::uint16_t, kPairSide> large{}, little{};
     std::size_t large_count = 0, little_count = 0;
-    for (std::size_t f = 0; f < kFields && n >= 2 && followed != 0; ++f) {
+    // The fields, the handles and the pairs are told from the characters of this pass. A pass with fewer than two of
+    // them (the tester quit, or went back to the title) tells nothing, and what the last pass with characters told
+    // is kept: the eighteenth round's first run lost all three to its last, empty passes.
+    const bool told = n >= 2 && followed != 0;
+    if (told) {
+      s.fields_total = 0;
+      s.field_count = 0;
+      s.handle_count = 0;
+      s.pair_count = 0;
+    }
+    for (std::size_t f = 0; f < kFields && told; ++f) {
       std::uint32_t changed_for = 0;
       for (std::size_t i = 0; i < tracked_count; ++i) {
         changed_for += tracked[i].sightings >= 2 && (tracked[i].changed[f / 64] >> (f % 64) & 1) != 0 ? 1 : 0;
@@ -348,7 +354,7 @@ struct CharSurvey::Impl {
     }
     // A handle: eight bytes that never changed, differ in every character seen, are never nothing, and are not all
     // addresses.
-    for (std::size_t f = 0; f + 1 < kFields && n >= 4 && followed != 0; f += 2) {
+    for (std::size_t f = 0; f + 1 < kFields && told && n >= 4; f += 2) {
       bool changed = false;
       for (std::size_t i = 0; i < tracked_count && !changed; ++i) {
         changed = tracked[i].sightings >= 2 && (tracked[i].changed[f / 64] >> (f % 64) & 3) != 0;
@@ -373,7 +379,7 @@ struct CharSurvey::Impl {
       if (s.handle_count < kListedHandles) s.handles[s.handle_count++] = static_cast<std::uint32_t>(f * 4);
     }
     // Pairs: the one a number of the larger kind, the other that number divided by 10,000.
-    for (std::size_t x = 0; x < large_count; ++x) {
+    for (std::size_t x = 0; x < large_count && told; ++x) {
       for (std::size_t y = 0; y < little_count; ++y) {
         if (large[x] == little[y]) continue;
         SurveyPair pair;
