@@ -1483,6 +1483,11 @@ Each snapshot tick:
 2. A null `WorldChrMan` or `main_player` means not in the world, or loading; the snapshot then carries only lifecycle fields.
 3. Compares each singleton instance's vtable with its expected RTTI vtable. A mismatch means the object moved or was torn down. The group is skipped for this tick, and it is a hard fault only if it repeats on 3 consecutive ticks while `main_player` is present (impl).
 4. Walks `by_distance` from `begin` to `end`. Each entry is checked: an aligned pointer, element count ≤ 48, and an entry vtable in the ChrIns set.
+   *2026-11-24 (WHY§572, §573):* the bound is on the list's bounds, not its length: an aligned start (or an empty
+   list of two nulls), the end not before it, a whole number of entries and no more than 1 MiB of them, or the
+   world's group faults. A list of more than 48 entries is no fault (the game's held 119 in the open world): it
+   is nearest first, so its first 48 are walked, the rest being farther, and its whole length is kept
+   (`near_all`).
 5. Resolves the core's tracked handles by matching `handle` within this walk. There is no separate handle-lookup call, and a handle that is absent is simply not present this tick.
 
 ### 6.7 Read groups, self-tests and breakers

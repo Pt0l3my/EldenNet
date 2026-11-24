@@ -1228,6 +1228,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     and its maximum by the owner's word, never the position. Reviewed by Engine; the package is with the owner.
     Awaiting the owner's run.
     Before a ready start: snapshot() must walk a near list longer than 48 in part, not fault (WHY§572).
+    Done the same day (engine 982f09a; WHY§573): the first 48 walked, the whole length kept, only bounds that make
+    no sense a fault.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates

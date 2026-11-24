@@ -595,6 +595,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 570 | 2026-11-24 | A press a player says did not register is placed by maxima and gaps, not by percentiles | METHOD | #graceui #input |
 | 571 | 2026-11-24 | The world's leads are read through EldenNet's own reader before the world's group can be: ErBackend::world_alone | METHOD | #lodestar #gal #backend |
 | 572 | 2026-11-24 | The game's near list held 119 elements in the open world; snapshot() takes more than 48 for a fault of the world's group | FACT | #lodestar #design #gal |
+| 573 | 2026-11-24 | A near list longer than a snapshot walks is read for its nearest 48, and only bounds that make no sense are a fault | DECIDED | #gal #design #engine |
 
 ## Entries
 
@@ -8633,3 +8634,14 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   the sixteenth round found 119 elements with the owner standing in the open world. As it stands the world's group
   would trip on its first snapshot there. To change before a ready start on the real game: a long list is walked
   in part (its first 48, the nearest), its length told, and only bounds that make no sense are a fault. Engine's.
+
+### 573. A near list longer than a snapshot walks is read for its nearest 48, and only bounds that make no sense are a fault
+
+`2026-11-24` · DECIDED · `#gal` `#design` `#engine` · refs: WHY§572, WHY§569, ARCH §6.6
+
+- read_world() (engine 982f09a) faults the world's group only for bounds that make no
+  sense: a misaligned start, the end before it, a remainder, more than 1 MiB of entries, or a start of null with an
+  end that is not (an empty list may be two nulls, as at the title). A longer list than 48 walks its first 48, the
+  nearest, and keeps its whole length (`near_all`). The rest of the walk is as it was: each entry checked, the
+  distance element by element (WHY§569), the snapshot's 32 within 40 m. A unit case with 119 entries failed on the
+  old reader (the world's group tripped) and passes now. ARCH §6.6 #4 and game-data's B-1 carry a dated note.
