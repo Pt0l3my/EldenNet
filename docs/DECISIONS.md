@@ -2526,3 +2526,20 @@ kept out of one view. **Options:** accept them as built, or change any of them.
 **Owner's words.** "Accept as built (Recommended)" (question dialog, 2026-11-24).
 
 **Follows from.** O119, O120, G44; PAGES §4.6.8, §4.6.9; S11.4.a.
+
+## O126
+
+**The read round's report may be larger than 256 KiB** · *2026-11-24 · Decided by the owner: their own word*
+
+**Question.** None was put: Lodestar told the owner that the twentieth round's two runs lost their report, since the
+sheet scan's numbers took it past the reports' limit of 256 KiB at the first pass, and the owner answered.
+
+**Decision.** A kind of report may say a size limit of its own, 1 MiB at most; the read round's (Lodestar's) says 1 MiB,
+every other kind keeps 256 KiB. The limit is not there for want of memory but to keep a report from becoming a bulk
+copy of the game (as the devkit's O73 to O75 hold for its own output); 1 MiB of numbers with their places, read only and
+never shipped or uploaded, is research within O111.
+
+**Owner's words.** "size limit? I have plenty of ram and VRAM ... you can increase that size limit a lot probably"
+(Lodestar's chat, 2026-11-24; the figures of the owner's machine left out).
+
+**Follows from.** O111, O121, O122; WHY§630 to §632.

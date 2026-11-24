@@ -652,6 +652,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 627 | 2026-11-24 | The model calls' record holds only what the DLL sends, the client's events and the commits on display | DECIDED | #engine #pages #privacy |
 | 628 | 2026-11-24 | Pause AI for this session is a core input, not the handle's gate | DECIDED | #engine |
 | 629 | 2026-11-24 | A reply's cost is kept only where the provider reports it | LIKELY | #engine #llm |
+| 630 | 2026-11-24 | The twentieth round's two runs lost their report to the 256 KiB limit at the first pass | FACT | #lodestar #l6 |
+| 631 | 2026-11-24 | What the tester is told must come from what was written, and a case must be at the game's sizes | METHOD | #lodestar #tests |
+| 632 | 2026-11-24 | A kind of report may say a size limit of its own, 1 MiB at most | DECIDED | #lodestar #gal |
 
 ## Entries
 
@@ -9271,3 +9274,33 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 
 - OpenRouter reports `usage.cost` in each reply; en-llm keeps it where it is a finite number from 0 on (-1 when not
   reported), and no price table is used. Other providers' cost fields are not read until one is checked.
+
+### 630. The twentieth round's two runs lost their report to the 256 KiB limit at the first pass
+
+`2026-11-24` · FACT · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md ("The twentieth round in game: the report lost to its limit, and what survived"), engine 033adec
+
+- The sheet scan's numbers (1,487 of the sheet, up to 1,453 of the save data's) took the report past 256 KiB at its
+  first pass, and nothing was written after the first mark, while the panel said the run was usable. What survived:
+  the main player's block changes as it moves and holds still as it stands; its type reads nothing and the others'
+  one number (5); the clock's minute steps on and the play time rises through the reader; a character with no block
+  holds all ones there. Lost: the sheet's numbers, the main player's dead bit against its health at nothing, the
+  parts watch's moves and the survey after its first pass. A third run is asked.
+
+### 631. What the tester is told must come from what was written, and a case must be at the game's sizes
+
+`2026-11-24` · METHOD · `#lodestar` `#tests` · refs: docs/ops/probes/2026-11-22-l5.md ("The twentieth round in game: the report lost to its limit, and what survived")
+
+- The panel's "usable" came from what the reader read, not from what the report held, and no case wrote a report with
+  the scan at its most (the nineteenth round's was already 13 KB under the limit, unnoticed). A report that cannot be
+  written is now a state of its own: the watch word's highest bit, said to the tester at once above every verdict, and
+  the fake game's sheet case runs at the game's sizes (a 702 KB report written to the end).
+
+### 632. A kind of report may say a size limit of its own, 1 MiB at most
+
+`2026-11-24` · DECIDED · `#lodestar` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md ("The twentieth round in game: the report lost to its limit, and what survived"), O126, engine 033adec
+
+- The owner's word (O126): the read round's report says 1 MiB for the sheet scan's numbers; every other kind keeps 256
+  KiB. The limit keeps a report from becoming a copy of the game, not memory. Past 1 MiB the watched objects' detail
+  goes first and the sheet's list last, halved from its far end, and said so. The watch word stays version 3: its
+  sixteenth mark becomes the report's bit, since only package .26 read the word and the launcher and the DLL travel
+  together.
