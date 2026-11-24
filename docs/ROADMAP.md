@@ -1700,6 +1700,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     pad-only walkthrough. Left for later: §3.8's key caps for the keyboard (they would move every golden), a 44 px
     floor for smaller rows, and Start's quick switches. Nothing for EldenNet to change (GraceUI's
     docs/eldennet-changes.md §70).
+- ba What pressed a hotkey (ABI 1.7) and the notice when GraceUI's own copy idles (GraceUI 0.2.38) [done]
+  - refs: GraceUI:D243, GraceUI:D244, GraceUI:D240, WHY§585
+  - gives: built on 2026-11-24 (GraceUI feat/foundations 3ea17b6) at Engine's request after its second-copy and chord
+    cases; EldenNet reads hotkey_by for the chat box's via and its swallow, with its pin moving to 0.2.38.
 
 ### S11.3 EldenNet v0.2
 

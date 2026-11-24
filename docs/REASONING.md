@@ -8751,6 +8751,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   copy first asked for GraceUI's table, in both orders; why is not known. Windows may answer the one loaded first,
   idle or not, so graceui-sys's scan past an idle copy holding the name is tested by itself, and EldenNet's case
   allows either way of finding and asserts the table and the module.
+- Later (2026-11-24): in EldenNet's -second-copy-first case Wine answered the copy loaded first (GraceUI's own, idle)
+  and graceui-sys found the active one by its scan; Wine's answer differs from case to case (WHY§583).
 
 ### 583. A second GraceUI copy beside EldenNet idles and is named once, in either order; Wine's by-name look answered the copy loaded first
 
@@ -8779,6 +8781,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - A chord's press arrives as the same GRACEUI_EVENT_HOTKEY as T's, so EldenNet logs via=talk_key for it, never
   produces OpenVia::PadChord, and arms the 100 ms swallow of T's character after a chord open (harmless in practice).
   Asked of Grace: a field naming the binding that fired.
+- Later (2026-11-24): GraceUI 0.2.38 gives it, GraceUiEvent.hotkey_by (D243, ABI 1.7).
 
 ### 586. Pressing T while danger lasts lost the box's kept draft
 
