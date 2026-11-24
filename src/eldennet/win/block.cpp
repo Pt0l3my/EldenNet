@@ -206,6 +206,10 @@ std::uint32_t probe_plan() noexcept {
   return b == nullptr ? 0 : b->probe_plan.load(std::memory_order_acquire);
 }
 
+void probe_gathered(std::uint32_t word) noexcept {
+  if (w::Block* b = opened()) b->probe_gathered.store(word, std::memory_order_release);
+}
+
 void probe_answer(w::ProbeRequest answer) noexcept {
   if (w::Block* b = opened()) b->control.probe.store(static_cast<std::uint32_t>(answer), std::memory_order_release);
 }

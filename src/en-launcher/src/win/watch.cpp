@@ -149,6 +149,8 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
   TaskPanel panel;
   bool panel_placed = false;
   std::string panel_footer;
+  std::string gathered_line;        // the round's own line for the run, once it has judged every marked task
+  std::uint32_t gathered_seen = 0;  // the block's probe_gathered as last read
   const auto tell_task = [&](std::uint64_t at) {
     if (tasks->finished()) return;
     const TaskRow row = tasks->rows(at)[tasks->current()];
@@ -239,7 +241,22 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
           r.panel_shown = panel.open(game) || r.panel_shown;
         }
       }
-      panel.show(tasks->rows(now), panel_footer, hotkey);
+      if (plan.read) {
+        // What the round says it gathered, task by task (the owner's wish, 2026-11-24): the done rows carry it, and
+        // once every task with a mark is judged its line for the whole run stands under them and in the console.
+        const std::uint32_t gathered = b.probe_gathered.load(std::memory_order_acquire);
+        if (gathered != gathered_seen) {
+          gathered_seen = gathered;
+          tasks->set_gathered(gathered);
+          say("gathered word=0x%X", gathered);
+        }
+        std::string line = gathered_footer(tasks->rows(now));
+        if (line != gathered_line) {
+          gathered_line = std::move(line);
+          if (!gathered_line.empty()) console_line(gathered_line, "EldenNet read: ");
+        }
+      }
+      panel.show(tasks->rows(now), panel_footer.empty() ? gathered_line : panel_footer, hotkey);
     }
     // EldenNet's own Mark, GraceUI's hotkey on Pause (part 12), asks for the ring: the key goes, the presses already
     // queued are the launcher's last, and the ring is handed over (watch.hpp's MarkSource). From then on EldenNet alone

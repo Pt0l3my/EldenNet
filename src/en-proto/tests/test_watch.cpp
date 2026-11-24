@@ -22,10 +22,12 @@ TEST_CASE("watch block: the creator constructs and initialises it, magic last; a
   CHECK_FALSE(valid(*b));  // another layout: refused, read no further
   b->header.version = 1;
   CHECK_FALSE(valid(*b));  // the block before the read round's plan was appended: refused as well
+  b->header.version = 2;
+  CHECK_FALSE(valid(*b));  // and the one before the round's verdicts were
 }
 
 TEST_CASE("watch block: the read round's plan is appended, zero until the launcher writes it") {
-  CHECK(kVersion == 2);
+  CHECK(kVersion == 3);
   CHECK(offsetof(Block, probe_plan) == 464);  // after the Marks: no field moved
   CHECK(offsetof(Block, marks) == 200);
   CHECK(sizeof(Block) == 472);
@@ -37,7 +39,32 @@ TEST_CASE("watch block: the read round's plan is appended, zero until the launch
   b->probe_plan.store(kPlanSurvey);
   CHECK(valid(*b));
   CHECK(b->probe_plan.load() == 1);
-  CHECK(kPlanCount == 2);
+  CHECK(kPlanSheet == 2);
+  CHECK(kPlanCount == 3);
+}
+
+TEST_CASE("watch block: what the round gathered, two bits a mark, in the room the plan's word left") {
+  CHECK(offsetof(Block, probe_gathered) == 468);  // in the tail the plan's alignment left: the size is as it was
+  CHECK(sizeof(Block) == 472);
+  alignas(Block) unsigned char page[kBlockSize] = {};
+  Block* b = ::new (page) Block();
+  initialise(*b, 1);
+  CHECK(b->probe_gathered.load() == 0);
+  std::uint32_t word = 0;
+  CHECK(gathered_of(word, 1) == kGatherUntold);
+  word = with_gathered(word, 1, kGathered);
+  word = with_gathered(word, 3, kNotGathered);
+  CHECK(word == 0x21);
+  CHECK(gathered_of(word, 1) == kGathered);
+  CHECK(gathered_of(word, 2) == kGatherUntold);
+  CHECK(gathered_of(word, 3) == kNotGathered);
+  word = with_gathered(word, 3, kGathered);  // a later look may mend a verdict
+  CHECK(gathered_of(word, 3) == kGathered);
+  word = with_gathered(word, kGatherMarks, kNotGathered);
+  CHECK(gathered_of(word, kGatherMarks) == kNotGathered);
+  CHECK(with_gathered(word, 0, kGathered) == word);  // no such mark: nothing changes
+  CHECK(with_gathered(word, kGatherMarks + 1, kGathered) == word);
+  CHECK(gathered_of(word, kGatherMarks + 1) == kGatherUntold);
 }
 
 TEST_CASE("watch block: a module's file name is kept as ASCII, anything else '?', cut to fit") {

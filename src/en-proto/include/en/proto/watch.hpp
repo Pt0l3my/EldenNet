@@ -25,14 +25,31 @@
 namespace en::proto::watch {
 
 inline constexpr std::uint32_t kMagic = 0x42574E45u;  // "ENWB"
-inline constexpr std::uint32_t kVersion = 2;  // 2: probe_plan appended (2026-11-24)
+inline constexpr std::uint32_t kVersion = 3;  // 2: probe_plan appended; 3: probe_gathered (both 2026-11-24)
 // The read round's plans (Block::probe_plan): which tasks the launcher's panel lists, and so what the tester's marks
 // mean to the round. 0: the rounds up to the seventeenth (two characters; a stand, a walk, a hit, a heal). 1: the
-// character survey (one character; a stand, a look around, a kill). The DLL takes a number it does not know for a
-// refusal of the round, never for plan 0.
+// character survey (one character; a stand, a look around, a kill). 2: the sheet (one character; a stand, a ride
+// or a run, the tester's own death). The DLL takes a number it does not know for a refusal of the round, never for
+// plan 0.
 inline constexpr std::uint32_t kPlanRounds = 0;
 inline constexpr std::uint32_t kPlanSurvey = 1;
-inline constexpr std::uint32_t kPlanCount = 2;
+inline constexpr std::uint32_t kPlanSheet = 2;
+inline constexpr std::uint32_t kPlanCount = 3;
+// What the round says of a task that ended with a mark (Block::probe_gathered, the owner's wish of 2026-11-24: "a
+// per task feedback that what was needed did gather"): two bits a mark, the first mark's the lowest.
+inline constexpr std::uint32_t kGatherUntold = 0;  // the round has not said (or cannot tell)
+inline constexpr std::uint32_t kGathered = 1;      // what the task was for was read
+inline constexpr std::uint32_t kNotGathered = 2;   // it was not
+inline constexpr std::uint32_t kGatherMarks = 16;  // marks the word has room for
+// The verdict for the mark `n` (1 the first) in the word; kGatherUntold past the word's room.
+[[nodiscard]] constexpr std::uint32_t gathered_of(std::uint32_t word, std::uint32_t n) noexcept {
+  return n == 0 || n > kGatherMarks ? kGatherUntold : (word >> ((n - 1) * 2)) & 3u;
+}
+[[nodiscard]] constexpr std::uint32_t with_gathered(std::uint32_t word, std::uint32_t n, std::uint32_t verdict) noexcept {
+  if (n == 0 || n > kGatherMarks) return word;
+  const std::uint32_t shift = (n - 1) * 2;
+  return (word & ~(3u << shift)) | ((verdict & 3u) << shift);
+}
 inline constexpr std::size_t kBlockSize = 4096;      // one page: what the creator maps
 inline constexpr std::size_t kModuleNameBytes = 64;  // a module's file name, ASCII, NUL-padded
 inline constexpr std::size_t kMarkRing = 32;         // the newest marks the block keeps
@@ -188,6 +205,9 @@ struct Block {
   // Appended (version 2): the read round's plan (kPlan*), written by the launcher with its --read request before the
   // game starts, read once by the round.
   std::atomic<std::uint32_t> probe_plan;
+  // Appended (version 3): what the round gathered, task by task (kGather*, two bits a mark). Written by the DLL as
+  // the round judges each mark's task, read by the launcher's panel. Nothing else crosses here.
+  std::atomic<std::uint32_t> probe_gathered;
 };
 
 static_assert(std::atomic<std::uint32_t>::is_always_lock_free && std::atomic<std::uint64_t>::is_always_lock_free,
@@ -199,6 +219,7 @@ static_assert(offsetof(Block, status) == 32);
 static_assert(offsetof(Block, crash) == 104);
 static_assert(offsetof(Block, marks) == 200);
 static_assert(offsetof(Block, probe_plan) == 464);
+static_assert(offsetof(Block, probe_gathered) == 468);
 static_assert(sizeof(Block) == 472);
 static_assert(sizeof(Block) <= kBlockSize);
 

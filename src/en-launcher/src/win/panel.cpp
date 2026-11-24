@@ -234,7 +234,8 @@ int TaskPanel::layout(HDC measure, HDC draw) {
     const bool now = row.state == TaskState::Now;
     const bool done = row.state == TaskState::Done;
     const std::wstring title = widen(row.title);
-    const std::wstring detail = done ? std::wstring() : widen(row.detail);
+    // A done task shows what the round said of it, where it said anything; a task to come or under way, its detail.
+    const std::wstring detail = done ? widen(gathered_text(row)) : widen(row.detail);
     const std::wstring timer = widen(timer_text(row));
     const int title_height = std::max(text_height(measure, title_font_, title, right - left - timer_width),
                                       MulDiv(18, dpi_, 96));
@@ -260,7 +261,7 @@ int TaskPanel::layout(HDC measure, HDC draw) {
                 DT_WORDBREAK | DT_LEFT);
       draw_text(draw, title_font_, now ? kAccent : colour, timer,
                 RECT{right - timer_width, y + gap, right, y + gap + title_height}, DT_SINGLELINE | DT_RIGHT);
-      draw_text(draw, text_font_, colour, detail,
+      draw_text(draw, text_font_, done && row.gathered == proto::watch::kNotGathered ? kText : colour, detail,
                 RECT{left, y + gap + title_height + gap / 2, right, y + height}, DT_WORDBREAK | DT_LEFT);
     }
     y += height;

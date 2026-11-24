@@ -157,6 +157,8 @@ void init_thread(std::uint32_t tid) noexcept;
 void probe_answer(en::proto::watch::ProbeRequest answer) noexcept;
 // The read round's plan as the launcher wrote it (watch.hpp's kPlan*); 0 with no block. The round reads it once.
 [[nodiscard]] std::uint32_t probe_plan() noexcept;
+// What the round gathered, task by task, for the launcher's panel (watch.hpp's kGather*); nothing with no block.
+void probe_gathered(std::uint32_t word) noexcept;
 // The Marks: the block's ring, or EldenNet's own with no block. The launcher's Pause stamps them until EldenNet's own
 // Mark, a GraceUI hotkey on the same key, takes the ring over (watch.hpp's MarkSource).
 [[nodiscard]] std::uint32_t marks() noexcept;
