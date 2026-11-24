@@ -43,7 +43,7 @@ TEST_CASE("one per error class per minute") {
   t.step(0, false);
   t.step(7000, false);
   CHECK_FALSE(t.post(ToastClass::Timeout, ToastLevel::Error, "No answer: provider timed out", 30000));
-  CHECK(t.post(ToastClass::Auth, ToastLevel::Error, "API key rejected: open settings (F10)", 30000));  // another class
+  CHECK(t.post(ToastClass::Auth, ToastLevel::Error, "API key rejected: paste it again on AI › Providers", 30000));  // another class
   CHECK(t.post(ToastClass::Timeout, ToastLevel::Error, "No answer: provider timed out", 60000));
 }
 

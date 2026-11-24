@@ -785,7 +785,7 @@ TEST_CASE("space: the AI pages' topics: projections only, the address on Provide
   CHECK(s.body("ai.choices.providers", facts_of("starting")) == json{{"choices", json::array()}});
   CHECK(s.body("ai.choices.dialogue", facts_of("starting")) == json{{"choices", json::array()}});  // nothing listed
   CHECK(s.body("ai.choices.dialogue", title()) == json{{"choices", json::array()}});
-  CHECK(s.body("ai.status", f)["sentence"].get<std::string>().find("only observes in this version") !=
+  CHECK(s.body("ai.status", f)["sentence"].get<std::string>().find("NPCs speak once a model answers") !=
         std::string::npos);
   // Each card's status (GraceUI D202): a member per job, in the lamp's tones; its budgets, a job that borrows saying so.
   const json jobs = s.body("ai.jobs", f);
