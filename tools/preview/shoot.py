@@ -37,9 +37,10 @@ EVENTS_SHOTS = {800: "f11"}
 # pages: launcher-eldennet-graceui-pages' world (the title screen: in the world the fake player reads as in danger,
 # which keeps the menu shut), with presses of our own, by the stops GraceUI 0.2.39 gives (the editor case's route to
 # GraceUI's own pages): F5 opens the menu on EldenNet's Home with no focus ring, as a mouse player sees it (G42); ↓
-# shows the ring; five Page Down to System › Status, ← into the rail, three ↓ to GraceUI's own pages at its foot, Enter.
+# shows the ring; five Page Down to System › Status, ← into the rail, four ↓ (Logs, Settings, Content packs) to
+# GraceUI's own pages at its foot, Enter.
 PAGES_KEYS = ("600:f5,720:down,840:next,900:next,960:next,1020:next,1080:next,1140:left,1200:down,1230:down,"
-              "1260:down,1320:return")
+              "1260:down,1290:down,1320:return")
 PAGES_SHOTS = {700: "menu-mouse", 800: "menu-ring", 1440: "graceui"}
 # check: the talk run again at the other format, shooting the box alone, to compare with the set's.
 CHECK_SHOTS = {1680: "chat"}

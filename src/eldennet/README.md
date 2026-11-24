@@ -195,7 +195,10 @@ After each wake, once T1 has published the connection:
   takes and the release DLL refuses (`realm asked=eval accepted=0`), so a test persona never resolves in a player's
   game (NPC §2.1). T6 loads them into the core after the shipped content (`content_load ok=… personas=… bound=…
   warnings=… disabled=…`, the last the personas the overrides' `disable.toml` turned off, ARCH §11.6); the first error or warning is shown once as a GraceUI notice (key 5, 15 s) naming its file, key and
-  line in fixed words, never the text (NPC §4.7). Each step's
+  line in fixed words, never the text (NPC §4.7). Each load, at the start and after a write of the profile editor's, is
+  recorded for Content packs (en-core's `record_load`, PAGES §4.6.9) in T6's `ContentView`, with the files the read left
+  out (a link, a folder nested too deep, past 256 files, or unreadable) by their paths relative to the folder (64
+  named at most, the rest counted), which en-overlay's space publishes. Each step's
   requests go to en-llm's handle (made at the first that needs one), its cancels cancel them, and the handle's events
   for the conversation's ids go back to the core; its health (the dialogue slot usable) is the core's NetHealth. After
   the step, `poll`'s events of the surfaces (the talk key, Tab, the box's typing) go to the core in the same wake and

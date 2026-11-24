@@ -181,6 +181,16 @@ Content, identity, the conversation and the core's wiring; the eval is en-tools'
   error, by its list and place, never the id: every card's, since v0.2 ships no cards, and one for each of
   `characters`, `kb`, `triggers` and `rules`, which v0.2 does not act on yet. Not yet: the seed's combat keys
   (NPC §9.11) and the alias table's use (§2.4).
+- **Content packs' projection** (`content_view.hpp`, `src/content/view.cpp`; PAGES §4.6.9, S11.4.a). `record_load`
+  writes one load into en-proto's `ContentView`, which en-overlay's space publishes: the shipped cast in the realm
+  (`shipped_index`, the shipped index alone whatever the overrides hold; test personas only in the tests' realm),
+  whether the shipped pack holds knowledge and event rules (told as included, never counted, SP5); each override file
+  by its path relative to the folder (en-proto's `shown_path`, PV5) with its state at that load (Loaded, a layer Refused
+  alone, or after a refused load Refused for the files its errors name and Waiting for the rest) and its problems by
+  line in the content layer's fixed words (a layer's from `layer_findings()`, the rest from the load's errors or
+  `content_warnings()`); the errors that name no file of the folder on a row of their own; disable.toml's personas from
+  the content in use; and the load itself, newest first (20 kept). `record_left_out` takes what the shell left out of
+  the folder. Never a value of a file.
 - **Identity** (`identity.hpp`, `src/identity/`; O45, NPC §2.3). A character binds by its NpcParam row, else a non-zero
   entity id; never by name. `Realm::Game` (the DLL's) leaves `test_only` personas out whatever an override gives them,
   so they never resolve in game; `Realm::Eval` (the self-test, the eval, the tests) keeps them. The tests' overrides
@@ -385,4 +395,8 @@ one-page reply's page up, before or after it showed, and after a later page seal
 not-now's words, an id GraceUI would not give never repeated; `runes_held` in v0.1's predicates and `runes >= n`
 refused there, a stage on it Unknown in the directory (`tests/identity/`); and disable.toml
 (`tests/content/test_disable.cpp`): a persona off in the pack, the index and the core, the warnings that never quote an
-id, and a file of the wrong shape refusing the pack with the old content kept.
+id, and a file of the wrong shape refusing the pack with the old content kept; Content packs' projection
+(`tests/content/test_view.cpp`): the realm's cast whatever the overrides hold, warnings by line, a layer refused alone,
+a refused load's file and line with the rest waiting and the earlier content's turned-off list kept, the errors of no
+file of the folder and an unfit path on a row of their own, what the shell left out, the reloads' cap, and no value of
+a file anywhere in it.

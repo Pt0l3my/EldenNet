@@ -15,6 +15,8 @@ line    rule           30, 275  240x1
 text    ink.mute       30, 285   64x30   glyphs 6 "System"
 line    rule           30, 325  240x1   
 text    ink.mute       30, 335   85x30   glyphs 8 "Settings"
+line    rule           30, 375  240x1   
+text    ink.mute       30, 385  138x30   glyphs 12 "Content packs"
 fill    ground.well   340,  10  350x35   r3
 text    ink.faint     353,  15   51x25   glyphs 6 "Search"
 text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
@@ -64,4 +66,4 @@ text    gold         1820, 920    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 text    ink.faint     340,1045  202x25   glyphs 16 "Enter  Open    Esc  Back"
 stroke  gold.hi       362, 848 1496x61   r5 w3 clip1
-# 65 items, 2184 vertices, 4428 indices, 4 commands; check_draw_list: passes
+# 67 items, 2236 vertices, 4506 indices, 4 commands; check_draw_list: passes

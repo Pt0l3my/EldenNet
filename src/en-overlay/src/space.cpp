@@ -510,6 +510,7 @@ constexpr std::array<Job, 5> kJobs = {{
 constexpr std::string_view kProviderChoices = "ai.choices.providers";
 constexpr std::string_view kJobStates = "ai.jobs";  // each card's live status (GraceUI D202), a member per slot
 constexpr std::string_view kBudgets = "ai.budgets";  // each card's fixed budgets, a member per slot
+constexpr std::string_view kContentTopic = "content";  // Content packs, a member per section
 
 // Which of a job's four rows a setting's key is.
 enum class Part : std::uint8_t { Model, Provider, Fallback, FallbackProvider };
@@ -844,6 +845,98 @@ json space_state_body(const SpaceFacts& f) {
 
 // A watch's note for the DLL's log: a family's member (GraceUI D215, `profiles/persona.kale`) as its family and its key,
 // since the log takes words alone (no '/').
+// ---- Content packs (PAGES §4.6.9): one topic, a member per section (GraceUI D185's props.field), read-only. What
+// en-core's projection holds, in our words: counts, the ids disable.toml turned off, paths relative to the overrides
+// folder (PV5, checked again here), lines and the content layer's fixed words; never a file's text (SP1). Knowledge and
+// event rules are "Included", never counted (SP5), and a list or a count with nothing in it is left out (SP5).
+
+const char* override_words(proto::OverrideState s) noexcept {
+  switch (s) {
+    case proto::OverrideState::Loaded: return "Loaded";
+    case proto::OverrideState::Refused: return "Refused";
+    case proto::OverrideState::Waiting: return "Not loaded: another file was refused";
+    case proto::OverrideState::LeftOut: return "Not read";
+  }
+  return "";
+}
+
+const char* layer_words(proto::ReloadLayer l) noexcept {
+  switch (l) {
+    case proto::ReloadLayer::All: return "Shipped content and your overrides";
+    case proto::ReloadLayer::Overrides: return "Your overrides";
+  }
+  return "";
+}
+
+std::string reload_words(const proto::ContentReload& r) {
+  if (r.ok) {
+    if (r.warnings == 0) return "Loaded";
+    return r.warnings == 1 ? "Loaded, with a warning" : "Loaded, with " + std::to_string(r.warnings) + " warnings";
+  }
+  const std::string n = r.errors == 1 ? "a problem" : std::to_string(r.errors) + " problems";
+  return "Refused for " + n + (r.earlier ? ": the content loaded before stays in use" : ": no content is in use");
+}
+
+std::string joined(const std::vector<std::string>& ids) {
+  std::string out;
+  for (const std::string& id : ids) out += (out.empty() ? "" : ", ") + id;
+  return out;
+}
+
+void override_rows(const std::vector<proto::OverrideFile>& files, json& rows) {
+  for (const proto::OverrideFile& f : files) {
+    // A path is shown only as en-core keeps it, relative to the folder; anything else goes on the rest's row (PV5).
+    const std::string file = !f.path.empty() && proto::shown_path(f.path) ? f.path : std::string("Other files");
+    if (f.problems.empty()) {
+      rows.push_back(json{{"file", file}, {"state", override_words(f.state)}, {"line", ""}, {"problem", ""}});
+    }
+    for (const proto::ContentProblem& p : f.problems) {
+      rows.push_back(json{{"file", file}, {"state", override_words(f.state)},
+                          {"line", p.line == 0 ? std::string() : "Line " + std::to_string(p.line)},
+                          {"problem", p.words}});
+    }
+  }
+}
+
+json content_body(const SpaceFacts& f) {
+  if (f.content == nullptr) return json::object();
+  const proto::ContentView& c = *f.content;
+  json shipped = json::array();
+  shipped.push_back(item("Name", "EldenNet's own content"));
+  shipped.push_back(item("Version", version_of(f.version)));
+  shipped.push_back(item("Credit", "Written for EldenNet, in its own words"));
+  if (c.personas != 0) shipped.push_back(item("Personas", std::to_string(c.personas)));
+  if (c.cards != 0) shipped.push_back(item("Cards", std::to_string(c.cards)));
+  if (c.knowledge) shipped.push_back(item("Knowledge", "Included"));
+  if (c.rules) shipped.push_back(item("Event rules", "Included"));
+
+  json files = json::array();
+  override_rows(c.overrides, files);
+  override_rows(c.left_out, files);
+  json file_columns = json::array({json{{"id", "file"}, {"label", "File"}}, json{{"id", "state"}, {"label", "State"}},
+                                   json{{"id", "line"}, {"label", "Where"}},
+                                   json{{"id", "problem"}, {"label", "Problem"}}});
+
+  json off = json::array();
+  if (!c.off_personas.empty()) off.push_back(item("Personas", joined(c.off_personas)));
+  if (!c.off_cards.empty()) off.push_back(item("Cards", joined(c.off_cards)));
+  if (c.off_knowledge != 0) off.push_back(item("Knowledge entries", std::to_string(c.off_knowledge)));
+  if (c.off_triggers != 0) off.push_back(item("Triggers", std::to_string(c.off_triggers)));
+  if (c.off_rules != 0) off.push_back(item("Rules", std::to_string(c.off_rules)));
+
+  json reloads = json::array();
+  for (const proto::ContentReload& r : c.reloads) {
+    reloads.push_back(json{{"time", clock_of(r.at_ms)}, {"layer", layer_words(r.layer)}, {"result", reload_words(r)}});
+  }
+  json reload_columns = json::array({json{{"id", "time"}, {"label", "Time"}},
+                                     json{{"id", "layer"}, {"label", "What it read"}},
+                                     json{{"id", "result"}, {"label", "Result"}}});
+  return json{{"shipped", json{{"items", std::move(shipped)}}},
+              {"overrides", json{{"columns", std::move(file_columns)}, {"rows", std::move(files)}}},
+              {"off", json{{"items", std::move(off)}}},
+              {"reloads", json{{"columns", std::move(reload_columns)}, {"rows", std::move(reloads)}}}};
+}
+
 SpaceNote note_of(SpaceNote::What what, const std::string& topic) {
   const std::size_t slash = topic.find('/');
   if (slash == std::string::npos) return SpaceNote{what, topic, {}, {}};
@@ -860,7 +953,7 @@ std::uint64_t interval_of(std::string_view topic) noexcept {
   return 0;  // on change
 }
 
-constexpr std::array<std::string_view, 22> kStates = {
+constexpr std::array<std::string_view, 23> kStates = {
     "settings",
     "status",
     "errors",
@@ -882,7 +975,8 @@ constexpr std::array<std::string_view, 22> kStates = {
     "ai.choices.bark_live.fallback",
     "ai.choices.bark_pool.fallback",
     "ai.choices.memory.fallback",
-    "ai.choices.selftest.fallback"};
+    "ai.choices.selftest.fallback",
+    kContentTopic};
 
 std::string frame_topic(std::string_view frame) {
   const json f = json::parse(frame, nullptr, false);
@@ -1669,6 +1763,7 @@ json Space::body(std::string_view topic, const SpaceFacts& facts) const {
   if (topic == kBudgets) return budgets_body(facts);
   if (topic == "selftest") return selftest_body(facts);
   if (topic == "space.state") return space_state_body(facts);
+  if (topic == kContentTopic) return content_body(facts);
   if (topic == kProviderChoices) return provider_choices_body(facts);
   if (topic == kNamedList) return Characters::list_body(facts.characters);
   if (topic.rfind(std::string(kNamedFamily) + "/", 0) == 0) {

@@ -248,4 +248,9 @@ struct ContentPack {
 // 64, then a count).
 [[nodiscard]] proto::Expected<ContentPack, std::vector<ContentError>> load_content(std::span<const ContentFile> files);
 
+// The shipped persona index's rows alone (the Shipped file at kPersonaIndexPath among `files`, read and checked as
+// load_content reads it, whatever the overrides hold): the cast the Content packs page counts (content_view.hpp).
+// Empty if there is none or it is refused.
+[[nodiscard]] std::vector<PersonaRow> shipped_index(std::span<const ContentFile> files);
+
 }  // namespace en::core

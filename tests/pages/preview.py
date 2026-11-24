@@ -35,10 +35,14 @@ import browser  # noqa: E402
 # cards' status on a provider cooling down, GraceUI 0.2.12's D202).
 # Characters › Named NPCs over the title (the first row chosen: a character with no notes of the player's), over the world
 # (the draft blocked) and over the starting state (no content loaded yet: the list's own words, GraceUI D215).
+# Content packs (PAGES §4.6.9) over the title (the start's load: a layer of the player's refused alone, a persona and a
+# card turned off), over the world (a reload refused at a line, the other files waiting, one left out) and over the
+# starting state (nothing loaded yet: each section's own words).
 PAGES = (("home", "title"), ("system.status", "title"), ("system.logs", "title"), ("settings.developer", "title"),
          ("ai.providers", "title"), ("ai.models", "title"), ("ai.selftest", "title"), ("ai.selftest", "banner"),
          ("ai.providers", "starting"), ("home", "banner"), ("ai.providers", "world"), ("ai.models", "world"),
-         ("characters.named", "title"), ("characters.named", "world"), ("characters.named", "starting"))
+         ("characters.named", "title"), ("characters.named", "world"), ("characters.named", "starting"),
+         ("content", "title"), ("content", "world"), ("content", "starting"))
 SIZE = "1920x1080"
 INCREMENT = "0.2"  # en-overlay's kIncrement: the AI pages'
 

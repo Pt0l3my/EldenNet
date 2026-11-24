@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "characters_fixture.hpp"
+#include "content_fixture.hpp"
 #include "en/overlay/space.hpp"
 #include "graceui.h"
 
@@ -287,6 +288,7 @@ SpaceFacts facts_of(std::string_view state) {
                                           : banner();
   f.ai = &ai_fixture(state);
   f.characters = en::overlay::test::characters_fixture(state);  // Characters › Named NPCs (characters_fixture.hpp)
+  f.content = en::overlay::test::content_fixture(state);        // Content packs (content_fixture.hpp)
   return f;
 }
 
@@ -357,12 +359,12 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
     CHECK(p["increment"].get<std::string>() <= std::string(kIncrement));
   }
   CHECK(ids == std::vector<std::string>{"home", "system.status", "system.logs", "settings.developer", "ai.providers",
-                                        "ai.models", "ai.selftest", "characters.named"});
+                                        "ai.models", "ai.selftest", "characters.named", "content"});
   // The rail holds PAGES §4.2.1's categories in their order, the slice's pages in theirs.
   std::vector<std::string> rail;
   for (const json& c : pages["categories"]) rail.push_back(c["id"].get<std::string>());
   CHECK(rail == std::vector<std::string>{"home", "ai", "voice", "characters", "map", "history", "behaviour", "system",
-                                         "tools", "settings"});
+                                         "tools", "settings", "content"});
   const Space s;
   REQUIRE(s.valid());
   for (const json& t : pages["topics"]) {
@@ -1642,6 +1644,100 @@ TEST_CASE("space: a job's fallback: its provider and model from that provider's 
   CHECK(set("slots.bark_live.fallback", "lantern-talker")["detail"] == "Choose Quick lines' model first.");
 }
 
+TEST_CASE("space: Content packs: one topic, a member per section; relative paths, lines and fixed words alone") {
+  namespace pr = en::proto;
+  Space s;
+  // Before the first load nothing (absence is silent): an empty body, so each section shows its own words.
+  CHECK(s.body("content", facts_of("starting")).empty());
+  s.watched(sub("content"));
+  const std::vector<json> first = collect(s, facts_of("starting"), 0);
+  REQUIRE(first.size() == 1);
+  CHECK(first[0]["topic"] == "content");
+  CHECK(first[0]["body"] == json::object());
+
+  const SpaceFacts title = facts_of("title");
+  const json b = s.body("content", title);
+  CHECK(clean(b));
+  // Shipped content: name, version and credit; the cast's counts; knowledge and rules included, never counted (SP5).
+  std::vector<std::pair<std::string, std::string>> shipped;
+  for (const json& i : b["shipped"]["items"]) shipped.emplace_back(i["label"], i["value"]);
+  using Items = std::vector<std::pair<std::string, std::string>>;
+  CHECK(shipped == Items{{"Name", "EldenNet's own content"},
+                         {"Version", "0.1.0"},
+                         {"Credit", "Written for EldenNet, in its own words"},
+                         {"Personas", "2"},
+                         {"Cards", "3"},
+                         {"Knowledge", "Included"},
+                         {"Event rules", "Included"}});
+  // Your overrides: a row a file, or a row a problem with its line and the content layer's words.
+  const json& rows = b["overrides"]["rows"];
+  REQUIRE(rows.size() == 3);
+  CHECK(rows[0] == json{{"file", "disable.toml"}, {"state", "Loaded"}, {"line", "Line 3"},
+                        {"problem", "cards[1]: names no shipped card, so nothing is turned off"}});
+  CHECK(rows[1]["file"] == "layers/persona-ferryman.toml");
+  CHECK(rows[1]["state"] == "Refused");
+  CHECK(rows[1]["line"] == "");  // the whole file
+  CHECK(rows[2] == json{{"file", "layers/persona-weaver.toml"}, {"state", "Loaded"}, {"line", ""}, {"problem", ""}});
+  CHECK(b["overrides"]["columns"].size() == 4);
+  // Turned off: personas and cards by id.
+  CHECK(b["off"]["items"] == json::array({json{{"label", "Personas"}, {"value", "heron_watcher"}},
+                                          json{{"label", "Cards"}, {"value", "salt_crier"}}}));
+  // Reloads: time, what it read, the result.
+  CHECK(b["reloads"]["rows"] == json::array({json{{"time", "0:00:06"}, {"layer", "Shipped content and your overrides"},
+                                                  {"result", "Loaded, with 2 warnings"}}}));
+
+  // In the world: a reload refused, the content of the start still in use; the files waiting; one left out.
+  const json w = s.body("content", facts_of("world"));
+  CHECK(w["reloads"]["rows"][0] == json{{"time", "0:21:15"}, {"layer", "Your overrides"},
+                                        {"result", "Refused for a problem: the content loaded before stays in use"}});
+  const json& wrows = w["overrides"]["rows"];
+  REQUIRE(wrows.size() == 5);
+  CHECK(wrows[0]["state"] == "Not loaded: another file was refused");
+  CHECK(wrows[3] == json{{"file", "personas/ferryman.toml"}, {"state", "Refused"}, {"line", "Line 12"},
+                         {"problem", "voice.cadence: is longer than 60 words"}});
+  CHECK(wrows[4]["file"] == "drafts/old/a/b/c");
+  CHECK(wrows[4]["state"] == "Not read");
+
+  // Absence is silent: no count of nothing, no empty list; a refused start says no content is in use.
+  pr::ContentView v;
+  v.revision = 1;
+  v.reloads = {pr::ContentReload{1'000, pr::ReloadLayer::All, false, false, 3, 0}};
+  SpaceFacts f = title;
+  f.content = &v;
+  const json e = s.body("content", f);
+  CHECK(e["shipped"]["items"].size() == 3);  // name, version and credit alone
+  CHECK(e["off"]["items"].empty());
+  CHECK(e["overrides"]["rows"].empty());
+  CHECK(e["reloads"]["rows"][0]["result"] == "Refused for 3 problems: no content is in use");
+  // PV5: a path that is not relative to the folder is never shown, on any row.
+  for (const char* bad : {"C:/Users/someone/x.toml", "/home/someone/x.toml", "../outside.toml", "a/../../b.toml",
+                          "~/x.toml", "a\\b.toml", "personas//x.toml", "./x.toml"}) {
+    CAPTURE(bad);
+    CHECK_FALSE(pr::shown_path(bad));
+    v.overrides = {pr::OverrideFile{bad, pr::OverrideState::Loaded, {}}};
+    v.left_out = {pr::OverrideFile{bad, pr::OverrideState::LeftOut, {}}};
+    const json r = s.body("content", f);
+    CHECK(r["overrides"]["rows"][0]["file"] == "Other files");
+    CHECK(r["overrides"]["rows"][1]["file"] == "Other files");
+  }
+  CHECK(pr::shown_path("layers/persona-weaver.toml"));
+  CHECK(pr::shown_path("disable.toml"));
+  // Read-only: the page sends no command, and its topic is the only one it reads.
+  const json pages = json::parse(space_pages());
+  for (const json& p : pages["pages"]) {
+    if (p["id"] != "content") continue;
+    CHECK_FALSE(p.contains("actions"));
+    CHECK(p["category"] == "content");
+    CHECK(p["increment"] == "0.2");
+    for (const json& sec : p["sections"]) {
+      for (const json& blk : sec["blocks"]) {
+        CHECK(blk["topic"] == "content");
+        CHECK_FALSE(blk.contains("row_actions"));
+      }
+    }
+  }
+}
+
 TEST_CASE("space: the log's rows are scrubbed of a SteamID64's shape; the clock") {
   CHECK(scrubbed("steam id=76561197960287930 n=12") == "steam id=redacted n=12");
   CHECK(scrubbed("n=765611979602879301") == "n=765611979602879301");  // 18 digits: not the shape
@@ -1667,6 +1763,7 @@ TEST_CASE("space: the fixture states' topics.json, which grace-dev previews (tes
     for (const char* topic : {"status", "errors", "system.status"}) topics[topic] = s.body(topic, f);
     for (const char* topic : kAiTopics) topics[topic] = s.body(topic, f);
     for (const std::string& topic : en::overlay::test::characters_topics(f.characters)) topics[topic] = s.body(topic, f);
+    topics["content"] = s.body("content", f);
     topics["logs"] = s.log_rows();
     const std::string text = topics.dump(2) + "\n";
     const std::string path = std::string(EN_PAGES_FIXTURES) + "/" + state + "/topics.json";

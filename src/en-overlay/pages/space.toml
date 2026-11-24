@@ -161,6 +161,12 @@ id = "profiles"
 shape = "state"
 family = true
 
+# Content packs (PAGES §4.6.9): one topic, a member per section (GraceUI D185's props.field).
+
+[[topic]]
+id = "content"
+shape = "state"
+
 # ---- The rail (PAGES §4.2.1), in its order.
 
 [[category]]
@@ -212,6 +218,11 @@ pages = []
 id = "settings"
 name = "Settings"
 pages = ["settings.developer"]
+
+[[category]]
+id = "content"
+name = "Content packs"
+pages = ["content"]
 
 # ---- Settings: those v0.1 reads whose home is on these pages (PAGES §4.5's debug.*). Their effect is v0.1's own: the
 # F11 view is made at the connect and the recorder opened at the core's start, so both wait for the next launch, and
@@ -770,3 +781,66 @@ master = { topic = "named.list", key = "id", detail = "named", label = "Named NP
 id = "profile"
 name = "Profile"
 sections = [{ id = "general", title = "General profile", description = "What anyone would see on meeting them, in EldenNet's own words.", blocks = [{ kind = "component", component = "key_value_list", topic = "named" }] }, { id = "yours", title = "Your notes", description = "Your own layer over EldenNet's profile, kept in a file of your own. Left unset, a field keeps EldenNet's.", blocks = [{ kind = "editor", topic = "profiles", editor = { save = "profile.save", check = "profile.check", reset = "profile.reset", restore = "profile.restore", draft = "profile.draft", notes_label = "Your rough notes for a draft", notes_max = 400 } }] }]
+
+# ---- The foot: Content packs (PAGES §4.6.9; S11.4.a), read-only: the shipped content, the player's overrides, what
+# disable.toml turns off and this session's loads, from the topic `content`, a member per section (GraceUI D185). No
+# command writes (no content editors, D2). The Plugins page and the link to it wait for 1.1 (D104): absent until then.
+# Its blocks are written as tables of their own, the same data as the inline tables above, to keep its lines short.
+
+[[page]]
+id = "content"
+category = "content"
+name = "Content packs"
+description = "What content EldenNet runs: its own, and the files of your overrides folder."
+increment = "0.2"
+related = ["characters.named", "system.logs"]
+help.purpose = "See what content EldenNet runs: its own, your files in its overrides folder, and what you turned off."
+help.steps = [
+  "Read Shipped content: EldenNet's own personas and cards, and the knowledge and rules it ships with.",
+  "Look down Your overrides: each of your files, and whether it loaded; a refused one names its line and problem.",
+  "Read Turned off for what your disable.toml turns off.",
+  "Read Reloads for each time EldenNet loaded its content this session, and how it went.",
+]
+
+[[page.sections]]
+id = "shipped"
+title = "Shipped content"
+
+[[page.sections.blocks]]
+kind = "component"
+component = "key_value_list"
+topic = "content"
+props = { field = "shipped", empty = "Shown once EldenNet has loaded its content." }
+
+[[page.sections]]
+id = "overrides"
+title = "Your overrides"
+description = "Each file of your overrides folder, by its path there: it replaces EldenNet's file of that path."
+
+[[page.sections.blocks]]
+kind = "component"
+component = "table"
+topic = "content"
+props = { field = "overrides", empty = "No file of yours in the overrides folder." }
+
+[[page.sections]]
+id = "off"
+title = "Turned off"
+description = "What disable.toml in your overrides folder turns off."
+
+[[page.sections.blocks]]
+kind = "component"
+component = "key_value_list"
+topic = "content"
+props = { field = "off", empty = "Nothing is turned off." }
+
+[[page.sections]]
+id = "reloads"
+title = "Reloads"
+description = "Each time EldenNet loaded its content this session, newest first."
+
+[[page.sections.blocks]]
+kind = "component"
+component = "table"
+topic = "content"
+props = { field = "reloads", empty = "EldenNet has not loaded its content yet." }

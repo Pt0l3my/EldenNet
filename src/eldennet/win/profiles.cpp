@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "dll.hpp"
+#include "en/core/content_view.hpp"
 #include "en/core/profile.hpp"
 #include "en/core/speech_content.hpp"
 #include "en/core/speech_lint.hpp"
@@ -494,6 +495,8 @@ void profiles_tick(Shell& s, ec::Core& core) noexcept {
     if (st->reload && core.conversation().state() == en::proto::ConvState::Closed) {
       st->reload = false;
       const std::vector<ec::ContentError> errors = core.load_content(st->files, st->realm);
+      ec::record_load(s.content_view, st->files, errors, core, st->realm, since_ms(),
+                      en::proto::ReloadLayer::Overrides);  // Content packs (PAGES §4.6.9)
       log(Line("content_load").word("why", "profile").flag("ok", errors.empty()).num("files", st->files.size())
               .num("errors", errors.size()).num("warnings", core.content_warnings().size()),
           errors.empty() ? LogLevel::Info : LogLevel::Warn);

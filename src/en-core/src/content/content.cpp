@@ -546,4 +546,15 @@ proto::Expected<ContentPack, std::vector<ContentError>> load_content(std::span<c
   return pack;
 }
 
+std::vector<PersonaRow> shipped_index(std::span<const ContentFile> files) {
+  for (const ContentFile& f : files) {
+    if (f.origin != ContentOrigin::Shipped || f.path != kPersonaIndexPath) continue;
+    std::vector<ContentError> problems;
+    Errors errors(problems);
+    std::vector<PersonaRow> rows = read_index(f, errors);
+    return errors.count() == 0 ? rows : std::vector<PersonaRow>{};
+  }
+  return {};
+}
+
 }  // namespace en::core
