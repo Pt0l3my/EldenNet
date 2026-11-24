@@ -682,7 +682,11 @@ class CharSurvey {
     std::vector<std::uint32_t> character_vtables;  // of the character's class and every class deriving from it
     const ByteSource* image = nullptr;
     std::uint32_t still = 0, look = 1;    // which phase is which
+    // The round's own checks of places an earlier survey left open (kind, a and b; the counts start at nothing).
+    // kMaxChecks at most; a check whose place lies outside a character's copy is not counted for that sighting.
+    std::vector<SurveyCheck> checks;
   };
+  static constexpr std::size_t kMaxChecks = 32;
   explicit CharSurvey(Options options);
   ~CharSurvey();
   CharSurvey(const CharSurvey&) = delete;

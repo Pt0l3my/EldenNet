@@ -96,6 +96,12 @@ constexpr std::size_t kFlagHopsDeeper = 4;      // objects one step more, from e
 constexpr std::size_t kFlagHopsDeeperAll = 32;  // and of those in all
 constexpr std::uint64_t kBackendEveryUs = 10'000'000;  // EldenNet's own reader on the flags: every ten seconds
 constexpr std::uint64_t kWorldEveryUs = 1'000'000;     // and on the world's leads: once a second
+// The survey's open candidates of the eighteenth round (a character's object; our own numbers, leads): two places
+// for the type, the block a character is in now and two places for the map it belongs to, and the dead bit with its
+// two rivals (the byte times 8, plus the bit).
+constexpr std::uint32_t kTypeAtA = 0x68, kTypeAtB = 0x40, kDesignNpcType = 5;
+constexpr std::uint32_t kBlockNowAt = 0x38, kBlockHomeAtA = 0x70, kBlockHomeAtB = 0xC;
+constexpr std::uint32_t kDeadBit = 0x1C6 * 8 + 0, kDeadRivalA = 0x1C6 * 8 + 1, kDeadRivalB = 0x53B * 8 + 4;
 constexpr std::uint32_t kSurveyMark = 1;               // plan 1: the mark at which the tester stands in the world
 constexpr std::size_t kBackendFlags = 64;              // flags it is asked for at most
 constexpr std::uint64_t kSearchShareUs = 4'000;  // of each step of the reader's thread, for all the searches together
@@ -387,8 +393,11 @@ class Body final : public en::gal::TaskBody {
       } else if (frame.qpc_now_us - world_at_us_ >= kWorldEveryUs) {
         // EldenNet's own reader on the world's leads (WHY§567 to §569): the game's state's slot, the main player
         // with its health and position, and the near list, through the build's layout, once a second.
+        // In the survey's plan every other frame also reads the near list's characters' other fields, through the
+        // layout: one copy of each at the layout's size, every two seconds, as the survey's own passes.
         world_at_us_ = frame.qpc_now_us;
-        world_frame(backend->world_alone(gt));
+        world_fields_now_ = world_fields_.load(std::memory_order_acquire) && !world_fields_now_;
+        world_frame(backend->world_alone(gt, world_fields_now_));
       }
     }
     steps_.fetch_add(1, std::memory_order_release);
@@ -425,6 +434,8 @@ class Body final : public en::gal::TaskBody {
   };
   // The tester's next mark, from T1: the world reader's frames are counted by the marks so far.
   void world_mark() noexcept { world_marks_.fetch_add(1, std::memory_order_release); }
+  // Whether the world reader's frames also read the list's characters' other fields (the survey's plan).
+  void set_world_fields(bool on) noexcept { world_fields_.store(on, std::memory_order_release); }
   // What the world reader's frames gave so far, for T1 (a copy, under the lock T2 only ever tries).
   [[nodiscard]] lodestar::WorldRead world_read() const {
     const std::lock_guard<std::mutex> lock(world_mutex_);
@@ -498,6 +509,35 @@ class Body final : public en::gal::TaskBody {
       world_prev_span_ = span;
     }
     world_prev_ok_ = a.pos.has_value();
+    w.fields_bound = a.fields_bound;
+    if (a.fields) {
+      ++w.fields_frames;
+      w.chr_self += a.near_self;
+      w.chr_object += a.near_object;
+      w.chr_handle += a.near_handle;
+      w.chr_param += a.near_param;
+      w.chr_kin += a.near_kin;
+      w.chr_entity += a.near_entity;
+      w.chr_dead += a.near_dead;
+      w.chr_on_screen += a.near_on_screen;
+      w.handles_shared += a.near_handles < a.near_handle ? 1 : 0;
+      w.objects_most = std::max(w.objects_most, a.near_object);
+      w.handles_most = std::max(w.handles_most, a.near_handles);
+      w.kinds_most = std::max(w.kinds_most, a.near_kinds);
+      w.entities_most = std::max(w.entities_most, a.near_entities);
+      w.teams_most = std::max(w.teams_most, a.near_teams);
+      w.team_group_most = std::max(w.team_group_most, a.near_team_most);
+      if (a.self_object) {
+        ++w.self_frames;
+        w.self_handle_frames += a.self_handle ? 1 : 0;
+        w.self_param_frames += a.self_param ? 1 : 0;
+        w.self_dead_frames += a.self_dead ? 1 : 0;
+        w.self_team_alone_frames += a.self_team_alone ? 1 : 0;
+      }
+      w.chr_object_by[span] += a.near_object;
+      w.chr_dead_by[span] += a.near_dead;
+      w.chr_on_screen_by[span] += a.near_on_screen;
+    }
     // The span's first frame: what the reader read just after the tester's mark (at the title's mark, the title).
     if (world_at_set_[span] == 0) {
       lodestar::WorldAt& at = w.at_marks[span];
@@ -532,15 +572,45 @@ class Body final : public en::gal::TaskBody {
     std::copy(w.pos_frames_by.begin(), w.pos_frames_by.end(), world_shared_.pos_frames_by.begin());
     std::copy(w.pos_moved_by.begin(), w.pos_moved_by.end(), world_shared_.pos_moved_by.begin());
     std::copy(w.at_marks.begin(), w.at_marks.end(), world_shared_.at_marks.begin());
+    world_shared_.fields_bound = w.fields_bound;
+    world_shared_.fields_frames = w.fields_frames;
+    world_shared_.chr_self = w.chr_self;
+    world_shared_.chr_object = w.chr_object;
+    world_shared_.chr_handle = w.chr_handle;
+    world_shared_.chr_param = w.chr_param;
+    world_shared_.chr_kin = w.chr_kin;
+    world_shared_.chr_entity = w.chr_entity;
+    world_shared_.chr_dead = w.chr_dead;
+    world_shared_.chr_on_screen = w.chr_on_screen;
+    world_shared_.handles_shared = w.handles_shared;
+    world_shared_.objects_most = w.objects_most;
+    world_shared_.handles_most = w.handles_most;
+    world_shared_.kinds_most = w.kinds_most;
+    world_shared_.entities_most = w.entities_most;
+    world_shared_.teams_most = w.teams_most;
+    world_shared_.team_group_most = w.team_group_most;
+    world_shared_.self_frames = w.self_frames;
+    world_shared_.self_handle_frames = w.self_handle_frames;
+    world_shared_.self_param_frames = w.self_param_frames;
+    world_shared_.self_dead_frames = w.self_dead_frames;
+    world_shared_.self_team_alone_frames = w.self_team_alone_frames;
+    std::copy(w.chr_object_by.begin(), w.chr_object_by.end(), world_shared_.chr_object_by.begin());
+    std::copy(w.chr_dead_by.begin(), w.chr_dead_by.end(), world_shared_.chr_dead_by.begin());
+    std::copy(w.chr_on_screen_by.begin(), w.chr_on_screen_by.end(), world_shared_.chr_on_screen_by.begin());
   }
   static lodestar::WorldRead sized_world() {
     lodestar::WorldRead w;
     w.pos_frames_by.assign(lodestar::WorldRead::kSpans, 0);
     w.pos_moved_by.assign(lodestar::WorldRead::kSpans, 0);
     w.at_marks.assign(lodestar::WorldRead::kSpans, lodestar::WorldAt{});
+    w.chr_object_by.assign(lodestar::WorldRead::kSpans, 0);
+    w.chr_dead_by.assign(lodestar::WorldRead::kSpans, 0);
+    w.chr_on_screen_by.assign(lodestar::WorldRead::kSpans, 0);
     return w;
   }
   std::uint64_t world_at_us_ = 0;
+  std::atomic<bool> world_fields_{false};
+  bool world_fields_now_ = false;                     // this thread's: the last frame read the fields
   std::atomic<std::uint32_t> world_marks_{0};
   lodestar::WorldRead world_local_ = sized_world();   // this thread's
   lodestar::WorldRead world_shared_ = sized_world();  // under world_mutex_
@@ -634,6 +704,7 @@ class Round {
     trial_->set_stage(en::gal::roles::info(en::gal::roles::Item::Characters).id);
     add_named();
     body_ = new Body(*s_.sys, *trial_);
+    body_->set_world_fields(plan_ == w::kPlanSurvey);
     // The watch: what the named managers' objects hold, by how their first bytes behave. It asks before each read,
     // as the searches do, and asks Windows what stands behind a word that could be an address (nothing is read).
     {
@@ -904,6 +975,34 @@ class Round {
     o.vitals_at = health ? vitals->off : 0;
     o.hp_at = health ? hp->off : 0;
     o.image = &s_.sys->image();
+    // What the eighteenth round's survey left open, as checks of its own candidates (our numbers; WHY§605). The
+    // type: the main player's reads nothing by the design, and a character of the world's the design's number for
+    // one (NPC§1.4). The block: where a character is now against the map it belongs to. The dead bit's two rivals.
+    using Check = lodestar::SurveyCheck;
+    const auto check = [&](std::uint32_t kind, std::uint32_t a, std::uint32_t b) {
+      Check c;
+      c.kind = kind;
+      c.a = a;
+      c.b = b;
+      o.checks.push_back(c);
+    };
+    for (const std::uint32_t type_at : {kTypeAtA, kTypeAtB}) {
+      check(Check::kIs, type_at, 0);
+      check(Check::kIs, type_at, kDesignNpcType);
+      check(Check::kChanged, type_at, 0);
+    }
+    check(Check::kBlock, kBlockNowAt, 0);
+    check(Check::kChanged, kBlockNowAt, 0);
+    check(Check::kWithPlayer, kBlockNowAt, kBlockNowAt);
+    for (const std::uint32_t home_at : {kBlockHomeAtA, kBlockHomeAtB}) {
+      check(Check::kBlock, home_at, 0);
+      check(Check::kChanged, home_at, 0);
+      check(Check::kEqual, kBlockNowAt, home_at);
+      check(Check::kWithPlayer, home_at, kBlockNowAt);
+    }
+    check(Check::kEqual, kBlockHomeAtA, kBlockHomeAtB);
+    check(Check::kBitsEqual, kDeadBit, kDeadRivalA);
+    check(Check::kBitsEqual, kDeadBit, kDeadRivalB);
     const std::size_t classes = o.character_vtables.size();
     survey_ = new lodestar::CharSurvey(std::move(o));  // lives for the process
     // Marks that came before discovery was through are phases gone by.
@@ -1698,9 +1797,12 @@ class Round {
       f.pos_frames_by.resize(spans);
       f.pos_moved_by.resize(spans);
       f.at_marks.resize(spans);
+      f.chr_object_by.resize(spans);
+      f.chr_dead_by.resize(spans);
+      f.chr_on_screen_by.resize(spans);
       if (f.calls != 0 && !world_said_) {
         world_said_ = true;
-        log(Line("read").word("stage", "world").num("lacks", f.lacks));
+        log(Line("read").word("stage", "world").num("lacks", f.lacks).num("fields_bound", f.fields_bound));
       }
       if (f.calls != 0) found_.world = std::move(f);
     }

@@ -2615,6 +2615,7 @@ TEST_CASE("in game: the character survey tells a character's fields by how they 
     w.mem.put<std::uint8_t>(c.at + 0x20, hero ? 1 : 6);
     w.mem.put<std::uint8_t>(c.at + 0x21, 0x02);  // on screen
     w.mem.put<std::uint32_t>(c.at + 0x24, 0x3C2C'2400u);
+    w.mem.put<std::uint32_t>(c.at + 0x28, index == 2 ? 0x3C2C'2500u : 0x3C2C'2400u);  // the map it belongs to
     const std::uint64_t holder = w.mem.alloc(0x40);
     c.vitals = w.mem.alloc(0x20);
     w.mem.put<std::uint64_t>(c.at + 0x30, holder);
@@ -2641,6 +2642,26 @@ TEST_CASE("in game: the character survey tells a character's fields by how they 
   o.hp_at = 0x8;
   o.character_vtables = {rva(w.vtable("chr")), rva(w.vtable("hero")), rva(w.vtable("npc")), rva(w.vtable("beast"))};
   o.image = &w.sys->image();
+  // The round's own checks of places a survey left open, counted over the sightings.
+  using Check = lodestar::SurveyCheck;
+  const auto check = [&](std::uint32_t kind, std::uint32_t a, std::uint32_t b) {
+    Check c;
+    c.kind = kind;
+    c.a = a;
+    c.b = b;
+    o.checks.push_back(c);
+  };
+  check(Check::kIs, 0x1C, 0);                       // 0: the type is nothing
+  check(Check::kIs, 0x1C, 3);                       // 1: or the number of a character of the world
+  check(Check::kEqual, 0x24, 0x28);                 // 2: the block it is in is the map it belongs to
+  check(Check::kWithPlayer, 0x28, 0x24);            // 3: its map is the block the main player is in
+  check(Check::kBlock, 0x24, 0);                    // 4
+  check(Check::kBlock, 0x10, 0);                    // 5
+  check(Check::kBitsEqual, 0x21 * 8 + 5, 0x21 * 8 + 6);  // 6: the dead bit and a bit that is never set
+  check(Check::kChanged, 0x40, 0);                  // 7: the counter
+  check(Check::kChanged, 0x10, 0);                  // 8: the kind's number
+  check(Check::kIs, 0x7FE, 0);                      // 9: a place that does not lie whole in the copy
+  check(Check::kKinds, 0, 0);                       // no check: left out
   lodestar::CharSurvey survey(o);
   GuardedReader reader(*w.sys);
   const auto gt = en::proto::GameThread::issue();
@@ -2725,6 +2746,29 @@ TEST_CASE("in game: the character survey tells a character's fields by how they 
   CHECK(f.pairs[0].b == 0x14);
   CHECK(f.pairs[0].holds == 9);
   CHECK(f.pairs[0].of == 9);
+  // The round's checks: twenty passes, nine others and the main player in each.
+  REQUIRE(f.checks.size() == 10);
+  const auto counts = [&](std::size_t i, std::uint32_t holds, std::uint32_t of, std::uint32_t player_holds,
+                          std::uint32_t player_of) {
+    CAPTURE(i);
+    CHECK(f.checks[i].holds == holds);
+    CHECK(f.checks[i].of == of);
+    CHECK(f.checks[i].player_holds == player_holds);
+    CHECK(f.checks[i].player_of == player_of);
+  };
+  CHECK(f.checks[2].kind == Check::kEqual);
+  CHECK(f.checks[2].a == 0x24);
+  CHECK(f.checks[2].b == 0x28);
+  counts(0, 0, 180, 20, 20);     // the main player's type alone reads nothing
+  counts(1, 180, 180, 0, 20);
+  counts(2, 160, 180, 20, 20);   // one of the nine belongs to another map
+  counts(3, 160, 180, 0, 0);
+  counts(4, 180, 180, 20, 20);
+  counts(5, 0, 180, 0, 20);
+  counts(6, 175, 180, 20, 20);   // they differ in the dead one's five sightings since its death
+  counts(7, 171, 171, 19, 19);   // a change needs a sighting before
+  counts(8, 0, 171, 0, 19);
+  counts(9, 0, 0, 0, 0);
   // The dead bit: it was set as the one died, clear in every living character at every sighting since, and set
   // in the dead one. The on-screen bit flipped before in the looking phase, so it is no candidate.
   REQUIRE(f.dead_bits.size() == 1);

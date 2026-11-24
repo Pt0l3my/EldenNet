@@ -38,6 +38,9 @@ std::uint64_t slot_value(const ByteSource* image, std::uint32_t rva) {
   return plausible(at) ? at : 0;
 }
 
+// A number shaped as a block's id: its lowest byte nothing and its highest an area's number.
+bool block_shaped(std::uint32_t v) { return v != 0 && (v & 0xFF) == 0 && (v >> 24) >= 10 && (v >> 24) <= 61; }
+
 void bump(std::uint16_t& v) { v = v == 0xFFFF ? v : static_cast<std::uint16_t>(v + 1); }
 
 }  // namespace
@@ -79,6 +82,8 @@ struct CharSurvey::Impl {
     std::uint32_t screen_total = 0;
     std::array<SurveyFlip, kListedBits> screen{};
     std::size_t screen_count = 0;
+    std::array<SurveyCheck, kMaxChecks> checks{};
+    std::size_t check_count = 0;
   };
 
   Options o;
@@ -95,6 +100,9 @@ struct CharSurvey::Impl {
   bool dead_seeded = false;
   std::array<std::uint32_t, 16> highs{};
   std::size_t high_count = 0;
+
+  std::vector<SurveyCheck> checks;  // the round's, with their counts (made once)
+  std::size_t player_slot = kMaxTracked;  // the main player's place, once its copy of this pass is taken
 
   Step step = Step::Manager;
   std::uint64_t manager_at = 0, player_at = 0, list_begin = 0, holder = 0, vitals = 0;
@@ -124,6 +132,14 @@ struct CharSurvey::Impl {
         look_last(kBits),
         flip_last(kBits) {
     std::sort(o.character_vtables.begin(), o.character_vtables.end());
+    for (const SurveyCheck& c : o.checks) {
+      if (checks.size() >= kMaxChecks || c.kind >= SurveyCheck::kKinds) continue;
+      SurveyCheck mine;
+      mine.kind = c.kind;
+      mine.a = c.a;
+      mine.b = c.b;
+      checks.push_back(mine);
+    }
     o.stride = std::clamp<std::uint32_t>(o.stride, 8, kMaxStride);
   }
 
@@ -232,6 +248,55 @@ struct CharSurvey::Impl {
         }
       }
     }
+    // The round's checks against this sighting. The main player's copy comes first in a pass, so the others of the
+    // pass are held against it where a check asks.
+    const bool is_player = t.address == player_at;
+    for (SurveyCheck& c : checks) {
+      const auto number = [&](std::span<const std::byte> from, std::uint32_t size, std::uint32_t at,
+                              std::uint32_t& out) {
+        if (std::size_t{at} + 4 > size) return false;
+        out = field_at(from, at);
+        return true;
+      };
+      const auto bit_of = [&](std::uint32_t bit, bool& out) {
+        if (bit / 8 >= bytes) return false;
+        out = (static_cast<unsigned>(now[bit / 8]) >> (bit % 8) & 1u) != 0;
+        return true;
+      };
+      std::uint32_t x = 0, y = 0;
+      bool p = false, q = false, known = false, holds = false;
+      switch (c.kind) {
+        case SurveyCheck::kIs:
+          known = number(now, bytes, c.a, x);
+          holds = x == c.b;
+          break;
+        case SurveyCheck::kEqual:
+          known = number(now, bytes, c.a, x) && number(now, bytes, c.b, y);
+          holds = x == y;
+          break;
+        case SurveyCheck::kWithPlayer:
+          known = !is_player && player_slot < kMaxTracked && number(now, bytes, c.a, x) &&
+                  number(copy_of(player_slot), tracked[player_slot].bytes, c.b, y);
+          holds = x == y;
+          break;
+        case SurveyCheck::kBlock:
+          known = number(now, bytes, c.a, x);
+          holds = block_shaped(x);
+          break;
+        case SurveyCheck::kBitsEqual:
+          known = bit_of(c.a, p) && bit_of(c.b, q);
+          holds = p == q;
+          break;
+        case SurveyCheck::kChanged:
+          known = again && number(now, bytes, c.a, x) && number(before, t.bytes, c.a, y);
+          holds = x != y;
+          break;
+        default: break;
+      }
+      if (!known) continue;
+      ++(is_player ? c.player_of : c.of);
+      if (holds) ++(is_player ? c.player_holds : c.holds);
+    }
     // Each candidate against this sighting: a living character has the bit as it was, a dead one as it became.
     if (hp != nullptr) {
       for (std::size_t k = 0; k < dead_count; ++k) {
@@ -250,7 +315,8 @@ struct CharSurvey::Impl {
     t.bytes = bytes;
     ++t.sightings;
     t.last_pass = passes + 1;
-    t.player = t.address == player_at;
+    t.player = is_player;
+    if (is_player) player_slot = slot;
     t.has_hp = hp != nullptr;
     t.hp = hp != nullptr ? *hp : 0;
     ++read_now;
@@ -271,6 +337,8 @@ struct CharSurvey::Impl {
     s.dead_count = 0;
     s.screen_total = 0;
     s.screen_count = 0;
+    s.check_count = checks.size();
+    std::copy(checks.begin(), checks.end(), s.checks.begin());
     // The characters of this pass, the main player's place among them, and those seen twice or more.
     std::array<std::size_t, kMaxSeen> seen{};
     std::size_t n = 0, player = kMaxSeen;
@@ -320,7 +388,7 @@ struct CharSurvey::Impl {
         row.zeros += v == 0 ? 1 : 0;
         row.small += v >= 1 && v <= 255 ? 1 : 0;
         row.id_like += v >= 10'000'000 && v < 0x8000'0000u ? 1 : 0;
-        row.block_like += v != 0 && (v & 0xFF) == 0 && (v >> 24) >= 10 && (v >> 24) <= 61 ? 1 : 0;
+        row.block_like += block_shaped(v) ? 1 : 0;
         const std::size_t word = (f & ~std::size_t{1}) * 4;
         if (tracked[seen[k]].bytes >= word + 8 && is_address(word_at(copy_of(seen[k]), word))) ++row.addresses;
         if (k == player) {
@@ -484,6 +552,7 @@ bool CharSurvey::step(const proto::GameThread& gt, GuardedReader& reader, std::u
       case Step::Manager: {
         m.phase_now = std::min(m.phase.load(std::memory_order_acquire), kPhases - 1);
         m.read_now = 0;
+        m.player_slot = kMaxTracked;
         m.target = 0;
         m.target_count = 0;
         m.list_count = 0;
@@ -620,6 +689,7 @@ SurveyFound CharSurvey::found() const {
   out.dead_bits.assign(s.dead.begin(), s.dead.begin() + static_cast<std::ptrdiff_t>(s.dead_count));
   out.screen_total = s.screen_total;
   out.screen_bits.assign(s.screen.begin(), s.screen.begin() + static_cast<std::ptrdiff_t>(s.screen_count));
+  out.checks.assign(s.checks.begin(), s.checks.begin() + static_cast<std::ptrdiff_t>(s.check_count));
   return out;
 }
 

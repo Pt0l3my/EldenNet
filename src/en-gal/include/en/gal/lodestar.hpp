@@ -688,6 +688,26 @@ struct SurveyPair {              // two such fields: one is the other divided by
   std::uint32_t holds = 0;       // characters for which a / 10,000 == b, with a at least 10,000
   std::uint32_t of = 0;          // characters seen, the main player aside
 };
+// One check of a place the round names (a candidate from an earlier round's survey), counted over the sightings of
+// the pass's characters: how often it holds, for the main player and for the others apart. No value is kept.
+struct SurveyCheck {
+  enum Kind : std::uint32_t {
+    kIs = 0,          // the 32-bit number at `a` is the number `b`
+    kEqual = 1,       // the 32-bit numbers at `a` and at `b` are the same
+    kWithPlayer = 2,  // the character's number at `a` is the main player's at `b` in the same pass (the others only)
+    kBlock = 3,       // the number at `a` is shaped as a block's id
+    kBitsEqual = 4,   // the bits `a` and `b` (the byte times 8, plus the bit) read the same
+    kChanged = 5,     // the number at `a` is not what it was at the character's sighting before
+    kKinds = 6,
+  };
+  std::uint32_t kind = kIs;
+  std::uint32_t a = 0;
+  std::uint32_t b = 0;
+  std::uint32_t holds = 0;         // sightings of the others for which it holds
+  std::uint32_t of = 0;            // of so many
+  std::uint32_t player_holds = 0;  // the main player's sightings for which it holds
+  std::uint32_t player_of = 0;     // of so many
+};
 struct SurveyDead {              // a bit that flipped as a character's health went to nothing
   std::uint32_t offset = 0;      // the byte
   std::uint32_t bit = 0;
@@ -722,6 +742,7 @@ struct SurveyFound {
   std::vector<SurveyDead> dead_bits;    // at most 32, the best first
   std::uint32_t screen_total = 0;
   std::vector<SurveyFlip> screen_bits;  // at most 32, the most flips first
+  std::vector<SurveyCheck> checks;      // the round's own checks, in the order given (32 at most)
 };
 
 // EldenNet's own reader on the world's leads (in game; ErBackend::world_alone, the seventeenth round): the game's
@@ -759,6 +780,33 @@ struct WorldRead {
   std::vector<std::uint32_t> pos_frames_by;  // by span (the marks so far): frames with a position after one with one
   std::vector<std::uint32_t> pos_moved_by;   // of those, the position more than a centimetre from the frame's before
   std::vector<WorldAt> at_marks;    // the first frame of each span: what was read just after the mark
+  // A character's other fields through the layout (the nineteenth round), over the frames that read them: counts of
+  // the near list's characters that are not the main player, the most a frame had, and the main player's own.
+  std::uint32_t fields_bound = 0;      // which fields the layout binds (ErBackend::WorldAlone's bits)
+  std::uint64_t fields_frames = 0;     // frames that read them
+  std::uint64_t chr_self = 0;          // list elements that were the main player itself
+  std::uint64_t chr_object = 0;        // the others' objects copied
+  std::uint64_t chr_handle = 0;        // of them, a handle that is not nothing
+  std::uint64_t chr_param = 0;         // a kind's number of an id's size
+  std::uint64_t chr_kin = 0;           // the kind's number over 10,000 is the model's
+  std::uint64_t chr_entity = 0;        // an entity's id that is not nothing
+  std::uint64_t chr_dead = 0;          // the dead bit set
+  std::uint64_t chr_on_screen = 0;     // the on-screen bit set
+  std::uint64_t handles_shared = 0;    // frames in which two characters had one handle
+  std::uint32_t objects_most = 0;      // the most a frame had: objects,
+  std::uint32_t handles_most = 0;      //   different handles,
+  std::uint32_t kinds_most = 0;        //   different kinds,
+  std::uint32_t entities_most = 0;     //   different entity ids,
+  std::uint32_t teams_most = 0;        //   different teams,
+  std::uint32_t team_group_most = 0;   //   and characters of one team
+  std::uint64_t self_frames = 0;       // frames with the main player's object copied for its fields
+  std::uint64_t self_handle_frames = 0;      // of them: its handle not nothing
+  std::uint64_t self_param_frames = 0;       // its kind's number not nothing
+  std::uint64_t self_dead_frames = 0;        // its dead bit set
+  std::uint64_t self_team_alone_frames = 0;  // its team no other's in the list
+  std::vector<std::uint32_t> chr_object_by;     // by span: the others' objects copied,
+  std::vector<std::uint32_t> chr_dead_by;       //   of them with the dead bit set,
+  std::vector<std::uint32_t> chr_on_screen_by;  //   and with the on-screen bit set
 };
 
 struct PairHit {

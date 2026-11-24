@@ -123,7 +123,7 @@ class ErBackend final : public proto::GameBackend {
   // the distance is judged element by element, never for the list (WHY§569). Nothing of a snapshot is touched, and
   // the book's phase B is not set.
   struct WorldAlone {
-    static constexpr std::uint32_t kSlot = 1, kPlayer = 2, kParts = 4, kNear = 8;
+    static constexpr std::uint32_t kSlot = 1, kPlayer = 2, kParts = 4, kNear = 8, kFields = 16;
     std::uint32_t lacks = 0;                  // the parts the layout does not bind (the bits above)
     bool state = false;                       // the game's state's object was there
     std::optional<std::int32_t> save_slot;    // as read: -1 where no save is loaded
@@ -137,8 +137,34 @@ class ErBackend final : public proto::GameBackend {
     std::uint32_t near_chr = 0;               // of those, an object of a character's class behind the address
     std::uint32_t near_distance = 0;          // of those, a plain fraction beside it (finite, 0 to 1e6)
     std::uint32_t near_rising = 0;            // of those, one not below the element's before it
+    // A character's other fields (the nineteenth round), each through the layout's own field and none kept: only
+    // counted, over the list's characters that are not the main player, and told of the main player apart. Read
+    // where `fields` asks for them; `lacks` has kFields where the layout binds none of them.
+    static constexpr std::uint32_t kHandle = 1, kParam = 2, kModel = 4, kEntity = 8, kTeam = 16, kDead = 32,
+                                   kOnScreen = 64;
+    std::uint32_t fields_bound = 0;           // which of them the layout binds (the bits above)
+    bool fields = false;                      // they were asked for, and the layout binds one at least
+    std::uint32_t near_self = 0;              // of near_chr, the main player itself
+    std::uint32_t near_object = 0;            // of the others, the object copied at the layout's size
+    std::uint32_t near_handle = 0;            // of those: a handle that is not nothing
+    std::uint32_t near_handles = 0;           //   how many different ones
+    std::uint32_t near_param = 0;             // a kind's number of an id's size (ten million and up)
+    std::uint32_t near_kinds = 0;             //   how many different ones
+    std::uint32_t near_kin = 0;               // the kind's number over 10,000 is the model's number
+    std::uint32_t near_entity = 0;            // an entity's id that is not nothing
+    std::uint32_t near_entities = 0;          //   how many different ones
+    std::uint32_t near_teams = 0;             // how many different teams
+    std::uint32_t near_team_most = 0;         // the largest group of one team
+    std::uint32_t near_dead = 0;              // the dead bit set
+    std::uint32_t near_on_screen = 0;         // the on-screen bit set
+    bool self_object = false;                 // the main player's object copied for its fields
+    bool self_handle = false;                 // its handle is not nothing
+    bool self_param = false;                  // its kind's number is not nothing (a player has none)
+    bool self_dead = false;                   // its dead bit set
+    bool self_team_alone = false;             // its team is no other's in the list
   };
-  WorldAlone world_alone(const proto::GameThread& gt);
+  // `fields`: the list's characters' other fields too (one copy of a character each; the round asks every other call).
+  WorldAlone world_alone(const proto::GameThread& gt, bool fields = false);
   // Whether a structural group tripped: the task goes inert and reads nothing more (L1).
   [[nodiscard]] bool inert() const noexcept { return inert_; }
   void make_inert() noexcept { inert_ = true; }
