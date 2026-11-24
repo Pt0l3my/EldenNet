@@ -2374,3 +2374,38 @@ around slowly 40 s; kill one; stand 20 s; quit (five marks).
 **Owner's words.** "Yes, those tasks (Recommended)" (Lodestar's question dialog, 2026-11-24).
 
 **Follows from.** O117.
+
+## O119
+
+**The Content packs page: its readings and its words** · *2026-11-24 · Decided by the owner, as recommended*
+
+**Question.** Content packs (S11.4.a; PAGES §4.6.9; WHY§600 to §604; engine 86d3991) left readings for the owner. Q1:
+the shipped pack has no manifest yet, so its name and credit are fixed words ("EldenNet's own content", "Written for
+EldenNet, in its own words") until it gets a small one. Q2: cards and the turned-off knowledge, triggers and rules stay
+empty in game, since v0.2's content layer ships no card and turns off personas alone. Q3: two file states PAGES does
+not name, "Not loaded: another file was refused" (any error outside a player's layer refuses the whole load) and "Not
+read" (a file the DLL left out: a link, too deep, past 256 files, unreadable). Q4: a refused layer's row names its
+field but no line, which the content layer does not keep yet. Q5: the reloads say what each load read, "Shipped content
+and your overrides" at the start and "Your overrides" after the profile editor saved. Q6: the content layer's words
+quote keys, ids and relative paths, never a free value, as the in-game notice already does. Q7: "Refused for n
+problems" counts the content layer's list, its "and n more" entry as one. Q8: Related links to Characters › Named NPCs
+and System › Logs. Q9: Content packs is a category of its own after Settings, with no rule above it, since GraceUI has
+no foot for a mod's categories (asked of Grace). Q10: the page's words as drafted, in British spelling: the page's
+name, description, help and section titles; "Personas", "Cards", "Knowledge", "Event rules", "Included"; "Loaded",
+"Refused", "Other files"; the columns "File", "State", "Where", "Problem", "Time", "What it read", "Result"; "Line n";
+"Loaded, with a warning", "Loaded, with n warnings", "Refused for a problem: the content loaded before stays in use"
+or "...: no content is in use"; the empty words "Shown once EldenNet has loaded its content.", "No file of yours in the
+overrides folder.", "Nothing is turned off.", "EldenNet has not loaded its content yet."; and the left-out words "is a
+link, which is never followed", "is a folder nested too deep: four levels are read", "is past the 256 files read",
+"could not be read". Q11: a file past 64 KB that nothing reads shows as Loaded (WHY§604). **Options:** accept them as
+written, or change any of them.
+
+**Recommendation.** Accept as written, each as its notes recommend: Q1, Q2 and Q4 until the content layer gives more;
+Q3 and Q5 with PAGES §4.6.9 amended by a dated note.
+
+**Decision.** All eleven readings and the words as written, as built (engine feat/engine 86d3991); PAGES §4.6.9 holds
+them in a dated note.
+
+**Owner's words.** "Accept as written (Recommended)" (question dialog, 2026-11-24).
+
+**Follows from.** PAGES §4.6.9, PV5, SP1, SP5; S11.4.a; O99, O104.

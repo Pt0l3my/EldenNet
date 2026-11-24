@@ -1249,8 +1249,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Engine; the package (README at 02b0f27) is with the owner. Awaiting the owner's run.
     The eighteenth round's first run (2026-11-24; WHY§597, §598): the dead bit found (0x1C6, bits 0 and 1), and
     on-screen candidates (first, bit 4 of 0x1C4); the still fields lost to a fault of the survey's at the quit,
-    mended (engine bf36cbe, merged at 88aaa16). Package 0.1.0-lodestar.23 repeats the round; its README read by
-    Engine (bf36cbe). Awaiting the owner's run.
+    mended (engine bf36cbe, merged at 88aaa16; then de126c7, merged at b511cef: only a pass that is full enough
+    replaces the summary). Package 0.1.0-lodestar.23 (de126c7) repeats the round; its README read by Engine.
+    The eighteenth round reviewed after its rerun (2026-11-24; WHY§605): a character's handle, kind, model, entity,
+    team and the on-screen and dead bits found by the survey and entered as leads (engine e816200, merged at 6771b7e);
+    the type and the block open. Next: the nineteenth round reads them through EldenNet's own reader on the near
+    list's characters.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1712,9 +1716,47 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     cases; EldenNet reads hotkey_by for the chat box's via and its swallow, with its pin moving to 0.2.38. Pinned the
     same day (engine 678b313, merged at 6930988; WHY§585, §590).
 - bb The preview's three findings in GraceUI's menu: the links back by the space's increment, the rail's ring whole, a related row's words clear of its ring (GraceUI 0.2.39) [done]
-  - refs: GraceUI:D245, GraceUI:D173, WHY§595
+  - refs: GraceUI:D245, GraceUI:D173, WHY§595, WHY§599
   - gives: built on 2026-11-24 (GraceUI feat/foundations c9d699e) from Engine's preview shots (S11.4.c); EldenNet
-    regenerates its goldens with a Related card at 0.2.39, with its next pin.
+    regenerates its goldens with a Related card at 0.2.39, with its next pin. Pinned the same day with Content packs
+    (engine 7773f47, merged at 86d3991): every golden moved by its Related rows alone (WHY§599); the faces by name
+    (GRACEUI_FACES_ELDENNET, D139).
+- bc The menu's keyboard hints as key caps (GraceUI 0.2.40) [active]
+  - refs: GraceUI:D246, GraceUI:D242
+  - gives: built on 2026-11-24 (GraceUI feat/foundations c53f414; GraceUI's docs/eldennet-changes.md §73): each key of
+    the footer's hints in a cap, its label beside it, so every golden's footer moves. EldenNet pins 0.2.40 once
+    GraceUI's full run is green, regenerates its goldens once, and reads a whole hints line from
+    GraceUiTestMenu.footer instead of the screen.
+- bd The key caps' arrows drawn (GraceUI 0.2.41) [done]
+  - refs: GraceUI:D247, GraceUI:D246
+  - gives: built on 2026-11-24 (GraceUI feat/foundations 94284d7, with the gap after "Shift+" and its run in 0ed0e61):
+    each arrow in a footer's key cap drawn as a shaft and a head, centred, instead of the mono face's glyph.
+    EldenNet's footers with arrows move at its next pin after S11.2.bc, which takes 0.2.41 and 0.2.42 (S11.2.be)
+    together; GraceUiTestMenu.footer is unchanged.
+- be The rail's foot for a mod's categories, and empty words without "yet" (GraceUI 0.2.42, protocol 1.10) [planned]
+  - refs: GraceUI:D246, PAGES§4.2.1, PAGES§4.6.9, O119
+  - gives: asked by Engine from Content packs on 2026-11-24; Grace builds both as framework details of the design
+    decided (its D248 and D249): a category may say "foot": true, and both views pin such categories to the rail's
+    bottom under a rule; a block with no items and no words of its own reads "Nothing to show." in both views (no
+    "yet", which SP5 and GraceUI's invariant 2 both forbid for anything not reached). EldenNet then marks Settings,
+    Content packs and Docs as its foot.
+- bf A table's own filter bar and sort, done in the view (GraceUI's proposal 0012, G43 (a)) [planned]
+  - refs: G43, PAGES§4.6.2
+  - gives: put to the owner on 2026-11-24 and decided as recommended (G43 (a), the owner's words "(a) Filter bar now,
+    Events later (Recommended)"): a table or a master list carries `filter_bar`, up to four filters from the values
+    its published rows hold, up to four sort options on a column or a hidden key of each row, an optional search on
+    named columns, all in the view and never sent to the space. For AI › Requests (0.2), Named NPCs and Memories
+    (0.3); Events' paged filtering is designed with its pages for 0.4. Engine answered the proposal's §6 that day
+    (`calls` and the roster are whole state topics); the hidden keys are last_met_s, first_met_s, at_ms,
+    first_token_ms, total_ms, tokens, a memory's time and weight; "names as shown" is the search over the name column.
+- bg A document block, a prose form field and the report preview (GraceUI's proposal 0013, G44) [planned]
+  - refs: PAGES§4.6.8, PAGES§4.6.9, G16
+  - gives: GraceUI's answer to Docs and Tools › Bug report (2026-11-24): a document block on a master page (headings,
+    paragraphs, lists, code, tables, spans with links to other documents, never a URL); `"prose": true` on a form
+    field (2000 characters); the report preview drawn at last (parts with their fields, an optional part's switch
+    sending the space's own command). Engine asked the same day for a link to a heading, a note block, code blocks up
+    to 16 KiB and a multi-line field in the preview. To be put to the owner as GraceUI's proposal 0013; until then
+    the bug report's preview is built from a table with a switch column and a key-value list per part.
 
 ### S11.3 EldenNet v0.2
 
@@ -1797,7 +1839,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 - S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs [active]
   - needs: S11.2.h
-  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, O99, O104, G34, G36
+  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, O99, O104, O119, G34, G36
   - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format. The
     allowances' and reactions' inherit tri-states (PAGES) use GraceUI's third = "inherit" and the settings topic's
     `inherited` list, added on 2026-11-20 at EldenNet's request (GraceUI feat/foundations ac4bc39). Since GraceUI
@@ -1856,6 +1898,14 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     review with the level the pages give them.
     L3 and L4 are speaking levels on the pages since 2026-11-23 (WHY§496), their words approved (O110). Left:
     L2's words still say NPCs speak from a later version, which a v0.2 build makes untrue (fixtures and goldens).
+    Content packs on 2026-11-24 (engine 7bfe283, merged at 86d3991), at GraceUI 0.2.39 (S11.2.bb): a category of its own
+    after Settings, both views, read-only, as PAGES §4.6.9 has it: the shipped content (fixed words for its name and
+    credit, since the pack has no manifest yet; the personas counted, knowledge and event rules as Included), the
+    overrides folder's files each Loaded, Refused, Not loaded (another file refused the load) or Not read, with a row
+    per problem, what disable.toml turns off, and the session's reloads (WHY§600 to §604). In v0.2 the content layer
+    turns off personas alone and ships no card, so those rows stay empty in game; a layer's problem names its field
+    but no line. Left: Docs and Tools › Bug report, waiting on GraceUI's answers (a document page, a multi-line field
+    and a preview). Its readings and words accepted as written by the owner the same day (O119), PAGES §4.6.9 noted.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2

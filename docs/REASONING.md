@@ -621,6 +621,13 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 596 | 2026-11-24 | GraceUI 0.2.38 draws on a 10-bit swap chain under Wine as on an 8-bit one | FACT | #graceui #wine #fakegame |
 | 597 | 2026-11-24 | A character's dead bit, by one death among 64 characters followed: bits 0 and 1 of the byte 0x1C6 | FACT | #lodestar #l6 |
 | 598 | 2026-11-24 | A summary recomputed every pass must not be overwritten by a pass that saw nothing, and a case must end as a run ends | METHOD | #lodestar #tests |
+| 599 | 2026-11-24 | GraceUI 0.2.39's Related rows moved EldenNet's goldens by those rows alone | FACT | #graceui #pages #goldens |
+| 600 | 2026-11-24 | Each category added to EldenNet's rail adds a ↓ to the in-game route to GraceUI's own pages | FACT | #graceui #fakegame |
+| 601 | 2026-11-24 | A page's blocks as TOML tables of their own keep space.toml's lines short | METHOD | #pages |
+| 602 | 2026-11-24 | Content packs' projection is en-proto's ContentView, its paths checked twice | DECIDED | #content #pages #privacy |
+| 603 | 2026-11-24 | The DLL names the overrides files it leaves out, the first 64 | FACT | #content |
+| 604 | 2026-11-24 | A file past 64 KB that nothing reads shows as Loaded | FACT | #content |
+| 605 | 2026-11-24 | A character's other fields, by the survey of 49 characters over two runs: seven leads in the layout | LIKELY | #lodestar #l6 #gal |
 
 ## Entries
 
@@ -8717,6 +8724,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   and counts, no value of any character.
 - Later (2026-11-24): the first run found the dead bit (0x1C6, bits 0 and 1) and on-screen candidates (WHY§597);
   its still fields were lost at the quit (WHY§598), so the round repeats.
+- Later (2026-11-24): the rerun's summary survived the quit, and a character's other fields entered the layout as
+  leads (WHY§605).
 
 ### 578. A read round's plan travels in the watch block (probe_plan, version 2); a plan the round does not know is a refusal
 
@@ -8919,6 +8928,9 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   best had 7 against). The on-screen bit's first candidate is bit 4 of the byte 0x1C4 (80 flips in all 8 looking
   passes, 4 while standing), then bits 2 to 4 of 0xB4 (a small number, not a flag). Leads, to be confirmed: the
   still fields, the handle and the pairs wait for the rerun (package 0.1.0-lodestar.23).
+- Later (2026-11-24): the rerun agrees (290 sightings of the living clear, 14 of the dead set), and bit 4 of 0x1C4
+  flipped 101 times looking and none standing; bit 0 of 0x1C6 and bit 4 of 0x1C4 entered the layout as leads, bit 1
+  of 0x1C6 and bit 4 of 0x53B still rivals that one death does not tell apart (WHY§605).
 
 ### 598. A summary recomputed every pass must not be overwritten by a pass that saw nothing, and a case must end as a run ends
 
@@ -8928,3 +8940,80 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   five passes found no character and the report kept the last (fields_total 0), while the log a pass earlier held
   273. The unit case and the fake game's case both ended with characters present. Mended: only a pass with two
   characters or more tells them, and both cases now end at the title. The listed fields grow from 160 to 512.
+- Later (2026-11-24, engine de126c7, merged at b511cef): two characters were too low a bar, since a pass with two or
+  three left as the world goes would still replace a full pass's fields and clear the handles. A pass now tells them
+  only with four characters or more and at least half as many as the fullest pass so far; the unit case adds a pass
+  with three of ten left.
+
+### 599. GraceUI 0.2.39's Related rows moved EldenNet's goldens by those rows alone
+
+`2026-11-24` · FACT · `#graceui` `#pages` `#goldens` · refs: GraceUI D245, docs/eldennet-changes.md §72 (GraceUI), engine 7773f47 (merged at 86d3991)
+
+- All 15 of EldenNet's page goldens moved at GraceUI 0.2.39 by their Related card's rows alone: each row's label,
+  description and arrow (six lines a page; the label 15 px right, the words 6 to 10 px lower, the arrow 15 px left),
+  the focus ring unchanged. In the three Characters › Named NPCs goldens, whose Related card is the narrow one beside
+  the master list, Home's description loses two glyphs to its ellipsis (55 to 53), and the draw list's summary falls by
+  exactly those glyphs (8 vertices, 12 indices). Checked line by line with a script of our own: every changed line a
+  text line after "Related", same colour and text, and the summary's change equal to the glyphs lost.
+
+### 600. Each category added to EldenNet's rail adds a ↓ to the in-game route to GraceUI's own pages
+
+`2026-11-24` · FACT · `#graceui` `#fakegame` · refs: tests/fakegame/harness.py, tools/preview/shoot.py (engine 7bfe283)
+
+- The in-game rail's route from System › Status to GraceUI's own pages at its foot takes one ↓ per category between:
+  the editor case (`EDITOR_KEYS`) and tools/preview/shoot.py's pages run each needed a fourth once Content packs
+  joined. Any later category (Docs, Plugins) moves both again.
+
+### 601. A page's blocks as TOML tables of their own keep space.toml's lines short
+
+`2026-11-24` · METHOD · `#pages` · refs: src/en-overlay/pages/space.toml (engine 7bfe283)
+
+- space.toml's page sections can write a block as `[[page.sections.blocks]]`, a table of its own, instead of an inline
+  table on one line: tomllib and GraceUI's lint read the same data, and the lines stay within 120 characters (an inline
+  table cannot span lines in TOML 1.0). Content packs is written so.
+
+### 602. Content packs' projection is en-proto's ContentView, its paths checked twice
+
+`2026-11-24` · DECIDED · `#content` `#pages` `#privacy` · refs: PAGES§4.6.9, PV5, SP1, SP5; engine 7bfe283 (merged at 86d3991)
+
+- The page's projection is en-proto's `ContentView`, plain data: counts, the ids disable.toml turned off, paths
+  relative to the overrides folder, lines, and the content layer's fixed words. en-core's `record_load` builds it after
+  each `Core::load_content` and `record_left_out` adds what the shell left out; the DLL keeps it on T6, and
+  en-overlay's space publishes it as one topic, `content`, a member per section. A path passes en-proto's `shown_path`
+  twice (in en-core and in the space): relative, '/'-separated, with no drive, colon, backslash, leading '/' or '~',
+  and no "." or ".." part; one that fails goes on a row of its own as "Other files". Knowledge and event rules are
+  "Included", never counted, and an empty list or count is left out.
+
+### 603. The DLL names the overrides files it leaves out, the first 64
+
+`2026-11-24` · FACT · `#content` · refs: src/eldennet/win/conversation.cpp (engine 7bfe283)
+
+- The DLL used to count the overrides folder's files it left out (a link, a folder past four levels, a file past the
+  256 read, or one it could not read) without naming them. It now keeps the first 64 by relative path, in fixed words,
+  for Content packs ("Not read"), and still counts the rest.
+
+### 604. A file past 64 KB that nothing reads shows as Loaded
+
+`2026-11-24` · FACT · `#content` · refs: src/eldennet/win/platform.cpp, src/en-core/src/content/content.cpp (`others`; engine 7bfe283)
+
+- The DLL's read_text gives a file past 64 KB as 64 KB and one byte of NULs, for the reader to refuse by its size. The
+  content layer refuses it where it reads it (a record, the index, a layer, prompts, the lexicon), but one it does not
+  read, such as a note under a folder of the player's own, is kept unread among the pack's `others` and reads Loaded on
+  Content packs. Found when the pages case's first try put a 72 KB file under `notes/`. Left as it is for v0.2: nothing
+  reads such a file.
+
+### 605. A character's other fields, by the survey of 49 characters over two runs: seven leads in the layout
+
+`2026-11-24` · LIKELY · `#lodestar` `#l6` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md ("The eighteenth round again, in game"), engine e816200 (merged at 6771b7e), WHY§577, WHY§597, O117, O118
+
+- The rerun (package 0.1.0-lodestar.23; 33 passes, 49 characters a pass, 53 followed, one death; 269 still fields
+  listed whole; no value reported) gives, by how numbers stand among the characters and over the session: the
+  handle at 0x8 (eight bytes, different in every character, never changing, its upper half shaped as a map's id);
+  npc_param_id at 0x60 (26 values among 48, nothing in the main player); model at 0x64 (npc_param_id over 10,000 in 47
+  of 48); entity_id at 0x1E8 (each its own, in 35 characters); team at 0x6C (10 values, the main player's alone);
+  on_screen, bit 4 of 0x1C4; dead, bit 0 of 0x1C6. All seven are leads in `[class.character]`, its copy 0x1F0.
+- Open, two candidates each: chr_type (0x68, or 0x40); block_id (0x70 or the handle's upper half, fixed per
+  character, against 0x38, which moved in six characters). By DATA §2.5's D-1 the design's block_id is where a
+  character is now, the block its position is measured from, so the moving candidate fits it; the fixed one is the
+  map a character belongs to. The dead bit has two rivals, bit 1 of 0x1C6 and bit 4 of 0x53B, that one death a run
+  does not tell apart. The nineteenth round reads all of them through EldenNet's own reader on the near list.
