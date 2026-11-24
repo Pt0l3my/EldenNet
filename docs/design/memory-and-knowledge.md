@@ -2154,6 +2154,8 @@ Added to spike S6 (§6.3; DESIGN §16.1). Each item verifies a lead before conte
 11. **Speaking up** (§12.14; NPC §3.6): per persona × stage, whether the stage waits on a talk (`beckon_src`), its conversation-played flag (`talked`), Kalé's +17 and Boc's +6 (`state`), and, with S3, when a talk-driven stage flag rises (the 10 s settle window, §12.14).
 
 About 12 extra aliases and one late-game route over a tester's checkpoint saves (Radahn, Rykard, Morgott, the Forge, Maliketh, the start of an NG+): roughly 5–6 tester-hours, not counting items 10 and 11. Items 1–5 run with the pilot's S6 at v0.2 (O29), and an alias verified there goes live as a data-only change; S6 as a whole still blocks v0.5 (DESIGN §16.3). The watch list grows from about 700 to about 740 IDs.
+*2026-11-24 (O58 as amended on 2026-11-16; WHY§580):* no prepared saves; the captures run during a normal playthrough, as docs/design/spikes/capture-plans.md plans them. The late-game route above runs when the player reaches those moments, not over saves.
+
 
 **Increments** (DESIGN §16.2, §16.3):
 

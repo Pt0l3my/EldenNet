@@ -380,7 +380,8 @@ Needs that are designed but rest on a spike that may fail. In every case the des
 6. **The DLC** (E-10; v1.1). No public per-NPC dump of the DLC's flag blocks exists, both developer flag dumps stop
    before the DLC's maps, and its bindings need saves inside it (ER08 §1; ER04 §10). The design defers the DLC's roster
    to v1.1 (O46) and reads a missing DLC alias as Missing.
-   **Closes by** S6 and the roster captures in DLC saves (S17.1).
+   **Closes by** S6 and the roster captures in DLC saves (S17.1). *2026-11-24:* "saves" here means play inside the
+   DLC's maps, not prepared saves (O58 as amended; docs/design/spikes/capture-plans.md).
 7. **The session gate in summon fights and NPC invasions** (A-5, A-7, J-12, J-13). If NPC summons or NPC invaders count in `player_chr_set`, EldenNet would go dormant in every summon-assisted boss fight and `FoughtBeside` could never fire; the gate counts only non-NPC entries, and S1 lists which `chr_type` values appear (DESIGN §3.4). The other gate fields (role, own world, lobby) could flip the same way, and no planned check records them through an NPC invasion or an NPC summon: that half is gap 9. If any field flips, EldenNet goes dormant and a bound invader never speaks. **Closes by** S1 (S10.1.c), with gap 9's addition to its question.
 8. **Overhauls and text hooks.** A mod that serves text through a `GetMessage` hook can show names the raw tables lack (DESIGN §4.5), and one that remaps rows trips the identity-pack checks, which silence personas or the roster with a toast (DESIGN §7.2, §7.8). Designed fail-closed; the compatibility matrix tests it (v0.6, S15.1).
 

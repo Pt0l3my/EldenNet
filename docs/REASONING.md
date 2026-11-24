@@ -602,6 +602,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 577 | 2026-11-24 | A character's other fields are sought by how numbers stand among the near characters and over a session | METHOD | #lodestar #l6 |
 | 578 | 2026-11-24 | A read round's plan travels in the watch block (probe_plan, version 2); a plan the round does not know is a refusal | DECIDED | #lodestar #launcher |
 | 579 | 2026-11-24 | Two neighbouring 32-bit numbers often pass for an address by size alone | METHOD | #lodestar |
+| 580 | 2026-11-24 | The capture plans for a normal playthrough: 25 checkpoints, nine S1 routes, three of them v0.1's golden routes | DECIDED | #design #spikes #roster |
 
 ## Entries
 
@@ -8713,3 +8714,14 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 
 - Read as one eight-byte word, a kind's number beside its model's looks like an address by its size. The survey
   takes a word for an address only if it lies in the image or near where the game's objects were met.
+
+### 580. The capture plans for a normal playthrough: 25 checkpoints, nine S1 routes, three of them v0.1's golden routes
+
+`2026-11-24` · DECIDED · `#design` `#spikes` `#roster` · refs: O58, DESIGN §16.1, DESIGN §7.8, MEM §6.3, S6.3.s, S10.2.c
+
+- docs/design/spikes/capture-plans.md (roadmap S6.3.s, drafted by an agent of Engine's and reviewed) plans S1, S2,
+  S6 and the roster's captures as "when the player next reaches X, this check runs and records Y", with no save
+  kept or loaded (O58 as amended). v0.1's three golden routes are the road and gate, a camp fight and the first
+  boss fight, mirroring Augur's synthetic routes (WHY§225). It lists 19 open points (S6.3.v) and found the
+  design still speaking of prepared saves in MEM §12.12, DESIGN §7.8 and DATA §3.2 risk 6, which now carry dated
+  notes. The goldens may carry the character's game numbers by the owner's standing word on uploads.

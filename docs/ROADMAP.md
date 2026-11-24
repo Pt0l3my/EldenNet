@@ -376,10 +376,13 @@ O46 on 2026-11-16), and the research into the game's data that went ahead before
   - refs: O43, O51, O59, WHY§55
   - gives: `docs/research/eldenring/leads/npc-flags.json`: 55 blocks (status, questline stages, 112 progress steps)
     and 6 endings, numbers only, unverified; bound to the roster's ids later, never by the slug.
-- s The capture plans, in our own words: S6's expectation scripts, the S1 and S2 capture routes and the checkpoint list, the roster batch by batch [next]
+- s The capture plans, in our own words: S6's expectation scripts, the S1 and S2 capture routes and the checkpoint list, the roster batch by batch [done]
   - needs: j
-  - refs: O58, DATA, MEM§6.3, DESIGN§7.8, DESIGN§16.1
+  - refs: O58, DATA, MEM§6.3, DESIGN§7.8, DESIGN§16.1, WHY§580
   - gives: what each live check records, where and when, so the captures start the day the first build runs.
+    Written on 2026-11-24 (docs/design/spikes/capture-plans.md; WHY§580), for a normal playthrough (O58 as amended):
+    25 checkpoints, nine S1 routes (the first three v0.1's golden routes, S10.2.c), S2's routes and the ten boss
+    fights, S6's scripts in MEM §6.3's shape, the roster in ten base-game batches, and 19 open points (S6.3.v).
 - t The owner keeps a save before each named boss fight and each later form of a roster NPC, on their own PC, never committed and never taken online [done]
   - needs: j
   - refs: O58, DESIGN§7.8
@@ -388,6 +391,12 @@ O46 on 2026-11-16), and the research into the game's data that went ahead before
 - u The gear's names: which text entries hold the weapon and armour names, checked on the owner's data (DataPiler 0.2.40, jobs en-0041 to en-0043) [done]
   - refs: DATA§3.1, DESIGN§4.5, WHY§105
   - gives: 2026-11-16: WeaponName (11) and ProtectorName (12) name 80.0% and 76.4% of the rows by row id, and no row needs the expansion's layers; DESIGN §4.5 lists them, and S2 checks them in game.
+- v The capture plans' open points: telling Marks apart in normal play, S6's wide watch without GraceUI, v0.1's recording form for S1 (the list's distance and length, the player set's types, each character's class), the S1 and S2 reports, S2's text match without text [next]
+  - needs: s
+  - refs: WHY§580
+  - gives: the 19 open points listed at the end of docs/design/spikes/capture-plans.md, each settled or put to the
+    owner before the capture it blocks; the design's stale "prepared saves" wording carries dated notes since
+    2026-11-24.
 
 ## S7 Open items
 
