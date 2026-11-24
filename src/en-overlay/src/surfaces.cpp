@@ -606,8 +606,10 @@ Caret paint_box(Painter& p, const Faces& f, const Display& d, const proto::ChatB
   const float inner = 6.0f * s;
   const float room = std::max(1.0f, fx1 - fx0 - 2 * inner);
   const std::size_t cursor = std::min(edit.cursor, edit.text.size());
-  const float caret_at = measure(f.serif, px, u32(edit.text.substr(0, cursor)));
-  const float total = measure(f.serif, px, u32(edit.text));
+  // The caret stands a pixel clear of the glyph before it (the preview shots showed it touching the last letter).
+  const float gap = cursor > 0 ? std::max(1.0f, std::round(s)) : 0.0f;
+  const float caret_at = measure(f.serif, px, u32(edit.text.substr(0, cursor))) + gap;
+  const float total = measure(f.serif, px, u32(edit.text)) + (cursor == edit.text.size() ? gap : 0.0f);
   if (caret_at - scroll > room - 2.0f * s) scroll = caret_at - room + 2.0f * s;
   if (caret_at - scroll < 0) scroll = caret_at;
   scroll = std::clamp(scroll, 0.0f, std::max(0.0f, total - room + 2.0f * s));

@@ -261,8 +261,8 @@ TEST_CASE("surfaces: the box: header, history, input, selection and the caret, s
   CHECK_MESSAGE(valid(p, panel.width, panel.height, why), why);
   CHECK(scroll == 0);  // the line fits
   CHECK(caret.height > 0);
-  // The caret after the last glyph: the field's left, its inner pad, then 16 glyphs of 24 px (12 px each).
-  CHECK(caret.x == doctest::Approx(10 + 6 + 16 * 12).epsilon(0.01));
+  // The caret after the last glyph: the field's left, its inner pad, 16 glyphs of 24 px (12 px each), a pixel clear.
+  CHECK(caret.x == doctest::Approx(10 + 6 + 16 * 12 + 1).epsilon(0.01));
   bool white = false;
   bool atlas = false;
   for (const GraceUiDrawCommand& c : p.commands()) {
