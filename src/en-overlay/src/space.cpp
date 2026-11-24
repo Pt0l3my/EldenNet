@@ -977,6 +977,143 @@ json usage_body(const SpaceFacts& f) {
   return json{{"tiles", std::move(tiles)}, {"sentence", hour_words(u)}};
 }
 
+// ---- System › Performance and System › Traces (space.hpp): EldenNet's own figures alone, in our words and numbers.
+
+// A step's time as Performance shows it: "0.05 ms" under 10 ms, "12.3 ms" under a second, else in seconds.
+std::string step_of(std::uint64_t us) {
+  if (us >= 1'000'000) return seconds_of(static_cast<std::int64_t>(us / 1000));
+  char text[32];
+  std::snprintf(text, sizeof text, us < 10'000 ? "%.2f ms" : "%.1f ms", static_cast<double>(us) / 1000.0);
+  return text;
+}
+
+json performance_body(const SpaceFacts& f) {
+  if (f.perf == nullptr) return json::object();
+  const proto::PerfView& p = *f.perf;
+  // The tiles: the core's step and the reader's, each once it has run (absence is silent).
+  json tiles = json::array();
+  if (p.core.steps != 0) tiles.push_back(item("The core's steps, p99", step_of(p.core.p99_us)));
+  if (p.reader.steps != 0) tiles.push_back(item("Reading the game, p99", step_of(p.reader.p99_us)));
+  // Budgets: C3's limits for the reader's step (the task), beside its figures; within passes, over warns.
+  json checks = json::array();
+  if (p.reader.steps != 0) {
+    const auto limit = [&](std::string_view label, std::uint64_t us, std::uint64_t max) {
+      const bool within = us <= max;
+      checks.push_back(check(label, within ? "pass" : "warn",
+                             step_of(us) + (within ? ", within its " : ", over its ") + step_of(max) + " limit"));
+    };
+    limit("Reading the game: the mean step", p.reader.sum_us / p.reader.steps, proto::kReaderMeanUs);
+    limit("Reading the game: 99 steps in 100", p.reader.p99_us, proto::kReaderP99Us);
+  }
+  // Tasks: a row per kind of step that has run.
+  json rows = json::array();
+  const auto task = [&](std::string_view name, const proto::StepTimes& t) {
+    if (t.steps == 0) return;
+    rows.push_back(json{{"task", name},
+                        {"steps", grouped(t.steps)},
+                        {"mean", step_of(t.sum_us / t.steps)},
+                        {"p99", step_of(t.p99_us)},
+                        {"longest", step_of(t.max_us)}});
+  };
+  task("Reading the game: each step", p.reader);
+  task("Reading the game: each reading built", p.reading);
+  task("The core: each step", p.core);
+  json columns = json::array({column("task", "Task"), column("steps", "Steps", true), column("mean", "Mean", true),
+                              column("p99", "p99", true), column("longest", "Longest", true)});
+  // Storage, in words: no database in this version; the conversations' log in memory, once the core's is known.
+  json items = json::array();
+  items.push_back(item("Database", "None in this version: what is said stays in memory until the game closes"));
+  if (p.log_known) {
+    std::string held = grouped(p.log_entries) + (p.log_entries == 1 ? " entry" : " entries") +
+                       " from this session's conversations, " + grouped(p.log_capacity) + " at most";
+    if (p.log_dropped != 0) held += "; the " + grouped(p.log_dropped) + " oldest gave way to newer ones";
+    items.push_back(item("Kept in memory", std::move(held)));
+  }
+  json body = json::object();
+  body["tiles"] = std::move(tiles);
+  body["budgets"] = json{{"checks", std::move(checks)}};
+  body["tasks"] = json{{"columns", std::move(columns)}, {"rows", std::move(rows)}};
+  body["storage"] = json{{"items", std::move(items)}};
+  return body;
+}
+
+// Whether the Conversation job's model runs on a local provider (this PC, or one of the home network), for C5's
+// targets; a cloud provider's otherwise, or before EldenNet knows (the default presets are cloud ones, O88).
+bool local_dialogue(const SpaceFacts& f) {
+  if (f.ai == nullptr) return false;
+  const AiSlot* s = slot_of(*f.ai, proto::kDialogue);
+  const AiProvider* p = s != nullptr ? provider_of(*f.ai, s->provider) : nullptr;
+  return p != nullptr && !p->cloud;
+}
+
+// A target as the sentence gives it: "1.6 s".
+std::string target_of(std::int64_t ms) {
+  char text[32];
+  std::snprintf(text, sizeof text, "%.1f s", static_cast<double>(ms) / 1000.0);
+  return text;
+}
+
+// Traces' sentence, one line in game: the session's first pages against C5's targets for where the Conversation job's
+// model runs; with no line shown yet, the calls for one that ended with nothing on screen (AI › Requests says why).
+std::string traces_words(const proto::TraceSummary& s, bool local) {
+  if (s.lines == 0) {
+    if (s.unshown == 0) return "No line has reached the screen yet this session.";
+    return "No line has reached the screen yet this session: " + calls_counted(s.unshown, "call") +
+           (s.unshown == 1 ? " for a line" : " for lines") + " ended with no page shown. AI › Requests says why.";
+  }
+  const proto::PageTargets t = local ? proto::kLocalTargets : proto::kCloudTargets;
+  const auto against = [](std::int64_t ms, std::int64_t target) {
+    return std::string(ms <= target ? "is within " : "is over ") + target_of(target);
+  };
+  const char* model = local ? " for a local model" : " for a cloud model";
+  if (s.first_page_p95_ms < 0) {
+    return std::string("Against the target") + model + ", the median first page " +
+           against(s.first_page_median_ms, t.median_ms) + ".";
+  }
+  return std::string("Against the targets") + model + ", the median first page " +
+         against(s.first_page_median_ms, t.median_ms) + " and the 95th percentile " +
+         against(s.first_page_p95_ms, t.p95_ms) + ".";
+}
+
+json traces_body(const SpaceFacts& f) {
+  if (f.traces == nullptr) return json::object();
+  const proto::TraceSummary& s = f.traces->summary;
+  json tiles = json::array();
+  if (s.first_page_median_ms >= 0) tiles.push_back(item("First page, median", seconds_of(s.first_page_median_ms)));
+  if (s.first_page_p95_ms >= 0) tiles.push_back(item("First page, 95th percentile", seconds_of(s.first_page_p95_ms)));
+  if (s.first_token_median_ms >= 0) tiles.push_back(item("First token, median", seconds_of(s.first_token_median_ms)));
+  // The lines shown, of the calls for one when some were not (still waiting, or ended with no page).
+  json lines = item("Lines this session", grouped(s.lines));
+  if (s.calls > s.lines) lines["unit"] = "of " + grouped(s.calls) + " shown";
+  tiles.push_back(std::move(lines));
+  // The table: a row per line's call kept, newest first, every time from its send; none of its text, its speaker, its
+  // provider or its model.
+  json rows = json::array();
+  for (const proto::TraceRow& r : f.traces->rows) {
+    json row{{"time", clock_of(r.at_ms)}, {"kind", proto::words(r.kind)}};
+    if (const char* job = slot_words(r.slot); *job != '\0') row["slot"] = job;
+    const auto put = [&](const char* id, std::int64_t ms) {
+      if (ms >= 0) row[id] = seconds_of(ms);
+    };
+    put("queue", r.queue_ms);
+    put("first_token", r.first_token_ms);
+    put("first_page", r.first_page_ms);
+    put("total", r.total_ms);
+    if (const char* v = proto::words(r.verdict); *v != '\0') row["verdict"] = v;
+    rows.push_back(std::move(row));
+  }
+  json columns = json::array({column("time", "Time"), column("kind", "Kind"), column("slot", "Job"),
+                              column("queue", "Queue", true), column("first_token", "First token", true),
+                              column("first_page", "First page shown", true), column("total", "Total", true),
+                              column("verdict", "Verdict")});
+  json body = json::object();
+  body["tiles"] = std::move(tiles);
+  body["sentence"] = traces_words(s, local_dialogue(f));
+  body["columns"] = std::move(columns);
+  body["rows"] = std::move(rows);
+  return body;
+}
+
 // GraceUI's framework topic (D188): the pages greyed, each with its words. At L1 Home and the AI pages (PAGES §4.4; System
 // and Settings stay usable), with the banner's own words (O95: one form, en-core's "EldenNet inactive: …"); at L2, or
 // with no healthy model, every page stays usable and the AI pages lead with the cause (ai.status).
@@ -1384,10 +1521,12 @@ std::uint64_t interval_of(std::string_view topic) noexcept {
   if (topic == kReportTopic) return 1000;  // its readings' count and its log's lines change at every wake
   if (topic == kCallsTopic) return 500;     // a reply's first token, its pages and its end come close together
   if (topic == kUsageTopic) return 1000;    // GraceUI DESIGN §6.5: at most once a second
+  if (topic == kPerformanceTopic) return 1000;  // its steps' counts move at every wake
+  if (topic == kTracesTopic) return 500;        // as `calls`: a line's first token, its first page and its end
   return 0;  // on change
 }
 
-constexpr std::array<std::string_view, 26> kStates = {
+constexpr std::array<std::string_view, 28> kStates = {
     "settings",
     "status",
     "errors",
@@ -1413,7 +1552,9 @@ constexpr std::array<std::string_view, 26> kStates = {
     kContentTopic,
     kReportTopic,
     kCallsTopic,
-    kUsageTopic};
+    kUsageTopic,
+    kPerformanceTopic,
+    kTracesTopic};
 
 std::string frame_topic(std::string_view frame) {
   const json f = json::parse(frame, nullptr, false);
@@ -2224,6 +2365,8 @@ json Space::body(std::string_view topic, const SpaceFacts& facts) const {
   if (topic == kReportTopic) return report_body(facts);
   if (topic == kCallsTopic) return calls_body(facts);
   if (topic == kUsageTopic) return usage_body(facts);
+  if (topic == kPerformanceTopic) return performance_body(facts);
+  if (topic == kTracesTopic) return traces_body(facts);
   if (topic == kDocsList) return docs_list_body();
   if (topic.rfind(std::string(kDocsFamily) + "/", 0) == 0) {
     return docs_body(topic.substr(kDocsFamily.size() + 1), facts);

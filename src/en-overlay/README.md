@@ -238,7 +238,8 @@ game's own text entry is not read in v0.1.
   the frame's copy of the value overwritten, and the poll buffer's after each command). An argument of the wrong type is refused as `invalid_value`.
 - **What it publishes and when**: nothing for a topic nobody watches; a state topic when it is watched (again for each
   new watch) and when its body changes, no oftener than its rate (`status`, `providers` and `selftest` 4 a second,
-  `calls` twice a second, `system.status`, `health` and `usage` once a second, the rest on change); the logs stream
+  `calls` and `traces` twice a second, `system.status`, `system.performance`, `health` and `usage` once a second, the
+  rest on change); the logs stream
   from its oldest row held, in batches of 100, then each new row once a second.
 
 ## The Characters pages and the profile editor (`characters.hpp`; PAGES §4.6.4, NPC §4.7; S7.2.b)
@@ -378,6 +379,34 @@ en-proto's `CallsView`, `ai_calls()`) and Pause AI as the core holds it (`SpaceF
   `models.list` are refused `not_now` in en-proto's words (kAiPausedSelfTest, kAiPausedModelList), the AI pages lead
   with the pause, and Requests is greyed at L1 with the other AI pages.
 
+## System › Performance and System › Traces (`system.performance`, `system.traces`; PAGES §4.6.7; S11.4.a)
+
+Both live (D252), in System after Status (Status, Performance, Traces, Logs, as PAGES §4.2.1 has them), each on one
+topic, with EldenNet's own figures alone: never one of GraceUI's or the game's as EldenNet's, and a figure with no
+source in this version left out (absence is silent).
+
+- **Performance** (`system.performance`, `SpaceFacts::perf`, en-proto's `PerfView`, which the DLL fills each wake from
+  the reader's histograms on T2, its own of the core's steps on T6 and the core's log in memory): This session,
+  `stat_tiles`, the core's steps' p99 and the reader's, each once it has run; Budgets, a `check_list` on the `budgets`
+  member, C3's limits for the reader's step beside its figures (its mean within 0.15 ms, its p99 within 0.5 ms: passed
+  within, a warning over); Tasks, a table on `tasks` (Task, Steps, Mean, p99, Longest), a row for the reader's every
+  step, each reading it built and the core's every step, a kind that has not run left out; Storage, a key-value list on
+  `storage`, in words: no database in this version, and the conversations' log in memory (its entries, at most 4,096,
+  and those that gave way). A p99 is its histogram bucket's upper bound (up to a fifth high, never low); the mean and
+  the longest are exact. No frame cost (EldenNet registers no callback on GraceUI's frame in this version: its panels
+  are lists T6 submits, which GraceUI draws) and no memory (EldenNet counts none), so PAGES' tiles for them wait for a
+  source; nor C3's other limits (the render feed, the panels, the callback, the frame rate). Related: Status, Traces.
+- **Traces** (`system.traces`, on `traces`: `SpaceFacts::traces`, en-proto's `TracesView`, which en-core's calls'
+  record keeps with its rows, `ai_traces()`): This session, `stat_tiles` (First page, median; First page, 95th
+  percentile, from 20 lines shown on; First token, median; Lines this session, "of N shown" when some calls for a line
+  showed none) and a sentence, one line in game, holding the median and the 95th percentile against C5's targets for
+  where the Conversation job's model runs (a cloud provider's 1.6 s and 3.0 s, a local one's 2.5 s and 4.5 s); Lines, a
+  table of each line's call kept, newest first (Time, Kind in PAGES' words, Job as Requests shows it, Queue, First
+  token, First page shown, Total, Verdict: quick within 1.6 s, acceptable within 3.0 s, slow beyond, a call-out's by
+  1.5 s and 2.5 s, none for an own-initiative line or one with no page), a time it does not have left out. No text at
+  all: no line, prompt, speaker, provider or model. Related: AI › Requests, AI › Self-test, Settings › Developer.
+  Requests and Self-test name Traces among their Related now, and Status names Performance, as PAGES gives them.
+
 ## Tests
 
 `en_overlay_tests` (doctest): in every build, the Characters pages (`test_characters.cpp`: the page data with its
@@ -405,7 +434,11 @@ columns and words, the sort keys left out where a call has none, Home's 20 witho
 cost only where reported, nothing without a record, no address, key or path in a frame, a model id shaped like a path
 left out, the body within the frame to a page with the newest text kept), Pause AI (its command handed over, refused
 without a boolean, `status.ai_paused` and the Status card's line, the leads, the self-test and the model list refused
-in en-proto's words), and in the Linux builds the five fixture states'
+in en-proto's words), Performance and Traces (`tests/system_fixture.hpp`: the tiles, C3's limits beside the figures with
+a warning over one, the tasks and the storage in words, a kind of step not yet run left out, no frame or memory figure;
+the traces' tiles and sentence against the cloud and the local targets, the 95th percentile only from 20 lines, the
+table in PAGES' columns, a time not known left out; nothing published without facts, the rates, and no text, address,
+path or SteamID in any frame of either), and in the Linux builds the five fixture states'
 `tests/pages/<state>/topics.json` (EN_UPDATE_FIXTURES=1 writes them anew). In the
 Windows builds, under Wine, the connection against a fake GraceUI of our own (`tests/fake_grace.hpp`; graceui-sys has no
 C mock): ABI 1.7's table, answering as GraceUI 0.2.46 answers and checking as it checks (connect's answers, notices

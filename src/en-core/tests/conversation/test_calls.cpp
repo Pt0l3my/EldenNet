@@ -175,10 +175,10 @@ TEST_CASE("a reply: waiting, then shown with its displayed text alone, once a pa
   CHECK(only(calls).total_ms == -1);
   calls.event(started(7, "invented-cloud", "invented-model-a"), 5050);
   CHECK(only(calls).provider == "invented-cloud");
-  calls.shown(1, 1, "The lamp burns low.");  // the first page shows while the answer streams
+  calls.shown(1, 1, "The lamp burns low.", 5600);  // the first page shows while the answer streams
   CHECK(only(calls).outcome == CallOutcome::Shown);
   calls.event(ended(7, ErrorClass::None, {}, 812, 9, 0.0004), 5950);
-  calls.shown(1, 1, "It still burns.");
+  calls.shown(1, 1, "It still burns.", 6100);
   const proto::CallRow& r = only(calls);
   CHECK(r.outcome == CallOutcome::Shown);
   CHECK(r.text == "The lamp burns low. It still burns.");
@@ -205,7 +205,7 @@ TEST_CASE("a reply answered and never shown reads not shown, and turns shown whe
   calls.event(ended(7), 900);
   CHECK(only(calls).outcome == CallOutcome::NotShown);
   CHECK(only(calls).text.empty());
-  calls.shown(1, 1, "Late, but shown.");  // pacing: the page shows after the stream ended
+  calls.shown(1, 1, "Late, but shown.", 1500);  // pacing: the page shows after the stream ended
   CHECK(only(calls).outcome == CallOutcome::Shown);
   // Stopped before anything showed (its conversation closed): not shown, the class kept for the drawer.
   calls.note(sent_note(8, 1, 2), 2000);
@@ -236,7 +236,7 @@ TEST_CASE("each failure in PAGES' words, counted while it stands") {
   // A reply that broke after its text came keeps what came: shown once its page is, and no longer a failure.
   CHECK(end_as(8, ErrorClass::TotalTimeout).outcome == CallOutcome::TimedOut);
   CHECK(calls.view().usage.failures == 7);
-  calls.shown(1, 8, "Half a thought.");
+  calls.shown(1, 8, "Half a thought.", 9000);
   CHECK(calls.view().rows.front().outcome == CallOutcome::Shown);
   CHECK(calls.view().rows.front().error == ErrorClass::TotalTimeout);
   CHECK(calls.view().usage.failures == 6);
@@ -258,7 +258,7 @@ TEST_CASE("a fallback model's answer, shown: fallback model, with why the first 
                      attempt("invented-cloud", "invented-model-b")}),
               3000);
   CHECK(only(calls).outcome == CallOutcome::NotShown);  // until a page shows
-  calls.shown(1, 1, "From the second model.");
+  calls.shown(1, 1, "From the second model.", 3100);
   const proto::CallRow& r = only(calls);
   CHECK(r.outcome == CallOutcome::FallbackModel);
   CHECK(r.fallback);
@@ -275,7 +275,7 @@ TEST_CASE("a regeneration joins its reply's row: the attempts and tokens summed,
   calls.event(ended(7, ErrorClass::Cancelled, {}, 300, 12), 1450);    // the first, cancelled for it
   CHECK(only(calls).outcome == CallOutcome::Waiting);
   calls.event(ended(8, ErrorClass::None, {}, 340, 20), 2400);
-  calls.shown(1, 1, "A better answer.");
+  calls.shown(1, 1, "A better answer.", 2500);
   const proto::CallRow& r = only(calls);
   CHECK(r.outcome == CallOutcome::Shown);
   CHECK(r.attempts == 2);
@@ -292,7 +292,7 @@ TEST_CASE("an answer a check withheld reads not shown, and the persona's own lin
   calls.note(sent_note(7, 1, 1), 0);
   calls.note(CallNote{CallNote::What::Withheld, 7, 1, 1, {}, {}}, 300);  // the lint's deflection
   calls.event(ended(7, ErrorClass::Cancelled), 320);
-  calls.shown(1, 1, "The persona's own deflection.");
+  calls.shown(1, 1, "The persona's own deflection.", 400);
   CHECK(only(calls).outcome == CallOutcome::NotShown);
   CHECK(only(calls).text.empty());
 }
@@ -361,13 +361,13 @@ TEST_CASE("PV4 and PV5: no unshown answer, prompt, key, address or path in any r
 TEST_CASE("a page's text is cut within its bound, at a character's start") {
   CallRecord calls;
   calls.note(sent_note(7, 1, 1), 0);
-  calls.shown(1, 1, std::string(1500, 'a'));
+  calls.shown(1, 1, std::string(1500, 'a'), 100);
   // The second page, after its space, has 547 bytes' room: its two-byte character at bytes 546 and 547 does not fit.
-  calls.shown(1, 1, std::string(546, 'b') + "\xC3\xA9" + "cc");
+  calls.shown(1, 1, std::string(546, 'b') + "\xC3\xA9" + "cc", 200);
   const std::string& text = only(calls).text;
   CHECK(text.size() == proto::kCallTextMaxBytes - 1);
   CHECK(text.back() == 'b');
-  calls.shown(1, 1, "More.");  // full: nothing more is added
+  calls.shown(1, 1, "More.", 300);  // full: nothing more is added
   CHECK(only(calls).text.size() == proto::kCallTextMaxBytes - 1);
 }
 
@@ -414,6 +414,186 @@ TEST_CASE("a request refused before it left (Pause AI) is no call: its row and w
   calls.withdraw(8);
   CHECK(only(calls).outcome == CallOutcome::NotShown);
   CHECK(calls.view().usage.calls == 1);
+}
+
+// ---- System › Traces (en-proto's traces.hpp): the lines among the rows, their times and verdicts, the session's ----
+
+namespace {
+
+const proto::TraceRow& only_trace(const CallRecord& calls) {
+  REQUIRE(calls.traces().rows.size() == 1);
+  return calls.traces().rows.front();
+}
+
+// A reply's request ended at `end_ms`: the client began it `wait_ms` after it was sent and sent its first attempt
+// `sent_ms` after that; its first text came 400 ms after its start, its end 900 ms after it.
+proto::LlmEvent ended_after(proto::RequestId id, std::int64_t sent_ms, ErrorClass error = ErrorClass::None) {
+  proto::LlmEvent e = ended(id, error);
+  e.chat->attempts.front().sent_at = std::chrono::milliseconds(sent_ms);
+  return e;
+}
+
+}  // namespace
+
+TEST_CASE("a reply's trace: its queue, first token, first page shown and total from its send, its verdict, no text") {
+  CallRecord calls;
+  calls.note(sent_note(7, 1, 1), 5000);
+  // Waiting: the line's row with its kind and job, and none of its times yet.
+  proto::TraceRow t = only_trace(calls);
+  CHECK(t.id == only(calls).id);
+  CHECK(t.at_ms == 5000);
+  CHECK(t.kind == proto::LineKind::Reply);
+  CHECK(t.slot == "dialogue");
+  CHECK(t.queue_ms == -1);
+  CHECK(t.first_page_ms == -1);
+  CHECK(t.verdict == proto::LineVerdict::None);
+  CHECK(calls.traces().summary.calls == 1);
+  CHECK(calls.traces().summary.lines == 0);
+  calls.event(started(7, "invented-cloud", "invented-model-a"), 5080);
+  calls.shown(1, 1, "The lamp burns low.", 5650);  // its first page while it streams
+  t = only_trace(calls);
+  CHECK(t.first_page_ms == 650);
+  CHECK(t.verdict == proto::LineVerdict::Quick);
+  // Its end, 980 ms after its send: the client began it 80 ms after (its end less its 900) and sent it 30 ms later.
+  calls.event(ended_after(7, 30), 5980);
+  calls.shown(1, 1, "It still burns.", 7000);  // a later page: the first page stays the first's
+  t = only_trace(calls);
+  CHECK(t.queue_ms == 110);
+  CHECK(t.first_token_ms == 480);
+  CHECK(t.first_page_ms == 650);
+  CHECK(t.total_ms == 980);
+  CHECK(only(calls).queue_ms == 110);  // the record's row holds them too, which Requests does not show
+  CHECK(only(calls).first_page_ms == 650);
+  const proto::TraceSummary& s = calls.traces().summary;
+  CHECK(s.calls == 1);
+  CHECK(s.lines == 1);
+  CHECK(s.unshown == 0);
+  CHECK(s.first_page_median_ms == 650);
+  CHECK(s.first_page_p95_ms == -1);  // one line is no 95th percentile
+  CHECK(s.first_token_median_ms == 480);
+}
+
+TEST_CASE("only lines are traced: the self-test, a model list and a profile draft are not, nor counted") {
+  CallRecord calls;
+  const CallStart latency{"selftest", CallPurpose::SelfTest, ""};
+  const CallStart list{"", CallPurpose::ModelList, ""};
+  calls.event(started(11, "invented-cloud", "invented-model-a"), 1200, &latency);
+  calls.event(ended(11), 2100, &latency);
+  calls.event(listed(2, "invented-cloud"), 3000, &list);
+  calls.sent(3, CallStart{"draft", CallPurpose::ProfileDraft, ""}, 4000);
+  calls.sent(4, CallStart{"bark_live", CallPurpose::OwnInitiative, "Soldier"}, 4500);
+  calls.event(ended(4), 5400);
+  CHECK(calls.view().rows.size() == 4);
+  REQUIRE(calls.traces().rows.size() == 1);
+  const proto::TraceRow& own = calls.traces().rows.front();
+  CHECK(own.kind == proto::LineKind::OwnInitiative);
+  CHECK(own.slot == "bark_live");
+  CHECK(own.queue_ms == 0);
+  CHECK(own.verdict == proto::LineVerdict::None);
+  CHECK(calls.traces().summary.calls == 1);
+  CHECK(calls.traces().summary.unshown == 1);  // it ended, and nothing of it reached the screen
+}
+
+TEST_CASE("a line with no page: no first page and no verdict, counted unshown until a page comes after its end") {
+  CallRecord calls;
+  calls.note(sent_note(7, 1, 1), 0);
+  calls.event(ended_after(7, 0, ErrorClass::FirstTokenTimeout), 6000);
+  proto::TraceRow t = only_trace(calls);
+  CHECK(t.first_page_ms == -1);
+  CHECK(t.first_token_ms == -1);
+  CHECK(t.total_ms == 6000);
+  CHECK(t.queue_ms == 5100);  // the client began it at 5100 (its end less its 900): it waited that long for its turn
+  CHECK(t.verdict == proto::LineVerdict::None);
+  CHECK(calls.traces().summary.unshown == 1);
+  CHECK(calls.traces().summary.lines == 0);
+  // A reply answered whose page shows after its end (pacing): a line shown, slow at 3.4 s.
+  calls.note(sent_note(8, 1, 2), 10'000);
+  calls.event(ended_after(8, 0), 10'900);
+  CHECK(calls.traces().summary.unshown == 2);
+  calls.shown(1, 2, "Late, but shown.", 13'400);
+  CHECK(calls.traces().rows.front().verdict == proto::LineVerdict::Slow);
+  CHECK(calls.traces().summary.unshown == 1);
+  CHECK(calls.traces().summary.lines == 1);
+  // A request the model client did not take never left: no queue.
+  calls.note(sent_note(9, 1, 3), 20'000);
+  calls.not_sent(9, ErrorClass::NoHealthyProvider, 20'001);
+  CHECK(calls.traces().rows.front().queue_ms == -1);
+  CHECK(calls.traces().rows.front().total_ms == 1);
+  CHECK(calls.traces().summary.unshown == 2);
+  CHECK(calls.traces().summary.calls == 3);
+}
+
+TEST_CASE("an answer withheld: the persona's own line's page is the first page, the row's text stays empty") {
+  CallRecord calls;
+  calls.note(sent_note(7, 1, 1), 0);
+  calls.note(CallNote{CallNote::What::Withheld, 7, 1, 1, {}, {}}, 300);
+  calls.event(ended_after(7, 0, ErrorClass::Cancelled), 320);
+  calls.shown(1, 1, "The persona's own deflection.", 700);
+  CHECK(only(calls).outcome == CallOutcome::NotShown);
+  CHECK(only(calls).text.empty());
+  CHECK(only_trace(calls).first_page_ms == 700);
+  CHECK(only_trace(calls).verdict == proto::LineVerdict::Quick);
+  CHECK(calls.traces().summary.lines == 1);
+}
+
+TEST_CASE("a regeneration's trace: the queue its first request's, the times the row's; a withdrawn call leaves none") {
+  CallRecord calls;
+  calls.note(sent_note(7, 1, 1), 1000);
+  calls.note(sent_note(8, 1, 1), 1400);                                // the lint's regeneration
+  calls.event(ended_after(7, 20, ErrorClass::Cancelled), 1450);         // began at 1000 (its end less its 900): +0
+  calls.event(ended_after(8, 50), 2400);
+  calls.shown(1, 1, "A better answer.", 2600);
+  const proto::TraceRow t = only_trace(calls);
+  CHECK(t.queue_ms == 20);
+  CHECK(t.first_token_ms == 900);
+  CHECK(t.total_ms == 1400);
+  CHECK(t.first_page_ms == 1600);
+  CHECK(t.verdict == proto::LineVerdict::Quick);
+  // Pause AI refuses a line's request before it leaves: it was no call, so its trace goes and nothing is counted.
+  calls.sent(9, CallStart{"bark_live", CallPurpose::OwnInitiative, "Soldier"}, 3000);
+  CHECK(calls.traces().rows.size() == 2);
+  CHECK(calls.traces().summary.calls == 2);
+  calls.withdraw(9);
+  CHECK(calls.traces().rows.size() == 1);
+  CHECK(calls.traces().summary.calls == 1);
+}
+
+TEST_CASE("the session's lines: the median from the first, the 95th from the twentieth, the rows as the view keeps") {
+  CallRecord calls;
+  // 25 replies, the n-th's first page at n × 200 ms: the newest 20 rows kept, every line counted.
+  for (proto::ReplyId n = 1; n <= 25; ++n) {
+    const std::uint64_t at = 10'000 * n;
+    calls.note(sent_note(n, 1, n), at);
+    calls.event(ended_after(n, 0), at + 900);
+    calls.shown(1, n, "A line.", at + 200 * n);
+    const proto::TraceSummary& s = calls.traces().summary;
+    CHECK(s.lines == n);
+    if (n < proto::kTraceP95Lines) {
+      CHECK(s.first_page_p95_ms == -1);
+    }
+  }
+  const proto::TracesView& v = calls.traces();
+  REQUIRE(v.rows.size() == proto::kCallsKept);
+  CHECK(v.rows.front().at_ms == 250'000);
+  CHECK(v.rows.back().at_ms == 60'000);
+  CHECK(v.summary.calls == 25);
+  CHECK(v.summary.first_page_median_ms == 2600);  // rank 13 of 25
+  CHECK(v.summary.first_page_p95_ms == 4800);     // rank 24 of 25
+  CHECK(v.summary.first_token_median_ms == 400);
+  CHECK(v.rows.front().verdict == proto::LineVerdict::Slow);    // the 25th, at 5,000 ms
+  CHECK(v.rows[16].verdict == proto::LineVerdict::Acceptable);  // the ninth, at 1,800 ms
+  CHECK(v.rows[17].verdict == proto::LineVerdict::Quick);       // the eighth, at 1,600 ms
+  CHECK(v.rows.back().verdict == proto::LineVerdict::Quick);    // the sixth
+  calls.set_kept(proto::kCallsKeptDeveloper);
+  CHECK(calls.traces().kept == proto::kCallsKeptDeveloper);
+  CHECK(calls.traces().rows.size() == proto::kCallsKept);  // the rows past the view were not kept for it
+  // Other calls never push a line out of the traces.
+  calls.set_kept(proto::kCallsKept);
+  for (proto::RequestId id = 100; id < 200; ++id) {
+    calls.sent(id, CallStart{"draft", CallPurpose::ProfileDraft, ""}, 300'000 + id);
+  }
+  CHECK(calls.traces().rows.size() == proto::kCallsKept);
+  CHECK(calls.traces().rows.front().at_ms == 250'000);
 }
 
 // ---- Through the core: the conversation's notes and commits, and Pause AI ----

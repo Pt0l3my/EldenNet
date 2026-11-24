@@ -64,8 +64,8 @@ stroke  rule          340, 876 1540x130  r5 w1 clip1
 text    gold          365, 896  240x20   clip1 glyphs 22 "Earlier runs this session"
 text    ink.faint    1842, 896    8x25   clip1 glyphs 1 "-"
 text    ink.mute      365, 946  236x25   clip1 glyphs 24 "No earlier run this session."
-fill    ground.2      340,1026 1540x175  r5 clip1
-stroke  rule          340,1026 1540x175  r5 w1 clip1
+fill    ground.2      340,1026 1540x230  r5 clip1
+stroke  rule          340,1026 1540x230  r5 w1 clip1
 text    gold          365,1046   67x20   clip1 glyphs 7 "Related"
 line    rule          365,1076 1490x1    clip1
 text    ink.hi        380,1090   56x28   clip1 glyphs 6 "Models"
@@ -75,6 +75,10 @@ line    rule          365,1131 1490x1    clip1
 text    ink.hi        380,1145   84x28   clip1 glyphs 9 "Providers"
 text    ink.mute      862,1146  624x25   clip1 glyphs 63 "Where EldenNet's model calls go, with whose key, and whether each answers."
 text    gold         1820,1145    9x28   clip1 glyphs 1 "→"
+line    rule          365,1186 1490x1    clip1
+text    ink.hi        380,1200   56x28   clip1 glyphs 6 "Traces"
+text    ink.mute      862,1201  472x25   clip1 glyphs 46 "How long each line took, from its request to the screen."
+text    gold         1820,1200    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 text    ink.faint     340,1045  143x25   glyphs 15 "Not available now"
 fill    ground.well   508,1044   42x28   r3
@@ -82,4 +86,4 @@ stroke  edge          508,1044   42x28   r3 w1
 text    ink.body      516,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     558,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi      1715,  86  168x46   r5 w3 clip1
-# 83 items, 3464 vertices, 7602 indices, 4 commands; check_draw_list: passes
+# 87 items, 3680 vertices, 7926 indices, 4 commands; check_draw_list: passes

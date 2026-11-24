@@ -177,7 +177,10 @@ DWORD WINAPI core_main(void* param) noexcept {
     s.calls.set_kept(s.settings.debug_panel ? en::proto::kCallsKeptDeveloper : en::proto::kCallsKept);
     ai_test_pause(s);
     const auto step = [&](en::core::CoreInput in, std::uint64_t now) {
+      // The core's step alone is timed (System › Performance): what the shell then does with its outputs is not.
+      const std::uint64_t began = mono_us();
       en::core::Outputs out = core->step(std::move(in), now);
+      s.core_us.record(mono_us() - began);
       for (auto& c : out.game) {
         if (rec.on()) rec.put(en::shell::command_line(c, now));
         outbox.push_back(std::move(c));

@@ -1009,6 +1009,66 @@
       }
     ]
   },
+  "system.performance": {
+    "budgets": {
+      "checks": []
+    },
+    "storage": {
+      "items": [
+        {
+          "label": "Database",
+          "value": "None in this version: what is said stays in memory until the game closes"
+        },
+        {
+          "label": "Kept in memory",
+          "value": "0 entries from this session's conversations, 4,096 at most"
+        }
+      ]
+    },
+    "tasks": {
+      "columns": [
+        {
+          "id": "task",
+          "label": "Task"
+        },
+        {
+          "id": "steps",
+          "label": "Steps",
+          "numeric": true
+        },
+        {
+          "id": "mean",
+          "label": "Mean",
+          "numeric": true
+        },
+        {
+          "id": "p99",
+          "label": "p99",
+          "numeric": true
+        },
+        {
+          "id": "longest",
+          "label": "Longest",
+          "numeric": true
+        }
+      ],
+      "rows": [
+        {
+          "longest": "0.21 ms",
+          "mean": "0.01 ms",
+          "p99": "0.05 ms",
+          "steps": "120",
+          "task": "The core: each step"
+        }
+      ]
+    },
+    "tiles": [
+      {
+        "label": "The core's steps, p99",
+        "value": "0.05 ms"
+      }
+    ]
+  },
   "system.status": {
     "checks": [
       {
@@ -1090,6 +1150,54 @@
       }
     ],
     "rows": []
+  },
+  "traces": {
+    "columns": [
+      {
+        "id": "time",
+        "label": "Time"
+      },
+      {
+        "id": "kind",
+        "label": "Kind"
+      },
+      {
+        "id": "slot",
+        "label": "Job"
+      },
+      {
+        "id": "queue",
+        "label": "Queue",
+        "numeric": true
+      },
+      {
+        "id": "first_token",
+        "label": "First token",
+        "numeric": true
+      },
+      {
+        "id": "first_page",
+        "label": "First page shown",
+        "numeric": true
+      },
+      {
+        "id": "total",
+        "label": "Total",
+        "numeric": true
+      },
+      {
+        "id": "verdict",
+        "label": "Verdict"
+      }
+    ],
+    "rows": [],
+    "sentence": "No line has reached the screen yet this session.",
+    "tiles": [
+      {
+        "label": "Lines this session",
+        "value": "0"
+      }
+    ]
   },
   "usage": {
     "sentence": "In the last hour: no own-initiative calls, and no requests sent.",

@@ -145,8 +145,8 @@ cmake --build build-cl
   meet. The page lint and the preview are pinned to the same commit (`tests/pages/lint.py`): the page data is protocol
   1.13's since the quick switches and live pages (GraceUI D252), which an older GraceUI reads past, so the GraceUI
   floor stays 0.2.44 (Docs' document block, D251). `launcher-eldennet-graceui-pages` drives EldenNet's pages through
-  that GraceUI, Content packs, Docs and Bug report among them, `-pause` Pause AI by its quick switch's command and
-  `-talk-calls` AI › Requests after a reply: F5's menu
+  that GraceUI, Content packs, Docs and Bug report among them, `-pause` Pause AI by its quick switch's command,
+  `-talk-calls` AI › Requests after a reply and `-talk-traces` System › Traces and Performance after one: F5's menu
   and, from Linux, a browser of the tests' own (`tests/pages/browser.py`) on GraceUI's server at the port the fake
   game's report names. Every
   GraceUI case sets `GRACEUI_TEST_PORT=free` (GraceUI 0.2.31's D234) in the game's environment, so the test build serves

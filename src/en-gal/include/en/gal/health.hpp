@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "en/proto/perf.hpp"
 #include "en/proto/snapshot.hpp"
 
 namespace en::gal {
@@ -50,6 +51,11 @@ class Histogram {
   std::atomic<std::uint64_t> max_{0};
   std::atomic<std::uint64_t> sum_{0};
 };
+
+// A histogram's figures as System › Performance gives them (en-proto's perf.hpp): its count, sum, 99th percentile (its
+// bucket's upper bound, at most the longest) and longest. Read while another thread records: each figure is its own
+// relaxed load, so they may differ by the steps recorded meanwhile.
+[[nodiscard]] proto::StepTimes step_times(const Histogram& h) noexcept;
 
 // What made a group's state what it is.
 enum class GroupWhy : std::uint8_t {

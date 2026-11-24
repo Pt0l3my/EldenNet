@@ -210,7 +210,8 @@ green squares and the lifecycle's blue ones in the view's mark column (whole squ
 at most the list's ten, none before F11 or after it again), and the DLL's log gives the events the view opened with and,
 every 10 s, how many there have been. `launcher-eldennet-graceui-pages` (S11.4.a): EldenNet's space registered at the
 connect (`pages=0`) and served, at the title screen (in the world the fake player reads as in danger, which keeps
-GraceUI's menu shut): `--press-keys` opens F5's menu on EldenNet's Home, goes to System › Status and Logs, follows Log
+GraceUI's menu shut): `--press-keys` opens F5's menu on EldenNet's Home, goes to System › Status, Performance, Traces
+and Logs, follows Log
 detail's shortcut row to its home on Settings › Developer and changes it there (a command EldenNet answers, applied at
 once), goes back a page to Tools › Bug report, then on to Settings › Developer, Docs and Content packs at the rail's
 foot, and closes the menu; the report gives the page and the focus at each step. Meanwhile the case's `during` hook, a
@@ -265,6 +266,15 @@ PAGES' words (Conversation, reply, the persona as shown, the model on its provid
 tokens the server reported, shown) with the page shown as its text, Home's card's row the same, and no frame of
 `calls` or `usage` holding the line typed, the persona's prompt words or the server's address (PV4, PV2). The pages
 case and the editor case take one more Page Down past AI › Requests on their way to System › Status and Named NPCs.
+`launcher-eldennet-graceui-talk-traces` (PAGES §4.6.7): the same run with a browser reading System › Traces' and
+Performance's topics once the reply is shown: the reply's line (a reply, Conversation, its queue, first token, first
+page shown and total in seconds, a verdict), the tiles (the first page's median, one line, no 95th percentile yet) and
+the sentence against the targets for a local model; EldenNet's own steps (the core's and the reader's p99 as tiles,
+C3's two limits for the reader beside its figures, the three kinds of step) and the conversation's entries in the log
+kept in memory; and no frame of `traces` or `system.performance` holding the line typed, the reply's or the prompt's
+words, the speaker, the provider, the model, the server's address, a path or a SteamID. With Performance and Traces
+in System, the pages case takes two more Page Down from Status to Logs (and sees each page drawn), and the editor case
+and `tools/preview/shoot.py` two more ↓ in the rail on their way to GraceUI's own pages.
 
 The derivation's offline round (part 3) joined it so: `probe-exe`, `probe-exe-slots` and `probe-exe-lint` run the
 Windows `eldennet-engine.exe` under Wine on `fakegame.exe` with `derive-leads.toml` (the fake game's own names under our

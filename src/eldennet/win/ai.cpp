@@ -970,6 +970,8 @@ bool ai_paused(const Shell& s) noexcept { return s.ai_paused; }
 
 const en::proto::CallsView& ai_calls(const Shell& s) noexcept { return s.calls.view(); }
 
+const en::proto::TracesView& ai_traces(const Shell& s) noexcept { return s.calls.traces(); }
+
 void ai_pause_taken(Shell& s, bool on) noexcept {
   en::proto::ffi_guard(en::proto::Component::DllMain, [&] {
     const bool changed = s.ai_paused != on;

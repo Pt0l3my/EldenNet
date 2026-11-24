@@ -243,6 +243,13 @@ After each wake, once T1 has published the connection:
   which `ai_request` hands to `ai_pause` whether or not the AI files are read (`page what=command name=ai.pause key=on
   result=ok`); and the space refuses `selftest.run` and `models.list` itself while paused, in en-proto's
   `kAiPausedSelfTest` and `kAiPausedModelList`, before the DLL would.
+- **System › Traces and Performance** (`shell.cpp`, `overlay.cpp`, `platform.cpp`; PAGES §4.6.7; S11.4.a): each wake
+  `SpaceFacts::traces` is `ai_traces` (the record's lines, the first page shown from the commit of each reply's first
+  page, which `record_step` now times), and `SpaceFacts::perf` a `PerfView` that `fill_perf` makes: the reader's steps
+  and readings from the task's histograms (`step_times`), the core's steps from `Shell::core_us`, C13's histogram that
+  T6 fills around each `Core::step` alone, timed by QPC in µs (`mono_us`), and the core's log in memory (its entries,
+  those dropped, its capacity). Nothing of GraceUI's or the game's: the DLL registers no `on_present` callback, so it
+  has no frame cost to give, and it counts none of its memory.
 - GraceUI gone (`poll` answers not connected or inactive): `overlay lost=1`, and nothing more is called.
 
 ## The watch block and the crash filter (O71, O90)

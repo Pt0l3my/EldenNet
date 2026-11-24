@@ -1,0 +1,108 @@
+# eldennet system.performance: 1920x1080, ui.scale 1.25, scale 1.250, theme grace, the fake face, settings at their defaults
+fill    scrim           0,   0 1920x1080
+fill    ground.1        0,   0 1920x1080
+fill    ground.0        0,   0  300x1080
+text    gold           30,  30  114x35   glyphs 8 "EldenNet"
+text    ink.mute       30,  95   42x30   glyphs 4 "Home"
+line    rule           30, 135  240x1   
+text    ink.mute       30, 145   21x30   glyphs 2 "AI"
+line    rule           30, 185  240x1   
+text    ink.mute       30, 195  106x30   glyphs 10 "Characters"
+line    rule           30, 235  240x1   
+text    ink.hi         30, 245   64x30   glyphs 6 "System"
+text    ink.mute       50, 293   51x25   glyphs 6 "Status"
+fill    tint.select     0, 325  300x40  
+fill    gold            0, 325    3x40  
+text    gold.hi        50, 333   93x25   glyphs 11 "Performance"
+text    ink.mute       50, 373   51x25   glyphs 6 "Traces"
+text    ink.mute       50, 413   34x25   glyphs 4 "Logs"
+line    rule           30, 445  240x1   
+text    ink.mute       30, 455   53x30   glyphs 5 "Tools"
+line    rule           30, 900  240x1   
+text    ink.mute       30, 910   85x30   glyphs 8 "Settings"
+line    rule           30, 950  240x1   
+text    ink.mute       30, 960   42x30   glyphs 4 "Docs"
+line    rule           30,1000  240x1   
+text    ink.mute       30,1010  138x30   glyphs 12 "Content packs"
+fill    ground.well   340,  10  350x35   r3
+text    ink.faint     353,  15   51x25   glyphs 6 "Search"
+text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
+fill    ground.well  1626,  10  148x35   r3
+text    ink.body     1641,  15  118x25   glyphs 13 "Quick switches"
+fill    ground.well  1471,  10  140x35   r3
+text    ink.body     1486,  15  110x25   glyphs 12 "Updates: Live"
+line    rule          300,  55 1620x1   
+text    ink.hi        340,-175  219x45   clip1 glyphs 11 "Performance"
+text    ink.mute      340,-125  692x25   clip1 glyphs 69 "What EldenNet's own work costs this session, beside its limits, and what it keeps."
+line    rule.strong   340, -85 1540x1    clip1
+diamond gold.deep     340, -90   11x11   w1 clip1
+fill    ground.2      340, -60 1540x200  r5 clip1
+stroke  rule          340, -60 1540x200  r5 w1 clip1
+text    gold          365, -40  115x20   clip1 glyphs 11 "This session"
+text    ink.faint    1842, -40    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, -15  793x25   clip1 glyphs 78 "Measured on EldenNet's own threads: none of its code runs in the game's frame in this version."
+fill    ground.3      365,  28  737x90   r3 clip1
+text    ink.mute      380,  38  177x25   clip1 glyphs 18 "The core's steps, p99"
+text    ink.hi        380,  63  100x35   clip1 glyphs 6 "0.10 ms"
+fill    ground.3     1117,  28  737x90   r3 clip1
+text    ink.mute     1132,  38  177x25   clip1 glyphs 18 "Reading the game, p99"
+text    ink.hi       1132,  63  100x35   clip1 glyphs 6 "0.64 ms"
+fill    ground.2      340, 160 1540x215  r5 clip1
+stroke  rule          340, 160 1540x215  r5 w1 clip1
+text    gold          365, 180   67x20   clip1 glyphs 7 "Budgets"
+text    ink.faint    1842, 180    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, 205  667x25   clip1 glyphs 68 "EldenNet's limits for its reader's steps, beside what it measured this session."
+line    rule          365, 240 1490x1    clip1
+text    moss          365, 258   51x25   clip1 glyphs 6 "Passed"
+text    ink.body      503, 256  291x28   clip1 glyphs 26 "Reading the game: the mean step"
+text    ink.mute      814, 258  278x25   clip1 glyphs 27 "0.12 ms, within its 0.15 ms limit"
+line    rule          365, 300 1490x1    clip1
+text    ember         365, 318   59x25   clip1 glyphs 7 "Warning"
+text    ink.body      503, 316  309x28   clip1 glyphs 27 "Reading the game: 99 steps in 100"
+text    ink.mute      832, 318  262x25   clip1 glyphs 25 "0.64 ms, over its 0.50 ms limit"
+fill    ground.2      340, 395 1540x275  r5 clip1
+stroke  rule          340, 395 1540x275  r5 w1 clip1
+text    gold          365, 415   48x20   clip1 glyphs 5 "Tasks"
+text    ink.faint    1842, 415    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, 440  793x25   clip1 glyphs 76 "p99 is the time within which 99 steps in 100 finish. The reader steps about 30 times a second."
+line    rule          365, 475 1490x1    clip1
+text    ink.hi        365, 491  253x28   clip1 glyphs 23 "Reading the game: each step"
+text    ink.mute      862, 493  363x25   clip1 glyphs 28 "117,800  ·  0.12 ms  ·  0.64 ms  ·  4.80 ms"
+line    rule          365, 535 1490x1    clip1
+text    ink.hi        365, 551  338x28   clip1 glyphs 31 "Reading the game: each reading built"
+text    ink.mute      862, 553  346x25   clip1 glyphs 26 "9,600  ·  0.16 ms  ·  0.38 ms  ·  3.90 ms"
+line    rule          365, 595 1490x1    clip1
+text    ink.hi        365, 611  178x28   clip1 glyphs 16 "The core: each step"
+text    ink.mute      862, 613  354x25   clip1 glyphs 27 "80,100  ·  0.02 ms  ·  0.10 ms  ·  6.10 ms"
+fill    ground.2      340, 690 1540x190  r5 clip1
+stroke  rule          340, 690 1540x190  r5 w1 clip1
+text    gold          365, 710   67x20   clip1 glyphs 7 "Storage"
+text    ink.faint    1842, 710    8x25   clip1 glyphs 1 "-"
+line    rule          365, 745 1490x1    clip1
+text    ink.hi        365, 761   75x28   clip1 glyphs 8 "Database"
+text    ink.body      862, 763  608x25   clip1 glyphs 59 "None in this version: what is said stays in memory until the game closes"
+line    rule          365, 805 1490x1    clip1
+text    ink.hi        365, 821  131x28   clip1 glyphs 12 "Kept in memory"
+text    ink.body      862, 823  498x25   clip1 glyphs 51 "37 entries from this session's conversations, 4,096 at most"
+fill    ground.2      340, 900 1540x175  r5 clip1
+stroke  rule          340, 900 1540x175  r5 w1 clip1
+text    gold          365, 920   67x20   clip1 glyphs 7 "Related"
+line    rule          365, 950 1490x1    clip1
+text    ink.hi        380, 964   56x28   clip1 glyphs 6 "Status"
+text    ink.mute      862, 965  599x25   clip1 glyphs 58 "Whether EldenNet is healthy on this PC and game build, and if not, why."
+text    gold         1820, 964    9x28   clip1 glyphs 1 "→"
+line    rule          365,1005 1490x1    clip1
+text    ink.hi        380,1019   56x28   clip1 glyphs 6 "Traces"
+text    ink.mute      862,1020  472x25   clip1 glyphs 46 "How long each line took, from its request to the screen."
+text    gold         1820,1019    9x28   clip1 glyphs 1 "→"
+line    rule          300,1035 1620x1   
+fill    ground.well   340,1044   60x28   r3
+stroke  edge          340,1044   60x28   r3 w1
+text    ink.body      348,1046   44x25   glyphs 5 "Enter"
+text    ink.faint     407,1045   34x25   glyphs 4 "Open"
+fill    ground.well   466,1044   42x28   r3
+stroke  edge          466,1044   42x28   r3 w1
+text    ink.body      474,1046   26x25   glyphs 3 "Esc"
+text    ink.faint     515,1045   34x25   glyphs 4 "Back"
+stroke  gold.hi       362, 947 1496x61   r5 w3 clip1
+# 106 items, 5112 vertices, 10068 indices, 4 commands; check_draw_list: passes

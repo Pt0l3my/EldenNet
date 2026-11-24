@@ -1,0 +1,79 @@
+# eldennet system.traces: 1920x1080, ui.scale 1.25, scale 1.250, theme grace, the fake face, settings at their defaults
+fill    scrim           0,   0 1920x1080
+fill    ground.1        0,   0 1920x1080
+fill    ground.0        0,   0  300x1080
+text    gold           30,  30  114x35   glyphs 8 "EldenNet"
+text    ink.mute       30,  95   42x30   glyphs 4 "Home"
+line    rule           30, 135  240x1   
+text    ink.mute       30, 145   21x30   glyphs 2 "AI"
+line    rule           30, 185  240x1   
+text    ink.mute       30, 195  106x30   glyphs 10 "Characters"
+line    rule           30, 235  240x1   
+text    ink.hi         30, 245   64x30   glyphs 6 "System"
+text    ink.mute       50, 293   51x25   glyphs 6 "Status"
+text    ink.mute       50, 333   93x25   glyphs 11 "Performance"
+fill    tint.select     0, 365  300x40  
+fill    gold            0, 365    3x40  
+text    gold.hi        50, 373   51x25   glyphs 6 "Traces"
+text    ink.mute       50, 413   34x25   glyphs 4 "Logs"
+line    rule           30, 445  240x1   
+text    ink.mute       30, 455   53x30   glyphs 5 "Tools"
+line    rule           30, 900  240x1   
+text    ink.mute       30, 910   85x30   glyphs 8 "Settings"
+line    rule           30, 950  240x1   
+text    ink.mute       30, 960   42x30   glyphs 4 "Docs"
+line    rule           30,1000  240x1   
+text    ink.mute       30,1010  138x30   glyphs 12 "Content packs"
+fill    ground.well   340,  10  350x35   r3
+text    ink.faint     353,  15   51x25   glyphs 6 "Search"
+text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
+fill    ground.well  1626,  10  148x35   r3
+text    ink.body     1641,  15  118x25   glyphs 13 "Quick switches"
+fill    ground.well  1471,  10  140x35   r3
+text    ink.body     1486,  15  110x25   glyphs 12 "Updates: Live"
+line    rule          300,  55 1620x1   
+text    ink.hi        340,  86  119x45   clip1 glyphs 6 "Traces"
+text    ink.mute      340, 136  472x25   clip1 glyphs 46 "How long each line took, from its request to the screen."
+line    rule.strong   340, 176 1540x1    clip1
+diamond gold.deep     340, 171   11x11   w1 clip1
+fill    ground.2      340, 201 1540x235  r5 clip1
+stroke  rule          340, 201 1540x235  r5 w1 clip1
+text    gold          365, 221  115x20   clip1 glyphs 11 "This session"
+text    ink.faint    1842, 221    8x25   clip1 glyphs 1 "-"
+fill    ground.3      365, 264 1490x90   r3 clip1
+text    ink.mute      380, 274  152x25   clip1 glyphs 16 "Lines this session"
+text    ink.hi        380, 299   14x35   clip1 glyphs 1 "0"
+text    ink.body      365, 376  405x25   clip1 glyphs 40 "No line has reached the screen yet this session."
+fill    ground.2      340, 456 1540x155  r5 clip1
+stroke  rule          340, 456 1540x155  r5 w1 clip1
+text    gold          365, 476   48x20   clip1 glyphs 5 "Lines"
+text    ink.faint    1842, 476    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, 501  835x25   clip1 glyphs 81 "Newest first, each time from the line's request; Queue is its wait to leave. No text is ever shown."
+line    rule          365, 536 1490x1    clip1
+text    ink.mute      365, 551  211x25   clip1 glyphs 21 "No line yet this session."
+fill    ground.2      340, 631 1540x230  r5 clip1
+stroke  rule          340, 631 1540x230  r5 w1 clip1
+text    gold          365, 651   67x20   clip1 glyphs 7 "Related"
+line    rule          365, 681 1490x1    clip1
+text    ink.hi        380, 695   75x28   clip1 glyphs 8 "Requests"
+text    ink.mute      862, 696  692x25   clip1 glyphs 69 "Every model call this session and what it cost, without the prompts EldenNet sent."
+text    gold         1820, 695    9x28   clip1 glyphs 1 "→"
+line    rule          365, 736 1490x1    clip1
+text    ink.hi        380, 750   84x28   clip1 glyphs 9 "Self-test"
+text    ink.mute      862, 751  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
+text    gold         1820, 750    9x28   clip1 glyphs 1 "→"
+line    rule          365, 791 1490x1    clip1
+text    ink.hi        380, 805   84x28   clip1 glyphs 9 "Developer"
+text    ink.mute      862, 806  472x25   clip1 glyphs 49 "Options for testing EldenNet and reporting its problems."
+text    gold         1820, 805    9x28   clip1 glyphs 1 "→"
+line    rule          300,1035 1620x1   
+fill    ground.well   340,1044   60x28   r3
+stroke  edge          340,1044   60x28   r3 w1
+text    ink.body      348,1046   44x25   glyphs 5 "Enter"
+text    ink.faint     407,1045   34x25   glyphs 4 "Open"
+fill    ground.well   466,1044   42x28   r3
+stroke  edge          466,1044   42x28   r3 w1
+text    ink.body      474,1046   26x25   glyphs 3 "Esc"
+text    ink.faint     515,1045   34x25   glyphs 4 "Back"
+stroke  gold.hi       362, 678 1496x61   r5 w3 clip1
+# 77 items, 2976 vertices, 6234 indices, 4 commands; check_draw_list: passes

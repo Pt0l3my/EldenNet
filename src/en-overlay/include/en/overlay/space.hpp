@@ -25,7 +25,9 @@
 #include "en/proto/calls.hpp"
 #include "en/proto/content_view.hpp"
 #include "en/proto/llm.hpp"
+#include "en/proto/perf.hpp"
 #include "en/proto/snapshot.hpp"
+#include "en/proto/traces.hpp"
 #include "en/proto/watch.hpp"
 
 namespace en::overlay {
@@ -235,6 +237,12 @@ struct SpaceFacts {
   const proto::CallsView* calls = nullptr;
   // Pause AI for this session (D15), as the core holds it: `status.ai_paused`, the quick switch's state (GraceUI D252).
   bool ai_paused = false;
+  // System › Traces' (en-proto's traces.hpp): the lines among the calls' record's rows and the session's lines summed
+  // up, kept by the same record; null before the DLL keeps one (the topic publishes nothing).
+  const proto::TracesView* traces = nullptr;
+  // System › Performance's (en-proto's perf.hpp): EldenNet's own steps' times and what it keeps, filled by the DLL each
+  // wake; null before it does (the topic publishes nothing).
+  const proto::PerfView* perf = nullptr;
 };
 
 // ---- AI › Requests and Home's Model calls card (PAGES §4.6.1, §4.6.2): the topic `calls`, a member per table (GraceUI
@@ -250,6 +258,23 @@ inline constexpr std::string_view kCallsTopic = "calls";
 inline constexpr std::string_view kUsageTopic = "usage";
 inline constexpr std::size_t kCallsHomeRows = 20;          // Home's card: the last 20 (PAGES §4.6.1)
 inline constexpr std::size_t kCallsBodyMax = 240 * 1024;  // bytes of the body, below GRACEUI_FRAME_TO_PAGE_MAX's
+// ---- System › Performance and System › Traces (PAGES §4.6.7; DESIGN §1.3's C3 and C5): the topics
+// `system.performance` and `traces`, one body each, a member per block that needs its own (GraceUI D185's props.field).
+//
+// - `system.performance`: tiles of EldenNet's own steps' 99th percentiles (the core's, and the reader's, C3's task);
+//   `budgets`, C3's limits for the reader's step beside its figures, a check each (passed within, a warning over);
+//   `tasks`, a row per kind of step this session (steps, mean, p99, longest); `storage`, in words, what this version
+//   keeps (no database; the conversations' log in memory, its entries and those that gave way). Only what EldenNet
+//   measured of its own work: no frame cost (it has no callback on GraceUI's frame in this version) and no memory (it
+//   counts none), and a row whose kind of step has not run yet is left out. No path, no SteamID.
+// - `traces`: tiles of the session's first pages (the median, and the 95th percentile from kTraceP95Lines lines on),
+//   the first tokens' median and the lines shown; a sentence that holds them against C5's targets for where the
+//   Conversation job's model runs (a cloud provider's, or a local one's), with the lines' verdicts counted; and the
+//   table, a row per line's call kept (time, kind, job, queue, first token, first page shown, total, verdict), newest
+//   first, a time it does not have left out. No text at all: no line, no prompt, no speaker, no provider or model.
+inline constexpr std::string_view kPerformanceTopic = "system.performance";
+inline constexpr std::string_view kTracesTopic = "traces";
+
 // Pause AI for this session (D15; GraceUI D252's session switch): `{"on": bool}`, answered at once; the DLL hands it to
 // the core in the same wake, and `status.ai_paused` follows. Not sensitive: a paired device may pause and resume, as it
 // may run the self-test (G9, D221); it writes no file and keeps nothing.
