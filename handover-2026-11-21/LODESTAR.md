@@ -95,11 +95,13 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    same. The checks told chr_type 0x68 (nothing for the player, the design's 5 for the others) and block_id 0x38
    (where a character is now; 0x70 is the handle's upper half, the map it belongs to); both in the layout as
    leads (engine cef6833). The dead bit stays bit 0 of 0x1C6 (bit 1 never differs; 0x53B bit 4 does). The owner
-   ran it three times; the first two most likely ended with the player's death (asked). Open: the player's block
-   at a crossing, 0x38 for a character with no entity's id, the player's own death and its dead bit,
-   last_hit_by. **Next** (to propose to Engine, then ask the owner outright): the save data's deaths and the
-   sheet's level and name (the owner's status screen of 2026-11-24, in chat only, is there to check against),
-   with the open points above as tasks of the same round; then field_area, the menus' screen, the session.
+   ran it three times; the first two failed because they were attacked too early or killed while standing or
+   turning the camera (their words): keep such tasks shorter or further off, and say in the steps that such a
+   run still counts. Open: the player's block at a crossing, 0x38 for a character with no entity's id, the
+   player's own death and its dead bit, last_hit_by. **Next** (to propose to Engine, then ask the owner
+   outright): the save data's deaths and the sheet's level and name (the owner's status screen of 2026-11-24, in
+   chat only, is there to check against), with the open points above as tasks of the same round; then
+   field_area, the menus' screen, the session.
    **The eighteenth round as first sent** (package 0.1.0-lodestar.22, engine 02b0f27, after Engine's read; the record's "What was changed
    for the eighteenth round"): the character survey under plan 1 (`--read-plan 1`; the watch block's `probe_plan`,
    version 2), the owner's O117 and O118. When its files come back: `survey.survey_fields` for the type (small,
