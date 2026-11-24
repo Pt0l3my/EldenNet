@@ -182,6 +182,7 @@ combat lines, once S3 has recorded its kind (C-4).
 | D-13 | The Tarnished's condition (HP, FP and stamina bands, riding, mounting) and each NPC's HP band | Data module values; the Tarnished's `ride_state` 5 (`PlayerIns` only) | — | the `player` self-test; golden replays | **Backed** · ER05 §3, §6.2 | DESIGN §4.1, §5.2, §5.5, §6.5 (`MountChanged`) |
 | D-14 | The Great Rune count | Flags 180–187 | catalogue | S6's core flags | **Spike** S6 · FACT, possible lag LIKELY, ER05 §2 | DESIGN §5.5, §10.3 |
 | D-15 | An NPC on horseback (the *on horseback* tag of NPC §7.2's `brief`) | Nothing designed: the GAL reads the ride state for the Tarnished only, and `Chr` holds no riding field (DESIGN §4.1, §5.2) | — | none planned (§3.1 gap 11) | **Gap** · the ride field FACT for the Tarnished, its values from one crate's doc comment, ER05 §3 | NPC §7.2 |
+| D-16 | The Tarnished's level, and an NPC's or an enemy's where the game keeps one (the owner's wish, O124) | For the Tarnished, a field of the character's sheet (the twentieth read-only round looks, O121, O122); for a character of the world, not known: its object, what it points at, or only its kind's row | — | none planned | **Gap** · O124 | none designed yet |
 
 ### 2.6 Quest and world awareness (E; O51)
 
