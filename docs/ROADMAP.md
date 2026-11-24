@@ -1740,23 +1740,26 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     bottom under a rule; a block with no items and no words of its own reads "Nothing to show." in both views (no
     "yet", which SP5 and GraceUI's invariant 2 both forbid for anything not reached). EldenNet then marks Settings,
     Content packs and Docs as its foot.
-- bf A table's own filter bar and sort, done in the view (GraceUI's proposal 0012, G43 (a)) [planned]
+- bf A table's own filter bar and sort, done in the view (GraceUI's proposal 0012, G43 (a); protocol 1.11) [next]
   - refs: G43, PAGES§4.6.2
   - gives: put to the owner on 2026-11-24 and decided as recommended (G43 (a), the owner's words "(a) Filter bar now,
     Events later (Recommended)"): a table or a master list carries `filter_bar`, up to four filters from the values
     its published rows hold, up to four sort options on a column or a hidden key of each row, an optional search on
-    named columns, all in the view and never sent to the space. For AI › Requests (0.2), Named NPCs and Memories
+    named columns, all in the view and never sent to the space; a row with no value for the key sorts last either
+    way (GraceUI feat/foundations 1d6a41c). For AI › Requests (0.2), Named NPCs and Memories
     (0.3); Events' paged filtering is designed with its pages for 0.4. Engine answered the proposal's §6 that day
     (`calls` and the roster are whole state topics); the hidden keys are last_met_s, first_met_s, at_ms,
     first_token_ms, total_ms, tokens, a memory's time and weight; "names as shown" is the search over the name column.
-- bg A document block, a prose form field and the report preview (GraceUI's proposal 0013, G44) [planned]
-  - refs: PAGES§4.6.8, PAGES§4.6.9, G16
+- bg A document block, a prose form field and the report preview (GraceUI's proposal 0013, G44 (a)) [next]
+  - refs: G44, PAGES§4.6.8, PAGES§4.6.9, G16
   - gives: GraceUI's answer to Docs and Tools › Bug report (2026-11-24): a document block on a master page (headings,
     paragraphs, lists, code, tables, spans with links to other documents, never a URL); `"prose": true` on a form
     field (2000 characters); the report preview drawn at last (parts with their fields, an optional part's switch
     sending the space's own command). Engine asked the same day for a link to a heading, a note block, code blocks up
-    to 16 KiB and a multi-line field in the preview. To be put to the owner as GraceUI's proposal 0013; until then
-    the bug report's preview is built from a table with a switch column and a key-value list per part.
+    to 16 KiB and a multi-line field in the preview, all four taken into GraceUI's proposal 0013. Put to the owner the
+    same day and decided as recommended (G44 (a), "(a) All three (Recommended)"): the three together, in the protocol
+    minor after the filter bar's. Until then the bug report's preview is built from a table with a switch column and
+    a key-value list per part; Docs' documents are drafted in our own words for the owner's review meanwhile.
 
 ### S11.3 EldenNet v0.2
 
