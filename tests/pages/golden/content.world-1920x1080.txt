@@ -104,6 +104,13 @@ text    ink.hi        380,1019   38x28   clip1 glyphs 4 "Logs"
 text    ink.mute      862,1020  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
 text    gold         1820,1019    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
-text    ink.faint     340,1045  202x25   glyphs 16 "Enter  Open    Esc  Back"
+fill    ground.well   340,1044   60x28   r3
+stroke  edge          340,1044   60x28   r3 w1
+text    ink.body      348,1046   44x25   glyphs 5 "Enter"
+text    ink.faint     407,1045   34x25   glyphs 4 "Open"
+fill    ground.well   466,1044   42x28   r3
+stroke  edge          466,1044   42x28   r3 w1
+text    ink.body      474,1046   26x25   glyphs 3 "Esc"
+text    ink.faint     515,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi       362, 947 1496x61   r5 w3 clip1
-# 107 items, 5224 vertices, 9552 indices, 4 commands; check_draw_list: passes
+# 114 items, 5368 vertices, 10188 indices, 4 commands; check_draw_list: passes

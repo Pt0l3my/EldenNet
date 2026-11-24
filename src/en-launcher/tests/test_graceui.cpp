@@ -183,7 +183,7 @@ TEST_CASE("graceui.toml: what it must hold, each refusal in fixed words") {
 }
 
 // graceui-manifest.toml (beside this file, compiled in by CMakeLists.txt) is what GraceUI's own writer,
-// tools/release/manifest.py at GraceUI c9d699e (D165), wrote for an invented GraceUI folder of these three files:
+// tools/release/manifest.py at GraceUI c53f414 (D165), wrote for an invented GraceUI folder of these three files:
 //   python3 -I tools/release/manifest.py write FOLDER --released 2026-11-24
 // Its form is the one every GraceUI build now lays out (`GraceUI/` beside `bin/`): a comment, `graceui`, `abi`,
 // `protocol`, `caps` (empty), `released`, a blank line, then `[files]` in the order of their names.
@@ -209,7 +209,7 @@ TEST_CASE("GraceUI's pre-flight: a graceui.toml written by GraceUI's own manifes
   REQUIRE(text.find("released = \"") != std::string::npos);
   auto m = read_graceui_toml(text);
   REQUIRE(m);
-  CHECK(m->version == std::array<std::uint16_t, 3>{0, 2, 39});  // GraceUI c9d699e's manifest.py, above EldenNet's floor
+  CHECK(m->version == std::array<std::uint16_t, 3>{0, 2, 40});  // GraceUI c53f414's manifest.py, above EldenNet's floor
   CHECK(m->abi_major == 1);
   CHECK(m->abi_minor == 7);
   REQUIRE(m->files.size() == 3);

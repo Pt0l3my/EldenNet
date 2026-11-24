@@ -97,7 +97,9 @@ std::string reason_of(const SpaceFacts& f) {
     case Level::Starting: return start_words(f.init);
     case Level::Inactive: return std::string(f.stop_text);
     case Level::Observing:
-      return f.dormant ? dormant_words(f) : "EldenNet reads the game. NPCs speak from a later version.";
+      return f.dormant ? dormant_words(f)
+                       : "EldenNet reads the game. NPCs speak once a model answers Conversation: AI › Providers says "
+                         "what is missing.";
     case Level::SpeakingInPart:
       return f.dormant ? dormant_words(f)
                        : "NPCs speak, but part of the game EldenNet reads has stopped: System › Status says which.";
@@ -602,8 +604,7 @@ std::string ai_cause(const SpaceFacts& f) {
   }
   if (f.level == Level::Starting) return "EldenNet is still starting.";
   if (f.level >= Level::SpeakingInPart) return "Conversation is ready: NPCs answer when you speak to them.";
-  return "EldenNet only observes in this version: NPCs speak from a later one. The self-test checks your provider "
-         "meanwhile.";
+  return "NPCs speak once a model answers Conversation. The self-test checks your provider meanwhile.";
 }
 
 json ai_status_body(const SpaceFacts& f) {

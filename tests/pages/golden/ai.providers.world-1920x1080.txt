@@ -35,7 +35,7 @@ fill    ground.2      340, 201 1540x130  r5 clip1
 stroke  rule          340, 201 1540x130  r5 w1 clip1
 text    gold          365, 221   29x20   clip1 glyphs 3 "Now"
 text    ink.faint    1842, 221    8x25   clip1 glyphs 1 "-"
-text    ink.body      365, 271  962x25   clip1 glyphs 97 "EldenNet only observes in this version: NPCs speak from a later one. The self-test checks your provider meanwhile."
+text    ink.body      365, 271  768x25   clip1 glyphs 79 "NPCs speak once a model answers Conversation. The self-test checks your provider meanwhile."
 fill    ground.2      340, 351 1540x275  r5 clip1
 stroke  rule          340, 351 1540x275  r5 w1 clip1
 text    gold          365, 371   86x20   clip1 glyphs 9 "Providers"
@@ -112,6 +112,13 @@ text    ink.hi        380,1485   84x28   clip1 glyphs 9 "Self-test"
 text    ink.mute      862,1486  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
 text    gold         1820,1485    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
-text    ink.faint     340,1045  202x25   glyphs 16 "Enter  Open    Esc  Back"
+fill    ground.well   340,1044   60x28   r3
+stroke  edge          340,1044   60x28   r3 w1
+text    ink.body      348,1046   44x25   glyphs 5 "Enter"
+text    ink.faint     407,1045   34x25   glyphs 4 "Open"
+fill    ground.well   466,1044   42x28   r3
+stroke  edge          466,1044   42x28   r3 w1
+text    ink.body      474,1046   26x25   glyphs 3 "Esc"
+text    ink.faint     515,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi      1444,  86  280x46   r5 w3 clip1
-# 115 items, 5836 vertices, 12078 indices, 4 commands; check_draw_list: passes
+# 122 items, 5908 vertices, 12606 indices, 4 commands; check_draw_list: passes
