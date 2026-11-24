@@ -627,6 +627,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 602 | 2026-11-24 | Content packs' projection is en-proto's ContentView, its paths checked twice | DECIDED | #content #pages #privacy |
 | 603 | 2026-11-24 | The DLL names the overrides files it leaves out, the first 64 | FACT | #content |
 | 604 | 2026-11-24 | A file past 64 KB that nothing reads shows as Loaded | FACT | #content |
+| 605 | 2026-11-24 | A character's other fields, by the survey of 49 characters over two runs: seven leads in the layout | LIKELY | #lodestar #l6 #gal |
 
 ## Entries
 
@@ -8723,6 +8724,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   and counts, no value of any character.
 - Later (2026-11-24): the first run found the dead bit (0x1C6, bits 0 and 1) and on-screen candidates (WHY§597);
   its still fields were lost at the quit (WHY§598), so the round repeats.
+- Later (2026-11-24): the rerun's summary survived the quit, and a character's other fields entered the layout as
+  leads (WHY§605).
 
 ### 578. A read round's plan travels in the watch block (probe_plan, version 2); a plan the round does not know is a refusal
 
@@ -8925,6 +8928,9 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   best had 7 against). The on-screen bit's first candidate is bit 4 of the byte 0x1C4 (80 flips in all 8 looking
   passes, 4 while standing), then bits 2 to 4 of 0xB4 (a small number, not a flag). Leads, to be confirmed: the
   still fields, the handle and the pairs wait for the rerun (package 0.1.0-lodestar.23).
+- Later (2026-11-24): the rerun agrees (290 sightings of the living clear, 14 of the dead set), and bit 4 of 0x1C4
+  flipped 101 times looking and none standing; bit 0 of 0x1C6 and bit 4 of 0x1C4 entered the layout as leads, bit 1
+  of 0x1C6 and bit 4 of 0x53B still rivals that one death does not tell apart (WHY§605).
 
 ### 598. A summary recomputed every pass must not be overwritten by a pass that saw nothing, and a case must end as a run ends
 
@@ -8995,3 +9001,19 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   read, such as a note under a folder of the player's own, is kept unread among the pack's `others` and reads Loaded on
   Content packs. Found when the pages case's first try put a 72 KB file under `notes/`. Left as it is for v0.2: nothing
   reads such a file.
+
+### 605. A character's other fields, by the survey of 49 characters over two runs: seven leads in the layout
+
+`2026-11-24` · LIKELY · `#lodestar` `#l6` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md ("The eighteenth round again, in game"), engine e816200 (merged at 6771b7e), WHY§577, WHY§597, O117, O118
+
+- The rerun (package 0.1.0-lodestar.23; 33 passes, 49 characters a pass, 53 followed, one death; 269 still fields
+  listed whole; no value reported) gives, by how numbers stand among the characters and over the session: the
+  handle at 0x8 (eight bytes, different in every character, never changing, its upper half shaped as a map's id);
+  npc_param_id at 0x60 (26 values among 48, nothing in the main player); model at 0x64 (npc_param_id over 10,000 in 47
+  of 48); entity_id at 0x1E8 (each its own, in 35 characters); team at 0x6C (10 values, the main player's alone);
+  on_screen, bit 4 of 0x1C4; dead, bit 0 of 0x1C6. All seven are leads in `[class.character]`, its copy 0x1F0.
+- Open, two candidates each: chr_type (0x68, or 0x40); block_id (0x70 or the handle's upper half, fixed per
+  character, against 0x38, which moved in six characters). By DATA §2.5's D-1 the design's block_id is where a
+  character is now, the block its position is measured from, so the moving candidate fits it; the fixed one is the
+  map a character belongs to. The dead bit has two rivals, bit 1 of 0x1C6 and bit 4 of 0x53B, that one death a run
+  does not tell apart. The nineteenth round reads all of them through EldenNet's own reader on the near list.

@@ -1250,8 +1250,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The eighteenth round's first run (2026-11-24; WHY§597, §598): the dead bit found (0x1C6, bits 0 and 1), and
     on-screen candidates (first, bit 4 of 0x1C4); the still fields lost to a fault of the survey's at the quit,
     mended (engine bf36cbe, merged at 88aaa16; then de126c7, merged at b511cef: only a pass that is full enough
-    replaces the summary). Package 0.1.0-lodestar.23 (de126c7) repeats the round and is with the owner; its README
-    read by Engine. Awaiting the owner's run.
+    replaces the summary). Package 0.1.0-lodestar.23 (de126c7) repeats the round; its README read by Engine.
+    The eighteenth round reviewed after its rerun (2026-11-24; WHY§605): a character's handle, kind, model, entity,
+    team and the on-screen and dead bits found by the survey and entered as leads (engine e816200, merged at 6771b7e);
+    the type and the block open. Next: the nineteenth round reads them through EldenNet's own reader on the near
+    list's characters.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
