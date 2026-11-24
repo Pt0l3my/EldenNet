@@ -75,7 +75,19 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    as leads: `[item.game_state]`, `game_state.save_slot` (far), `character.parts` 0x190, `character_parts.vitals`
    0x0 and `.motion` 0x68, `vitals.hp` 0x138 and `.max_hp` 0x13C, `motion.pos` 0x70. The game's exit code at the
    quit is the game's own on the owner's PC (WHY§557 to §562); the launcher keeps it quietly (O115).
-   **Next, the seventeenth round: EldenNet's own reader on the world.** A backend entry that reads the world's
+   **The seventeenth round is reviewed (the record's "The seventeenth round in game"): EldenNet's own reader read
+   the world's leads right.** Through `ErBackend::world_alone` and the build's layout, 323 frames, no fault: the
+   slot 6 then 2 (it keeps its number at the title: the main player's presence tells the title, the slot does
+   not); the player's class at the main player's word; the health under its maximum after the hit and equal to
+   it after the heal; the position moving with the walk alone; the near list sorted by distance, a character in
+   every element, 8 of 12,720 elements without a distance yet. The game's state's item passed the table's checks
+   in the game. The owner checked the maximum HP against the status screen: it is the number the reader read.
+   **Next (WHY§460's order, and what a ready start still lacks)**: the rest of the character's fields the world's
+   and the player's groups need (handle, the ids, team, the dead and on-screen bits, the block), the save data's
+   deaths and the sheet's level and name, the place (field_area), the menus' screen and the session. The
+   executable chooses what each round checks; the reader then reads it, as in this round. Engine is changing
+   `read_world()` to walk the first 48 of a longer near list.
+   **What the plan for it was:** A backend entry that reads the world's
    group alone (as `flags_alone` does the flags; `ErBackend` is Engine's to hear of first), so that a round reads
    through the layout: the game's state's slot, the main player, its parts, health and position, and the near
    list, and reports numbers the owner can check on screen (health and its maximum; the slot) and whether the
