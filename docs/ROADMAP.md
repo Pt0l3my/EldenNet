@@ -1895,6 +1895,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the box's ground and frame rounded at GraceUI's card radius and the hint's key at its control radius; a box GraceUI
     refuses at its opening keeps the kept draft; the chord alone opens the box by the chord (via=pad_chord, no
     swallow), from GraceUI's hotkey_by. Left: the call-out box (v0.6), and S4 and S0-E's input half in game.
+    The same day the fake game learnt a backdrop of our own, a swap chain at a given size and format and shots of the
+    frame as presented, driven by tools/preview/shoot.py (engine a44d9f4 and 2311c1d, merged at de94506; WHY§595,
+    §596): the box, the answer, the hint, the menu and F11's view, on a test backdrop, are in the showcase's In game
+    section. The caret, seen touching the last letter, now stands a pixel clear (engine 52e6d72).
 - d A second Escape while a reply paces (NPC §5.7): a way for it to reach EldenNet once the box has closed, asked of GraceUI [done]
   - needs: c
   - refs: NPC§5.7, WHY§437, WHY§461, G39

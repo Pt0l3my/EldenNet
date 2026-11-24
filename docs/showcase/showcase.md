@@ -314,6 +314,63 @@ A key goes in and is never shown again. Since this mock was made, each use (conv
 memory and the rest) can name a provider of its own, "same as conversation" until you change it
 (decision O88).
 
+## In game, on a test backdrop {#preview}
+
+- kind: gallery
+- nav: In game
+
+What EldenNet draws in game today, through GraceUI's overlay, shot from our own test program instead of the game: a
+dark backdrop of our own takes the game's place, and the character, Lantern-Keeper, is invented for the tests. Each
+shot was taken at 1920 by 1080 in the game's own colour format and scaled down. None of these is the game.
+
+### Speaking to a character
+
+- image: preview-chat.webp
+- alt: The chat box at the foot of the screen, a line being typed to an invented character, on a test backdrop
+
+Press the talk key near a character and the box opens: it names whom you speak to and who will hear you, and you type
+your line. On a test backdrop, not the game.
+
+### The answer
+
+- image: preview-lower-third.webp
+- alt: An invented character's answer under their name in the lower third, and the box below it, on a test backdrop
+
+The answer comes in the lower third, under the speaker's name, and the box keeps the exchange: your lines in italic,
+theirs upright. On a test backdrop, not the game.
+
+### Who you can speak to
+
+- image: preview-hint.webp
+- alt: A small gold marker over the line "T Speak" and an invented character's name, on a test backdrop
+
+A small marker and one line show whom you can speak to, and with which key. On a test backdrop, not the game.
+
+### The menu, on F5
+
+- image: preview-menu-ring.webp
+- alt: EldenNet's Home page in GraceUI's menu, a gold ring on the Logs row, over a test program
+
+EldenNet's pages in GraceUI's menu: Home says whether EldenNet is working, and why not when it is not. Moving with the
+keys shows a gold ring on the row in focus; with the mouse it stays hidden. The game build shown is the test
+program's invented number. On a test backdrop, not the game.
+
+### GraceUI's own pages
+
+- image: preview-graceui.webp
+- alt: GraceUI's Menu page, with the menu's size, theme and comfort settings, over a test program
+
+GraceUI's own settings sit beside every mod's pages in the same menu: here the menu's size, its theme and the comfort
+options. On a test backdrop, not the game.
+
+### The developer view, on F11
+
+- image: preview-f11.webp
+- alt: EldenNet's developer view at the top left, listing its reads and the events it has seen, on a test backdrop
+
+For testers: what EldenNet reads, how each part is faring and the events it has seen. Here it shows the test
+program's scripted run, which ends back at the title screen, not a real session. On a test backdrop, not the game.
+
 ## Where it stands {#status}
 
 - kind: status

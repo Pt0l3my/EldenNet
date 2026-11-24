@@ -617,6 +617,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 592 | 2026-11-24 | Only the box's history carries the Tarnished's lines, so only it takes the italic | FACT | #overlay |
 | 593 | 2026-11-24 | The surfaces' fonts are read beside the copy named graceui.dll, not the active one | LIKELY | #overlay #dll |
 | 594 | 2026-11-24 | Rounded corners as Dear ImGui draws them, on EldenNet's white texel, at GraceUI's radius tokens | METHOD | #overlay |
+| 595 | 2026-11-24 | Under Wine, a cursor put back before each key press reads as a mouse move, and G42 hides GraceUI's ring again | FACT | #graceui #wine #fakegame |
+| 596 | 2026-11-24 | GraceUI 0.2.38 draws on a 10-bit swap chain under Wine as on an 8-bit one | FACT | #graceui #wine #fakegame |
 
 ## Entries
 
@@ -8880,3 +8882,23 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   whole-pixel sides they cover exactly what the square rect() and edge() did, so the fake game's probes kept their
   counts; a small rasteriser in the unit test checks the corner pixel clear, its neighbour partly covered and the
   frame hollow. A box at 1080 lines: 144 vertices and 642 indices. The lower third and the card have no ground.
+
+### 595. Under Wine, a cursor put back before each key press reads as a mouse move, and G42 hides GraceUI's ring again
+
+`2026-11-24` · FACT · `#graceui` `#wine` `#fakegame` · refs: S11.4.c, engine a44d9f4 (merged at de94506), GraceUI:G42, GraceUI:D237
+
+- The fake game's press_key_into put the cursor in the middle of the window (SetCursorPos) before every key. Under
+  Wine 9 that reached GraceUI 0.2.38 as a mouse move even when the cursor was already there, so G42's rule (the mouse
+  puts the ring away) hid the focus ring straight after the key showed it: the focus moved, menu_ring read 0 and the
+  frame was the one before the key byte for byte. With --cursor-once (the cursor put there at the first press alone,
+  as GraceUI's harness does) the ring shows. No case checked the ring before; one that does needs --cursor-once.
+
+### 596. GraceUI 0.2.38 draws on a 10-bit swap chain under Wine as on an 8-bit one
+
+`2026-11-24` · FACT · `#graceui` `#wine` `#fakegame` · refs: S11.4.c, engine a44d9f4 (merged at de94506), GraceUI:D118
+
+- The fake game's swap chain at 1920 by 1080 in DXGI format 24 (R10G10B10A2_UNORM, the game's own) under Wine 9 and
+  software Vulkan: GraceUI binds it and draws the box, the lower third, the hint, F11's view and the menu, and the
+  talk, events and pages runs pass. The chat box read back at format 24 (10-bit channels taken to 8) and at format 28
+  differ by at most 2 levels, on 13 of 2,073,600 pixels (the backdrop's dither); mean difference 0.20 levels. The
+  showcase's in-game previews were taken so, on a backdrop of our own, with the invented stand-in persona.
