@@ -171,6 +171,23 @@ bool parse_keys(const std::wstring& list, std::vector<Options::KeyPress>& out) {
   return !out.empty();
 }
 
+// --swap-size's "WxH": each from 64, at most 3840 wide and 2160 high.
+bool parse_size(const std::wstring& text, std::uint32_t& width, std::uint32_t& height) {
+  const std::size_t x = text.find(L'x');
+  if (x == std::wstring::npos || x == 0 || x + 1 >= text.size() || text.size() > 9) return false;
+  std::uint32_t parts[2] = {0, 0};
+  for (std::size_t i = 0; i < text.size(); ++i) {
+    if (i == x) continue;
+    if (text[i] < L'0' || text[i] > L'9') return false;
+    std::uint32_t& part = parts[i < x ? 0 : 1];
+    part = part * 10 + static_cast<std::uint32_t>(text[i] - L'0');
+  }
+  if (parts[0] < 64 || parts[0] > 3840 || parts[1] < 64 || parts[1] > 2160) return false;
+  width = parts[0];
+  height = parts[1];
+  return true;
+}
+
 // --- Command line -------------------------------------------------------------------------------------------------------
 struct Parser {
   int argc;
@@ -415,6 +432,22 @@ bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
         o.grace_probes.push_back(probe);
       }
     }
+    else if (n == L"--backdrop") o.backdrop = true;
+    else if (n == L"--swap-size") {
+      std::wstring v;
+      ok = p.value(v) && parse_size(v, o.swap_width, o.swap_height);
+      if (!ok && error.empty()) error = "--swap-size is WxH, each from 64 to 3840 wide and 2160 high";
+    }
+    else if (n == L"--swap-format") {
+      ok = p.number(o.swap_format);
+      if (ok && o.swap_format != 28 && o.swap_format != 24) {
+        error = "--swap-format is 28 (R8G8B8A8_UNORM) or 24 (R10G10B10A2_UNORM)";
+        ok = false;
+      }
+    }
+    else if (n == L"--shot-at") ok = p.numbers(o.shot_at);
+    else if (n == L"--shot-dir") ok = p.value(o.shot_dir);
+    else if (n == L"--cursor-once") o.cursor_once = true;
     else if (n == L"--exit-code") ok = p.number(o.exit_code);
     else if (n == L"--describe") o.describe = true;
     else if (n == L"--verbose") o.verbose = true;
@@ -438,6 +471,16 @@ bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
   }
   if (o.handled_every != 0 && !handled_supported(o.handled_kind)) {
     error = "--handled-kind seh needs the clang-cl build";
+    return false;
+  }
+  const bool preview = o.backdrop || o.swap_width != 960 || o.swap_height != 540 || o.swap_format != 28 ||
+                       !o.shot_at.empty() || !o.shot_dir.empty();
+  if (preview && !o.d3d12) {
+    error = "--backdrop, --swap-size, --swap-format, --shot-at and --shot-dir need --d3d12";
+    return false;
+  }
+  if (o.shot_at.empty() != o.shot_dir.empty()) {
+    error = "--shot-at and --shot-dir go together";
     return false;
   }
   return true;
@@ -505,6 +548,7 @@ void print_usage() {
       "  --d3d12  --press-f11-at F,F...  --grace-report F,F...  --grace-probe x0,y0,x1,y1,r,g,b[,tol] (up to 3 times)",
       "  --grace-take-pause  --grace-lan  --press-keys F:f5|next|prior|up|down|left|right|return|escape|t|tab|f11,...",
       "  --calm  --type-at F:TEXT,...  --grace-copy-at F,...  --pad-chord-at F,...  --lock-on-at F[,G]",
+      "  --backdrop  --swap-size WxH  --swap-format 28|24  --shot-at F,F...  --shot-dir DIR  --cursor-once",
       "  --describe  --verbose"};
   for (const char* line : kUsage) status("usage %s", line);
 }
@@ -628,6 +672,9 @@ int run(HINSTANCE instance) {
     if (o.d3d12) present_frame();
     for (const std::uint64_t at : o.grace_report_at) {
       if (at == frame) grace_report(frame);
+    }
+    for (const std::uint64_t at : o.shot_at) {
+      if (at == frame) shot(frame);
     }
     if (period > 0.0) {
       const double until = start + period;

@@ -138,6 +138,20 @@ struct Options {
   };
   static constexpr std::size_t kProbes = 3;
   std::vector<Probe> grace_probes;
+  // Preview shots (tools/preview/shoot.py), with --d3d12 alone: --backdrop draws a backdrop of our own in place of the
+  // flat clear (a dark vertical gradient with one soft warm light, computed here, no image file); --swap-size WxH and
+  // --swap-format 28|24 make the swap chain at that size and DXGI format (24 is R10G10B10A2_UNORM; unless asked, 960 by
+  // 540 and 28, R8G8B8A8_UNORM); --shot-at F,F... with --shot-dir DIR writes the frame as presented at each frame
+  // listed to DIR\frame-F.bmp (24 bits a pixel, a 10-bit format's channels taken to 8); one `shot` line each, no path.
+  bool backdrop = false;
+  std::uint32_t swap_width = 960;  // wide enough for EldenNet's F11 view at the top left (680 by 500 at 24, 24)
+  std::uint32_t swap_height = 540;
+  std::uint32_t swap_format = 28;  // DXGI_FORMAT_R8G8B8A8_UNORM; 24, DXGI_FORMAT_R10G10B10A2_UNORM, on request
+  std::vector<std::uint64_t> shot_at;
+  std::wstring shot_dir;
+  // --cursor-once: the cursor put in the window at the first key press alone (as GraceUI's harness puts it), so that
+  // the later presses move no mouse; otherwise it is put there before every press.
+  bool cursor_once = false;
   std::wstring status_file;
   std::uint32_t exit_code = 0;
   bool describe = false;
@@ -148,8 +162,11 @@ struct Options {
 // The Direct3D 12 device, queue and flip-model swap chain on the window, d3d12.dll and dxgi.dll loaded by name only
 // with --d3d12; false (with a status line) if they cannot be made.
 bool present_start(HWND window);
-// One frame: the back buffer cleared to the fake game's colour, then presented.
+// One frame: the back buffer cleared to the fake game's colour (or, with --backdrop, the backdrop copied in), then
+// presented.
 void present_frame();
+// --shot-at: the frame just presented, read back once GraceUI has drawn on it, written to --shot-dir as a BMP.
+void shot(std::uint64_t frame);
 // F11 pressed and released into the window (SendInput, the virtual key and its scan code), the window in front.
 void press_key_into(HWND window, unsigned vk, unsigned scan);
 // The keys (WM_KEYDOWN, WM_SYSKEYDOWN) and characters (WM_CHAR) that reached the game's own window procedure.
