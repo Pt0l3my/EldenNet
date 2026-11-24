@@ -88,7 +88,7 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    0x53B bit 4 behave alike). In the layout as leads (engine e816200). Open: chr_type (0x68 or 0x40), block_id (0x70,
    0xC or the moving 0x38). The first run lost its fields to empty passes at the quit (mine): a summary recomputed
    every pass must not be replaced by a pass that saw little, and a case must end as a real run ends.
-   **The twentieth round** (package 0.1.0-lodestar.25, engine a9d0649; the record's "What was changed for the
+   **The twentieth round** (package 0.1.0-lodestar.26, engine 5ffdf5a, after Engine's review of .25 widened the scan's text test to every script; the record's "What was changed for the
    twentieth round"; built, verified, waiting for Engine's read and then the owner's run): plan 2 (`--read-plan
    2`): load somewhere quiet, stand 20 s, ride or run one way 60 s, the tester's own death, stand 20 s. The
    sheet scan (O121, O122: numbers written, the report between the owner and me only; text never told) for the
