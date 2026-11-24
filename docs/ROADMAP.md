@@ -1225,7 +1225,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The seventeenth round built the same day (engine 1a262a7, merged at 5c07157; package 0.1.0-lodestar.21; WHY§571,
     O116): EldenNet's own reader on the world's leads (ErBackend::world_alone): the slot, the main player,
     health, position, the near list, once a second through the layout; the report holds the slot, the health
-    and its maximum by the owner's word, never the position. Reviewed by Engine; awaiting the owner's run.
+    and its maximum by the owner's word, never the position. Reviewed by Engine; the package is with the owner.
+    Awaiting the owner's run.
     Before a ready start: snapshot() must walk a near list longer than 48 in part, not fault (WHY§572).
 ### S10.2 EldenNet v0.1
 
