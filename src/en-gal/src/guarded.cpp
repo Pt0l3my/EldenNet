@@ -337,6 +337,16 @@ std::uint64_t Histogram::count() const noexcept {
   return n;
 }
 
+proto::StepTimes step_times(const Histogram& h) noexcept {
+  proto::StepTimes t;
+  t.steps = h.count();
+  if (t.steps == 0) return t;
+  t.sum_us = h.sum_us();
+  t.p99_us = h.percentile_us(990);
+  t.max_us = h.max_us();
+  return t;
+}
+
 std::uint64_t Histogram::percentile_us(std::uint32_t permille) const noexcept {
   const std::uint64_t n = count();
   if (n == 0) return 0;

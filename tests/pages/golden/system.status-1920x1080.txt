@@ -13,9 +13,11 @@ text    ink.hi         30, 245   64x30   glyphs 6 "System"
 fill    tint.select     0, 285  300x40  
 fill    gold            0, 285    3x40  
 text    gold.hi        50, 293   51x25   glyphs 6 "Status"
-text    ink.mute       50, 333   34x25   glyphs 4 "Logs"
-line    rule           30, 365  240x1   
-text    ink.mute       30, 375   53x30   glyphs 5 "Tools"
+text    ink.mute       50, 333   93x25   glyphs 11 "Performance"
+text    ink.mute       50, 373   51x25   glyphs 6 "Traces"
+text    ink.mute       50, 413   34x25   glyphs 4 "Logs"
+line    rule           30, 445  240x1   
+text    ink.mute       30, 455   53x30   glyphs 5 "Tools"
 line    rule           30, 900  240x1   
 text    ink.mute       30, 910   85x30   glyphs 8 "Settings"
 line    rule           30, 950  240x1   
@@ -124,17 +126,21 @@ text    ink.mute      862, 763   51x25   clip1 glyphs 6 "Passed"
 line    rule          365, 805 1490x1    clip1
 text    ink.hi        365, 821   75x28   clip1 glyphs 8 "Statuses"
 text    ink.mute      862, 823  118x25   clip1 glyphs 12 "Not tested yet"
-fill    ground.2      340, 900 1540x175  r5 clip1
-stroke  rule          340, 900 1540x175  r5 w1 clip1
+fill    ground.2      340, 900 1540x230  r5 clip1
+stroke  rule          340, 900 1540x230  r5 w1 clip1
 text    gold          365, 920   67x20   clip1 glyphs 7 "Related"
 line    rule          365, 950 1490x1    clip1
-text    ink.hi        380, 964   38x28   clip1 glyphs 4 "Logs"
-text    ink.mute      862, 965  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
+text    ink.hi        380, 964  103x28   clip1 glyphs 11 "Performance"
+text    ink.mute      862, 965  692x25   clip1 glyphs 69 "What EldenNet's own work costs this session, beside its limits, and what it keeps."
 text    gold         1820, 964    9x28   clip1 glyphs 1 "→"
 line    rule          365,1005 1490x1    clip1
-text    ink.hi        380,1019   38x28   clip1 glyphs 4 "Home"
-text    ink.mute      862,1020  810x25   clip1 glyphs 76 "Whether EldenNet is working on this game, what to do if it is not, and what it asked of a model."
+text    ink.hi        380,1019   38x28   clip1 glyphs 4 "Logs"
+text    ink.mute      862,1020  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
 text    gold         1820,1019    9x28   clip1 glyphs 1 "→"
+line    rule          365,1060 1490x1    clip1
+text    ink.hi        380,1074   38x28   clip1 glyphs 4 "Home"
+text    ink.mute      862,1075  810x25   clip1 glyphs 76 "Whether EldenNet is working on this game, what to do if it is not, and what it asked of a model."
+text    gold         1820,1074    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 fill    ground.well   340,1044   60x28   r3
 stroke  edge          340,1044   60x28   r3 w1
@@ -145,4 +151,4 @@ stroke  edge          466,1044   42x28   r3 w1
 text    ink.body      474,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     515,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi       362, 947 1496x61   r5 w3 clip1
-# 146 items, 4792 vertices, 9108 indices, 4 commands; check_draw_list: passes
+# 152 items, 5188 vertices, 9702 indices, 4 commands; check_draw_list: passes

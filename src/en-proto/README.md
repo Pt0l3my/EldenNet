@@ -75,7 +75,18 @@ a dynamic initialiser or an exit-time destructor (ARCH §3.1, §1.7).
   PAGES' words for the purposes and outcomes and ours for the error classes (`words`, `error_words`), the check on a
   model id a row may show (`shown_model`, PV5), and Pause AI's reason and refusals in words. Plain data that en-core
   builds and en-overlay's space publishes: never a prompt, an unshown answer, a key, a base URL or a server's message.
-  `Usage` carries `cost` (-1: not reported) since the record came.
+  `Usage` carries `cost` (-1: not reported) since the record came. A row also holds System › Traces' two times, its
+  queue and a line's first page shown, which AI › Requests does not show.
+- **System › Traces and Performance** (`traces.hpp`, `perf.hpp`; PAGES §4.6.7; DESIGN §1.3's C3 and C5): `TracesView`,
+  each line's call (`TraceRow`: its kind, slot, queue, first token, first page shown, total and verdict, every time from
+  its send, and no text) newest first, and `TraceSummary` (the session's calls for a line, the lines shown and those
+  that ended with none, the first pages' median and 95th percentile, the first tokens' median); `line_of` (which
+  purposes are lines), `verdict_of` (ARCH §11.7's one rule: quick within 1.6 s, acceptable within 3.0 s, slow beyond; a
+  call-out by DESIGN §1.4's 1.5 s and 2.5 s; none for an own-initiative line), C5's targets (cloud 1.6 s and 3.0 s,
+  local 2.5 s and 4.5 s), the nearest-rank `percentile`, and PAGES' words for the kinds and verdicts. `PerfView`:
+  EldenNet's own steps' times (`StepTimes`: steps, their sum, p99 and longest; the reader's, each reading's, the
+  core's) and the conversations' log in memory, with C3's limits for the reader's step (`kReaderMeanUs`,
+  `kReaderP99Us`).
 - **The JSON caps** (`json.hpp`, ARCH §10.2): `parse_json(text)` parses a JSON text only once it is at most 256 KB
   and nested at most 32 deep, both checked before nlohmann/json sees it (`within_depth` counts brackets outside
   strings, without parsing), and never throws for what the text holds. `read_json<T>(text)` parses within the caps

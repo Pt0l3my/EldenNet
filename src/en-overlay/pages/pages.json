@@ -52,6 +52,8 @@
       "name": "System",
       "pages": [
         "system.status",
+        "system.performance",
+        "system.traces",
         "system.logs"
       ]
     },
@@ -173,6 +175,7 @@
         ]
       },
       "related": [
+        "system.performance",
         "system.logs",
         "home"
       ],
@@ -242,6 +245,143 @@
           ]
         }
       ]
+    },
+    {
+      "id": "system.performance",
+      "category": "system",
+      "name": "Performance",
+      "description": "What EldenNet's own work costs this session, beside its limits, and what it keeps.",
+      "help": {
+        "purpose": "See how long EldenNet's own steps take while you play, and whether they stay within its limits.",
+        "steps": [
+          "Read the tiles: the time within which 99 in 100 of the core's steps and of the reader's finish.",
+          "EldenNet reads the game on a thread of its own, and GraceUI draws its panels: none of it runs in the game's frame.",
+          "Look down Budgets: each of EldenNet's limits beside what it measured, passed or a warning.",
+          "Read Tasks for each kind of step: how many ran, their mean, their p99 and the longest.",
+          "Storage says what this version keeps, and until when."
+        ]
+      },
+      "related": [
+        "system.status",
+        "system.traces"
+      ],
+      "increment": "0.2",
+      "sections": [
+        {
+          "id": "now",
+          "title": "This session",
+          "description": "Measured on EldenNet's own threads: none of its code runs in the game's frame in this version.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "stat_tiles",
+              "topic": "system.performance"
+            }
+          ]
+        },
+        {
+          "id": "budgets",
+          "title": "Budgets",
+          "description": "EldenNet's limits for its reader's steps, beside what it measured this session.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "check_list",
+              "topic": "system.performance",
+              "props": {
+                "field": "budgets",
+                "empty": "Each limit appears here once EldenNet has read the game."
+              }
+            }
+          ]
+        },
+        {
+          "id": "tasks",
+          "title": "Tasks",
+          "description": "p99 is the time within which 99 steps in 100 finish. The reader steps about 30 times a second.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "system.performance",
+              "props": {
+                "field": "tasks",
+                "empty": "Each kind of step appears here once it has run."
+              }
+            }
+          ]
+        },
+        {
+          "id": "storage",
+          "title": "Storage",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "system.performance",
+              "props": {
+                "field": "storage"
+              }
+            }
+          ]
+        }
+      ],
+      "live": true
+    },
+    {
+      "id": "system.traces",
+      "category": "system",
+      "name": "Traces",
+      "description": "How long each line took, from its request to the screen.",
+      "help": {
+        "purpose": "See how quickly each line reached the screen this session, against EldenNet's targets.",
+        "steps": [
+          "Read the tiles: the first page's median, its 95th percentile from 20 lines on, the first token's and the lines.",
+          "The sentence under them holds the first pages against the targets for where your Conversation model runs.",
+          "Read Lines: each line's wait to be sent, its first token, its first page on screen, its total and its verdict.",
+          "Quick is a first page within 1.6 s, acceptable within 3.0 s, slow beyond. AI › Requests says how each call ended."
+        ]
+      },
+      "related": [
+        "ai.requests",
+        "ai.selftest",
+        "settings.developer"
+      ],
+      "increment": "0.2",
+      "sections": [
+        {
+          "id": "now",
+          "title": "This session",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "stat_tiles",
+              "topic": "traces"
+            },
+            {
+              "kind": "component",
+              "component": "computed_sentence",
+              "topic": "traces"
+            }
+          ]
+        },
+        {
+          "id": "lines",
+          "title": "Lines",
+          "description": "Newest first, each time from the line's request; Queue is its wait to leave. No text is ever shown.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "traces",
+              "props": {
+                "empty": "No line yet this session."
+              }
+            }
+          ]
+        }
+      ],
+      "live": true
     },
     {
       "id": "system.logs",
@@ -665,7 +805,8 @@
       },
       "related": [
         "ai.models",
-        "ai.providers"
+        "ai.providers",
+        "system.traces"
       ],
       "increment": "0.2",
       "actions": [
@@ -762,6 +903,7 @@
       },
       "related": [
         "ai.models",
+        "system.traces",
         "system.logs"
       ],
       "increment": "0.2",
@@ -1120,6 +1262,14 @@
     },
     {
       "id": "system.status",
+      "shape": "state"
+    },
+    {
+      "id": "system.performance",
+      "shape": "state"
+    },
+    {
+      "id": "traces",
       "shape": "state"
     },
     {

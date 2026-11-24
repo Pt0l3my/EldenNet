@@ -44,13 +44,18 @@ import browser  # noqa: E402
 # AI › Requests (PAGES §4.6.2) over the title (the self-test's run and a model list: no cost reported) and over the
 # world (a conversation's replies before AI was paused: shown, by the fallback, not shown, timed out, failed, waiting,
 # a cost reported); Home over the world too (its Model calls card with the replies' text, and Pause AI on).
+# System › Performance (PAGES §4.6.7) over the title (every kind of step within C3's limits, the log empty) and over the
+# world (the reader's p99 over its limit: a warning; the log's entries); System › Traces over the title (no line yet:
+# the lines' tile alone and each section's own words) and over the world (a conversation's lines, the 95th percentile
+# over its target, a line waiting, two with no page).
 PAGES = (("home", "title"), ("system.status", "title"), ("system.logs", "title"), ("settings.developer", "title"),
          ("ai.providers", "title"), ("ai.models", "title"), ("ai.selftest", "title"), ("ai.selftest", "banner"),
          ("ai.providers", "starting"), ("home", "banner"), ("ai.providers", "world"), ("ai.models", "world"),
          ("characters.named", "title"), ("characters.named", "world"), ("characters.named", "starting"),
          ("content", "title"), ("content", "world"), ("content", "starting"), ("docs", "title"),
          ("tools.report", "title"), ("tools.report", "world"), ("ai.requests", "title"), ("ai.requests", "world"),
-         ("home", "world"))
+         ("home", "world"), ("system.performance", "title"), ("system.performance", "world"),
+         ("system.traces", "title"), ("system.traces", "world"))
 SIZE = "1920x1080"
 # A page whose in-game list grace-dev's dump finds longer than a mod's draw list may be (check_draw_list: refused, and
 # grace-dev exits 1): since GraceUI 0.2.46 (D253) Docs draws the chosen document whole, and Getting started's text is

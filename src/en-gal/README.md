@@ -552,7 +552,9 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   and widened.
 - **`health.hpp`: breakers and C13.** A breaker trips on the third hard fault within 60 s, for the session (R8); the
   group book holds each group's state (Untested, Ok, Tripped and why); `Histogram` is C13's 64 buckets of µs, four
-  an octave, with percentiles as bucket bounds.
+  an octave, with percentiles as bucket bounds; `step_times` gives one's figures as System › Performance shows them
+  (en-proto's `StepTimes`: its count, sum, p99 and longest), which the DLL reads for the task's histograms and its own
+  of the core's steps.
 - **`discovery.hpp`: discovery in process** (ARCH §3.2, §6.2). `gate_image` reads the mapped headers and gates them on
   builds.toml; `discover` runs one pass: the AOB items of patterns.toml by item label, one multi-pattern pass; a static
   the probe round gives by its slot (`DiscoveryOptions::static_slots`, the derivation's `--static label=rva`) needs no

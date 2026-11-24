@@ -59,6 +59,7 @@ inline constexpr bool kProbeBuild = false;
 // ---- Time: QPC, the snapshots' own clock ----
 [[nodiscard]] std::uint64_t mono_ms() noexcept;   // since the machine's start, as the snapshots and the Marks
 [[nodiscard]] std::uint64_t since_ms() noexcept;  // since T1's start (the log's t=)
+[[nodiscard]] std::uint64_t mono_us() noexcept;   // the same clock in µs: a step's time (System › Performance)
 void set_start() noexcept;
 
 // ---- The log (logger.cpp): any thread pushes, T11 writes. Lines before Safety are kept and written once the
@@ -221,6 +222,8 @@ struct Shell {
   en::core::CallRecord calls;
   std::optional<bool> pause_asked;
   bool ai_paused = false;
+  // T6's: each step of the core, timed in µs (System › Performance's; en-gal's C13 histogram), T6 alone writing it.
+  en::gal::Histogram core_us;
 };
 // The one Shell, made on T1 (never destroyed), or null before.
 [[nodiscard]] Shell* shell() noexcept;
@@ -291,6 +294,8 @@ void ai_pause(Shell& s, bool on) noexcept;
 [[nodiscard]] bool ai_paused(const Shell& s) noexcept;
 // T6: the model calls' record and the session's usage (en-proto's calls.hpp): the space's `calls` and `usage`.
 [[nodiscard]] const en::proto::CallsView& ai_calls(const Shell& s) noexcept;
+// T6: the lines among the record's rows and the session's lines summed up (en-proto's traces.hpp): `traces`.
+[[nodiscard]] const en::proto::TracesView& ai_traces(const Shell& s) noexcept;
 // T6, once the core took a pause: the flag kept for the refusals, the self-test and the model list stopped when it
 // turned on, one log line (`ai_pause on=… changed=… selftest_stopped=… list_stopped=…`).
 void ai_pause_taken(Shell& s, bool on) noexcept;

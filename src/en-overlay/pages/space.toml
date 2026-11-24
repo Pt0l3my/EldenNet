@@ -24,6 +24,9 @@
 # AI › Requests and Home's Model calls card (S11.4.a), on GraceUI 0.2.46 (D252, protocol 1.13, which an older GraceUI
 # reads past): every model call this session as a table with its filter bar (D250), the session's usage as tiles, both
 # pages live (Live updates holds them), and Pause AI for this session as a quick switch of the space's own.
+# System › Performance and System › Traces (S11.4.a), on the same: EldenNet's own steps' times this session against
+# C3's limits, and what this version keeps; and how long each line took to reach the screen against C5's targets. Both
+# live, and both with EldenNet's own figures alone.
 # The rail holds every category of PAGES §4.2.1 in its order; a category with no page yet holds none,
 # and GraceUI shows no category that is empty (D173). Every word a player reads here is a draft for the owner's review
 # (the slice's notes list them). Names of the game's places and characters never appear here (PAGES §4.1 item 6, SP3).
@@ -55,7 +58,8 @@ state = { topic = "status", field = "ai_paused" }
 home = "home"
 
 # ---- Topics (GraceUI DESIGN §6.5's names). System › Status's tabs read one topic, `system.status`, each block its own
-# member of the body (GraceUI D185's `props.field`): the Compatibility tab its `compatibility`.
+# member of the body (GraceUI D185's `props.field`): the Compatibility tab its `compatibility`. System › Performance
+# reads `system.performance` likewise (its `budgets`, `tasks` and `storage`), and System › Traces `traces`, one body.
 
 [[topic]]
 id = "settings"
@@ -71,6 +75,14 @@ shape = "state"
 
 [[topic]]
 id = "system.status"
+shape = "state"
+
+[[topic]]
+id = "system.performance"
+shape = "state"
+
+[[topic]]
+id = "traces"
 shape = "state"
 
 [[topic]]
@@ -257,7 +269,7 @@ pages = []
 [[category]]
 id = "system"
 name = "System"
-pages = ["system.status", "system.logs"]
+pages = ["system.status", "system.performance", "system.traces", "system.logs"]
 
 [[category]]
 id = "tools"
@@ -638,7 +650,7 @@ category = "system"
 name = "Status"
 description = "Whether EldenNet is healthy on this PC and game build, and if not, why."
 increment = "0.1"
-related = ["system.logs", "home"]
+related = ["system.performance", "system.logs", "home"]
 help.purpose = "Check, part by part, whether EldenNet runs as it should on this game build."
 help.steps = ["On Health, read the state and its reason, then whether this game build is supported.", "Look down EldenNet's parts: each says whether it runs and what it is doing.", "On Compatibility, check the versions of EldenNet and GraceUI, and how the game was started."]
 
@@ -651,6 +663,108 @@ sections = [{ id = "health", title = "Health", blocks = [{ kind = "component", c
 id = "compatibility"
 name = "Compatibility"
 sections = [{ id = "versions", title = "Versions and start", blocks = [{ kind = "component", component = "check_list", topic = "system.status", props = { field = "compatibility" } }] }]
+
+# ---- System › Performance and System › Traces (PAGES §4.6.7). Performance: EldenNet's own steps this session (the
+# reader's on T2, each reading it builds, the core's on T6) and C3's limits for the reader's; no frame cost (EldenNet
+# has no callback on GraceUI's frame in this version) and no memory (it counts none), so those tiles wait for a source;
+# and Storage in words, as this version has no database. Traces: each line's call, from its request to its first page
+# shown, against C5's targets, with no text. Both live (GraceUI D252).
+
+[[page]]
+id = "system.performance"
+live = true  # its steps' figures move by themselves: Live updates holds them (GraceUI D252)
+category = "system"
+name = "Performance"
+description = "What EldenNet's own work costs this session, beside its limits, and what it keeps."
+increment = "0.2"
+related = ["system.status", "system.traces"]
+help.purpose = "See how long EldenNet's own steps take while you play, and whether they stay within its limits."
+help.steps = [
+  "Read the tiles: the time within which 99 in 100 of the core's steps and of the reader's finish.",
+  "EldenNet reads the game on a thread of its own, and GraceUI draws its panels: none of it runs in the game's frame.",
+  "Look down Budgets: each of EldenNet's limits beside what it measured, passed or a warning.",
+  "Read Tasks for each kind of step: how many ran, their mean, their p99 and the longest.",
+  "Storage says what this version keeps, and until when.",
+]
+
+[[page.sections]]
+id = "now"
+title = "This session"
+description = "Measured on EldenNet's own threads: none of its code runs in the game's frame in this version."
+blocks = [{ kind = "component", component = "stat_tiles", topic = "system.performance" }]
+
+[[page.sections]]
+id = "budgets"
+title = "Budgets"
+description = "EldenNet's limits for its reader's steps, beside what it measured this session."
+
+[[page.sections.blocks]]
+kind = "component"
+component = "check_list"
+topic = "system.performance"
+props = { field = "budgets", empty = "Each limit appears here once EldenNet has read the game." }
+
+[[page.sections]]
+id = "tasks"
+title = "Tasks"
+description = "p99 is the time within which 99 steps in 100 finish. The reader steps about 30 times a second."
+
+[[page.sections.blocks]]
+kind = "component"
+component = "table"
+topic = "system.performance"
+props = { field = "tasks", empty = "Each kind of step appears here once it has run." }
+
+[[page.sections]]
+id = "storage"
+title = "Storage"
+
+[[page.sections.blocks]]
+kind = "component"
+component = "key_value_list"
+topic = "system.performance"
+props = { field = "storage" }
+
+[[page]]
+id = "system.traces"
+live = true  # its lines come by themselves: Live updates holds them (GraceUI D252)
+category = "system"
+name = "Traces"
+description = "How long each line took, from its request to the screen."
+increment = "0.2"
+related = ["ai.requests", "ai.selftest", "settings.developer"]
+help.purpose = "See how quickly each line reached the screen this session, against EldenNet's targets."
+help.steps = [
+  "Read the tiles: the first page's median, its 95th percentile from 20 lines on, the first token's and the lines.",
+  "The sentence under them holds the first pages against the targets for where your Conversation model runs.",
+  "Read Lines: each line's wait to be sent, its first token, its first page on screen, its total and its verdict.",
+  "Quick is a first page within 1.6 s, acceptable within 3.0 s, slow beyond. AI › Requests says how each call ended.",
+]
+
+[[page.sections]]
+id = "now"
+title = "This session"
+
+[[page.sections.blocks]]
+kind = "component"
+component = "stat_tiles"
+topic = "traces"
+
+[[page.sections.blocks]]
+kind = "component"
+component = "computed_sentence"
+topic = "traces"
+
+[[page.sections]]
+id = "lines"
+title = "Lines"
+description = "Newest first, each time from the line's request; Queue is its wait to leave. No text is ever shown."
+
+[[page.sections.blocks]]
+kind = "component"
+component = "table"
+topic = "traces"
+props = { empty = "No line yet this session." }
 
 [[page]]
 id = "system.logs"
@@ -809,7 +923,7 @@ category = "ai"
 name = "Self-test"
 description = "Is the model fast and well-formed enough for conversation?"
 increment = "0.2"
-related = ["ai.models", "ai.providers"]
+related = ["ai.models", "ai.providers", "system.traces"]
 help.purpose = "Check that your provider answers, how quickly, and that its answers come in the form EldenNet needs."
 help.steps = ["Press Run self-test. It takes a few seconds, and works at the title screen too.", "Read the verdict: quick, acceptable or slow, for the first words of a reply.", "Look down the steps: each says what it checked, and what went wrong if it failed."]
 
@@ -855,7 +969,7 @@ category = "ai"
 name = "Requests"
 description = "Every model call this session and what it cost, without the prompts EldenNet sent."
 increment = "0.2"
-related = ["ai.models", "system.logs"]
+related = ["ai.models", "system.traces", "system.logs"]
 help.purpose = "See every call EldenNet made to a model this session: what it was for, how long it took, how it ended."
 help.steps = [
   "Read the tiles: this session's calls, the tokens they used, the failures, and the last hour's own-initiative calls.",

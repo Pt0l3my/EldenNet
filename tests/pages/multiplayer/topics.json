@@ -1973,6 +1973,95 @@
     "tone": "glint",
     "word": "Dormant"
   },
+  "system.performance": {
+    "budgets": {
+      "checks": [
+        {
+          "detail": "0.12 ms, within its 0.15 ms limit",
+          "label": "Reading the game: the mean step",
+          "state": "pass"
+        },
+        {
+          "detail": "0.64 ms, over its 0.50 ms limit",
+          "label": "Reading the game: 99 steps in 100",
+          "state": "warn"
+        }
+      ]
+    },
+    "storage": {
+      "items": [
+        {
+          "label": "Database",
+          "value": "None in this version: what is said stays in memory until the game closes"
+        },
+        {
+          "label": "Kept in memory",
+          "value": "4,096 entries from this session's conversations, 4,096 at most; the 212 oldest gave way to newer ones"
+        }
+      ]
+    },
+    "tasks": {
+      "columns": [
+        {
+          "id": "task",
+          "label": "Task"
+        },
+        {
+          "id": "steps",
+          "label": "Steps",
+          "numeric": true
+        },
+        {
+          "id": "mean",
+          "label": "Mean",
+          "numeric": true
+        },
+        {
+          "id": "p99",
+          "label": "p99",
+          "numeric": true
+        },
+        {
+          "id": "longest",
+          "label": "Longest",
+          "numeric": true
+        }
+      ],
+      "rows": [
+        {
+          "longest": "4.80 ms",
+          "mean": "0.12 ms",
+          "p99": "0.64 ms",
+          "steps": "117,800",
+          "task": "Reading the game: each step"
+        },
+        {
+          "longest": "3.90 ms",
+          "mean": "0.16 ms",
+          "p99": "0.38 ms",
+          "steps": "9,600",
+          "task": "Reading the game: each reading built"
+        },
+        {
+          "longest": "6.10 ms",
+          "mean": "0.02 ms",
+          "p99": "0.10 ms",
+          "steps": "80,100",
+          "task": "The core: each step"
+        }
+      ]
+    },
+    "tiles": [
+      {
+        "label": "The core's steps, p99",
+        "value": "0.10 ms"
+      },
+      {
+        "label": "Reading the game, p99",
+        "value": "0.64 ms"
+      }
+    ]
+  },
   "system.status": {
     "checks": [
       {
@@ -2105,6 +2194,127 @@
       {
         "group": "Statuses",
         "state": "Not tested yet"
+      }
+    ]
+  },
+  "traces": {
+    "columns": [
+      {
+        "id": "time",
+        "label": "Time"
+      },
+      {
+        "id": "kind",
+        "label": "Kind"
+      },
+      {
+        "id": "slot",
+        "label": "Job"
+      },
+      {
+        "id": "queue",
+        "label": "Queue",
+        "numeric": true
+      },
+      {
+        "id": "first_token",
+        "label": "First token",
+        "numeric": true
+      },
+      {
+        "id": "first_page",
+        "label": "First page shown",
+        "numeric": true
+      },
+      {
+        "id": "total",
+        "label": "Total",
+        "numeric": true
+      },
+      {
+        "id": "verdict",
+        "label": "Verdict"
+      }
+    ],
+    "rows": [
+      {
+        "kind": "reply",
+        "slot": "Conversation",
+        "time": "1:05:05"
+      },
+      {
+        "first_page": "1.18 s",
+        "first_token": "0.64 s",
+        "kind": "reply",
+        "queue": "0.04 s",
+        "slot": "Conversation",
+        "time": "1:00:55",
+        "total": "1.72 s",
+        "verdict": "quick"
+      },
+      {
+        "first_page": "3.42 s",
+        "first_token": "2.95 s",
+        "kind": "reply",
+        "queue": "0.04 s",
+        "slot": "Conversation",
+        "time": "1:00:42",
+        "total": "4.10 s",
+        "verdict": "slow"
+      },
+      {
+        "first_page": "1.45 s",
+        "first_token": "0.70 s",
+        "kind": "reply",
+        "queue": "0.03 s",
+        "slot": "Conversation",
+        "time": "1:00:10",
+        "total": "1.30 s",
+        "verdict": "quick"
+      },
+      {
+        "kind": "reply",
+        "queue": "0.03 s",
+        "slot": "Conversation",
+        "time": "0:59:50",
+        "total": "6.00 s"
+      },
+      {
+        "kind": "reply",
+        "queue": "0.02 s",
+        "slot": "Conversation",
+        "time": "0:58:20",
+        "total": "2.20 s"
+      },
+      {
+        "first_page": "1.09 s",
+        "first_token": "0.61 s",
+        "kind": "reply",
+        "queue": "0.03 s",
+        "slot": "Conversation",
+        "time": "0:58:00",
+        "total": "1.54 s",
+        "verdict": "quick"
+      }
+    ],
+    "sentence": "Against the targets for a cloud model, the median first page is within 1.6 s and the 95th percentile is over 3.0 s.",
+    "tiles": [
+      {
+        "label": "First page, median",
+        "value": "1.24 s"
+      },
+      {
+        "label": "First page, 95th percentile",
+        "value": "3.18 s"
+      },
+      {
+        "label": "First token, median",
+        "value": "0.66 s"
+      },
+      {
+        "label": "Lines this session",
+        "unit": "of 24 shown",
+        "value": "21"
       }
     ]
   },

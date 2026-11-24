@@ -37,11 +37,11 @@ EVENTS_SHOTS = {800: "f11"}
 # pages: launcher-eldennet-graceui-pages' world (the title screen: in the world the fake player reads as in danger,
 # which keeps the menu shut), with presses of our own, by the stops GraceUI 0.2.46 gives (the editor case's route to
 # GraceUI's own pages): F5 opens the menu on EldenNet's Home with no focus ring, as a mouse player sees it (G42); ↓
-# shows the ring; six Page Down to System › Status (past AI's four pages and Named NPCs), ← into the rail, six ↓ (Logs,
-# Tools, Settings, Docs, Content packs) to GraceUI's own pages at its foot, Enter.
+# shows the ring; six Page Down to System › Status (past AI's four pages and Named NPCs), ← into the rail, eight ↓
+# (Performance, Traces, Logs, Tools, Settings, Docs, Content packs) to GraceUI's own pages at its foot, Enter.
 PAGES_KEYS = ("600:f5,720:down,840:next,880:next,920:next,960:next,1000:next,1040:next,1140:left,1200:down,1230:down,"
-              "1260:down,1290:down,1320:down,1350:down,1380:return")
-PAGES_SHOTS = {700: "menu-mouse", 800: "menu-ring", 1440: "graceui"}
+              "1260:down,1290:down,1320:down,1350:down,1380:down,1410:down,1440:return")
+PAGES_SHOTS = {700: "menu-mouse", 800: "menu-ring", 1500: "graceui"}
 # check: the talk run again at the other format, shooting the box alone, to compare with the set's.
 CHECK_SHOTS = {1680: "chat"}
 
@@ -108,12 +108,12 @@ def define_runs(size, fmt, check_fmt):
     runs["events"] = ("launcher-preview-events", EVENTS_SHOTS, "")
     h.case("launcher-preview-pages", h.LGAME + ["--dll", "{eldennetdll}", "--console"] +
            h.game("--d3d12", "--stay-title", "--press-keys", PAGES_KEYS, *shots(PAGES_SHOTS, size, fmt),
-                  frames=1500),
+                  frames=1560),
            program="{launcher}", needs=h.GRACE_NEEDS, toolchains=("clang-cl",), env=h.GRACE_ENV, timeout=300,
            prepare=h.install_eldennet(h.EN_PANEL, then=h.install_graceui),
            check=check_shots(PAGES_SHOTS, fmt, size, {700: {"menu_open": 1, "menu_ring": 0, "menu_page": "home"},
                                                       800: {"menu_open": 1, "menu_ring": 1, "menu_page": "home"},
-                                                      1440: {"menu_open": 1, "menu_page": "graceui.menu"}}),
+                                                      1500: {"menu_open": 1, "menu_page": "graceui.menu"}}),
            what="preview shots: F5's menu on EldenNet's pages and on GraceUI's own")
     runs["pages"] = ("launcher-preview-pages", PAGES_SHOTS, "")
     if check_fmt is not None:

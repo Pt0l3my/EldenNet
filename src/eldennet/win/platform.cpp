@@ -23,6 +23,15 @@ std::uint64_t qpc_ms() noexcept {
   return en::proto::watch::mono_ms(static_cast<std::uint64_t>(c.QuadPart), static_cast<std::uint64_t>(f.QuadPart));
 }
 
+std::uint64_t qpc_us() noexcept {
+  LARGE_INTEGER f{}, c{};
+  QueryPerformanceFrequency(&f);
+  QueryPerformanceCounter(&c);
+  const auto counter = static_cast<std::uint64_t>(c.QuadPart);
+  const auto frequency = static_cast<std::uint64_t>(f.QuadPart);
+  return frequency == 0 ? 0 : (counter / frequency) * 1'000'000 + (counter % frequency) * 1'000'000 / frequency;
+}
+
 std::wstring env(const wchar_t* name) {
   wchar_t buf[1024];
   const DWORD n = GetEnvironmentVariableW(name, buf, 1024);
@@ -55,6 +64,7 @@ BOOL CALLBACK window_of_ours(HWND hwnd, LPARAM) noexcept {
 }  // namespace
 
 std::uint64_t mono_ms() noexcept { return qpc_ms(); }
+std::uint64_t mono_us() noexcept { return qpc_us(); }
 std::uint64_t since_ms() noexcept {
   const std::uint64_t now = qpc_ms();
   const std::uint64_t start = g_start_ms.load(std::memory_order_relaxed);

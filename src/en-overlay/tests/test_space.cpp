@@ -20,6 +20,7 @@
 #include "en/overlay/docs.hpp"
 #include "en/overlay/space.hpp"
 #include "graceui.h"
+#include "system_fixture.hpp"
 
 using namespace en::overlay;
 using nlohmann::json;
@@ -297,6 +298,8 @@ SpaceFacts facts_of(std::string_view state) {
   f.characters = en::overlay::test::characters_fixture(state);  // Characters › Named NPCs (characters_fixture.hpp)
   f.content = en::overlay::test::content_fixture(state);        // Content packs (content_fixture.hpp)
   f.calls = en::overlay::test::calls_fixture(state);            // AI › Requests, Home's Model calls (calls_fixture.hpp)
+  f.perf = en::overlay::test::perf_fixture(state);              // System › Performance (system_fixture.hpp)
+  f.traces = en::overlay::test::traces_fixture(state);          // System › Traces (system_fixture.hpp)
   return f;
 }
 
@@ -368,9 +371,9 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
     // Every page ships in the increment registered or an earlier one (D173): Home and System in 0.1, AI in 0.2.
     CHECK(p["increment"].get<std::string>() <= std::string(kIncrement));
   }
-  CHECK(ids == std::vector<std::string>{"home", "system.status", "system.logs", "settings.developer", "ai.providers",
-                                        "ai.models", "ai.selftest", "ai.requests", "characters.named", "content",
-                                        "tools.report", "docs"});
+  CHECK(ids == std::vector<std::string>{"home", "system.status", "system.performance", "system.traces", "system.logs",
+                                        "settings.developer", "ai.providers", "ai.models", "ai.selftest",
+                                        "ai.requests", "characters.named", "content", "tools.report", "docs"});
   // The rail holds PAGES §4.2.1's categories in their order, the slice's pages in theirs.
   std::vector<std::string> rail;
   for (const json& c : pages["categories"]) rail.push_back(c["id"].get<std::string>());
@@ -408,12 +411,18 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
                                         {"state", {{"topic", "status"}, {"field", "ai_paused"}}}, {"home", "home"}}}));
   CHECK(std::find(pages["sensitive_commands"].begin(), pages["sensitive_commands"].end(), "ai.pause") ==
         pages["sensitive_commands"].end());
-  // Home and Requests are live (D252): their topics move by themselves; no other page is.
+  // Home, Performance, Traces and Requests are live (D252): their topics move by themselves; no other page is.
   std::vector<std::string> live;
   for (const json& p : pages["pages"]) {
     if (p.value("live", false)) live.push_back(p["id"].get<std::string>());
   }
-  CHECK(live == std::vector<std::string>{"home", "ai.requests"});
+  CHECK(live == std::vector<std::string>{"home", "system.performance", "system.traces", "ai.requests"});
+  // System's pages in PAGES §4.2.1's order, Performance and Traces after Status.
+  for (const json& c : pages["categories"]) {
+    if (c["id"] == "system") {
+      CHECK(c["pages"] == json::array({"system.status", "system.performance", "system.traces", "system.logs"}));
+    }
+  }
   // GraceUI 0.2.5's checks (D183, eldennet-changes §36), met already: no topic is the server's own "pages", the id is
   // not GraceUI's reserved one, and every destructive action, a row's included, has its confirmation's text.
   CHECK(pages["space"] != "graceui");
@@ -2403,6 +2412,218 @@ TEST_CASE("space: Pause AI: ai.pause {on} handed to the DLL at once; status.ai_p
   CHECK(out[0]["body"]["ai_paused"] == true);
 }
 
+// ---- System › Performance and System › Traces (PAGES §4.6.7)
+
+namespace {
+
+// Every frame a watcher of the topic gets over a session's facts, as text: what the privacy checks read.
+std::vector<std::string> frames_of(std::string_view topic, const SpaceFacts& f) {
+  Space s;
+  s.watched(sub(topic));
+  std::vector<std::string> frames;
+  s.collect(f, 0, frames);
+  return frames;
+}
+
+// Nothing of any text a call or a line had, no address, no path and nothing shaped like a SteamID64 (PV1 to PV8).
+void check_no_text(const std::string& text) {
+  for (const char* never : {"Old Bram", "Ysolde", "river", "lamps are lit", "openrouter", "talker", "router.example",
+                            "\\", ":/", "127.0.0.1", "AppData", "Users", "7656119"}) {
+    CHECK_MESSAGE(text.find(never) == std::string::npos, never);
+  }
+}
+
+}  // namespace
+
+TEST_CASE("space: System › Performance: its tiles, C3's limits beside the figures, its tasks, its storage in words") {
+  const Space s;
+  // The page data: live, in System after Status, its blocks on the topic's members; Related as PAGES gives them.
+  const json pages = json::parse(space_pages());
+  json page;
+  for (const json& p : pages["pages"]) {
+    if (p["id"] == "system.performance") page = p;
+  }
+  REQUIRE(page.is_object());
+  CHECK(page["live"] == true);
+  CHECK(page["increment"] == "0.2");
+  CHECK(page["related"] == json::array({"system.status", "system.traces"}));
+  std::vector<std::string> fields;
+  for (const json& sec : page["sections"]) {
+    for (const json& b : sec["blocks"]) {
+      CHECK(b["topic"] == "system.performance");
+      fields.push_back(b.contains("props") ? b["props"].value("field", "") : "");
+    }
+  }
+  CHECK(fields == std::vector<std::string>{"", "budgets", "tasks", "storage"});
+
+  // The title: the core's and the reader's p99, each within C3's limits, every kind of step, the log empty.
+  json b = s.body("system.performance", facts_of("title"));
+  CHECK(b["tiles"] == json::array({{{"label", "The core's steps, p99"}, {"value", "0.06 ms"}},
+                                   {{"label", "Reading the game, p99"}, {"value", "0.13 ms"}}}));
+  CHECK(b["budgets"]["checks"] ==
+        json::array({{{"label", "Reading the game: the mean step"}, {"state", "pass"},
+                      {"detail", "0.04 ms, within its 0.15 ms limit"}},
+                     {{"label", "Reading the game: 99 steps in 100"}, {"state", "pass"},
+                      {"detail", "0.13 ms, within its 0.50 ms limit"}}}));
+  const json& tasks = b["tasks"];
+  CHECK(tasks["columns"].size() == 5);
+  REQUIRE(tasks["rows"].size() == 3);
+  CHECK(tasks["rows"][0] == json{{"task", "Reading the game: each step"}, {"steps", "22,410"}, {"mean", "0.04 ms"},
+                                 {"p99", "0.13 ms"}, {"longest", "0.91 ms"}});
+  CHECK(tasks["rows"][1]["task"] == "Reading the game: each reading built");
+  CHECK(tasks["rows"][1]["longest"] == "1.45 ms");
+  CHECK(tasks["rows"][2] == json{{"task", "The core: each step"}, {"steps", "15,300"}, {"mean", "0.02 ms"},
+                                 {"p99", "0.06 ms"}, {"longest", "2.90 ms"}});
+  CHECK(b["storage"]["items"] ==
+        json::array({{{"label", "Database"},
+                      {"value", "None in this version: what is said stays in memory until the game closes"}},
+                     {{"label", "Kept in memory"},
+                      {"value", "0 entries from this session's conversations, 4,096 at most"}}}));
+
+  // The world: the reader's p99 over its limit, a warning; the log's entries.
+  b = s.body("system.performance", facts_of("world"));
+  CHECK(b["budgets"]["checks"][0]["state"] == "pass");
+  CHECK(b["budgets"]["checks"][0]["detail"] == "0.12 ms, within its 0.15 ms limit");
+  CHECK(b["budgets"]["checks"][1]["state"] == "warn");
+  CHECK(b["budgets"]["checks"][1]["detail"] == "0.64 ms, over its 0.50 ms limit");
+  CHECK(b["storage"]["items"][1]["value"] == "37 entries from this session's conversations, 4,096 at most");
+  b = s.body("system.performance", facts_of("multiplayer"));
+  CHECK(b["storage"]["items"][1]["value"] ==
+        "4,096 entries from this session's conversations, 4,096 at most; the 212 oldest gave way to newer ones");
+
+  // Absence is silent: before the reader's first step no reader tile, budget or row; the core's alone.
+  b = s.body("system.performance", facts_of("starting"));
+  CHECK(b["tiles"] == json::array({{{"label", "The core's steps, p99"}, {"value", "0.05 ms"}}}));
+  CHECK(b["budgets"]["checks"].empty());
+  REQUIRE(b["tasks"]["rows"].size() == 1);
+  CHECK(b["tasks"]["rows"][0]["task"] == "The core: each step");
+  // Before the DLL fills any, nothing; and no figure of a frame's or of memory, which EldenNet has no source for.
+  SpaceFacts none = facts_of("title");
+  none.perf = nullptr;
+  CHECK(s.body("system.performance", none) == json::object());
+  for (const char* state : kStates) {
+    const std::string text = s.body("system.performance", facts_of(state)).dump();
+    for (const char* never : {"frame", "Frame", "memory use", "MB", "FPS"}) {
+      CHECK_MESSAGE(text.find(never) == std::string::npos, never);
+    }
+  }
+  // A long step reads in its unit: tenths of a millisecond from 10 ms, seconds from one.
+  en::proto::PerfView slow;
+  slow.core = en::proto::StepTimes{1, 25'000, 25'000, 1'500'000};
+  none.perf = &slow;
+  b = s.body("system.performance", none);
+  CHECK(b["tasks"]["rows"][0]["p99"] == "25.0 ms");
+  CHECK(b["tasks"]["rows"][0]["longest"] == "1.50 s");
+  CHECK(b["storage"]["items"].size() == 1);  // the log not known: its row left out
+
+  // Published when watched and as the figures move, no oftener than once a second; every frame clean.
+  Space watching;
+  watching.watched(sub("system.performance"));
+  SpaceFacts f = facts_of("title");
+  std::vector<json> out = collect(watching, f, 0);
+  REQUIRE(out.size() == 1);
+  CHECK(out[0]["topic"] == "system.performance");
+  en::proto::PerfView moved = *f.perf;
+  moved.core.steps += 40;
+  f.perf = &moved;
+  CHECK(collect(watching, f, 500).empty());
+  CHECK(collect(watching, f, 1000).size() == 1);
+  for (const char* state : kStates) {
+    for (const std::string& text : frames_of("system.performance", facts_of(state))) check_no_text(text);
+  }
+}
+
+TEST_CASE("space: System › Traces: tiles against C5's targets, the table in PAGES' columns, and no text at all") {
+  const Space s;
+  const json pages = json::parse(space_pages());
+  json page;
+  for (const json& p : pages["pages"]) {
+    if (p["id"] == "system.traces") page = p;
+  }
+  REQUIRE(page.is_object());
+  CHECK(page["live"] == true);
+  CHECK(page["related"] == json::array({"ai.requests", "ai.selftest", "settings.developer"}));
+  // Requests and Self-test name Traces among their Related now that it exists, as PAGES gives them.
+  for (const json& p : pages["pages"]) {
+    if (p["id"] == "ai.requests" || p["id"] == "ai.selftest") {
+      CHECK(std::find(p["related"].begin(), p["related"].end(), "system.traces") != p["related"].end());
+    }
+  }
+
+  // The world: the conversation's lines; 21 shown, so the 95th percentile too, over its 3.0 s target.
+  const SpaceFacts f = facts_of("world");
+  json b = s.body("traces", f);
+  CHECK(b["tiles"] == json::array({{{"label", "First page, median"}, {"value", "1.24 s"}},
+                                   {{"label", "First page, 95th percentile"}, {"value", "3.18 s"}},
+                                   {{"label", "First token, median"}, {"value", "0.66 s"}},
+                                   {{"label", "Lines this session"}, {"value", "21"}, {"unit", "of 24 shown"}}}));
+  // One line in game (a computed sentence is drawn on one): the figures against C5's targets for a cloud model.
+  CHECK(b["sentence"] == "Against the targets for a cloud model, the median first page is within 1.6 s and the 95th "
+                         "percentile is over 3.0 s.");
+  std::vector<std::string> ids;
+  for (const json& c : b["columns"]) ids.push_back(c["id"].get<std::string>());
+  CHECK(ids == std::vector<std::string>{"time", "kind", "slot", "queue", "first_token", "first_page", "total",
+                                        "verdict"});
+  const json& rows = b["rows"];
+  REQUIRE(rows.size() == 7);
+  CHECK(rows[0] == json{{"time", "1:05:05"}, {"kind", "reply"}, {"slot", "Conversation"}});  // still waiting
+  CHECK(rows[1] == json{{"time", "1:00:55"}, {"kind", "reply"}, {"slot", "Conversation"}, {"queue", "0.04 s"},
+                        {"first_token", "0.64 s"}, {"first_page", "1.18 s"}, {"total", "1.72 s"},
+                        {"verdict", "quick"}});
+  CHECK(rows[2]["verdict"] == "slow");
+  CHECK(rows[3]["verdict"] == "quick");  // withheld: the persona's own line was its first page
+  CHECK_FALSE(rows[4].contains("first_page"));  // timed out: no page, so no verdict
+  CHECK_FALSE(rows[4].contains("verdict"));
+  CHECK_FALSE(rows[4].contains("first_token"));
+  CHECK(rows[4]["total"] == "6.00 s");
+
+  // On a local model C5's local targets: the median within 2.5 s, the 95th within 4.5 s.
+  AiFacts local = *f.ai;
+  local.providers.push_back(lantern());
+  local.slots[0].provider = "lantern-box";
+  SpaceFacts on_local = f;
+  on_local.ai = &local;
+  CHECK(s.body("traces", on_local)["sentence"] == "Against the targets for a local model, the median first page is "
+                                                  "within 2.5 s and the 95th percentile is within 4.5 s.");
+
+  // Fewer than 20 lines: no 95th percentile, its tile and its clause left out; one quick line.
+  en::proto::TracesView few;
+  few.summary.calls = 1;
+  few.summary.lines = 1;
+  few.summary.first_page_median_ms = 980;
+  few.summary.first_token_median_ms = 420;
+  SpaceFacts one = f;
+  one.traces = &few;
+  b = s.body("traces", one);
+  CHECK(b["tiles"] == json::array({{{"label", "First page, median"}, {"value", "0.98 s"}},
+                                   {{"label", "First token, median"}, {"value", "0.42 s"}},
+                                   {{"label", "Lines this session"}, {"value", "1"}}}));
+  CHECK(b["sentence"] == "Against the target for a cloud model, the median first page is within 1.6 s.");
+  CHECK(b["rows"].empty());
+
+  // No line yet: the lines' tile alone, at 0; and the words for calls that ended with nothing shown.
+  b = s.body("traces", facts_of("title"));
+  CHECK(b["tiles"] == json::array({{{"label", "Lines this session"}, {"value", "0"}}}));
+  CHECK(b["sentence"] == "No line has reached the screen yet this session.");
+  en::proto::TracesView failed;
+  failed.summary.calls = 1;
+  failed.summary.unshown = 1;
+  one.traces = &failed;
+  b = s.body("traces", one);
+  CHECK(b["sentence"] == "No line has reached the screen yet this session: 1 call for a line ended with no page "
+                         "shown. AI › Requests says why.");
+  CHECK(b["tiles"] == json::array({{{"label", "Lines this session"}, {"value", "0"}, {"unit", "of 1 shown"}}}));
+  one.traces = nullptr;
+  CHECK(s.body("traces", one) == json::object());
+
+  // Published when watched; no frame in any state holds a line's text, a speaker, a provider, a model or a path.
+  for (const char* state : kStates) {
+    const std::vector<std::string> frames = frames_of("traces", facts_of(state));
+    REQUIRE(frames.size() == 1);
+    check_no_text(frames[0]);
+  }
+}
+
 TEST_CASE("space: the fixture states' topics.json, which grace-dev previews (tests/pages)") {
 #if defined(_WIN32)
   // The Windows builds run under Wine, outside the source tree's drive: the Linux builds compare the files.
@@ -2414,7 +2635,9 @@ TEST_CASE("space: the fixture states' topics.json, which grace-dev previews (tes
     feed(s, state);
     const SpaceFacts f = facts_of(state);
     json topics = json::object();
-    for (const char* topic : {"status", "errors", "system.status"}) topics[topic] = s.body(topic, f);
+    for (const char* topic : {"status", "errors", "system.status", "system.performance", "traces"}) {
+      topics[topic] = s.body(topic, f);
+    }
     for (const char* topic : kAiTopics) topics[topic] = s.body(topic, f);  // calls and usage among them
     for (const std::string& topic : en::overlay::test::characters_topics(f.characters)) topics[topic] = s.body(topic, f);
     topics["content"] = s.body("content", f);

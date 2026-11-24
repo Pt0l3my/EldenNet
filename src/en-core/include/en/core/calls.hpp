@@ -21,6 +21,11 @@
 //   a check withheld; nothing is ever taken from a request (its prompt) or a result (its text, its message), so no
 //   prompt, unshown answer, key, base URL or server's words can reach a row. A model id that looks like a path is
 //   left out (PV5).
+// - **The traces** (System › Traces; en-proto's traces.hpp): the same rows' lines (a reply, an own-initiative line, a
+//   call-out reply), each with its queue (from the row's send to its first request's first attempt, as the client's
+//   result gives it) and its first page shown (the commit of its first page, whatever the page said), its verdict by
+//   that page; and the session's lines, counted and their first pages' and first tokens' percentiles, from the newest
+//   kTraceSamples of each. A trace holds no text.
 #include <cstddef>
 #include <cstdint>
 #include <deque>
@@ -33,6 +38,7 @@
 #include "en/core/conversation.hpp"
 #include "en/proto/calls.hpp"
 #include "en/proto/llm.hpp"
+#include "en/proto/traces.hpp"
 
 namespace en::core {
 
@@ -57,9 +63,11 @@ class CallRecord {
   // One of the conversation's notes (core.hpp's Outputs::calls): a reply's request, whose first makes the reply's row
   // and a regeneration's joins it, or a reply whose answer a check withheld.
   void note(const CallNote& n, std::uint64_t at_ms);
-  // A page of a reply shown (a commit NpcSaid or NpcPage): its row reads shown, and its text grows by the page's, cut
-  // at kCallTextMaxBytes. Nothing for a reply whose answer was withheld, or one the record does not know.
-  void shown(proto::ConvId conv, proto::ReplyId reply, std::string_view text);
+  // A page of a reply shown at `at_ms` (a commit NpcSaid or NpcPage): its row reads shown, and its text grows by the
+  // page's, cut at kCallTextMaxBytes; the first one is its first page shown (the traces'). For a reply whose answer was
+  // withheld, the first page alone (the persona's own line showed in its place); nothing for one the record does not
+  // know.
+  void shown(proto::ConvId conv, proto::ReplyId reply, std::string_view text, std::uint64_t at_ms);
   // A request the model client did not take (the handle missing, its queue full): the row ends failed, `why` its class.
   void not_sent(proto::RequestId id, proto::ErrorClass why, std::uint64_t at_ms);
   // A request refused before it left (Pause AI): it was no call, so its row goes; a regeneration's, its reply's row
@@ -75,6 +83,8 @@ class CallRecord {
   void hour(std::uint32_t requests, std::uint32_t bound, std::uint64_t at_ms);
 
   [[nodiscard]] const proto::CallsView& view() const noexcept { return view_; }
+  // System › Traces: the lines among the rows, as many as the view keeps, and the session's lines summed up.
+  [[nodiscard]] const proto::TracesView& traces() const noexcept { return traces_; }
 
  private:
   struct Entry {
@@ -92,6 +102,10 @@ class CallRecord {
     double cost = 0;
     bool costed = false;
     bool failure = false;
+    // What it adds to the traces' summary now (a line's alone).
+    bool line_shown = false;     // counted among the lines shown, its first page a sample
+    bool line_unshown = false;   // counted among those that ended with none
+    bool token_sampled = false;  // its first token is a sample
   };
 
   Entry* by_request(proto::RequestId id);
@@ -101,14 +115,24 @@ class CallRecord {
   void end_list(Entry& e, const proto::ModelsOutcome& m);
   // The row's outcome worked out again and the usage moved by what the entry adds now, then the view rebuilt.
   void settle(Entry& e);
+  // A line's row in the traces, and what it adds to their summary, worked out again (settle's part).
+  void trace(Entry& e);
+  void untrace(const Entry& e);  // a withdrawn call's: what it added goes, and so does its row
   void rebuild();
   void prune_hour(std::uint64_t at_ms);
+  static void sample(std::deque<std::uint32_t>& samples, std::int64_t ms);
 
   std::size_t kept_ = proto::kCallsKept;
   std::vector<Entry> entries_;  // newest first (at_ms, then id), at most kept_ and 64 more
   std::uint64_t next_id_ = 1;
   std::deque<std::uint64_t> own_initiative_;  // when each own-initiative call of the last hour was sent
   proto::CallsView view_;
+  // The traces: their rows (newest first, at most kept_, held apart from entries_ so that other calls never push a
+  // line out), and the session's newest first pages and first tokens of lines, for the percentiles.
+  std::deque<proto::TraceRow> trace_rows_;
+  std::deque<std::uint32_t> pages_;
+  std::deque<std::uint32_t> tokens_;
+  proto::TracesView traces_;
 };
 
 // The core's step for the record: its notes first, then the pages it committed on display (NpcSaid, NpcPage).
