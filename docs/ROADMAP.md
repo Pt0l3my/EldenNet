@@ -1879,13 +1879,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     true, save = "report.save" }` on the preview block, `report.save` sensitive and not a file command, the block's topic
     the space's own; a device receives no `share` for any topic a report preview draws. EldenNet's floor for it is
     0.2.56. Copy alone also serves Workshop's unknown characters' TOML.
-- bq This-PC-only pages and topics, and page data above GraceUI's minor refused at registration (GraceUI 0.2.57, protocol 1.20) [next]
+- bq This-PC-only pages and topics, and page data above GraceUI's minor refused at registration (GraceUI 0.2.57, protocol 1.20) [done]
   - refs: GraceUI:D258, WHY§653, PAGES§4.6.8, O132
   - gives: GraceUI's D264, agreed on 2026-11-25 from EldenNet's Workshop survey: a page's `pc_only` keeps it out of a
     paired device's view and page data, a topic's `pc_only` refuses a device's watch ("Only on the PC the game runs
     on."), checked so that such a topic is drawn on such pages alone and a setting homed there is sensitive; and
     register_pages refuses page data whose minor its GraceUI does not have, in its log and its one notice. Workshop
     takes both marks at the pin after it (O132: not released before).
+    Built the same day (GraceUI feat/foundations b4e10f8; GraceUI's docs/eldennet-changes.md §90): commands named only
+    on pc_only pages are sensitive, and settings homed there are left out of a device's settings topic; page data's
+    minor is the floor's (20 with pc_only).
 - br A space check of the browser view over a consumer's space folder (GraceUI 0.2.58) [planned]
   - refs: GraceUI:D258, PAGES§4.6.8
   - gives: GraceUI's D265, planned on 2026-11-25: `npm run check:space` runs the real browser view over GraceUI's fake
