@@ -30,4 +30,10 @@ class Secret {
 
 std::ostream& operator<<(std::ostream& os, const Secret& secret);
 
+// Anything in `text` shaped like a credential replaced by Secret::kRedacted: a token beginning "sk-" or "sk_", any run
+// of 24 or more token characters (letters, digits, '_' and '-'), and the token after "Bearer ". Everything else, its
+// spaces and line breaks included, stays as it is. A server's message goes through it (with its spaces made one line,
+// stream.cpp), and so do Tools › Workshop's prompt and reply, after the configured keys' own values.
+[[nodiscard]] std::string redact_credentials(std::string_view text);
+
 }  // namespace en::llm

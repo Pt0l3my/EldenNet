@@ -5,6 +5,7 @@
 
 #include "en/llm/errors.hpp"
 #include "en/llm/health.hpp"
+#include "en/llm/secret.hpp"
 #include "en/llm/sse.hpp"
 #include "en/llm/stream.hpp"
 
@@ -238,4 +239,17 @@ TEST_CASE("sentences, refusals, error bodies and Retry-After") {
   CHECK(rate_limit_cooldown({{"retry-after", "900"}}) == Millis(300000));    // capped at 300 s
   CHECK(rate_limit_cooldown({{"retry-after", "Wed, 21 Oct 2026 07:28:00 GMT"}}) == Millis(60000));
   CHECK(rate_limit_cooldown({}) == Millis(60000));
+}
+
+TEST_CASE("credentials: their shapes redacted, every other word, space and line break kept (Workshop's text)") {
+  using en::llm::redact_credentials;
+  CHECK(redact_credentials("line one\nmy key sk-invented and\tmore") == "line one\nmy key <redacted> and\tmore");
+  CHECK(redact_credentials("a run ABCDEFGHIJKLMNOPQRSTUVWX0 here") == "a run <redacted> here");
+  CHECK(redact_credentials("a short run ABCDEFGHIJKLMNOPQRSTUVW here") == "a short run ABCDEFGHIJKLMNOPQRSTUVW here");
+  CHECK(redact_credentials("Authorization: Bearer abc.def\nnext") == "Authorization: Bearer <redacted>\nnext");
+  CHECK(redact_credentials("q:tanith.met and w:castle_fallen stay") == "q:tanith.met and w:castle_fallen stay");
+  // A server's message is made one line first, as before.
+  const std::string msg = describe_error_body(R"({"error": {"message": "two\nlines sk-x"}})", 400);
+  CHECK(msg.find('\n') == std::string::npos);
+  CHECK(msg.find("<redacted>") != std::string::npos);
 }

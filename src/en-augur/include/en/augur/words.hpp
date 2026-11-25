@@ -7,6 +7,7 @@
 // telling field is one (a place's id, a count, a slot). Never an HP fraction or a distance, and never a handle.
 #include <cstdint>
 
+#include "en/augur/detectors.hpp"
 #include "en/augur/events.hpp"
 #include "en/augur/types.hpp"
 
@@ -22,6 +23,7 @@ namespace en::augur {
 [[nodiscard]] const char* to_string(EngageVia v) noexcept;      // "Hit", "LockClosing", "Near", "LockOnly"
 [[nodiscard]] const char* to_string(DisengageWhy v) noexcept;   // "Timeout", "Distance"
 [[nodiscard]] const char* to_string(LadderLevel v) noexcept;    // "Starting", "L1", ..., "L4"
+[[nodiscard]] const char* to_string(DetectorKind v) noexcept;   // "rising_edge", ..., "fact": rule files' words
 
 // The kind's name, NUL-terminated (kKindNames' own literal); "?" for an index outside the catalogue.
 [[nodiscard]] const char* kind_word(const EventKind& k) noexcept;

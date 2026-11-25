@@ -57,6 +57,23 @@ const char* to_string(EngageVia v) noexcept { return word_of(kVias, v); }
 const char* to_string(DisengageWhy v) noexcept { return word_of(kWhys, v); }
 const char* to_string(LadderLevel v) noexcept { return word_of(kLevels, v); }
 
+const char* to_string(DetectorKind v) noexcept {
+  switch (v) {
+    case DetectorKind::RisingEdge: return "rising_edge";
+    case DetectorKind::FallingEdge: return "falling_edge";
+    case DetectorKind::ChangedStable: return "changed_stable";
+    case DetectorKind::CrossesBelow: return "crosses_below";
+    case DetectorKind::CrossesAbove: return "crosses_above";
+    case DetectorKind::DropOverWindow: return "drop_over_window";
+    case DetectorKind::RiseOverWindow: return "rise_over_window";
+    case DetectorKind::EnterRadius: return "enter_radius";
+    case DetectorKind::CountIncrement: return "count_increment";
+    case DetectorKind::Engagement: return "engagement";
+    case DetectorKind::Fact: return "fact";
+  }
+  return "?";
+}
+
 const char* kind_word(const EventKind& k) noexcept {
   // kKindNames holds views of string literals, so each name's data is NUL-terminated.
   return k.index() < kKindNames.size() ? kKindNames[k.index()].data() : "?";
