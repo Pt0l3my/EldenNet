@@ -43,7 +43,7 @@ PROTOCOL_MINOR = 18  # a filter's own choices on a bar GraceUI filters itself is
 #                     and pickers (D192 to D196)
 SPACE_FIELDS = ("id", "name", "settings_schema", "commands", "slow_commands", "sensitive_commands", "quick")
 PAGE_FIELDS = ("id", "category", "name", "description", "help", "related", "increment", "tag", "actions", "master",
-               "tabs", "sections", "live")
+               "tabs", "sections", "live", "browser_only", "shown_with", "gate", "ribbon")
 SETTING_FIELDS = ("key", "type", "default", "min", "max", "step", "unit", "choices", "choices_from", "third", "label",
                   "help", "synonyms", "home", "effect", "availability", "locked", "sensitive")
 DELIMITER = ")space\""
