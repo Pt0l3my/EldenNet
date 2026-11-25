@@ -272,6 +272,10 @@ dialog and Related card of GraceUI §4.2.4.
 - *Since 2026-11-24, as built (engine 2f27925; GraceUI D252):* Pause AI is GraceUI's quick switch ("Pause AI for this
   session", `ai.pause`, its state `status.ai_paused`), with its line on the Status card; the header chip waits for a
   header action that is a switch. Home is live, and its Model calls card shows the last 20.
+- *Since 2026-11-25, as built (engine e7e5a9e; GraceUI D256):* Pause AI is also the header's switch ("Pause AI",
+  `ai.pause` with `on` flipped, its state `status.ai_paused`), beside the quick switch, which stays; in game it is
+  Home's first focus. The Model calls card's Text shown is in each row's drawer. Run self-test and Customise are not
+  built (Run self-test is on AI › Self-test).
 - **Cards** (a grid of mixed widths, each with an uppercase gold title; the title, or Enter on it, opens its page):
 
 | Card | Width (3 / 5 columns) | Contents | Reads | From |
@@ -435,6 +439,8 @@ dialog and Related card of GraceUI §4.2.4.
   row drawer's fields are the table's last two columns, Why and Text shown, until GraceUI has a row drawer; the hour's
   line under the tiles gives own-initiative calls and every request against the bound; cost is shown only once a
   provider reported one, with how many calls did; the page is live.
+- *Since 2026-11-25, as built (engine e7e5a9e; GraceUI D256):* Why and Text shown are in each row's drawer (GraceUI's
+  row drawer, keyed by the call's id as words); a row with neither still has an empty drawer.
 
 **Director** (`ai.director`; a later-version statement). A director that chooses who speaks next and starts scenes on
 its own is a later version (EldenNet DESIGN §13, the `Directed` class). In this version NPCs speak through greetings,
@@ -743,6 +749,11 @@ a later version (O41, EldenNet DESIGN §13); v1 is dialogue only and never write
   size, the backups' count and last time; no paths, no SteamID).
 - **Data.** Reads `system.performance`.
 - **Related.** Status, Traces.
+- *Since 2026-11-24, as built (engine 0b0030b; WHY§638, §639; O128 open):* the tiles are the core's step p99 and the
+  reader's step p99 (C3's task); frame cost and memory are absent until a source exists, since v0.2 runs none of its
+  code in the game's frame and counts none of its memory (GraceUI D259's `on_present` gives the first, by its menu-open
+  flag, once EldenNet takes it). Budgets holds C3's reader's mean and p99 as checks, Passed or a Warning; Tasks a row
+  per kind of step (count, mean, p99, longest); Storage in words, since v0.2 keeps no database and no backups.
 
 **Traces** (`system.traces`; 0.2).
 
@@ -752,6 +763,13 @@ a later version (O41, EldenNet DESIGN §13); v1 is dialogue only and never write
   (quick, acceptable, slow). No text.
 - **Data.** Reads `traces`.
 - **Related.** AI › Requests, AI › Self-test, Settings › Developer (latency toasts).
+- *Since 2026-11-24, as built (engine 0b0030b; WHY§640, §641; O128 open):* times run from the request's handover;
+  Queue is the model client's wait before the first attempt left; the first page is the reply's first page committed,
+  whatever it said. The p95 tile and its clause appear from 20 lines on, held to C5's p90 target; the targets follow
+  where the Conversation model runs. A verdict for replies (ARCH §11.7's rule) and call-outs (DESIGN §1.4's) alone.
+  The slot is shown as its job ("Job"). As many lines as the calls' record keeps rows (20, 200 with Developer views).
+- *Since 2026-11-25 (O128):* the tile and the sentence give the first page's 90th percentile, as C5 gives its targets,
+  from 10 lines on.
 
 **Logs** (`system.logs`; 0.2).
 
@@ -760,6 +778,10 @@ a later version (O41, EldenNet DESIGN §13); v1 is dialogue only and never write
 - **Data.** Reads `logs`.
 - **Rules.** Scrubbed as reports are (PV5); no download of raw files (Bug report makes the shareable bundle).
 - **Related.** Tools › Bug report, Settings › Developer (log level).
+- *Since 2026-11-25, as built (engine e7e5a9e; GraceUI D257):* the level tiles are GraceUI's filter bar on the log
+  tail, in both views: a Level filter on each row's own level and "Find in the log" on its line. Logs shows in game
+  too, the newest 200 rows, scrubbed as the browser's 500 are, so a search in the browser may find a line the game no
+  longer holds.
 
 #### 4.6.8 Tools
 

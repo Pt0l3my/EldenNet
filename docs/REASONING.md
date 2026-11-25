@@ -660,6 +660,22 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 635 | 2026-11-24 | Requests' drawer fields are its last two columns until GraceUI has a row drawer | DECIDED | #pages #privacy |
 | 636 | 2026-11-24 | Pause AI is not a sensitive command, and is the quick switch alone for now | DECIDED | #pages #privacy |
 | 637 | 2026-11-24 | A page whose first control comes with its topic opens in game focused on its Related card | FACT | #pages #graceui |
+| 638 | 2026-11-24 | System › Performance gives EldenNet's own steps alone; its frame cost and memory wait for a source | DECIDED | #pages #perf #graceui |
+| 639 | 2026-11-24 | A step's p99 on Performance is its C13 bucket's upper bound | FACT | #perf |
+| 640 | 2026-11-24 | Traces' times run from the request's handover; the queue is the model client's wait | DECIDED | #pages #traces |
+| 641 | 2026-11-24 | Traces' 95th percentile is held to C5's 90th-percentile target, and given from 20 lines | DECIDED | #pages #traces |
+| 642 | 2026-11-24 | GraceUI 0.2.46 draws a computed sentence and a section description on one line in game | FACT | #graceui #pages |
+| 643 | 2026-11-24 | GraceUI's in-game table shows no column labels | FACT | #graceui #pages |
+| 644 | 2026-11-24 | Pages added within a category move the in-game routes by one Page Down and one ↓ each | FACT | #fakegame #graceui |
+| 645 | 2026-11-25 | GraceUI frees a mod's present callback only once the present thread's frame has moved on, with no time bound | METHOD | #graceui #perf |
+| 646 | 2026-11-25 | EldenNet's GraceUI floor rises to 0.2.50 with Logs' filter bar on its stream | FACT | #graceui #pages |
+| 647 | 2026-11-25 | A drawer follows its row by a string id alone | FACT | #pages #graceui #privacy |
+| 648 | 2026-11-25 | grace-dev's dump never gives a stream its rows | FACT | #pages #goldens #graceui |
+| 649 | 2026-11-25 | A stream held for another view may give a page its filter bar at once | LIKELY | #fakegame #graceui |
+| 650 | 2026-11-25 | A page's header actions are its first focus stops | FACT | #pages #graceui |
+| 651 | 2026-11-25 | Each log row's level is the logger's | DECIDED | #pages #privacy |
+| 652 | 2026-11-25 | At GraceUI 0.2.52 and 0.2.53 EldenNet's goldens move only as D256, D257 and D260 explain | FACT | #pages #goldens #graceui |
+| 653 | 2026-11-25 | The Bug report's copy and save go through GraceUI's share, and report.copy is dropped | DECIDED | #pages #privacy #graceui |
 
 ## Entries
 
@@ -9327,6 +9343,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 
 - A space's `quick` and a page's `live` are fields an older decoder skips, so GraceUI 0.2.44 shows the pages without
   their pills, and only Pause AI, which the quick switch alone sends, cannot be turned on there.
+- Later (2026-11-25, engine e7e5a9e): the floor rises to 0.2.50 with Logs' filter bar on its stream (WHY§646).
 
 ### 635. Requests' drawer fields are its last two columns until GraceUI has a row drawer
 
@@ -9336,6 +9353,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   Home's card's last; a drawer would take them as they are (asked of Grace). `calls` holds every kept row and Home's
   20 under 240 KiB, below GraceUI's 256 KiB frame: past it, Requests' oldest rows give up their text, then go. Slot is
   shown as its job's label ("Job"); the hour's line gives own-initiative calls and every request against the bound.
+- Later (2026-11-25, engine e7e5a9e): Why and Text shown are drawer columns since GraceUI 0.2.49's row drawer
+  (D256), each row with its call's id as words (WHY§647).
 
 ### 636. Pause AI is not a sensitive command, and is the quick switch alone for now
 
@@ -9345,6 +9364,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   (as agreed with Grace). PAGES' chip in Home's header waits for a header action that is a switch (asked of Grace).
   While paused the AI pages lead with the pause before any other cause, and the space refuses the self-test and model
   lists with en-proto's words, as the DLL does.
+- Later (2026-11-25, engine e7e5a9e): Home's header has the Pause AI switch since GraceUI 0.2.49 (D256), beside the
+  quick switch, which stays (WHY§650).
 
 ### 637. A page whose first control comes with its topic opens in game focused on its Related card
 
@@ -9352,3 +9373,187 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 
 - grace-dev's dumps of AI › Requests (its filter bar comes with its topic) and of Home (no control above Related)
   focus Related and scroll to it, the header above the top; so did Home and Content packs at 0.2.44. Asked of Grace.
+
+### 638. System › Performance gives EldenNet's own steps alone; its frame cost and memory wait for a source
+
+`2026-11-24` · DECIDED · `#pages` `#perf` `#graceui` · refs: PAGES§4.6.7, DESIGN§1.3 (C3), ARCH§1.2 (T2, T3, T6), O101, O128, src/en-proto/include/en/proto/perf.hpp, src/eldennet/win/overlay.cpp (fill_perf), engine 1ee7d14 (merged at 0b0030b)
+
+- v0.2 registers no `on_present` callback (ARCH §1.2's T3) and, since O101, runs none of its code on the game's own
+  threads: EldenNet's panels are draw lists T6 submits, which GraceUI draws. Any per-frame figure, with the menu open
+  or closed, would be GraceUI's, and EldenNet did not know whether GraceUI's menu was open. EldenNet counts none of its
+  memory (the probe build's allocation watch counts allocations on an armed thread, not bytes; a release build uses the
+  CRT's heap, which is the process's). So PAGES' frame-cost and memory tiles are absent (absence is silent) until a
+  source exists; the tiles are the core's step p99 (T6, timed by QPC around `Core::step` alone, into a C13 histogram of
+  the Shell's) and the reader's step p99 (T2's task histogram, C3's task), and Budgets holds C3's two task limits (mean
+  0.15 ms, p99 0.5 ms). C3's render feed, panels, callback and frame-rate limits have no EldenNet figure either.
+
+### 639. A step's p99 on Performance is its C13 bucket's upper bound
+
+`2026-11-24` · FACT · `#perf` · refs: src/en-gal/include/en/gal/health.hpp (Histogram, step_times), en-gal test_guarded.cpp
+
+- en-gal's histogram keeps four buckets an octave, and `percentile_us` answers the bucket's upper bound, capped by the
+  longest: a 200 µs p99 reads 223 µs. Performance's p99 cells and the budget check read up to about a sixth high, never
+  low, so a step shown within its limit is within it; the mean (sum ÷ count) and the longest are exact. `step_times`
+  (en-gal) turns a histogram into en-proto's `StepTimes`.
+
+### 640. Traces' times run from the request's handover; the queue is the model client's wait
+
+`2026-11-24` · DECIDED · `#pages` `#traces` · refs: PAGES§4.6.7, DESIGN§8.2, src/en-core/src/calls.cpp (end_chat, shown), src/en-proto/include/en/proto/traces.hpp
+
+- A line's times are its calls' record row's, from the row's `at_ms` (the handover, which for a reply is the core's
+  step that took the Tarnished's line). Queue is the row's first request's wait from the handover to its first attempt's
+  send: the client's start (its end less its total) plus the first attempt's `sent_at`, known at that request's end; a
+  request that never left has none. A line the player sends while a reply is still up waits in the conversation's one
+  slot first (DESIGN §8.2's "queue, don't cancel"); that wait is reading time, not a model's latency, and is not counted.
+  The first page shown is the commit of the reply's first page (`record_step`, at the step's `since_ms`, the wake its
+  PageShown came in), whatever the page said: the persona's own line in place of a withheld answer counts, since the
+  Tarnished waited for it alike. The record keeps both times on its rows (`CallRow::queue_ms`, `first_page_ms`), which
+  AI › Requests does not show, and its traces apart from its rows, so that no self-test or model list pushes a line out.
+
+### 641. Traces' 95th percentile is held to C5's 90th-percentile target, and given from 20 lines
+
+`2026-11-24` · DECIDED · `#pages` `#traces` · refs: PAGES§4.6.7, DESIGN§1.3 (C5), DESIGN§1.4, O128
+
+- PAGES' tile is the first page's p95; C5 and §1.4 give the second target for the p90 (3.0 s cloud; §1.4's 4.5 s local).
+  The page holds the p95 to that target, the stricter reading, and asks the owner which is meant (O128). Below 20 lines
+  shown the nearest-rank p95 is the slowest line, so its tile and its clause are absent until the 20th. The verdict's
+  rule is ARCH §11.7's one rule (1.6 s and 3.0 s) on every model; the tiles' targets follow where the Conversation
+  job's model runs (a provider whose `cloud` is false: C5's local 2.5 s and §1.4's 4.5 s).
+- Later (2026-11-25): the owner chose the 90th percentile, as C5 gives its targets, from 10 lines on (O128).
+
+### 642. GraceUI 0.2.46 draws a computed sentence and a section description on one line in game
+
+`2026-11-24` · FACT · `#graceui` `#pages` · refs: GraceUI fe7d9db src/grace-view/page_view.cpp (one_line), the system.traces and ai.providers goldens, GraceUI D260
+
+- Both are cut at the panel's width (about 140 glyphs at 1920×1080: AI › Providers' "Your own provider" description
+  has long been cut so). Traces' sentence first carried the verdicts' counts and the calls with no page, and was cut
+  mid-word; it now holds the two figures against their targets alone (115 characters at most), the lines' tile says
+  "of N shown" when some calls for a line showed none, and the summary keeps no verdict counts. Performance's and
+  Traces' section descriptions were shortened to fit for the same reason. Asked of Grace; GraceUI 0.2.53 (D260) is to
+  wrap both to the card.
+- Later (2026-11-25, engine 361fd65): GraceUI 0.2.53 (D260) wraps both, taken at EldenNet's pin (WHY§652).
+
+### 643. GraceUI's in-game table shows no column labels
+
+`2026-11-24` · FACT · `#graceui` `#pages` · refs: GraceUI fe7d9db page_view.cpp (D181's table in game), the system.traces.world golden, GraceUI D260
+
+- A row in game is its first column, then the others joined by " · ": a Traces row reads "reply · Conversation · 0.04
+  s · 0.64 s · 1.18 s · 1.72 s · quick", and a timed-out line's "0.03 s · 6.00 s" says nothing of which is the queue
+  and which the total. The browser view has the headers. Asked of Grace; GraceUI 0.2.53 (D260) is to give the table a
+  header line and a slot per column, or each value with its column's label where slots would be too narrow.
+- Later (2026-11-25, engine 361fd65): GraceUI 0.2.53 (D260) gives the table a header line and a slot per column,
+  taken at EldenNet's pin (WHY§652).
+
+### 644. Pages added within a category move the in-game routes by one Page Down and one ↓ each
+
+`2026-11-24` · FACT · `#fakegame` `#graceui` · refs: tests/fakegame/harness.py (PAGES_KEYS, EDITOR_KEYS), tools/preview/shoot.py, WHY§600
+
+- Page Down steps page by page, so the pages case takes two more from Status to Logs (and now sees Performance and
+  Traces drawn); in the rail ↓ steps row by row, the open category's pages among them, so the editor case and
+  tools/preview/shoot.py take two more ↓ to GraceUI's own pages. Every later press, report and the frames' count moved
+  on by 60 or 120 frames rather than closing the presses' spacing.
+
+### 645. GraceUI frees a mod's present callback only once the present thread's frame has moved on, with no time bound
+
+`2026-11-25` · METHOD · `#graceui` `#perf` · refs: GraceUI D259 (0.2.52, ABI 1.8), GraceUI's docs/eldennet-changes.md §85, ARCH§1.2 (T3), WHY§364
+
+- `set_on_present` that clears or replaces a callback, and `disconnect`, return only after the present thread's frame
+  epoch (odd while a frame is drawn) has moved on, so the old hook is never running and can never be called again; then
+  the mod may free its user data or unload. The wait has no time bound while the present thread lives, since a bound
+  would let disconnect return under a stalled callback (a debugger, an OS hitch); it ends early only once a handle to
+  the present thread says it has gone, as at ExitProcess, and then the hook is leaked rather than freed. For EldenNet:
+  never call either from DllMain, and clear the callback on T6 before freeing what it reads. GraceUI also tells each
+  call `spent_us` (the mod's callbacks together in the frame before, as its 0.5 ms budget weighs them) and whether its
+  menu is open, so EldenNet need not time its callback itself.
+
+### 646. EldenNet's GraceUI floor rises to 0.2.50 with Logs' filter bar on its stream
+
+`2026-11-25` · FACT · `#graceui` `#pages` · refs: src/en-proto/include/en/proto/graceui_pin.hpp, GraceUI D256, D257, GraceUI src/grace-view/page_view.cpp (check_parts), src/grace-spaces/registry.cpp (add), engine e7e5a9e, WHY§634
+
+- GraceUI's generated decoder reads past a field it does not know, at 0.2.44 as now: a header action's `state` is
+  skipped (Home's Pause AI would be a plain button sending `{}`, which the space refuses as invalid_value), and a
+  block's `filter_bar` has been a field of every block since 1.11. But registration also loads the page data into a
+  page view (`Registry::add` calls `PageView::load`, whose `check_parts` runs), and from 0.2.43 to 0.2.49 that check
+  takes a filter bar only on a table or a master list: Logs' bar on its log tail would refuse the whole space at
+  register_pages. 0.2.50 (D257, protocol 1.16) is the first that takes it, so the floor is 0.2.50 (kFloor; the
+  connect's floor and the launcher's pre-flight follow). The drawer is a body field and needs no minor: an older GraceUI
+  shows the column on its row.
+
+### 647. A drawer follows its row by a string id alone
+
+`2026-11-25` · FACT · `#pages` `#graceui` `#privacy` · refs: GraceUI page_view.cpp (drawer_key), web/src/ui/components.tsx, src/en-overlay/src/space.cpp (call_row), PAGES§4.6.1, PAGES§4.6.2, PV4, engine e7e5a9e
+
+- Both views key a row's drawer by its `id` only when it is a string (1 to 64 bytes, no slash), else by its place,
+  which moves as newer calls arrive. Requests' rows carried the record's id as a number; they and Home's card's rows now
+  carry it as words ("19"), the same on both tables for one call. Why and Text shown are `"drawer": true` on Requests,
+  Text shown on Home's card (no reason was found against it there; in game each of the card's 20 rows is now a focus
+  stop). PV4 holds, since the drawer shows only the row's own fields, and the record keeps a text only once a page of
+  it was shown.
+
+### 648. grace-dev's dump never gives a stream its rows
+
+`2026-11-25` · FACT · `#pages` `#goldens` `#graceui` · refs: GraceUI tools/grace-dev/dump.cpp, tests/pages/golden/system.logs-1920x1080.txt, GraceUI D257
+
+- The dump hands the view a topic's fixture only when it is an object, and a stream's fixture must be a list of rows
+  (grace-dev's own check), so Logs' golden says "Nothing to show." where 0.2.46 said "Shown in the browser view.", with
+  no row and no filter bar (a stream's bar comes with its rows). That the menu draws the rows the browser gets, scrubbed
+  alike, is checked in the fake game instead (GraceUI's MenuShows on a row's line and on the bar's search), and holds by
+  construction: GraceUI keeps the same frames for the menu (D257). Asked of Grace.
+
+### 649. A stream held for another view may give a page its filter bar at once
+
+`2026-11-25` · LIKELY · `#fakegame` `#graceui` · refs: GraceUI D256, D257, page_view.cpp (bar_of_table, push_bar, focus_first_control), tests/fakegame/harness.py (browse_eldennet)
+
+- GraceUI keeps a watched stream's newest 200 rows for the menu while any view watches it, a browser's included, and a
+  stream's bar exists once the menu holds rows. By the code, Logs opened in game while a browser watches `logs` has its
+  bar at the first layout and its first focus is the Level filter; opened with none held, its first focus is Log
+  detail's shortcut row and stays there when the bar comes (D256). Not seen: one run of the pages case with the stream
+  kept watched still opened on the shortcut. The case's browser lets `logs` go once read, so its route does not depend
+  on the browser's timing. Asked of Grace.
+
+### 650. A page's header actions are its first focus stops
+
+`2026-11-25` · FACT · `#pages` `#graceui` · refs: GraceUI page_view.cpp (rebuild's focus order, focus_first_control), GraceUI D256, PAGES§4.6.1
+
+- The header's actions come first in a page's focus order, before its master list and sections, so Home opens in game
+  focused on Pause AI's switch (D256's page top and its header switch together): Enter straight after F5 pauses AI for
+  the session. Reversible, shown on the switch and in the Status card, and what D256 gives. Asked of Grace whether a
+  header switch should take the first focus.
+
+### 651. Each log row's level is the logger's
+
+`2026-11-25` · DECIDED · `#pages` `#privacy` · refs: src/eldennet/include/en/shell/logline.hpp, rings.hpp, src/en-overlay/src/space.cpp (log_row), GraceUI D257, PAGES§4.6.7, PV5, engine e7e5a9e
+
+- The logger's ring entry keeps the level each line was logged at (LogLevel moved to logline.hpp, beside the line), the
+  pages' tail ring copies the entry, and the space's row carries it as D257's word (Warn as "warning"); nothing reads a
+  level from a line's text. v0.2's logger has four levels, so no row says "trace". Logs' rows are scrubbed once, as
+  they enter the space's ring, so the browser's frames and the menu's copy of them are the same rows (PV5). The Level
+  filter offers the rows' own words, lowercase, not Log detail's ("Errors only" and the rest): asked of Grace.
+
+### 652. At GraceUI 0.2.52 and 0.2.53 EldenNet's goldens move only as D256, D257 and D260 explain
+
+`2026-11-25` · FACT · `#pages` `#goldens` `#graceui` · refs: tests/pages/golden, GraceUI D256, D257, D260, engine 0a68aea, e7e5a9e and 361fd65; scratchpad scripts gold/explain.py and explain_d260.py (not committed)
+
+- Dumped in three stages, each checked by a script of our own that matched every change to a rule and failed on any
+  other. 832b8d9's grace-dev over 0b0030b's page data (GraceUI alone): every golden's counts line falls (D256 1; Docs
+  passes, 121 items, 8,534 vertices); thirteen goldens of pages that opened on Related open at their top; Logs' "Shown
+  in the browser view." becomes "Nothing to show.". This job's page data: Requests ×2 and Home ×3 gain a drawer's mark
+  on each row, the world's rows lose Why and Text shown from their line, Home's header has the Pause AI switch, and
+  Home over the banner says "Not available now" in its footer. 7fa3042's grace-dev (D260): fourteen goldens gain a
+  header line and a slot per column, Providers' Key cell shows its status alone, the Your own provider description
+  wraps to two lines, and two tile units are drawn small after their values. No table falls back to labels before
+  values at 1920 by 1080; a value longer than its slot is cut at its edge with no mark (Providers' Address): asked of
+  Grace.
+
+### 653. The Bug report's copy and save go through GraceUI's share, and report.copy is dropped
+
+`2026-11-25` · DECIDED · `#pages` `#privacy` `#graceui` · refs: GraceUI docs/proposals/0015-report-copy-and-save.md (main c348f4c), PAGES§4.6.8, PV5, PV7, D221
+
+- Answered to Grace's proposal 0015, shape (a), for 0.6: the space hands its scanned report as the preview's
+  `share.text` (EldenNet's form alone: the preview's parts and order, plain UTF-8, scrubbed and scanned first; absent
+  until the first `report.build`), or `share.blocked` with one sentence naming the part and the kind of thing found,
+  never the value. GraceUI does the clipboard in both views on the click alone; EldenNet drops `report.copy` and is told
+  nothing of a copy. In game `report.save` stays EldenNet's (sensitive), written under its own folder and answered by a
+  path relative to the game's folder; in the browser Save is a download alone. The file is
+  eldennet-report-<YYYY-MM-DD>.txt, with -2 and on in game rather than overwrite. Asked of Grace whether a paired
+  device receives `share` in the topic's body; the final words go to the owner with the build.

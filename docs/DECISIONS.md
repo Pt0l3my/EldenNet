@@ -2565,3 +2565,30 @@ them as built, or change any of them.
 **Owner's words.** "Accept as built (Recommended)" (question dialog, 2026-11-24).
 
 **Follows from.** D15, D18; O125; PAGES §4.6.1, §4.6.2, §4.9; S11.4.a.
+
+## O128
+
+**System › Performance and System › Traces: their words and readings, and which percentile Traces holds to its target** · *2026-11-25 · Decided by the owner, as recommended*
+
+**Question.** System › Performance and System › Traces were built at GraceUI 0.2.46 (S11.4.a; engine 0b0030b; WHY§638
+to §644). (a) PAGES §4.6.7 gives Traces a tile for the first page's 95th percentile, while C5 and DESIGN §1.4 give the
+second target (3.0 s for a cloud model, 4.5 s for a local one) for the 90th. As built, the page holds the p95 to the
+p90's target, the stricter reading. (b) Their new words: the pages' names, descriptions, help, sections and empty
+words; Performance's tiles ("The core's steps, p99", "Reading the game, p99"), Budgets' two checks, Tasks' rows and
+Storage's lines ("None in this version: what is said stays in memory until the game closes"); Traces' tiles, its
+sentence against the targets for where the Conversation model runs, its columns and its kinds and verdicts (PAGES'
+own). Readings: frame cost and memory left out until a source exists (no `on_present` callback in v0.2, no memory
+count of EldenNet's own), the reader's step p99 shown as a tile beside the core's; Queue as the model client's wait
+before the first attempt left; a verdict for replies and call-outs alone; the 95th percentile from 20 lines on.
+**Options:** (a) p90 on the page, as C5 and §1.4 give targets for it (one line in traces.hpp and the tile's label), or
+p95 held to the p90's target, as built; (b) accept the words and readings as built, or change any of them.
+
+**Recommendation.** (a) p90, matching C5. (b) Accept as built.
+
+**Decision.** (a) Traces' tile and sentence show the first page's 90th percentile, held to C5's and §1.4's targets for
+it, and given from 10 lines on (below which the nearest-rank 90th is the slowest line). (b) The words and readings as
+built, as PAGES §4.6.7's dated notes of 2026-11-24 hold them, with the 95th read as the 90th.
+
+**Owner's words.** "p90, matching C5 (Recommended)" and "Accept as built (Recommended)" (question dialog, 2026-11-25).
+
+**Follows from.** D15, D18; C3, C5; O101, O127; PAGES §4.6.7; S11.4.a.
