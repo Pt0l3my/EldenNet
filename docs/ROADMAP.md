@@ -1957,7 +1957,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 - S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs [active]
   - needs: S11.2.h
-  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, O99, O104, O119, O120, O125, O127, O128, G34, G36
+  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, O99, O104, O119, O120, O125, O127, O128, O129, O130, O131, O132, O133, G34, G36
   - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format. The
     allowances' and reactions' inherit tri-states (PAGES) use GraceUI's third = "inherit" and the settings topic's
     `inherited` list, added on 2026-11-20 at EldenNet's request (GraceUI feat/foundations ac4bc39). Since GraceUI
@@ -2061,6 +2061,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     row keyed by its call's id; Home's Pause AI header switch beside the quick switch; Logs' filter bar on each row's
     own level, and Logs in game; in-game tables with a header line and slots; Traces at its 90th percentile from 10
     lines on. EldenNet's GraceUI floor is 0.2.50, page data minor 16. The fake game's suite under Wine: 145 of 145.
+    Tools › Workshop planned the same day (a survey of the seven parts PAGES gives it, each on T6), and its words and
+    readings decided by the owner (O129 to O133): the full gate sentence, Developer views turning it on at once, a
+    "Record this session" header switch, this PC alone (not released until GraceUI gives a this-PC-only mark, asked of
+    Grace), and Logs' level words. Being built on GraceUI 0.2.55, EldenNet's floor rising to 0.2.55 with Logs' words.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2

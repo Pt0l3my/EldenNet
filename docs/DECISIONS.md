@@ -2592,3 +2592,94 @@ built, as PAGES §4.6.7's dated notes of 2026-11-24 hold them, with the 95th rea
 **Owner's words.** "p90, matching C5 (Recommended)" and "Accept as built (Recommended)" (question dialog, 2026-11-25).
 
 **Follows from.** D15, D18; C3, C5; O101, O127; PAGES §4.6.7; S11.4.a.
+
+## O129
+
+**Tools › Workshop's words** · *2026-11-25 · Decided by the owner, as recommended*
+
+**Question.** Tools › Workshop (PAGES §4.6.8; S11.4.a) is planned on GraceUI D258's fields: in the browser alone, shown
+with `debug.panel`, behind a gate once a session, with a ribbon while open. Its words: the description ("EldenNet's raw
+workings, for testers: the last prompt and reply, every event, the world view and more."), help ("See EldenNet's
+workings unfiltered, to find out why a character said what it said, or nothing.", with four steps), the gate's sentence,
+its button "Open Workshop", the ribbon "Spoilers", and the sections (The last prompt and reply · Every event · World view
+· What each character knows · Unknown characters · Recording · Event kinds). **Options:** (a) the gate's full sentence,
+"Workshop shows EldenNet's raw workings: the text sent to the model and its replies, every event, and what each
+character knows. It contains spoilers. Open it for this session?"; (b) a shorter one, "Workshop contains spoilers and
+the text sent to the model. Open it for this session?"; the other words as drafted either way.
+
+**Recommendation.** (a).
+
+**Decision.** (a): the full sentence, and the other words as drafted.
+
+**Owner's words.** "Full sentence (Recommended)" (question dialog, 2026-11-25).
+
+**Follows from.** D5, D10; SP8, SP9; PAGES §4.6.8; GraceUI D258; S11.4.a.
+
+## O130
+
+**Developer views turns Workshop on at once** · *2026-11-25 · Decided by the owner, as recommended*
+
+**Question.** `debug.panel` takes effect at the next start, for the in-game F11 view, which is made at the connect.
+Workshop needs nothing of that. **Options:** (a) Workshop follows the switch at once and F11 at the next start, the
+setting's help saying both: "Turns on the F11 debug view in game from the next start, and Tools › Workshop in the
+browser at once. Both are for testers; Workshop shows spoilers and the text sent to the model."; (b) Workshop's keeping
+starts at the next start too, the page saying so meanwhile.
+
+**Recommendation.** (a).
+
+**Decision.** (a), with the help as drafted (its present "never story or chat" would be untrue).
+
+**Owner's words.** "Workshop at once (Recommended)" (question dialog, 2026-11-25).
+
+**Follows from.** D14; O129; PAGES §4.5, §4.6.8.
+
+## O131
+
+**Workshop's recording controls** · *2026-11-25 · Decided by the owner, as recommended*
+
+**Question.** `debug.record_sessions` opens the recorder at the start alone (numbers only, PV8). **Options:** (a)
+Workshop shows the recorder's state and the setting's shortcut alone; (b) also a "Record this session" header switch,
+a new sensitive command `recording.set` that starts a new file now or stops it, forgotten at the next start; (c) as (b),
+as two section actions.
+
+**Recommendation.** (b).
+
+**Decision.** (b).
+
+**Owner's words.** "Header switch (Recommended)" (question dialog, 2026-11-25).
+
+**Follows from.** D221; PV8; GraceUI D256; PAGES §4.6.8.
+
+## O132
+
+**Workshop stays on this PC** · *2026-11-25 · Decided by the owner, as recommended*
+
+**Question.** A paired device's view holds every browser page today, a `browser_only` one too, and GraceUI does not
+refuse a topic by view: once `debug.panel` is on at the PC, a device could watch Workshop's prompts and events.
+**Options:** (a) Workshop on this PC alone: built now, and not shipped in a release until GraceUI gives a this-PC-only
+mark (asked of Grace as G-1 on 2026-11-25); (b) Workshop ships as built, shown on a paired device while the switch is
+on, the mark taken later.
+
+**Recommendation.** (a).
+
+**Decision.** (a).
+
+**Owner's words.** "This PC only (Recommended)" (question dialog, 2026-11-25).
+
+**Follows from.** G9; D221, D224; SP8; PV1, PV6; PAGES §4.6.8.
+
+## O133
+
+**System › Logs' level words** · *2026-11-25 · Decided by the owner, as recommended*
+
+**Question.** GraceUI 0.2.55 (D262) lets an unpaged filter give its values words of the space's own. Logs' Level
+filter offers the rows' raw values (error, warning, info, debug). **Options:** (a) Errors, Warnings, Information,
+Details; (b) Error, Warning, Info, Debug; (c) the raw words.
+
+**Recommendation.** (a).
+
+**Decision.** (a). EldenNet's GraceUI floor becomes 0.2.55 with it.
+
+**Owner's words.** "Errors, Warnings, Information, Details (Recommended)" (question dialog, 2026-11-25).
+
+**Follows from.** O128; GraceUI D257, D262; PAGES §4.6.7.
