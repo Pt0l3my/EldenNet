@@ -1984,6 +1984,182 @@ case("launcher-eldennet-graceui-pages", LGAME + ["--dll", "{eldennetdll}", "--co
           "versions and a document whole; Bug report's parts) and sending commands, each answered; Bug report's words "
           "in its preview alone, never in another topic, a log line, a recording or a file; settings.toml written "
           "after the pages' quiet")
+# Tools › Workshop (PAGES §4.6.8, SP8; S11.4.a; GraceUI D258), at the title screen, with Developer views and Record
+# sessions on from the start (settings.toml). A browser of the tests' own reads the page data, where Workshop is in the
+# browser alone, shown with debug.panel, behind its gate in the owner's words and under the Spoilers ribbon, in Tools
+# after Bug report; then Workshop's topics, which EldenNet fills while the switch is on: the recorder's state, every
+# event of the start in the golden form, the shipped catalogue's flags, the kinds and the rules loaded. Record this
+# session off, then on again: a second recording file of the session, its header first. Meanwhile F5's menu in game:
+# Page Down ten times to Tools › Bug report, where Tools' rail holds no Workshop, once more to Settings › Developer,
+# whose Related leaves it out, F5 closes; Workshop's own words are drawn at no report. Once the menu has closed, the browser turns Developer views off: each
+# watched Workshop state topic is published empty, the events stream cleared by an empty batch past its rows,
+# recording.set is refused, and settings.toml says the switch is off. The gate drawn before the page and the ribbon at
+# its top are GraceUI's web view's, checked by GraceUI's own DOM case for D258: here, the page data that drives them.
+WORKSHOP_KEYS = "600:f5," + ",".join("%d:next" % (720 + 45 * i) for i in range(10)) + ",1200:next,1320:f5"
+WORKSHOP_REPORTS = "360,660,1160,1260,1380"
+WORKSHOP_FRAMES = 1800
+# What the menu draws, looked for at each report (MenuShows, at most four texts): Workshop's name (in Tools' rail and
+# its own page; Settings › Developer's help names it too), Bug report's, and two of Workshop's own words, its
+# description's and a section's title, which nothing in game may draw.
+WORKSHOP_SHOWS = "Workshop|Bug report|raw workings|Every event"
+WORKSHOP_STATES = ("workshop.exchange", "workshop.world", "workshop.known", "workshop.unknown", "workshop.status",
+                   "workshop.kinds")
+WORKSHOP_GATE = ("Workshop shows EldenNet's raw workings: the text sent to the model and its replies, every event, and "
+                 "what each character knows. It contains spoilers. Open it for this session?")
+
+
+def status_has(paths, needle, deadline):
+    """Whether the fake game's status file came to hold `needle` before `deadline`."""
+    while time.monotonic() < deadline:
+        try:
+            with open(paths["status"], encoding="utf-8", errors="replace") as f:
+                if needle in f.read():
+                    return True
+        except OSError:
+            pass
+        time.sleep(0.25)
+    return False
+
+
+def browse_workshop(paths, out):
+    port = grace_port(paths, time.monotonic() + 120)
+    if port is None:
+        out["error"] = "no report named the server running"
+        return
+    view = None
+    E = "eldennet"
+    recorder = lambda b: {i.get("label"): i.get("value") for i in b.get("recording", {}).get("items", [])}
+    try:
+        view = browser.Browser(port, timeout=10)
+        out["welcome"] = view.welcome
+        for topic in ("pages", "settings") + WORKSHOP_STATES:
+            view.sub(E, topic)
+        out["pages"] = view.wait(E, "pages", lambda b: bool(b.get("pages")), timeout=20)
+        out["settings"] = view.wait(E, "settings", lambda b: "values" in b, timeout=20)
+        for topic in WORKSHOP_STATES:
+            out[topic] = view.wait(E, topic, lambda b: True, timeout=20)
+        out["world"] = view.wait(E, "workshop.world", lambda b: bool(b.get("flags", {}).get("rows")), timeout=20)
+        out["kinds"] = view.wait(E, "workshop.kinds", lambda b: bool(b.get("kinds", {}).get("rows")), timeout=20)
+        view.sub(E, "workshop.events")
+        out["events"] = view.state(E, "workshop.events", timeout=20)
+        # Record this session, off and on again (GraceUI D256's header switch sends {"on": ...} flipped).
+        out["rec_off"] = view.command(E, "recording.set", {"on": False})
+        out["status_off"] = view.wait(E, "workshop.status", lambda b: b.get("recording_on") is False, timeout=10)
+        out["rec_on"] = view.command(E, "recording.set", {"on": True})
+        out["status_on"] = view.wait(E, "workshop.status", lambda b: b.get("recording_on") is True and
+                                     recorder(b).get("Recording") == "On: started here", timeout=10)
+        # Once the menu's walk is over (its last report), Developer views off: Workshop's topics cleared.
+        out["walked"] = status_has(paths, "FAKEGAME grace frame=1380 ", time.monotonic() + 90)
+        out["panel_off"] = view.command(E, "settings.set", {"key": "debug.panel", "value": False})
+        out["cleared"] = view.wait(E, "workshop.status", lambda b: b == {}, timeout=10)
+        for topic in WORKSHOP_STATES:
+            out["cleared." + topic] = view.wait(E, topic, lambda b: b == {}, timeout=10)
+        out["rec_refused"] = view.command(E, "recording.set", {"on": True})
+        out["settings_after"] = view.wait(E, "settings", lambda b: b.get("values", {}).get("debug.panel") is False,
+                                          timeout=10)
+    except (browser.BrowserError, OSError, ValueError, KeyError) as e:
+        out["error"] = repr(e)
+    finally:
+        if view is not None:
+            out["received"] = list(view.received)
+            view.close()
+
+
+def check_workshop(r):
+    d = r.during
+    failures = []
+    if "error" in d:
+        failures.append("the browser: %s" % d["error"])
+    pages = d.get("pages") or {}
+    page = next((p for p in pages.get("pages", []) if p.get("id") == "tools.workshop"), {})
+    need(page.get("browser_only") is True and page.get("shown_with") == "debug.panel" and
+         page.get("gate") == {"words": WORKSHOP_GATE, "confirm": "Open Workshop"} and page.get("ribbon") == "Spoilers"
+         and page.get("increment") == "0.2" and page.get("live") is True,
+         "Workshop's page data: %s" % {k: page.get(k) for k in ("browser_only", "shown_with", "gate", "ribbon")},
+         failures)
+    tools = next((c for c in pages.get("categories", []) if c.get("id") == "tools"), {})
+    need(tools.get("pages") == ["tools.report", "tools.workshop"] and pages.get("minor") == 18,
+         "Tools' pages: %s (minor %s)" % (tools.get("pages"), pages.get("minor")), failures)
+    action = (page.get("actions") or [{}])[0]
+    need(action.get("command") == "recording.set" and action.get("label") == "Record this session" and
+         action.get("state") == {"topic": "workshop.status", "field": "recording_on"} and
+         "recording.set" in pages.get("sensitive_commands", []), "Workshop's header switch: %s" % action, failures)
+    need((d.get("settings") or {}).get("values", {}).get("debug.panel") is True, "Developer views at the start: %s" %
+         (d.get("settings") or {}).get("values"), failures)
+    # The topics while the switch is on: the recorder from the start, the catalogue's flags unread (the title: no
+    # frame), the kinds and rules loaded, nothing asked of a model yet, and events of the start in the golden form.
+    status = d.get("workshop.status") or {}
+    rec = {i.get("label"): i.get("value") for i in status.get("recording", {}).get("items", [])}
+    need(status.get("recording_on") is True and rec.get("Recording") == "On: Record sessions was on at the start" and
+         rec.get("Where") == "The recordings folder, in EldenNet's data folder", "the recorder's state: %s" % rec,
+         failures)
+    flags = (d.get("world") or {}).get("flags", {}).get("rows", [])
+    need(flags and all(f.get("reads") == "U" and f.get("verified_here") == "no" for f in flags) and
+         any(f.get("alias") == "boss.godrick" for f in flags), "the world view's flags: %s" % flags[:3], failures)
+    kinds = (d.get("kinds") or {}).get("kinds", {}).get("rows", [])
+    rules = (d.get("kinds") or {}).get("rules", {}).get("rows", [])
+    need(len(kinds) == 50 and rules and all(r.get("where", "").count(":") == 1 for r in rules) and
+         any(k.get("name") == "Struck" and "frac_total" in k.get("fields", "") for k in kinds),
+         "the kinds (%d) and rules (%d)" % (len(kinds), len(rules)), failures)
+    need((d.get("workshop.exchange") or {}) == {}, "an exchange with no call: %s" % d.get("workshop.exchange"),
+         failures)
+    rows = (d.get("events") or {}).get("rows", [])
+    need(rows and all(json.loads(x.get("line", "{}")).get("kind") == x.get("kind") for x in rows) and
+         all(re.search(r"#[0-9a-fA-F]{6,}", x.get("line", "")) is None for x in rows),
+         "the events stream: %s" % rows[:2], failures)
+    # Record this session: off, then on, a second file of the session with its header first.
+    need((d.get("rec_off") or {}).get("ok") is True and (d.get("rec_on") or {}).get("ok") is True,
+         "recording.set: %s %s" % (d.get("rec_off"), d.get("rec_on")), failures)
+    failures += any_line(r, "ELDENNET", "recording", open=0, why="stopped", file=1)
+    failures += any_line(r, "ELDENNET", "recording", **{"from": "workshop"})
+    files = en_recordings(r)
+    need(len(files) == 2, "%d recordings, wanted 2: the start's and Workshop's" % len(files), failures)
+    for path in files:
+        with open(path, encoding="utf-8") as f:
+            first = f.readline()
+        need('"k":"header"' in first, "%s's first line: %s" % (os.path.basename(path), first[:80]), failures)
+    # Developer views off: every watched state topic {} once, the stream cleared past a gap, recording.set refused.
+    need(d.get("walked") is True and (d.get("panel_off") or {}).get("ok") is True, "the switch turned off: %s" %
+         d.get("panel_off"), failures)
+    for topic in WORKSHOP_STATES:
+        need(d.get("cleared." + topic) == {}, "%s after the switch: %s" % (topic, d.get("cleared." + topic)), failures)
+    batches = [json.loads(x) for x in d.get("received", []) if '"workshop.events"' in x]
+    batches = [b for b in batches if b.get("t") == "rows"]
+    last_seq = max((row.get("seq", 0) for b in batches for row in b.get("rows", [])), default=0)
+    need(any(b.get("rows") == [] and b.get("from_seq", 0) > last_seq + 1 for b in batches),
+         "no empty batch past the stream's rows: %s" % [(b.get("from_seq"), len(b.get("rows", []))) for b in batches],
+         failures)
+    need((d.get("rec_refused") or {}).get("error") == "not_now", "recording.set while off: %s" % d.get("rec_refused"),
+         failures)
+    failures += any_line(r, "ELDENNET", "workshop", on=1)
+    failures += any_line(r, "ELDENNET", "workshop", on=0)
+    path = os.path.join(r.paths["appdata"], "EldenNet", "config", "settings.toml")
+    try:
+        with open(path, encoding="utf-8") as f:
+            written = f.read()
+    except OSError:
+        written = ""
+    need(re.search(r"panel = false", written), "settings.toml after the switch: %r" % written, failures)
+    # In game: Tools › Bug report and Settings › Developer, never Workshop (in the browser alone, D258).
+    failures += (want_grace(r, 660, menu_open=1, menu_page="home", shows="0000") +
+                 want_grace(r, 1160, menu_open=1, menu_page="tools.report", shows="0100") +
+                 want_grace(r, 1260, menu_open=1, menu_page="settings.developer", shows=lambda s: s[2:] == "00") +
+                 want_grace(r, 1380, menu_open=0))
+    failures += check_lines(("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main", "pages": 0}),
+                            ("LAUNCHER", "end", {"kind": "clean"}))(r)
+    return failures + en_log_is_clean(r)
+
+
+case("launcher-eldennet-graceui-workshop", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--stay-title", "--press-keys", WORKSHOP_KEYS, "--grace-report", WORKSHOP_REPORTS,
+          frames=WORKSHOP_FRAMES),
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),
+     env=dict(GRACE_ENV, FAKEGAME_SHOWS=WORKSHOP_SHOWS), timeout=240,
+     prepare=install_eldennet(EN_PANEL, then=install_graceui), during=browse_workshop, check=check_workshop,
+     what="Tools › Workshop through GraceUI: in the browser alone, shown with Developer views, gated in the owner's "
+          "words, under the Spoilers ribbon; its topics filled while the switch is on (the recorder, every event, the "
+          "flags, the kinds); Record this session off and on, a second file; never drawn in game; and, the switch "
+          "turned off, each topic cleared, the stream emptied, recording.set refused")
 # EldenNet's AI pages (S11.4.a's second to fourth slices; PAGES §4.6.2), at the title screen, against a fake model
 # server of the tests' own on loopback (tests/pages/fake_models.py) with invented models, which the models.toml installed
 # beside the DLL names for the Cloud budget preset's provider. A browser of the tests' own adds the preset's provider and
@@ -2884,6 +3060,111 @@ case("launcher-eldennet-graceui-talk-calls", LGAME + ["--dll", "{eldennetdll}", 
           "PAGES' words with the persona as shown, the model on its provider, its times and reported tokens, shown, "
           "its text the page shown alone; no frame of the calls or the usage holds the line typed, the prompt's words "
           "or the server's address")
+
+
+# Tools › Workshop after a conversation's reply (PAGES §4.6.8; S11.4.a): the first conversation's run with Developer
+# views on, the line typed holding the character's name. A browser of the tests' own reads workshop.exchange once the
+# reply has ended: the request as sent (its job, its purpose, its system and user messages, the test persona's
+# personality and the line typed among them, the character's name masked whole) and the reply as the fake server wrote
+# it, with its provider and model; the events stream of the session; and the unknown characters' rows with their TOML.
+# No Workshop frame holds the character's name, the server's address or its path; the prompt's words and the line typed
+# reach no log line.
+WORKSHOP_TYPED = "Good evening from Test Wanderer"  # --type-at's list takes no comma
+WORKSHOP_TALK_SETTINGS = 'schema = 2\ndebug = { panel = true, record_sessions = false, log_level = "debug" }\n'
+
+
+def browse_talk_workshop(paths, out):
+    port = grace_port(paths, time.monotonic() + 120)
+    if port is None:
+        out["error"] = "no report named the server running"
+        return
+    view = None
+    E = "eldennet"
+    items = lambda b: {i.get("label"): i.get("value") for i in b.get("facts", {}).get("items", [])}
+    try:
+        view = browser.Browser(port, timeout=10)
+        for topic in ("workshop.exchange", "workshop.unknown", "workshop.known", "workshop.status"):
+            view.sub(E, topic)
+        view.sub(E, "workshop.events")
+        out["exchange"] = view.wait(E, "workshop.exchange", lambda b: items(b).get("Outcome") == "Answered" and
+                                    items(b).get("Purpose") == "reply", timeout=150)
+        out["unknown"] = view.wait(E, "workshop.unknown", lambda b: True, timeout=15)
+        out["known"] = view.wait(E, "workshop.known", lambda b: True, timeout=15)
+    except (browser.BrowserError, OSError, ValueError, KeyError) as e:
+        out["error"] = repr(e)
+    finally:
+        if view is not None:
+            out["received"] = list(view.received)
+            view.close()
+
+
+def check_talk_workshop(r):
+    server = TALK_RUNS.pop(r.paths["case"], None)
+    counts = server.snapshot() if server is not None else {}
+    if server is not None:
+        server.close()
+    d = r.during
+    failures = []
+    if "error" in d:
+        failures.append("the browser: %s" % d["error"])
+    failures += check_lines(("ELDENNET", "content_load", {"ok": 1, "personas": 1, "bound": 1}),
+                            ("LAUNCHER", "end", {"kind": "clean"}))(r)
+    failures += any_line(r, "ELDENNET", "commit", kind="npc_said", page=0)
+    failures += any_line(r, "ELDENNET", "workshop", on=1)
+    need(counts.get("scripted", 0) == 1, "the model server answered %s" % counts, failures)
+    x = d.get("exchange") or {}
+    facts = {i.get("label"): i.get("value") for i in x.get("facts", {}).get("items", [])}
+    need(facts.get("Job") == "dialogue" and facts.get("Provider") == "lantern-box" and
+         facts.get("Model") == "invented-lantern-a" and facts.get("Outcome") == "Answered" and "Total" in facts,
+         "the exchange's facts: %s" % facts, failures)
+    parts = x.get("parts", {}).get("parts", [])
+    texts = [f.get("value", "") for p in parts for f in p.get("fields", [])]
+    prompt = "\n".join(f.get("value", "") for p in parts if p.get("id") != "reply" for f in p.get("fields", []))
+    need(any(p.get("label", "").endswith("System") or "System ·" in p.get("label", "") for p in parts) and
+         any("User" in p.get("label", "") for p in parts), "the messages' parts: %s" %
+         [p.get("label") for p in parts], failures)
+    need(TALK_PROMPT_BIT in prompt, "the prompt as sent holds the persona's personality (%r)" % TALK_PROMPT_BIT,
+         failures)
+    need("Good evening from [the Tarnished's name]" in prompt, "the line typed, its name masked: %r" %
+         [l for l in prompt.splitlines() if "Good evening" in l], failures)
+    reply = next((p for p in parts if p.get("id") == "reply"), {})
+    shown = "".join(TALK_REPLY).strip()
+    need(reply.get("fields") and reply["fields"][0].get("value", "").strip() == shown and all(f.get("code") for f in
+                                                                                  reply["fields"]),
+         "the reply as written: %s" % reply.get("fields"), failures)
+    for row in (d.get("unknown") or {}).get("rows", {}).get("rows", []):
+        need(isinstance(row.get("param"), int) and "Wanderer" not in json.dumps(row), "an unknown row: %s" % row,
+             failures)
+    for part in (d.get("unknown") or {}).get("toml", {}).get("parts", []):
+        toml = part.get("fields", [{}])[0].get("value", "")
+        need(toml.startswith("[[persona]]\n") and "npc_params" in toml, "an unknown character's TOML: %r" % toml,
+             failures)
+    # No Workshop frame holds the character's name, the server's address or its path.
+    for text in d.get("received", []):
+        if '"workshop.' not in text:
+            continue
+        for bit in ("Wanderer", "127.0.0.1", "/own/"):
+            need(bit not in text, "a Workshop frame holds %r" % bit, failures)
+    need(any('"workshop.events"' in text and '"rows":[{' in text for text in d.get("received", [])),
+         "no event reached Workshop's stream", failures)
+    # The prompt's words and the line typed: on Workshop alone, never in the log.
+    text = "\n".join(l for l in r.lines if l.startswith("ELDENNET "))
+    need(TALK_PROMPT_BIT.split()[0] not in text.split() and "evening" not in text.split(),
+         "the log holds the prompt or the line typed", failures)
+    return failures + en_log_is_clean(r)
+
+
+case("launcher-eldennet-graceui-talk-workshop", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--calm", "--press-keys", TALK_KEYS, "--type-at", "1560:" + WORKSHOP_TYPED,
+          "--grace-report", TALK_CALLS_REPORTS, frames=2700),
+     program="{launcher}", needs=GRACE_NEEDS + ("eldennet_probe",), toolchains=("clang-cl",),
+     env=dict(GRACE_ENV, ELDENNET_TEST_REALM="eval"), timeout=240,
+     prepare=install_eldennet(WORKSHOP_TALK_SETTINGS, probe=True, then=install_talk), during=browse_talk_workshop,
+     check=check_talk_workshop,
+     what="Tools › Workshop after the first conversation's reply, Developer views on: the request as sent, its "
+          "messages with the persona's personality and the line typed, the character's name masked whole; the reply "
+          "as written, with its provider and model; the session's events and unknown characters; no Workshop frame "
+          "holding the name or the server's address, and the prompt's words in no log line")
 
 
 # System › Traces and System › Performance after a conversation's reply (PAGES §4.6.7; S11.4.a): the first
