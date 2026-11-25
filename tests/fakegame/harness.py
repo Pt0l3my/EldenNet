@@ -1991,9 +1991,11 @@ case("launcher-eldennet-graceui-pages", LGAME + ["--dll", "{eldennetdll}", "--co
 # event of the start in the golden form, the shipped catalogue's flags, the kinds and the rules loaded. Record this
 # session off, then on again: a second recording file of the session, its header first. Meanwhile F5's menu in game:
 # Page Down ten times to Tools › Bug report, where Tools' rail holds no Workshop, once more to Settings › Developer,
-# whose Related leaves it out, F5 closes; Workshop's own words are drawn at no report. Once the menu has closed, the browser turns Developer views off: each
-# watched Workshop state topic is published empty, the events stream cleared by an empty batch past its rows,
-# recording.set is refused, and settings.toml says the switch is off. The gate drawn before the page and the ribbon at
+# whose Related leaves it out, F5 closes; Workshop's own words are drawn at no report. Once the menu has closed, the
+# browser turns Developer views off: each watched Workshop state topic is published empty, the events stream cleared
+# by an empty batch past its rows, recording.set is refused, and settings.toml says the switch is off. The page and its
+# topics are pc_only (D264), and the unknown characters' TOML has Copy alone (D263); the editor case's paired device
+# checks that the device sees none of it. The gate drawn before the page and the ribbon at
 # its top are GraceUI's web view's, checked by GraceUI's own DOM case for D258: here, the page data that drives them.
 WORKSHOP_KEYS = "600:f5," + ",".join("%d:next" % (720 + 45 * i) for i in range(10)) + ",1200:next,1320:f5"
 WORKSHOP_REPORTS = "360,660,1160,1260,1380"
@@ -2072,10 +2074,11 @@ def check_workshop(r):
         failures.append("the browser: %s" % d["error"])
     pages = d.get("pages") or {}
     page = next((p for p in pages.get("pages", []) if p.get("id") == "tools.workshop"), {})
-    need(page.get("browser_only") is True and page.get("shown_with") == "debug.panel" and
-         page.get("gate") == {"words": WORKSHOP_GATE, "confirm": "Open Workshop"} and page.get("ribbon") == "Spoilers"
-         and page.get("increment") == "0.2" and page.get("live") is True,
-         "Workshop's page data: %s" % {k: page.get(k) for k in ("browser_only", "shown_with", "gate", "ribbon")},
+    need(page.get("browser_only") is True and page.get("pc_only") is True and page.get("shown_with") == "debug.panel"
+         and page.get("gate") == {"words": WORKSHOP_GATE, "confirm": "Open Workshop"}
+         and page.get("ribbon") == "Spoilers" and page.get("increment") == "0.2" and page.get("live") is True,
+         "Workshop's page data: %s" % {k: page.get(k) for k in ("browser_only", "pc_only", "shown_with", "gate",
+                                                                 "ribbon")},
          failures)
     tools = next((c for c in pages.get("categories", []) if c.get("id") == "tools"), {})
     need(tools.get("pages") == ["tools.report", "tools.workshop"] and pages.get("minor") == 20,
@@ -2084,6 +2087,13 @@ def check_workshop(r):
     need(action.get("command") == "recording.set" and action.get("label") == "Record this session" and
          action.get("state") == {"topic": "workshop.status", "field": "recording_on"} and
          "recording.set" in pages.get("sensitive_commands", []), "Workshop's header switch: %s" % action, failures)
+    topics = {x.get("id"): x for x in pages.get("topics", [])}
+    need(all(topics.get(x, {}).get("pc_only") is True for x in WORKSHOP_STATES + ("workshop.events",)),
+         "Workshop's topics on this PC alone: %s" % {x: topics.get(x, {}).get("pc_only") for x in WORKSHOP_STATES},
+         failures)
+    blocks = [b for s in page.get("sections", []) for b in s.get("blocks", []) if "share" in b]
+    need([(b.get("topic"), b.get("share")) for b in blocks] == [("workshop.unknown", {"copy": True})],
+         "Workshop's Copy: %s" % blocks, failures)
     need((d.get("settings") or {}).get("values", {}).get("debug.panel") is True, "Developer views at the start: %s" %
          (d.get("settings") or {}).get("values"), failures)
     # The topics while the switch is on: the recorder from the start, the catalogue's flags unread (the title: no
@@ -3479,8 +3489,9 @@ case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--conso
 # back; the sentence naming someone the notes do not is left out). In game, F5's menu opens Named NPCs, goes into the
 # editor, types into the notes' field and saves (the document at revision 2, the file holding the typed words), then
 # opens GraceUI's Browser view page and pairs a device; that device, on 127.0.0.2, is refused EldenNet's sensitive
-# commands and settings ("Only on the PC the game runs on.") but may read the pages and check a profile. No player's
-# text, notes or draft in the log.
+# commands and settings ("Only on the PC the game runs on.") but may read the pages and check a profile; Tools › Workshop
+# is not in its page data and its watch of a Workshop topic is refused (pc_only, GraceUI 0.2.57's D264), while this PC's
+# page data holds the page. No player's text, notes or draft in the log.
 # The menu's presses, by the stops GraceUI 0.2.57 gives: F5 on Home; Page Down past AI's four pages to Named NPCs, its
 # list's row (the pilot's) chosen; → into the detail, on the Profile tab; nine ↓ past the General profile and Your notes
 # sections and the editor's Save, Check, Restore, Reset, notes and Draft to the notes' field; Enter edits it, the typing
@@ -3589,6 +3600,16 @@ def browse_editor(paths, out):
         out["phone_save"] = phone.command("eldennet", "profile.save",
                                           {"target": "persona.kale", "rev": 2, "doc": {"instructions": None}})
         out["phone_reset"] = phone.command("eldennet", "profile.reset", {"target": "persona.kale", "rev": 2})
+        # Tools › Workshop on this PC alone (GraceUI 0.2.57's pc_only, D264; O132): out of the device's page data, and
+        # its watch of a Workshop topic refused; this PC's page data holds it.
+        phone.sub("eldennet", "pages")
+        out["phone_pages"] = phone.wait("eldennet", "pages", lambda b: bool(b.get("pages")), timeout=10)
+        phone.sub("eldennet", "workshop.status")
+        out["phone_workshop"] = phone.next(lambda f: (f.get("t") == "error" and "Only on the PC" in f.get("detail", ""))
+                                           or (f.get("t") in ("state", "rows") and f.get("topic") == "workshop.status"),
+                                           timeout=10)
+        view.sub("eldennet", "pages")
+        out["pc_pages"] = view.wait("eldennet", "pages", lambda b: bool(b.get("pages")), timeout=10)
     except (browser.BrowserError, OSError, ValueError, KeyError) as e:
         out["error"] = repr(e)
     finally:
@@ -3669,6 +3690,19 @@ def check_graceui_editor(r):
     need(d.get("phone_level", {}).get("ok") is True, "an unmarked setting from the device: %s" % d.get("phone_level"),
          failures)
     need(d.get("phone_check", {}).get("ok") is True, "a check from the device: %s" % d.get("phone_check"), failures)
+    # Tools › Workshop on this PC alone (pc_only, D264): not in the device's page data, nor its topics, nor a Related
+    # link to it; its watch of workshop.status refused with GraceUI's words; this PC's page data holds the page.
+    phone_pages = d.get("phone_pages") or {}
+    ids = [p.get("id") for p in phone_pages.get("pages", [])]
+    need(ids and "tools.workshop" not in ids and "tools.report" in ids and
+         not any(str(t.get("id", "")).startswith("workshop.") for t in phone_pages.get("topics", [])) and
+         "tools.workshop" not in json.dumps(phone_pages), "the device's page data: %s" % ids, failures)
+    refused = d.get("phone_workshop") or {}
+    need(refused.get("t") == "error" and refused.get("code") == "not_now" and
+         refused.get("detail", "").endswith("Only on the PC the game runs on."),
+         "the device's watch of workshop.status: %s" % refused, failures)
+    need("tools.workshop" in [p.get("id") for p in (d.get("pc_pages") or {}).get("pages", [])],
+         "this PC's page data: %s" % [p.get("id") for p in (d.get("pc_pages") or {}).get("pages", [])], failures)
     # The log: each command by its target, revision and code, the writes and the loads; never the player's text, notes or
     # the draft. Nothing of the refused commands reached EldenNet.
     for kv in ({"what": "check", "result": "ok"}, {"what": "save", "result": "ok"}, {"what": "save", "result": "conflict"},

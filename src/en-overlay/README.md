@@ -456,8 +456,10 @@ it is off; `Workshop` (`workshop.hpp`) builds the bodies, keeps the events strea
 - **Unknown characters** (`workshop.unknown`, members `rows`, `toml`): those of the snapshots that bind no persona, by
   NpcParam row and entity id (64 kept, the least recently seen going), with their model, type, team, snapshots, first
   and last seen and nearest distance; and a `report_preview` part each with its `[[persona]]` row for
-  identity/personas.toml (ids and numbers only, never a name), a `code` field to select by hand. A Copy button waits
-  for a later pin (GraceUI 0.2.56's `share = { copy = true }`, G-2).
+  identity/personas.toml (ids and numbers only, never a name), a `code` field to select by hand; and Copy alone on the
+  block (GraceUI 0.2.56's `share = { copy = true }`, D263): the body's `share` holds every row's TOML, a blank line
+  between, LF line ends, 256 KiB at most, as `eldennet-unknown-characters.txt` (the name D263's share holds; no Save is
+  offered). GraceUI copies on the click alone and sends EldenNet nothing; a device never gets the share.
 - **Recording** (`workshop.status`'s `recording_on` and `recording`): on or off and why, the file this session, its
   lines and size, the rotation, the folder named in words, never its path; and a shortcut to `debug.record_sessions`
   (homed on Settings › Developer: a browser-only page is no setting's home).
@@ -470,9 +472,10 @@ refused `not_now` with "Turn on Developer views in Settings › Developer first.
 state topic gets `{}` once and the stream an empty batch past a gap (protocol 1.1), since GraceUI's server holds a
 watched topic's newest body and a stream's rows for later watchers (G-5's answer: as planned). Every body stays within
 `kWorkshopBodyMax` (240 KiB): a table's rows past it are left out and counted. Every `workshop.*` topic is drawn on
-Workshop alone and no setting is homed there, so that GraceUI 0.2.57's `pc_only` marks (D264, protocol 1.20) are one
-line each when the pin takes them. **Workshop is not to be released before those marks are in** (O132 (a)): until then a
-paired device's view shows it while Developer views are on.
+Workshop alone, and no setting is homed there. **Workshop is on this PC alone, by pc_only (GraceUI 0.2.57)**: the page
+and each `workshop.*` topic say `pc_only = true` (D264, protocol 1.20; the owner's O132 (a)), so GraceUI's server leaves
+the page out of a paired device's page data and refuses a device's watch of a Workshop topic with not_now, "Only on the
+PC the game runs on.", and `recording.set`, named on Workshop alone, stays sensitive.
 
 ## Tests
 

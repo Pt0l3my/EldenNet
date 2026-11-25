@@ -2,6 +2,7 @@
 // the section titles, the description, the help and the gate (space.toml), which the owner gave (O129).
 #include "en/overlay/workshop.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdio>
 
@@ -13,6 +14,9 @@ namespace en::overlay {
 namespace {
 
 using nlohmann::json;
+
+constexpr std::size_t kShareMax = 256 * 1024;  // bytes of a share's text (GraceUI D263)
+constexpr std::string_view kShareFile = "eldennet-unknown-characters.txt";
 
 constexpr std::array<std::string_view, 7> kTopics = {kWorkshopExchange, kWorkshopEvents, kWorkshopWorld, kWorkshopKnown,
                                                      kWorkshopUnknown,  kWorkshopStatus, kWorkshopKinds};
@@ -224,6 +228,7 @@ json known_body(const proto::WorkshopKnownSets& k) {
 json unknown_body(const std::vector<proto::WorkshopUnknown>& rows) {
   json table = json::array();
   json parts = json::array();
+  std::string all;  // every row's TOML, a blank line between: the preview's share, GraceUI's Copy (D263)
   for (const proto::WorkshopUnknown& u : rows) {
     table.push_back(json{{"param", u.param},
                          {"entity", u.entity},
@@ -238,6 +243,7 @@ json unknown_body(const std::vector<proto::WorkshopUnknown>& rows) {
     if (u.entity != 0) label += ", entity " + std::to_string(u.entity);
     parts.push_back(part("u" + std::to_string(u.param) + "_" + std::to_string(u.entity), std::move(label),
                          json::array({field("TOML", u.toml)})));
+    all += (all.empty() ? "" : "\n") + u.toml;
   }
   if (table.empty()) return json::object();
   json columns = json::array({column("param", "NpcParam row", true), column("entity", "Entity", true),
@@ -245,8 +251,12 @@ json unknown_body(const std::vector<proto::WorkshopUnknown>& rows) {
                                column("team", "Team", true), column("seen", "Snapshots", true),
                                column("first", "First seen"), column("last", "Last seen"),
                                column("nearest", "Nearest")});
-  return json{{"rows", {{"columns", std::move(columns)}, {"rows", std::move(table)}}},
-              {"toml", {{"parts", std::move(parts)}}}};
+  json toml{{"parts", std::move(parts)}};
+  // Copy alone (D263): the text with LF line ends (the rows are ours, written so), within 256 KiB, and a file's name,
+  // which D263's share holds with its text (a browser's Save is not offered: copy alone).
+  all.erase(std::remove(all.begin(), all.end(), '\r'), all.end());
+  if (!all.empty() && all.size() <= kShareMax) toml["share"] = json{{"text", std::move(all)}, {"file", kShareFile}};
+  return json{{"rows", {{"columns", std::move(columns)}, {"rows", std::move(table)}}}, {"toml", std::move(toml)}};
 }
 
 json status_body(const proto::WorkshopView& v) {

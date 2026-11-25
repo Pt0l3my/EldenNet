@@ -9,10 +9,9 @@
 // since GraceUI's server holds a watched topic's newest body and a stream's rows for later watchers. A watch cannot be
 // refused: the space hears only that a topic is watched.
 //
-// Every workshop.* topic is drawn on Workshop alone and no setting is homed there (a shortcut is not a home), so that
-// GraceUI 0.2.57's `pc_only` marks (D264, protocol 1.20) are one line each on the page and its topics when the pin takes
-// them. Until then a paired device's view shows Workshop while the switch is on, and Workshop is not to be released
-// before those marks are in (the owner's O132 (a)).
+// Workshop is on this PC alone, by pc_only (GraceUI 0.2.57's D264, protocol 1.20; the owner's O132 (a)): the page and
+// every workshop.* topic are marked, each topic drawn on Workshop alone and no setting homed there (a shortcut is not a
+// home), so a paired device's page data leaves the page out and its watch of a Workshop topic is refused.
 //
 // Workshop is SP1's one exception: the prompt as sent, the reply as written, every event, flags, stages, known sets.
 // The DLL has scrubbed every text of a key and of the character's name before it kept it; the prompt's and the reply's

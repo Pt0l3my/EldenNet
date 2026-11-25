@@ -80,12 +80,37 @@ TEST_CASE("workshop: the page data: Tools › Workshop in the browser alone, sho
   CHECK((*w)["actions"][0]["state"] == json{{"topic", "workshop.status"}, {"field", "recording_on"}});
   const json& sensitive = pages["sensitive_commands"];
   CHECK(std::find(sensitive.begin(), sensitive.end(), "recording.set") != sensitive.end());
-  // Every workshop.* topic is drawn on Workshop alone, and no setting lives there (a shortcut is not a home), so that
-  // GraceUI 0.2.57's pc_only marks are one line each when the pin takes them (D264).
+  // On this PC alone (GraceUI 0.2.57's D264; the owner's O132): the page and every workshop.* topic marked pc_only,
+  // each topic drawn on Workshop alone and no other topic marked, and no setting living there (a shortcut is not a
+  // home), so that GraceUI's lint and registration take the marks.
+  CHECK((*w)["pc_only"] == true);
   for (const json& p : pages["pages"]) {
     const std::string text = p.dump();
-    if (p["id"] != "tools.workshop") CHECK(text.find("\"workshop.") == std::string::npos);
+    if (p["id"] != "tools.workshop") {
+      CHECK(text.find("\"workshop.") == std::string::npos);
+      CHECK_FALSE(p.contains("pc_only"));
+    }
   }
+  for (const json& t : pages["topics"]) {
+    INFO(t["id"]);
+    CHECK(t.value("pc_only", false) == (t["id"].get<std::string>().rfind("workshop.", 0) == 0));
+  }
+  // Copy alone on the unknown characters' TOML (GraceUI 0.2.56's D263), and on no other block: the Bug report's copy
+  // and save wait for 0.6.
+  std::size_t shares = 0;
+  for (const json& p : pages["pages"]) {
+    for (const json& sec : p.value("sections", json::array())) {
+      for (const json& b : sec["blocks"]) {
+        if (!b.contains("share")) continue;
+        ++shares;
+        CHECK(p["id"] == "tools.workshop");
+        CHECK(b["topic"] == "workshop.unknown");
+        CHECK(b["props"]["field"] == "toml");
+        CHECK(b["share"] == json{{"copy", true}});
+      }
+    }
+  }
+  CHECK(shares == 1);
   const json settings = json::parse(settings_description());
   for (const json& s : settings["settings"]) CHECK(s["home"] != "tools.workshop");
   std::vector<std::string> topics;
@@ -263,6 +288,11 @@ TEST_CASE("workshop: the bodies, in the facts' own words and numbers; the prompt
   CHECK(u["toml"]["parts"][1]["label"] == "NpcParam 7700, entity 1043300800");
   CHECK(u["toml"]["parts"][1]["fields"][0]["label"] == "TOML");
   CHECK(u["toml"]["parts"][1]["fields"][0]["code"] == true);
+  // Every row's TOML in one text for GraceUI's Copy (D263), LF line ends, with its file's name.
+  const std::string all = u["toml"]["share"]["text"].get<std::string>();
+  CHECK(all == v.unknown[0].toml + "\n" + v.unknown[1].toml);
+  CHECK(all.find('\r') == std::string::npos);
+  CHECK(u["toml"]["share"]["file"] == "eldennet-unknown-characters.txt");
 
   const json st = s.body("workshop.status", f);
   CHECK(st["recording_on"] == true);

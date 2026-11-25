@@ -232,38 +232,45 @@ family = true
 id = "report"
 shape = "state"
 
-# Tools › Workshop (PAGES §4.6.8, SP8; GraceUI D258; en-overlay's workshop.hpp): each drawn on Workshop alone, so that
-# GraceUI 0.2.57's pc_only mark (D264) is one line on each when the pin takes it. Published only while Developer views
-# are on, and cleared the moment they go off.
+# Tools › Workshop (PAGES §4.6.8, SP8; GraceUI D258; en-overlay's workshop.hpp): each drawn on Workshop alone and
+# marked pc_only (GraceUI 0.2.57's D264; the owner's O132): GraceUI refuses a paired device's watch of it with not_now,
+# "Only on the PC the game runs on.". Published only while Developer views are on, and cleared the moment they go off.
 
 [[topic]]
 id = "workshop.exchange"
 shape = "state"
+pc_only = true
 
 [[topic]]
 id = "workshop.events"
 shape = "stream"
 ring = 500
+pc_only = true
 
 [[topic]]
 id = "workshop.world"
 shape = "state"
+pc_only = true
 
 [[topic]]
 id = "workshop.known"
 shape = "state"
+pc_only = true
 
 [[topic]]
 id = "workshop.unknown"
 shape = "state"
+pc_only = true
 
 [[topic]]
 id = "workshop.status"
 shape = "state"
+pc_only = true
 
 [[topic]]
 id = "workshop.kinds"
 shape = "state"
+pc_only = true
 
 # ---- The rail (PAGES §4.2.1), in its order. Settings, Docs and Content packs are its foot (protocol 1.10, GraceUI
 # D248), pinned to the rail's bottom under a rule in both views, after every other category, as the lint requires.
@@ -1218,8 +1225,8 @@ command = "report.part"
 # are the owner's (O129 (a)). Its header switch, Record this session (GraceUI D256), starts a recording now or stops
 # it (recording.set, sensitive; O131 (b)); Record sessions keeps one every session from the next start, homed on
 # Settings › Developer (a browser-only page is no setting's home), with a shortcut here. Every workshop.* topic is drawn
-# here alone. Not to be released before GraceUI 0.2.57's pc_only marks keep it off a paired device (O132 (a)): until
-# then, a device's view shows it while Developer views are on.
+# here alone, and the page and its topics are on this PC alone, by pc_only (GraceUI 0.2.57's D264; O132 (a)): a paired
+# device's page data leaves the page out, and its watch of a workshop.* topic is refused.
 
 [[page]]
 id = "tools.workshop"
@@ -1229,6 +1236,7 @@ description = "EldenNet's raw workings, for testers: the last prompt and reply, 
 increment = "0.2"
 live = true  # its topics move by themselves: Live updates holds them (GraceUI D252)
 browser_only = true
+pc_only = true
 shown_with = "debug.panel"
 gate = { words = "Workshop shows EldenNet's raw workings: the text sent to the model and its replies, every event, and what each character knows. It contains spoilers. Open it for this session?", confirm = "Open Workshop" }
 ribbon = "Spoilers"
@@ -1345,11 +1353,13 @@ component = "table"
 topic = "workshop.unknown"
 props = { field = "rows", empty = "No unknown character seen yet." }
 
+# Copy alone (GraceUI 0.2.56's D263): every row's TOML in one text, the body's `share`; the parts stay selectable.
 [[page.sections.blocks]]
 kind = "component"
 component = "report_preview"
 topic = "workshop.unknown"
 props = { field = "toml" }
+share = { copy = true }
 
 [[page.sections]]
 id = "recording"

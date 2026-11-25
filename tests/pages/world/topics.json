@@ -2824,7 +2824,11 @@
           "label": "NpcParam 7700, entity 1043300800",
           "optional": false
         }
-      ]
+      ],
+      "share": {
+        "file": "eldennet-unknown-characters.txt",
+        "text": "[[persona]]\nid = \"new_12345600\"\nfile = \"personas/new_12345600.toml\"\nnpc_params = [{ param = 12345600, form = \"default\", verified = false }]\nenabled = true\n\n[[persona]]\nid = \"new_7700\"\nfile = \"personas/new_7700.toml\"\nnpc_params = [{ param = 7700, form = \"default\", verified = false }]\nentity_ids = [{ id = 1043300800, verified = false }]\nenabled = true\n"
+      }
     }
   },
   "workshop.world": {

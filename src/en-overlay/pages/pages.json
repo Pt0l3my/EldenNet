@@ -1451,6 +1451,9 @@
               "topic": "workshop.unknown",
               "props": {
                 "field": "toml"
+              },
+              "share": {
+                "copy": true
               }
             }
           ]
@@ -1508,7 +1511,8 @@
         "words": "Workshop shows EldenNet's raw workings: the text sent to the model and its replies, every event, and what each character knows. It contains spoilers. Open it for this session?",
         "confirm": "Open Workshop"
       },
-      "ribbon": "Spoilers"
+      "ribbon": "Spoilers",
+      "pc_only": true
     },
     {
       "id": "docs",
@@ -1701,32 +1705,39 @@
     },
     {
       "id": "workshop.exchange",
-      "shape": "state"
+      "shape": "state",
+      "pc_only": true
     },
     {
       "id": "workshop.events",
       "shape": "stream",
-      "ring": 500
+      "ring": 500,
+      "pc_only": true
     },
     {
       "id": "workshop.world",
-      "shape": "state"
+      "shape": "state",
+      "pc_only": true
     },
     {
       "id": "workshop.known",
-      "shape": "state"
+      "shape": "state",
+      "pc_only": true
     },
     {
       "id": "workshop.unknown",
-      "shape": "state"
+      "shape": "state",
+      "pc_only": true
     },
     {
       "id": "workshop.status",
-      "shape": "state"
+      "shape": "state",
+      "pc_only": true
     },
     {
       "id": "workshop.kinds",
-      "shape": "state"
+      "shape": "state",
+      "pc_only": true
     }
   ],
   "commands": [
