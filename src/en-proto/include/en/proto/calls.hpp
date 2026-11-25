@@ -81,6 +81,10 @@ struct CallRow {
   ErrorClass error = ErrorClass::None;
   int http_status = 0;               // with the error: the last attempt's (or the list's) HTTP status, 0 when none came
   std::string text;                  // the displayed text, once a page was shown (PV4): never anything else
+  // System › Traces' two (traces.hpp; AI › Requests shows neither): from at_ms to its first request's first attempt
+  // sent, -1 until that request ended or when none left; and, for a line, to its first page's showing, -1 before.
+  std::int64_t queue_ms = -1;
+  std::int64_t first_page_ms = -1;
 
   // In and out where reported, as the table's sort key; -1 when neither was.
   [[nodiscard]] std::int64_t tokens() const noexcept {

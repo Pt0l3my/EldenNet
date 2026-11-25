@@ -1,0 +1,147 @@
+# eldennet system.traces: 1920x1080, ui.scale 1.25, scale 1.250, theme grace, the fake face, settings at their defaults
+fill    scrim           0,   0 1920x1080
+fill    ground.1        0,   0 1920x1080
+fill    ground.0        0,   0  300x1080
+text    gold           30,  30  114x35   glyphs 8 "EldenNet"
+text    ink.mute       30,  95   42x30   glyphs 4 "Home"
+line    rule           30, 135  240x1   
+text    ink.mute       30, 145   21x30   glyphs 2 "AI"
+line    rule           30, 185  240x1   
+text    ink.mute       30, 195  106x30   glyphs 10 "Characters"
+line    rule           30, 235  240x1   
+text    ink.hi         30, 245   64x30   glyphs 6 "System"
+text    ink.mute       50, 293   51x25   glyphs 6 "Status"
+text    ink.mute       50, 333   93x25   glyphs 11 "Performance"
+fill    tint.select     0, 365  300x40  
+fill    gold            0, 365    3x40  
+text    gold.hi        50, 373   51x25   glyphs 6 "Traces"
+text    ink.mute       50, 413   34x25   glyphs 4 "Logs"
+line    rule           30, 445  240x1   
+text    ink.mute       30, 455   53x30   glyphs 5 "Tools"
+line    rule           30, 900  240x1   
+text    ink.mute       30, 910   85x30   glyphs 8 "Settings"
+line    rule           30, 950  240x1   
+text    ink.mute       30, 960   42x30   glyphs 4 "Docs"
+line    rule           30,1000  240x1   
+text    ink.mute       30,1010  138x30   glyphs 12 "Content packs"
+fill    ground.well   340,  10  350x35   r3
+text    ink.faint     353,  15   51x25   glyphs 6 "Search"
+text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
+fill    ground.well  1626,  10  148x35   r3
+text    ink.body     1641,  15  118x25   glyphs 13 "Quick switches"
+fill    ground.well  1471,  10  140x35   r3
+text    ink.body     1486,  15  110x25   glyphs 12 "Updates: Live"
+line    rule          300,  55 1620x1   
+text    ink.hi        340,  86  119x45   clip1 glyphs 6 "Traces"
+text    ink.mute      340, 136  472x25   clip1 glyphs 46 "How long each line took, from its request to the screen."
+line    rule.strong   340, 176 1540x1    clip1
+diamond gold.deep     340, 171   11x11   w1 clip1
+fill    ground.2      340, 201 1540x235  r5 clip1
+stroke  rule          340, 201 1540x235  r5 w1 clip1
+text    gold          365, 221  115x20   clip1 glyphs 11 "This session"
+text    ink.faint    1842, 221    8x25   clip1 glyphs 1 "-"
+fill    ground.3      365, 264  361x90   r3 clip1
+text    ink.mute      380, 274  152x25   clip1 glyphs 16 "First page, median"
+text    ink.hi        380, 299   86x35   clip1 glyphs 5 "1.24 s"
+fill    ground.3      741, 264  361x90   r3 clip1
+text    ink.mute      756, 274  228x25   clip1 glyphs 24 "First page, 90th percentile"
+text    ink.hi        756, 299   86x35   clip1 glyphs 5 "3.18 s"
+fill    ground.3     1117, 264  361x90   r3 clip1
+text    ink.mute     1132, 274  160x25   clip1 glyphs 17 "First token, median"
+text    ink.hi       1132, 299   86x35   clip1 glyphs 5 "0.66 s"
+fill    ground.3     1493, 264  361x90   r3 clip1
+text    ink.mute     1508, 274  152x25   clip1 glyphs 16 "Lines this session"
+text    ink.hi       1508, 299   29x35   clip1 glyphs 2 "21"
+text    ink.mute     1544, 306   93x25   clip1 glyphs 9 "of 24 shown"
+text    ink.body      365, 376  970x25   clip1 glyphs 93 "Against the targets for a cloud model, the median first page is within 1.6 s and the 90th percentile is over 3.0 s."
+fill    ground.2      340, 456 1540x553  r5 clip1
+stroke  rule          340, 456 1540x553  r5 w1 clip1
+text    gold          365, 476   48x20   clip1 glyphs 5 "Lines"
+text    ink.faint    1842, 476    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, 501  835x25   clip1 glyphs 81 "Newest first, each time from the line's request; Queue is its wait to leave. No text is ever shown."
+text    ink.mute      365, 544   34x25   clip1 glyphs 4 "Time"
+text    ink.mute      862, 544   34x25   clip1 glyphs 4 "Kind"
+text    ink.mute     1003, 544   25x25   clip1 glyphs 3 "Job"
+text    ink.mute     1227, 544   42x25   clip1 glyphs 5 "Queue"
+text    ink.mute     1318, 544   93x25   clip1 glyphs 10 "First token"
+text    ink.mute     1426, 544  118x25   clip1 glyphs 12 "First page shown"
+text    ink.mute     1650, 544   42x25   clip1 glyphs 5 "Total"
+text    ink.mute     1708, 544   59x25   clip1 glyphs 7 "Verdict"
+line    rule          365, 574 1490x1    clip1
+text    ink.hi        365, 590   66x28   clip1 glyphs 7 "1:05:05"
+text    ink.body      862, 592   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1003, 592  101x25   clip1 glyphs 12 "Conversation"
+line    rule          365, 634 1490x1    clip1
+text    ink.hi        365, 650   66x28   clip1 glyphs 7 "1:00:55"
+text    ink.body      862, 652   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1003, 652  101x25   clip1 glyphs 12 "Conversation"
+text    ink.body     1219, 652   51x25   clip1 glyphs 5 "0.04 s"
+text    ink.body     1360, 652   51x25   clip1 glyphs 5 "0.64 s"
+text    ink.body     1501, 652   51x25   clip1 glyphs 5 "1.18 s"
+text    ink.body     1642, 652   51x25   clip1 glyphs 5 "1.72 s"
+text    ink.body     1708, 652   42x25   clip1 glyphs 5 "quick"
+line    rule          365, 694 1490x1    clip1
+text    ink.hi        365, 710   66x28   clip1 glyphs 7 "1:00:42"
+text    ink.body      862, 712   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1003, 712  101x25   clip1 glyphs 12 "Conversation"
+text    ink.body     1219, 712   51x25   clip1 glyphs 5 "0.04 s"
+text    ink.body     1360, 712   51x25   clip1 glyphs 5 "2.95 s"
+text    ink.body     1501, 712   51x25   clip1 glyphs 5 "3.42 s"
+text    ink.body     1642, 712   51x25   clip1 glyphs 5 "4.10 s"
+text    ink.body     1708, 712   34x25   clip1 glyphs 4 "slow"
+line    rule          365, 754 1490x1    clip1
+text    ink.hi        365, 770   66x28   clip1 glyphs 7 "1:00:10"
+text    ink.body      862, 772   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1003, 772  101x25   clip1 glyphs 12 "Conversation"
+text    ink.body     1219, 772   51x25   clip1 glyphs 5 "0.03 s"
+text    ink.body     1360, 772   51x25   clip1 glyphs 5 "0.70 s"
+text    ink.body     1501, 772   51x25   clip1 glyphs 5 "1.45 s"
+text    ink.body     1642, 772   51x25   clip1 glyphs 5 "1.30 s"
+text    ink.body     1708, 772   42x25   clip1 glyphs 5 "quick"
+line    rule          365, 814 1490x1    clip1
+text    ink.hi        365, 830   66x28   clip1 glyphs 7 "0:59:50"
+text    ink.body      862, 832   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1003, 832  101x25   clip1 glyphs 12 "Conversation"
+text    ink.body     1219, 832   51x25   clip1 glyphs 5 "0.03 s"
+text    ink.body     1642, 832   51x25   clip1 glyphs 5 "6.00 s"
+line    rule          365, 874 1490x1    clip1
+text    ink.hi        365, 890   66x28   clip1 glyphs 7 "0:58:20"
+text    ink.body      862, 892   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1003, 892  101x25   clip1 glyphs 12 "Conversation"
+text    ink.body     1219, 892   51x25   clip1 glyphs 5 "0.02 s"
+text    ink.body     1642, 892   51x25   clip1 glyphs 5 "2.20 s"
+line    rule          365, 934 1490x1    clip1
+text    ink.hi        365, 950   66x28   clip1 glyphs 7 "0:58:00"
+text    ink.body      862, 952   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1003, 952  101x25   clip1 glyphs 12 "Conversation"
+text    ink.body     1219, 952   51x25   clip1 glyphs 5 "0.03 s"
+text    ink.body     1360, 952   51x25   clip1 glyphs 5 "0.61 s"
+text    ink.body     1501, 952   51x25   clip1 glyphs 5 "1.09 s"
+text    ink.body     1642, 952   51x25   clip1 glyphs 5 "1.54 s"
+text    ink.body     1708, 952   42x25   clip1 glyphs 5 "quick"
+fill    ground.2      340,1029 1540x230  r5 clip1
+stroke  rule          340,1029 1540x230  r5 w1 clip1
+text    gold          365,1049   67x20   clip1 glyphs 7 "Related"
+line    rule          365,1079 1490x1    clip1
+text    ink.hi        380,1093   75x28   clip1 glyphs 8 "Requests"
+text    ink.mute      862,1094  692x25   clip1 glyphs 69 "Every model call this session and what it cost, without the prompts EldenNet sent."
+text    gold         1820,1093    9x28   clip1 glyphs 1 "→"
+line    rule          365,1134 1490x1    clip1
+text    ink.hi        380,1148   84x28   clip1 glyphs 9 "Self-test"
+text    ink.mute      862,1149  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
+text    gold         1820,1148    9x28   clip1 glyphs 1 "→"
+line    rule          365,1189 1490x1    clip1
+text    ink.hi        380,1203   84x28   clip1 glyphs 9 "Developer"
+text    ink.mute      862,1204  472x25   clip1 glyphs 49 "Options for testing EldenNet and reporting its problems."
+text    gold         1820,1203    9x28   clip1 glyphs 1 "→"
+line    rule          300,1035 1620x1   
+fill    ground.well   340,1044   60x28   r3
+stroke  edge          340,1044   60x28   r3 w1
+text    ink.body      348,1046   44x25   glyphs 5 "Enter"
+text    ink.faint     407,1045   34x25   glyphs 4 "Open"
+fill    ground.well   466,1044   42x28   r3
+stroke  edge          466,1044   42x28   r3 w1
+text    ink.body      474,1046   26x25   glyphs 3 "Esc"
+text    ink.faint     515,1045   34x25   glyphs 4 "Back"
+stroke  gold.hi       362, 218 1496x26   r5 w3 clip1
+# 132 items, 4048 vertices, 8040 indices, 4 commands; check_draw_list: passes

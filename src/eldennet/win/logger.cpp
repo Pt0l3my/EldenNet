@@ -249,7 +249,7 @@ DWORD WINAPI writer_main(void*) noexcept {
 
 void log(const en::shell::Line& line, en::shell::LogLevel level) noexcept {
   if (static_cast<int>(level) > g_level.load(std::memory_order_relaxed)) return;
-  if (en::shell::LogRing* r = ring()) (void)r->try_push(line.text(), since_ms());
+  if (en::shell::LogRing* r = ring()) (void)r->try_push(line.text(), since_ms(), level);
 }
 
 void set_log_level(en::shell::LogLevel level) noexcept { g_level.store(static_cast<int>(level), std::memory_order_relaxed); }

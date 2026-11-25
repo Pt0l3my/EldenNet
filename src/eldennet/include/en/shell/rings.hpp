@@ -72,11 +72,12 @@ class SnapSlot {
   std::atomic<std::uint64_t> overwritten_{0};
 };
 
-// A line of the log as the ring holds it: its text and the time it was made, in ms since T1's start.
+// A line of the log as the ring holds it: its text, the time it was made, in ms since T1's start, and its level.
 struct LogEntry {
   std::array<char, kLineBytes> text{};
   std::uint16_t len = 0;
   std::uint64_t at_ms = 0;
+  LogLevel level = LogLevel::Info;
 };
 
 class LogRing {
@@ -84,7 +85,7 @@ class LogRing {
   static constexpr std::size_t kSlots = 512;
   LogRing();
   // Any thread: never blocks; false (and counted) when the ring is full.
-  bool try_push(std::string_view text, std::uint64_t at_ms) noexcept;
+  bool try_push(std::string_view text, std::uint64_t at_ms, LogLevel level) noexcept;
   // T11 only.
   bool try_pop(LogEntry& out) noexcept;
   [[nodiscard]] std::uint64_t dropped() const noexcept { return dropped_.load(std::memory_order_relaxed); }

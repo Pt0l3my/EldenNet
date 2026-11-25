@@ -82,7 +82,7 @@ LogRing::LogRing() : cells_(std::make_unique<std::array<Cell, kSlots>>()) {
   for (std::size_t i = 0; i < kSlots; ++i) (*cells_)[i].seq.store(i, std::memory_order_relaxed);
 }
 
-bool LogRing::try_push(std::string_view text, std::uint64_t at_ms) noexcept {
+bool LogRing::try_push(std::string_view text, std::uint64_t at_ms, LogLevel level) noexcept {
   std::size_t pos = enqueue_.load(std::memory_order_relaxed);
   for (;;) {
     Cell& c = (*cells_)[pos & (kSlots - 1)];
@@ -94,6 +94,7 @@ bool LogRing::try_push(std::string_view text, std::uint64_t at_ms) noexcept {
         std::memcpy(c.entry.text.data(), text.data(), n);
         c.entry.len = static_cast<std::uint16_t>(n);
         c.entry.at_ms = at_ms;
+        c.entry.level = level;
         c.seq.store(pos + 1, std::memory_order_release);
         return true;
       }

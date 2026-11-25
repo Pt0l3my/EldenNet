@@ -378,6 +378,207 @@
   "ai.status": {
     "sentence": "NPCs speak once a model answers Conversation. The self-test checks your provider meanwhile."
   },
+  "calls": {
+    "home": {
+      "columns": [
+        {
+          "id": "time",
+          "label": "Time"
+        },
+        {
+          "id": "slot",
+          "label": "Job"
+        },
+        {
+          "id": "purpose",
+          "label": "Purpose"
+        },
+        {
+          "id": "speaker",
+          "label": "Speaker"
+        },
+        {
+          "id": "model",
+          "label": "Model"
+        },
+        {
+          "id": "first_token",
+          "label": "First token",
+          "numeric": true
+        },
+        {
+          "id": "total",
+          "label": "Total",
+          "numeric": true
+        },
+        {
+          "id": "outcome",
+          "label": "Outcome"
+        },
+        {
+          "drawer": true,
+          "id": "text",
+          "label": "Text shown"
+        }
+      ],
+      "rows": [
+        {
+          "id": "5",
+          "outcome": "answered",
+          "purpose": "model list",
+          "time": "0:11:45",
+          "total": "0.14 s"
+        },
+        {
+          "id": "4",
+          "outcome": "answered",
+          "purpose": "model list",
+          "time": "0:11:45",
+          "total": "0.61 s"
+        },
+        {
+          "first_token": "0.38 s",
+          "id": "3",
+          "model": "talker-small",
+          "outcome": "answered",
+          "purpose": "self-test",
+          "slot": "Self-test",
+          "time": "0:11:30",
+          "total": "1.02 s"
+        },
+        {
+          "first_token": "0.42 s",
+          "id": "2",
+          "model": "talker-small",
+          "outcome": "answered",
+          "purpose": "self-test",
+          "slot": "Self-test",
+          "time": "0:11:30",
+          "total": "0.59 s"
+        },
+        {
+          "id": "1",
+          "outcome": "answered",
+          "purpose": "self-test",
+          "time": "0:11:30",
+          "total": "0.30 s"
+        }
+      ]
+    },
+    "requests": {
+      "columns": [
+        {
+          "id": "time",
+          "label": "Time"
+        },
+        {
+          "id": "slot",
+          "label": "Job"
+        },
+        {
+          "id": "purpose",
+          "label": "Purpose"
+        },
+        {
+          "id": "speaker",
+          "label": "Speaker"
+        },
+        {
+          "id": "provider_model",
+          "label": "Provider and model"
+        },
+        {
+          "id": "first_token",
+          "label": "First token",
+          "numeric": true
+        },
+        {
+          "id": "total",
+          "label": "Total",
+          "numeric": true
+        },
+        {
+          "id": "tokens",
+          "label": "Tokens",
+          "numeric": true
+        },
+        {
+          "id": "outcome",
+          "label": "Outcome"
+        },
+        {
+          "drawer": true,
+          "id": "why",
+          "label": "Why"
+        },
+        {
+          "drawer": true,
+          "id": "text",
+          "label": "Text shown"
+        }
+      ],
+      "rows": [
+        {
+          "at_ms": 705000,
+          "id": "5",
+          "outcome": "answered",
+          "provider_model": "lantern-box",
+          "purpose": "model list",
+          "time": "0:11:45",
+          "total": "0.14 s",
+          "total_ms": 140
+        },
+        {
+          "at_ms": 705000,
+          "id": "4",
+          "outcome": "answered",
+          "provider_model": "openrouter",
+          "purpose": "model list",
+          "time": "0:11:45",
+          "total": "0.61 s",
+          "total_ms": 610
+        },
+        {
+          "at_ms": 690900,
+          "first_token": "0.38 s",
+          "first_token_ms": 380,
+          "id": "3",
+          "outcome": "answered",
+          "provider_model": "talker-small on openrouter",
+          "purpose": "self-test",
+          "slot": "Self-test",
+          "time": "0:11:30",
+          "tokens": 120,
+          "total": "1.02 s",
+          "total_ms": 1020
+        },
+        {
+          "at_ms": 690300,
+          "first_token": "0.42 s",
+          "first_token_ms": 420,
+          "id": "2",
+          "outcome": "answered",
+          "provider_model": "talker-small on openrouter",
+          "purpose": "self-test",
+          "slot": "Self-test",
+          "time": "0:11:30",
+          "tokens": 106,
+          "total": "0.59 s",
+          "total_ms": 590
+        },
+        {
+          "at_ms": 690000,
+          "id": "1",
+          "outcome": "answered",
+          "provider_model": "openrouter",
+          "purpose": "self-test",
+          "time": "0:11:30",
+          "total": "0.30 s",
+          "total_ms": 300
+        }
+      ]
+    }
+  },
   "content": {
     "off": {
       "items": [
@@ -1034,31 +1235,37 @@
   },
   "logs": [
     {
+      "level": "info",
       "line": "boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev",
       "seq": 1,
       "time": "0:00:00"
     },
     {
+      "level": "info",
       "line": "gate result=passed ms=11",
       "seq": 2,
       "time": "0:00:00"
     },
     {
+      "level": "info",
       "line": "init state=settings",
       "seq": 3,
       "time": "0:00:00"
     },
     {
+      "level": "info",
       "line": "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.12",
       "seq": 4,
       "time": "0:00:01"
     },
     {
+      "level": "info",
       "line": "init state=ready",
       "seq": 5,
       "time": "0:00:06"
     },
     {
+      "level": "info",
       "line": "change what=phase to=title",
       "seq": 6,
       "time": "0:00:06"
@@ -1594,6 +1801,7 @@
     "greyed": {}
   },
   "status": {
+    "ai_paused": false,
     "items": [
       {
         "label": "State",
@@ -1618,12 +1826,105 @@
       {
         "label": "This session",
         "value": "12 min"
+      },
+      {
+        "label": "Pause AI",
+        "value": "Off"
       }
     ],
     "page": "system.status",
     "reason": "At the title screen: EldenNet waits until a character is loaded.",
     "tone": "glint",
     "word": "Dormant"
+  },
+  "system.performance": {
+    "budgets": {
+      "checks": [
+        {
+          "detail": "0.04 ms, within its 0.15 ms limit",
+          "label": "Reading the game: the mean step",
+          "state": "pass"
+        },
+        {
+          "detail": "0.13 ms, within its 0.50 ms limit",
+          "label": "Reading the game: 99 steps in 100",
+          "state": "pass"
+        }
+      ]
+    },
+    "storage": {
+      "items": [
+        {
+          "label": "Database",
+          "value": "None in this version: what is said stays in memory until the game closes"
+        },
+        {
+          "label": "Kept in memory",
+          "value": "0 entries from this session's conversations, 4,096 at most"
+        }
+      ]
+    },
+    "tasks": {
+      "columns": [
+        {
+          "id": "task",
+          "label": "Task"
+        },
+        {
+          "id": "steps",
+          "label": "Steps",
+          "numeric": true
+        },
+        {
+          "id": "mean",
+          "label": "Mean",
+          "numeric": true
+        },
+        {
+          "id": "p99",
+          "label": "p99",
+          "numeric": true
+        },
+        {
+          "id": "longest",
+          "label": "Longest",
+          "numeric": true
+        }
+      ],
+      "rows": [
+        {
+          "longest": "0.91 ms",
+          "mean": "0.04 ms",
+          "p99": "0.13 ms",
+          "steps": "22,410",
+          "task": "Reading the game: each step"
+        },
+        {
+          "longest": "1.45 ms",
+          "mean": "0.09 ms",
+          "p99": "0.19 ms",
+          "steps": "1,200",
+          "task": "Reading the game: each reading built"
+        },
+        {
+          "longest": "2.90 ms",
+          "mean": "0.02 ms",
+          "p99": "0.06 ms",
+          "steps": "15,300",
+          "task": "The core: each step"
+        }
+      ]
+    },
+    "tiles": [
+      {
+        "label": "The core's steps, p99",
+        "value": "0.06 ms"
+      },
+      {
+        "label": "Reading the game, p99",
+        "value": "0.13 ms"
+      }
+    ]
   },
   "system.status": {
     "checks": [
@@ -1757,6 +2058,79 @@
       {
         "group": "Statuses",
         "state": "Not tested yet"
+      }
+    ]
+  },
+  "traces": {
+    "columns": [
+      {
+        "id": "time",
+        "label": "Time"
+      },
+      {
+        "id": "kind",
+        "label": "Kind"
+      },
+      {
+        "id": "slot",
+        "label": "Job"
+      },
+      {
+        "id": "queue",
+        "label": "Queue",
+        "numeric": true
+      },
+      {
+        "id": "first_token",
+        "label": "First token",
+        "numeric": true
+      },
+      {
+        "id": "first_page",
+        "label": "First page shown",
+        "numeric": true
+      },
+      {
+        "id": "total",
+        "label": "Total",
+        "numeric": true
+      },
+      {
+        "id": "verdict",
+        "label": "Verdict"
+      }
+    ],
+    "rows": [],
+    "sentence": "No line has reached the screen yet this session.",
+    "tiles": [
+      {
+        "label": "Lines this session",
+        "value": "0"
+      }
+    ]
+  },
+  "usage": {
+    "sentence": "In the last hour: no own-initiative calls, and 6 of the 600 requests EldenNet may send in an hour.",
+    "tiles": [
+      {
+        "label": "Calls",
+        "value": "5"
+      },
+      {
+        "label": "Tokens in",
+        "value": "184"
+      },
+      {
+        "label": "Tokens out",
+        "value": "42"
+      },
+      {
+        "label": "Failures",
+        "value": "0"
+      },
+      {
+        "label": "Own-initiative this hour",
+        "value": "0"
       }
     ]
   }

@@ -13,6 +13,9 @@ namespace en::shell {
 inline constexpr std::size_t kMaxWord = 48;
 inline constexpr std::size_t kLineBytes = 320;
 
+// A line's level, which settings.toml's `log_level` bounds (settings.hpp) and System › Logs' Level filter reads.
+enum class LogLevel : std::uint8_t { Error, Warn, Info, Debug };
+
 // A word a line may hold: 1 to 48 characters of [A-Za-z0-9_.+-].
 [[nodiscard]] bool is_word(std::string_view s) noexcept;
 

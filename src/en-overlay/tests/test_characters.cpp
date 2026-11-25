@@ -78,10 +78,10 @@ TEST_CASE("characters: the page data: Named NPCs' master list, its families, the
   CHECK(families == 3);  // named and profiles; and Docs' documents (docs.hpp)
   CHECK(pages["slow_commands"] == json{"profile.draft"});
   // The player's notes are saved, reset and restored on this PC alone (the owner's O112 (b)); a check and a draft write
-  // nothing and stay open to a paired device.
+  // nothing and stay open to a paired device, as Pause AI does (ai.pause).
   CHECK(pages["sensitive_commands"] == json{"providers.add", "providers.remove", "providers.key", "profile.save",
                                             "profile.reset", "profile.restore"});
-  CHECK(pages["minor"] == 12);  // Docs' document block and Bug report's prose field (GraceUI D251), on 1.8's marks
+  CHECK(pages["minor"] == 16);  // a stream's filter bar (GraceUI D257), on 1.15's, 1.13's, 1.12's and 1.8's marks
   for (const char* c : {"profile.check", "profile.save", "profile.reset", "profile.restore", "profile.draft"}) {
     CHECK(std::find(pages["commands"].begin(), pages["commands"].end(), c) != pages["commands"].end());
   }
@@ -142,7 +142,7 @@ TEST_CASE("characters: the editor's document: the four fields, null where left t
   CHECK(doc_of(mine, "register")["value"].is_null());
   const json world = Characters::document_body(test::characters_fixture("world"), "persona.weaver");
   CHECK(world["state"]["word"] == "Updated since you wrote this");
-  CHECK(world["draft_blocked"] == "Drafts wait until EldenNet may use the network.");
+  CHECK(world["draft_blocked"] == "Drafts wait while AI is paused for this session.");  // en-proto's kAiPausedDraft
   CHECK_FALSE(world.contains("draft_help"));
   // A newer file is shown read-only, every field locked; a refused one says so.
   CharacterFacts odd = *f;
@@ -205,7 +205,7 @@ TEST_CASE("characters: the commands, checked at the one entry point, then handed
     const json r = json::parse(s.command(cmd("profile.draft", {{"target", "persona.ferryman"}, {"notes", "a ferryman"}}),
                                          blocked, 5));
     CHECK(r["error"] == "not_now");
-    CHECK(r["detail"] == "Drafts wait until EldenNet may use the network.");
+    CHECK(r["detail"] == "Drafts wait while AI is paused for this session.");
   }
   SUBCASE("taken: no answer now, a request for the DLL with its reply handle") {
     CHECK(s.command(cmd("profile.save", {{"target", "persona.ferryman"}, {"rev", 0}, {"doc", good_doc}}, 11), f, 501)

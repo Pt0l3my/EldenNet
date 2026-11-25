@@ -46,7 +46,7 @@ TEST_CASE("overlay: connect as eldennet, with EldenNet's floor and the caps it u
   CHECK(r.outcome == Outcome::Connected);
   CHECK(g.id == "eldennet");
   CHECK(g.name == "EldenNet");
-  CHECK(g.floor == GRACEUI_VERSION_PACK(0, 2, 44));  // GraceUI 0.2.44: Docs and Bug report's blocks (D251)
+  CHECK(g.floor == GRACEUI_VERSION_PACK(0, 2, 50));  // GraceUI 0.2.50: Logs' filter bar on its stream (D257)
   CHECK(g.mod_version == GRACEUI_VERSION_PACK(0, 1, 0));
   CHECK(g.mod_caps == "notices world-state hotkeys");
   CHECK(std::string(r.view) == "off");
@@ -226,6 +226,7 @@ TEST_CASE("overlay: the F11 view: its atlas before any submit, a hidden panel, F
   g.press("debug-view", 3);
   s = o->step(status());
   CHECK(o->view_open());
+  CHECK(g.present_sets == 0);  // its lists are submitted, never drawn each frame (ABI 1.8's on_present, D259)
 }
 
 TEST_CASE("overlay: a view that cannot be made leaves the connection as it is") {
@@ -300,7 +301,7 @@ TEST_CASE("overlay: poll passes over the display's event and any kind it does no
   CHECK(s.view_presses == 1);
   CHECK(o->view_open());
   CHECK(g.events.empty());  // everything waiting was taken
-  // Asked at the vendored header's size, ABI 1.7's.
+  // Asked at the vendored header's size, ABI 1.8's (the event unchanged since 1.7).
   CHECK(g.poll_sizes.count(static_cast<std::uint32_t>(sizeof(GraceUiEvent))) == 1);
 
   // A GraceUI without the holder's events is asked at 0.1's size, and never gives the display's.
@@ -446,7 +447,7 @@ TEST_CASE("overlay: watched topics published, each command answered once at once
   auto o = connect(g, with_space(), r);
   REQUIRE(o != nullptr);
   Space space;
-  space.log_line("init state=ready", 10);
+  space.log_line("init state=ready", 10, LogLevel::Info);
   SpaceFacts facts;
   facts.version = {0, 1, 0};
   facts.graceui = g.version;
@@ -501,7 +502,7 @@ TEST_CASE("overlay: watched topics published, each command answered once at once
   facts.level = Level::Inactive;
   facts.stop = Stop::TaskTripped;
   facts.stop_text = "EldenNet stopped reading the game after an error. Your game is not affected.";
-  space.log_line("tripped group=camera", 1300);
+  space.log_line("tripped group=camera", 1300, LogLevel::Warning);
   (void)o->step(status(), &space, &facts, 5000);
   CHECK(g.published.size() == before);
   CHECK_FALSE(space.watching("status"));

@@ -59,6 +59,7 @@ inline constexpr bool kProbeBuild = false;
 // ---- Time: QPC, the snapshots' own clock ----
 [[nodiscard]] std::uint64_t mono_ms() noexcept;   // since the machine's start, as the snapshots and the Marks
 [[nodiscard]] std::uint64_t since_ms() noexcept;  // since T1's start (the log's t=)
+[[nodiscard]] std::uint64_t mono_us() noexcept;   // the same clock in µs: a step's time (System › Performance)
 void set_start() noexcept;
 
 // ---- The log (logger.cpp): any thread pushes, T11 writes. Lines before Safety are kept and written once the
@@ -221,6 +222,8 @@ struct Shell {
   en::core::CallRecord calls;
   std::optional<bool> pause_asked;
   bool ai_paused = false;
+  // T6's: each step of the core, timed in µs (System › Performance's; en-gal's C13 histogram), T6 alone writing it.
+  en::gal::Histogram core_us;
 };
 // The one Shell, made on T1 (never destroyed), or null before.
 [[nodiscard]] Shell* shell() noexcept;
@@ -275,9 +278,10 @@ void ai_cancel(Shell& s, en::proto::RequestId id) noexcept;
 [[nodiscard]] en::proto::NetHealth ai_health(Shell& s) noexcept;
 // T6: a change of the space's `ai.preset` or a job's model (`slots.<slot>.model`), made and written to providers.toml.
 void ai_change(Shell& s, en::overlay::Space& space, en::overlay::Space::Change& change) noexcept;
-// T6: a request the space took (selftest.run, models.list, providers.add, providers.remove, providers.key); a key's
-// value is taken out of the request and the request's copy overwritten. While AI is paused the self-test and the model
-// list are refused (logged; the space shows en-proto's kAiPausedSelfTest and kAiPausedModelList).
+// T6: a request the space took (selftest.run, models.list, providers.add, providers.remove, providers.key, and
+// ai.pause, handed to ai_pause); a key's value is taken out of the request and the request's copy overwritten. While AI
+// is paused the self-test and the model list are refused (logged; the space refuses them first, in en-proto's
+// kAiPausedSelfTest and kAiPausedModelList).
 void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest& request) noexcept;
 
 // ---- Pause AI and the model calls' record (ai.cpp; PAGES §4.6.1, §4.6.2; D15, D18): what the pages bind ----
@@ -290,6 +294,8 @@ void ai_pause(Shell& s, bool on) noexcept;
 [[nodiscard]] bool ai_paused(const Shell& s) noexcept;
 // T6: the model calls' record and the session's usage (en-proto's calls.hpp): the space's `calls` and `usage`.
 [[nodiscard]] const en::proto::CallsView& ai_calls(const Shell& s) noexcept;
+// T6: the lines among the record's rows and the session's lines summed up (en-proto's traces.hpp): `traces`.
+[[nodiscard]] const en::proto::TracesView& ai_traces(const Shell& s) noexcept;
 // T6, once the core took a pause: the flag kept for the refusals, the self-test and the model list stopped when it
 // turned on, one log line (`ai_pause on=… changed=… selftest_stopped=… list_stopped=…`).
 void ai_pause_taken(Shell& s, bool on) noexcept;

@@ -535,6 +535,14 @@ GraceUiStatus wake_event(GraceUiConsumer me, void** event) {
   return GRACEUI_OK;
 }
 
+// ABI 1.8's (D259): EldenNet does not opt in to drawing a panel each frame, so any call is counted, and refused.
+GraceUiStatus set_on_present(GraceUiConsumer me, uint64_t, const GraceUiPresentHook*) {
+  Grace& g = *g_fake;
+  if (const GraceUiStatus a = admitted(me); a != GRACEUI_OK) return a;
+  ++g.present_sets;
+  return GRACEUI_REFUSED;
+}
+
 }  // namespace
 
 Grace::Grace() {
@@ -563,6 +571,7 @@ Grace::Grace() {
   table.set_caret = &set_caret;
   table.describe_hotkey = &describe_hotkey;
   table.wake_event = &wake_event;
+  table.set_on_present = &set_on_present;
   tables().clear();
 }
 

@@ -265,6 +265,18 @@ en::overlay::Reading reading_of(en::gal::TaskState t) noexcept {
   return R::None;
 }
 
+// A line's level, as the logger kept it, for its row in System › Logs (its Level filter, GraceUI D257).
+en::overlay::LogLevel log_level_of(en::shell::LogLevel l) noexcept {
+  using L = en::overlay::LogLevel;
+  switch (l) {
+    case en::shell::LogLevel::Error: return L::Error;
+    case en::shell::LogLevel::Warn: return L::Warning;
+    case en::shell::LogLevel::Info: return L::Info;
+    case en::shell::LogLevel::Debug: return L::Debug;
+  }
+  return L::Info;
+}
+
 // What the space shows, from the core, the task, the block and the shell; `banner` keeps the banner's words alive.
 void fill_space(const Shell& s, const en::core::Core& core, const en::proto::WorldSnapshot* latest,
                 std::uint64_t tripped, std::uint32_t graceui, std::string& banner, en::overlay::SpaceFacts& f) {
@@ -304,6 +316,20 @@ void fill_space(const Shell& s, const en::core::Core& core, const en::proto::Wor
   f.launcher = block::attached();
   f.settings_refused = s.settings_refused;
   f.session_ms = since_ms();
+}
+
+// System › Performance's figures (en-proto's perf.hpp): the reader's steps and its readings (the task's histograms, on
+// T2), the core's steps (shell.cpp's, on T6), and the conversations' log the core keeps in memory: EldenNet's own.
+void fill_perf(const Shell& s, const en::core::Core& core, en::proto::PerfView& p) {
+  if (const en::gal::GalTask* task = s.task_set.load(std::memory_order_acquire) ? s.task : nullptr) {
+    p.reader = en::gal::step_times(task->status().task_us);
+    p.reading = en::gal::step_times(task->status().build_us);
+  }
+  p.core = en::gal::step_times(s.core_us);
+  p.log_known = true;
+  p.log_entries = core.log().events().size();
+  p.log_dropped = core.log().dropped();
+  p.log_capacity = en::core::MemoryLog::kCapacity;
 }
 
 const char* note_word(en::overlay::SpaceNote::What w) noexcept {
@@ -488,7 +514,9 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
   en::proto::ffi_guard(en::proto::Component::DllMain, [&] {
     space = &space_state(s);
     en::shell::LogEntry e;
-    while (take_log_tail(e)) space->space.log_line(std::string_view(e.text.data(), e.len), e.at_ms);
+    while (take_log_tail(e)) {
+      space->space.log_line(std::string_view(e.text.data(), e.len), e.at_ms, log_level_of(e.level));
+    }
   });
   OverlayLink* link = s.overlay.load(std::memory_order_acquire);
   if (link == nullptr || link->lost) return;
@@ -565,6 +593,7 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
     en::overlay::ViewStatus view;
     if (o.view_ready()) fill_view(s, core, latest, tripped, o, view);
     en::overlay::SpaceFacts facts;
+    en::proto::PerfView perf;
     std::string banner_words;
     const bool pages = o.pages() && space != nullptr;
     if (pages) {
@@ -573,6 +602,13 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
       facts.characters = profiles_facts(s, core, cs.gate_open);  // Characters › Named NPCs (profiles.cpp)
       // Content packs (PAGES §4.6.9): the loads recorded so far (conversation.cpp, profiles.cpp); none before one.
       facts.content = s.content_view.revision != 0 ? &s.content_view : nullptr;
+      // AI › Requests and Home's Model calls (the record, ai.cpp), and Pause AI's state as the core holds it (D15).
+      facts.calls = &ai_calls(s);
+      facts.ai_paused = ai_paused(s);
+      // System › Traces (the same record's lines) and System › Performance (EldenNet's own steps and its log).
+      facts.traces = &ai_traces(s);
+      fill_perf(s, core, perf);
+      facts.perf = &perf;
     }
     en::overlay::Overlay::Step step =
         pages ? o.step(view, &space->space, &facts, now) : o.step(view, nullptr, nullptr, now);

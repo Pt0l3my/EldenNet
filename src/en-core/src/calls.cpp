@@ -3,7 +3,9 @@
 #include "en/core/calls.hpp"
 
 #include <algorithm>
+#include <optional>
 #include <utility>
+#include <vector>
 
 #include "en/core/core.hpp"
 
@@ -60,6 +62,8 @@ CallRecord::CallRecord(std::size_t kept) { set_kept(kept); }
 void CallRecord::set_kept(std::size_t kept) {
   kept_ = std::clamp<std::size_t>(kept, 1, pr::kCallsKeptDeveloper);
   view_.kept = kept_;
+  traces_.kept = kept_;
+  while (trace_rows_.size() > kept_) trace_rows_.pop_back();
   rebuild();
 }
 
@@ -85,6 +89,7 @@ CallRecord::Entry& CallRecord::make(CallStart start, std::uint64_t at_ms) {
   e.row.purpose = start.purpose;
   e.row.speaker = std::move(start.speaker);
   ++view_.usage.calls;
+  if (pr::line_of(e.row.purpose)) ++traces_.summary.calls;
   if (e.row.purpose == pr::CallPurpose::OwnInitiative) {
     own_initiative_.insert(std::upper_bound(own_initiative_.begin(), own_initiative_.end(), at_ms), at_ms);
     view_.usage.own_initiative_hour = static_cast<std::uint32_t>(own_initiative_.size());
@@ -123,9 +128,17 @@ void CallRecord::note(const CallNote& n, std::uint64_t at_ms) {
   settle(*e);
 }
 
-void CallRecord::shown(pr::ConvId conv, pr::ReplyId reply, std::string_view text) {
+void CallRecord::shown(pr::ConvId conv, pr::ReplyId reply, std::string_view text, std::uint64_t at_ms) {
   Entry* e = by_reply(conv, reply);
-  if (e == nullptr || e->withheld) return;
+  if (e == nullptr) return;
+  // Its first page shown, the traces': whatever the page said, so the persona's own line in place of an answer a
+  // check withheld counts too (the Tarnished waited for it alike).
+  const bool first = e->row.first_page_ms < 0;
+  if (first) e->row.first_page_ms = static_cast<std::int64_t>(at_ms >= e->row.at_ms ? at_ms - e->row.at_ms : 0);
+  if (e->withheld) {
+    if (first) settle(*e);
+    return;
+  }
   e->shown = true;
   std::string& kept = e->row.text;
   if (!text.empty() && kept.size() + 1 < pr::kCallTextMaxBytes) {  // a page joins the last with a space, as shown
@@ -158,7 +171,8 @@ void CallRecord::withdraw(pr::RequestId id) {
     settle(*it);
     return;
   }
-  // No call: what it added goes, and so does its row.
+  // No call: what it added goes, and so does its row (its trace's too).
+  untrace(*it);
   pr::CallUsage& u = view_.usage;
   u.calls -= u.calls > 0 ? 1 : 0;
   u.tokens_in -= std::min(u.tokens_in, it->tokens_in);
@@ -224,6 +238,13 @@ void CallRecord::event(const pr::LlmEvent& ev, std::uint64_t at_ms, const CallSt
 }
 
 void CallRecord::end_chat(Entry& e, pr::RequestId id, const pr::ChatResult& r, std::uint64_t at_ms) {
+  // The queue, the traces': from the row's send to its first request's first attempt, which left that long after the
+  // client began it (the client began it its total before this end). A request that never left has none.
+  if (e.row.queue_ms < 0 && !e.requests.empty() && e.requests.front() == id && !r.attempts.empty()) {
+    const std::int64_t since = static_cast<std::int64_t>(at_ms >= e.row.at_ms ? at_ms - e.row.at_ms : 0);
+    const std::int64_t began = std::max<std::int64_t>(since - std::max<std::int64_t>(ms_of(r.total), 0), 0);
+    e.row.queue_ms = began + std::max<std::int64_t>(ms_of(r.attempts.front().sent_at), 0);
+  }
   // Every request of the row adds its attempts, tokens and cost; only the last one's answer counts for the rest.
   e.row.attempts += static_cast<std::uint32_t>(r.attempts.size());
   e.row.tokens_in = add_tokens(e.row.tokens_in, r.usage.prompt_tokens);
@@ -310,7 +331,75 @@ void CallRecord::settle(Entry& e) {
     }
     e.failure = failed;
   }
+  trace(e);
   rebuild();
+}
+
+void CallRecord::sample(std::deque<std::uint32_t>& samples, std::int64_t ms) {
+  samples.push_back(static_cast<std::uint32_t>(std::clamp<std::int64_t>(ms, 0, 0xFFFF'FFFF)));
+  while (samples.size() > pr::kTraceSamples) samples.pop_front();
+}
+
+void CallRecord::trace(Entry& e) {
+  const std::optional<pr::LineKind> kind = pr::line_of(e.row.purpose);
+  if (!kind) return;
+  // The summary moves by what the entry adds now against what it added before; a first page and a first token are
+  // samples once each (a row's first page is kept once it showed, its first token once its last request ended).
+  pr::TraceSummary& s = traces_.summary;
+  const bool page = e.row.first_page_ms >= 0;
+  if (page && !e.line_shown) {
+    e.line_shown = true;
+    ++s.lines;
+    sample(pages_, e.row.first_page_ms);
+    const std::vector<std::uint32_t> all(pages_.begin(), pages_.end());
+    s.first_page_median_ms = pr::percentile(all, 500);
+    s.first_page_p90_ms = all.size() >= pr::kTraceP90Lines ? pr::percentile(all, 900) : -1;
+  }
+  const bool unshown = e.ended && !page;
+  if (unshown != e.line_unshown) {
+    if (unshown) {
+      ++s.unshown;
+    } else if (s.unshown > 0) {
+      --s.unshown;
+    }
+    e.line_unshown = unshown;
+  }
+  if (!e.token_sampled && e.ended && e.row.first_token_ms >= 0) {
+    e.token_sampled = true;
+    sample(tokens_, e.row.first_token_ms);
+    s.first_token_median_ms = pr::percentile(std::vector<std::uint32_t>(tokens_.begin(), tokens_.end()), 500);
+  }
+  // Its row, newest first by the time it was sent, then by its id; the oldest past the view go.
+  pr::TraceRow row;
+  row.id = e.row.id;
+  row.at_ms = e.row.at_ms;
+  row.kind = *kind;
+  row.slot = e.row.slot;
+  row.queue_ms = e.row.queue_ms;
+  row.first_token_ms = e.row.first_token_ms;
+  row.first_page_ms = e.row.first_page_ms;
+  row.total_ms = e.row.total_ms;
+  row.verdict = pr::verdict_of(*kind, e.row.first_page_ms);
+  const auto same = std::find_if(trace_rows_.begin(), trace_rows_.end(),
+                                 [&](const pr::TraceRow& o) { return o.id == row.id; });
+  if (same != trace_rows_.end()) {
+    *same = std::move(row);
+    return;
+  }
+  const auto at = std::find_if(trace_rows_.begin(), trace_rows_.end(), [&](const pr::TraceRow& o) {
+    return o.at_ms < row.at_ms || (o.at_ms == row.at_ms && o.id < row.id);
+  });
+  trace_rows_.insert(at, std::move(row));
+  while (trace_rows_.size() > kept_) trace_rows_.pop_back();
+}
+
+void CallRecord::untrace(const Entry& e) {
+  if (!pr::line_of(e.row.purpose)) return;
+  pr::TraceSummary& s = traces_.summary;
+  s.calls -= s.calls > 0 ? 1 : 0;
+  if (e.line_shown) s.lines -= s.lines > 0 ? 1 : 0;  // never, in fact: a call refused before it left showed nothing
+  if (e.line_unshown) s.unshown -= s.unshown > 0 ? 1 : 0;
+  std::erase_if(trace_rows_, [&](const pr::TraceRow& r) { return r.id == e.row.id; });
 }
 
 void CallRecord::rebuild() {
@@ -323,6 +412,8 @@ void CallRecord::rebuild() {
     view_.rows.push_back(e.row);
   }
   ++view_.revision;
+  traces_.rows.assign(trace_rows_.begin(), trace_rows_.end());
+  ++traces_.revision;
 }
 
 void CallRecord::prune_hour(std::uint64_t at_ms) {
@@ -345,7 +436,9 @@ void CallRecord::hour(std::uint32_t requests, std::uint32_t bound, std::uint64_t
 void record_step(CallRecord& calls, const Outputs& out, std::uint64_t at_ms) {
   for (const CallNote& n : out.calls) calls.note(n, at_ms);
   for (const Commit& c : out.commits) {
-    if (c.kind == Commit::Kind::NpcSaid || c.kind == Commit::Kind::NpcPage) calls.shown(c.conv, c.reply, c.text);
+    if (c.kind == Commit::Kind::NpcSaid || c.kind == Commit::Kind::NpcPage) {
+      calls.shown(c.conv, c.reply, c.text, at_ms);
+    }
   }
 }
 

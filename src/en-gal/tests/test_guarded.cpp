@@ -265,3 +265,24 @@ TEST_CASE("the C13 histogram: four buckets an octave, percentiles as bucket boun
   CHECK(h.percentile_us(999) >= 5'000);
   CHECK(h.max_us() == 5'000);
 }
+
+TEST_CASE("System › Performance's figures from the C13 histogram: none before a step, a p99 never below the truth") {
+  Histogram h;
+  CHECK(en::gal::step_times(h) == en::proto::StepTimes{});
+  // 990 steps of 200 µs and 10 of 3 ms: the mean exact, the p99 the 200 µs bucket's upper bound (up to a fifth high,
+  // never low), the longest exact.
+  for (int i = 0; i < 990; ++i) h.record(200);
+  for (int i = 0; i < 10; ++i) h.record(3'000);
+  const en::proto::StepTimes t = en::gal::step_times(h);
+  CHECK(t.steps == 1000);
+  CHECK(t.sum_us == 990 * 200 + 10 * 3'000);
+  CHECK(t.p99_us >= 200);
+  CHECK(t.p99_us <= 240);
+  CHECK(t.p99_us == Histogram::upper_of(Histogram::bucket_of(200)));
+  CHECK(t.max_us == 3'000);
+  // One step alone: its p99 is that step, capped by the longest.
+  Histogram one;
+  one.record(130);
+  CHECK(en::gal::step_times(one).p99_us == 130);
+  CHECK(en::gal::step_times(one).steps == 1);
+}

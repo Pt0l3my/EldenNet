@@ -373,6 +373,15 @@ the conversation part B's (above); the core holds both.
   holds is the displayed pages, cut at 2,048 bytes; nothing is read from a request or a result's text or message, and
   a model id that looks like a path is left out (PV5). `withdraw` takes back a request refused before it left (Pause
   AI): no call, so no row.
+- **The traces** (System › Traces; en-proto's `TracesView`, `traces()`): the same rows' lines (a reply, an
+  own-initiative line, a call-out reply), as many as the view keeps and held apart from the rows, so that no other call
+  pushes a line out. Each row's `queue_ms` is its first request's wait from the row's send to its first attempt (the
+  client's start, its end less its total, then the first attempt's `sent_at`), known at that request's end, and none for
+  one that never left; `first_page_ms` is from the send to the commit of its first page (`shown`, now with the step's
+  time), whatever the page said, so a deflection's counts too; the verdict is en-proto's rule by that page. The summary
+  counts the session's calls for a line, those whose first page showed and those that ended with none (a page after the
+  end moves one back), and the median and 90th percentile of the newest 4,096 first pages (the 90th from 10 on) and
+  the median of their first tokens, each sample taken once. A trace holds no text.
 - **Pause AI** (`CoreInput::Pause`, `State::ai_paused`): a session flag, off in every new core and never stored. On,
   the ladder stands at L2 (the reason "AI paused", en-proto's `kAiPausedReason`): speech is off, so the box closes as
   when the ladder falls, a line sent gets the "…" page, a lint's regeneration is not sent ("No answer: no model is
@@ -430,6 +439,9 @@ a file anywhere in it. The model calls' record and Pause AI (`tests/conversation
 shown with its displayed text alone, not shown turning shown, each failure counted while it stands, a fallback model,
 a regeneration's row with its attempts and tokens summed, a deflection not shown, the self-test, the model lists and a
 draft answered, PV4 and PV5 (no unshown answer, prompt, key, address or path in a row), the text's cut, the usage and
-the hour, a withdrawn request; through the core, a reply's row with the speaker as shown, the banned word's
+the hour, a withdrawn request; the traces (a reply's queue, first token, first page shown, total and verdict and no
+text, only lines traced, a line with no page unshown until a late page, a deflection's page its first, a regeneration's
+queue its first request's, a withdrawn line's trace gone, the session's percentiles and the rows the view keeps, never
+pushed out by other calls); through the core, a reply's row with the speaker as shown, the banned word's
 regeneration and deflection, and Pause AI: L2 with the box closed and nothing sent, the ladder's return to L4 or L3 or
 L2, a regeneration refused while paused, and a pause before T1 is ready and at L1.

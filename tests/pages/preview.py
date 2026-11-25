@@ -41,12 +41,21 @@ import browser  # noqa: E402
 # Docs (PAGES §4.6.9) over the title (its list and the first document, Getting started, chosen: GraceUI D251's reader);
 # Tools › Bug report (PAGES §4.6.8) over the title (nothing typed: the five parts) and over the world (the player's
 # words of the fixture's own, and the content left out: drawn in the muted ink, its fields hidden).
+# AI › Requests (PAGES §4.6.2) over the title (the self-test's run and a model list: no cost reported) and over the
+# world (a conversation's replies before AI was paused: shown, by the fallback, not shown, timed out, failed, waiting,
+# a cost reported); Home over the world too (its Model calls card with the replies' text, and Pause AI on).
+# System › Performance (PAGES §4.6.7) over the title (every kind of step within C3's limits, the log empty) and over the
+# world (the reader's p99 over its limit: a warning; the log's entries); System › Traces over the title (no line yet:
+# the lines' tile alone and each section's own words) and over the world (a conversation's lines, the 90th percentile
+# over its target, a line waiting, two with no page).
 PAGES = (("home", "title"), ("system.status", "title"), ("system.logs", "title"), ("settings.developer", "title"),
          ("ai.providers", "title"), ("ai.models", "title"), ("ai.selftest", "title"), ("ai.selftest", "banner"),
          ("ai.providers", "starting"), ("home", "banner"), ("ai.providers", "world"), ("ai.models", "world"),
          ("characters.named", "title"), ("characters.named", "world"), ("characters.named", "starting"),
          ("content", "title"), ("content", "world"), ("content", "starting"), ("docs", "title"),
-         ("tools.report", "title"), ("tools.report", "world"))
+         ("tools.report", "title"), ("tools.report", "world"), ("ai.requests", "title"), ("ai.requests", "world"),
+         ("home", "world"), ("system.performance", "title"), ("system.performance", "world"),
+         ("system.traces", "title"), ("system.traces", "world"))
 SIZE = "1920x1080"
 INCREMENT = "0.2"  # en-overlay's kIncrement: the AI pages'
 
@@ -155,6 +164,8 @@ def main(argv):
             continue
         done = subprocess.run([args.grace_dev, "--dump", "eldennet", page, "--size", SIZE, "--space-dir",
                                str(args.work / state)], capture_output=True, text=True, encoding="utf-8")
+        # Every dump within a mod's draw-list limits, Docs' too: since GraceUI 0.2.49 what is out of view costs nothing
+        # (D256 1), so its document drawn whole (D253) no longer exits 1, and no page's exit is taken.
         if done.returncode != 0:
             failures.append("--dump %s: exit %d: %s" % (page, done.returncode, done.stderr.strip()))
             continue

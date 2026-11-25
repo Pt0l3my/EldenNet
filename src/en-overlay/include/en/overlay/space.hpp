@@ -22,9 +22,12 @@
 #include <vector>
 
 #include "en/overlay/characters.hpp"
+#include "en/proto/calls.hpp"
 #include "en/proto/content_view.hpp"
 #include "en/proto/llm.hpp"
+#include "en/proto/perf.hpp"
 #include "en/proto/snapshot.hpp"
+#include "en/proto/traces.hpp"
 #include "en/proto/watch.hpp"
 
 namespace en::overlay {
@@ -62,6 +65,10 @@ enum class Stop : std::uint8_t {  // en-core's BannerReason, or none
 enum class Where : std::uint8_t { Starting, Title, Loading, World, Stopped };  // en-core's phase, as the player meets it
 enum class Unclean : std::uint8_t { None, Gap, SessionFailed, AntiCheat, NotSolo, Lobby, Loading };  // the gate's why
 enum class Reading : std::uint8_t { None, Registered, PhaseA, Running, Inert };  // en-gal's task, or none yet
+// A line's level as the logger gave it (the DLL maps its own into these): the logs stream's `level` on each row, which
+// System › Logs' Level filter reads (GraceUI D257), never parsed from the line's text. Trace is the stream's word for
+// the most detailed lines; v0.2's logger writes none.
+enum class LogLevel : std::uint8_t { Error, Warning, Info, Debug, Trace };
 
 // ---- AI (PAGES §4.6.2): en-llm's configuration, health and runs as the DLL knows them, in en-overlay's own types (it
 // links no en-llm, ARCH §2.3; the DLL maps them). Ids are the configuration's (providers.toml's provider ids, its model
@@ -229,7 +236,55 @@ struct SpaceFacts {
   // The Content packs page's projection (en-proto's content_view.hpp, built by en-core on each load); null before the
   // first load (the topic publishes nothing).
   const proto::ContentView* content = nullptr;
+  // The model calls' record and the session's usage (en-proto's calls.hpp, kept by the DLL on T6): AI › Requests and
+  // Home's Model calls card, the topics `calls` and `usage`; null before the DLL keeps one (they publish nothing).
+  const proto::CallsView* calls = nullptr;
+  // Pause AI for this session (D15), as the core holds it: `status.ai_paused`, the quick switch's state (GraceUI D252).
+  bool ai_paused = false;
+  // System › Traces' (en-proto's traces.hpp): the lines among the calls' record's rows and the session's lines summed
+  // up, kept by the same record; null before the DLL keeps one (the topic publishes nothing).
+  const proto::TracesView* traces = nullptr;
+  // System › Performance's (en-proto's perf.hpp): EldenNet's own steps' times and what it keeps, filled by the DLL each
+  // wake; null before it does (the topic publishes nothing).
+  const proto::PerfView* perf = nullptr;
 };
+
+// ---- AI › Requests and Home's Model calls card (PAGES §4.6.1, §4.6.2): the topic `calls`, a member per table (GraceUI
+// D185's props.field), {columns, rows}: `requests`, every row kept (20, or 200 with Developer views), each with its
+// hidden sort keys (at_ms, first_token_ms, total_ms, tokens; a key it has no value for left out, so that it sorts last,
+// GraceUI D250); `home`, the newest 20. Every row has its call's id as words, which its drawer follows (GraceUI D256:
+// Why and Text shown are drawer columns, shown under an opened row). A row's text is the displayed text of a reply
+// whose pages reached the screen, and nothing else of the model's or the player's (PV4): never a prompt, an unshown
+// answer, a key, a base URL or a server's message; a failure is its error class in words. The topic `usage`: Requests'
+// tiles and the hour's line, own-initiative calls and every request sent against the bound, which Home's card shows
+// too; cost only where a provider reported one (D18). The body stays within GraceUI's frame to a page (256 KiB): past
+// kCallsBodyMax, the oldest rows of `requests` give up their text, then go (a session's rows as they come are far below
+// it).
+inline constexpr std::string_view kCallsTopic = "calls";
+inline constexpr std::string_view kUsageTopic = "usage";
+inline constexpr std::size_t kCallsHomeRows = 20;          // Home's card: the last 20 (PAGES §4.6.1)
+inline constexpr std::size_t kCallsBodyMax = 240 * 1024;  // bytes of the body, below GRACEUI_FRAME_TO_PAGE_MAX's
+// ---- System › Performance and System › Traces (PAGES §4.6.7; DESIGN §1.3's C3 and C5): the topics
+// `system.performance` and `traces`, one body each, a member per block that needs its own (GraceUI D185's props.field).
+//
+// - `system.performance`: tiles of EldenNet's own steps' 99th percentiles (the core's, and the reader's, C3's task);
+//   `budgets`, C3's limits for the reader's step beside its figures, a check each (passed within, a warning over);
+//   `tasks`, a row per kind of step this session (steps, mean, p99, longest); `storage`, in words, what this version
+//   keeps (no database; the conversations' log in memory, its entries and those that gave way). Only what EldenNet
+//   measured of its own work: no frame cost (it has no callback on GraceUI's frame in this version) and no memory (it
+//   counts none), and a row whose kind of step has not run yet is left out. No path, no SteamID.
+// - `traces`: tiles of the session's first pages (the median, and the 90th percentile from kTraceP90Lines lines on),
+//   the first tokens' median and the lines shown; a sentence that holds them against C5's targets for where the
+//   Conversation job's model runs (a cloud provider's, or a local one's), with the lines' verdicts counted; and the
+//   table, a row per line's call kept (time, kind, job, queue, first token, first page shown, total, verdict), newest
+//   first, a time it does not have left out. No text at all: no line, no prompt, no speaker, no provider or model.
+inline constexpr std::string_view kPerformanceTopic = "system.performance";
+inline constexpr std::string_view kTracesTopic = "traces";
+
+// Pause AI for this session (D15; GraceUI D252's session switch): `{"on": bool}`, answered at once; the DLL hands it to
+// the core in the same wake, and `status.ai_paused` follows. Not sensitive: a paired device may pause and resume, as it
+// may run the self-test (G9, D221); it writes no file and keeps nothing.
+inline constexpr std::string_view kPauseCommand = "ai.pause";
 
 // ---- Tools › Bug report (PAGES §4.6.8; GraceUI D251): the bundle's preview, the topic `report`, a part a member of
 // its `parts`, each {id, label, optional, included, fields: [{label, value, code}]}. What it holds is what EldenNet
@@ -247,8 +302,9 @@ inline constexpr std::size_t kReportWhatMax = 2000;  // characters: the form's p
 inline constexpr std::size_t kReportLogLines = 30;   // the log's newest lines in the preview
 
 // A long command the space took (selftest.run, models.list) or a change of providers.toml or secrets.toml it asked for
-// (providers.add, providers.remove, providers.key): answered `ok` at once, for the DLL to make; its progress and its
-// outcome reach the views through the facts. A key's value travels in `key` alone, for the DLL to store and overwrite.
+// (providers.add, providers.remove, providers.key), or Pause AI (ai.pause): answered `ok` at once, for the DLL to make;
+// its progress and its outcome reach the views through the facts. A key's value travels in `key` alone, for the DLL to
+// store and overwrite.
 struct AiRequest {
   enum class Kind : std::uint8_t {
     SelfTest,
@@ -258,11 +314,13 @@ struct AiRequest {
     Remove,     // `id`, which no job uses, with its key where no other provider names it
     SetKey,     // `id`'s key: `key`
     ClearKey,   // `id`'s key, cleared
+    Pause,      // Pause AI for this session (kPauseCommand): `on`
   };
   Kind kind = Kind::SelfTest;
   std::string id;
   std::string base_url;   // AddOwn: as en-proto's check_base_url wrote it
   bool local = false;     // AddOwn: http:// to this PC or to a private address of the home network
+  bool on = false;        // Pause: on, or off
   std::string key;        // SetKey: the key as typed, spaces round it taken off: never logged, published or kept here
 
   bool operator==(const AiRequest&) const = default;
@@ -334,8 +392,8 @@ class Space {
   [[nodiscard]] std::vector<std::pair<std::uint64_t, std::string>> take_answers() { return characters_.take_answers(); }
 
   // ---- The logs stream: one of the log's lines (its text, `<event> key=value ...`, EldenNet's own), `t_ms` since T1's
-  // start. The ring holds the newest 500, whether or not anyone watches.
-  void log_line(std::string_view text, std::uint64_t t_ms);
+  // start, and its level, the logger's. The ring holds the newest 500, whether or not anyone watches.
+  void log_line(std::string_view text, std::uint64_t t_ms, LogLevel level);
 
   // ---- Each wake: the frames to publish now, in order. A topic nobody watches gets none (D169); a watched state
   // topic gets its body when it first is watched and whenever it changes, no oftener than its rate (GraceUI DESIGN
@@ -370,7 +428,10 @@ class Space {
     std::uint64_t seq = 0;
     std::string time;
     std::string line;
+    LogLevel level = LogLevel::Info;
   };
+  // A row as the logs stream sends it: its seq, time, scrubbed line and level (GraceUI D257).
+  [[nodiscard]] static nlohmann::json log_row(const Row& r);
   // Docs' documents (docs.hpp): `docs.list` and each watched `docs/<id>`, published when watched and, for About, when
   // its slots' values change.
   void collect_docs(const SpaceFacts& facts, std::uint64_t now_ms, std::vector<std::string>& frames);

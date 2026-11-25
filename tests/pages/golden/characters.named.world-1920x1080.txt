@@ -24,6 +24,8 @@ text    ink.mute       30,1010  138x30   glyphs 12 "Content packs"
 fill    ground.well   340,  10  350x35   r3
 text    ink.faint     353,  15   51x25   glyphs 6 "Search"
 text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
+fill    ground.well  1626,  10  148x35   r3
+text    ink.body     1641,  15  118x25   glyphs 13 "Quick switches"
 line    rule          300,  55 1620x1   
 text    ink.hi        340,  86  199x45   clip1 glyphs 9 "Named NPCs"
 text    ink.mute      340, 136  751x25   clip1 glyphs 74 "Every named character EldenNet voices: who they appear to be, and your own notes on them."
@@ -84,7 +86,7 @@ fill    ground.well   919, 898  936x81   r3 clip1
 stroke  edge          919, 898  936x81   r3 w1 clip1
 stroke  edge          919, 992   72x38   r3 w1 a128 clip1
 text    ink.hi        934, 998   42x25   a128 clip1 glyphs 5 "Draft"
-text    ink.body     1004, 998  397x25   clip1 glyphs 40 "Drafts wait until EldenNet may use the network."
+text    ink.body     1004, 998  405x25   clip1 glyphs 40 "Drafts wait while AI is paused for this session."
 line    rule          919,1048  936x1    clip1
 text    ink.hi        919,1060  262x28   clip1 glyphs 23 "Your notes on how they speak"
 text    ink.faint    1754,1062  101x25   clip1 glyphs 9 "0 / 35 words"
@@ -124,7 +126,7 @@ text    ink.mute     1231,1806  515x25   clip1 glyphs 50 "Which model does each 
 text    gold         1820,1804    9x28   clip1 glyphs 1 "→"
 line    rule          919,1846  936x1    clip1
 text    ink.hi        934,1860   38x28   clip1 glyphs 4 "Home"
-text    ink.mute     1231,1860  565x25   clip1 glyphs 53 "Whether EldenNet is working on this game, and what to do if it is not."
+text    ink.mute     1231,1860  565x25   clip1 glyphs 54 "Whether EldenNet is working on this game, what to do if it is not, and what it asked of a model."
 text    gold         1820,1860    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 fill    ground.well   340,1044   53x28   r3
@@ -144,4 +146,4 @@ stroke  edge          572,1044   42x28   r3 w1
 text    ink.body      580,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     621,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi       347, 248  510x76   r5 w3 clip1
-# 145 items, 7306 vertices, 14529 indices, 4 commands; check_draw_list: passes
+# 106 items, 4570 vertices, 9579 indices, 4 commands; check_draw_list: passes

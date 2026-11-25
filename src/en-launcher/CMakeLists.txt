@@ -69,8 +69,8 @@ if(EN_BUILD_TESTS)
   target_include_directories(en_launcher_tests PRIVATE ${PROJECT_SOURCE_DIR}/src/en-gal/tests)
   target_link_libraries(en_launcher_tests PRIVATE en_launcher_core en_doctest)
   add_test(NAME en_launcher_tests COMMAND en_launcher_tests)
-  # tests/graceui-manifest.toml: the graceui.toml GraceUI's tools/release/manifest.py wrote (GraceUI D165; at 3fac29b,
-  # GraceUI 0.2.44) for an invented GraceUI folder of ours, compiled into the tests byte for byte, so that every build
+  # tests/graceui-manifest.toml: the graceui.toml GraceUI's tools/release/manifest.py wrote (GraceUI D165; at 7fa3042,
+  # GraceUI 0.2.53) for an invented GraceUI folder of ours, compiled into the tests byte for byte, so that every build
   # reads the committed file itself, under Wine too, with no path to it.
   set(_en_fixture ${CMAKE_CURRENT_SOURCE_DIR}/tests/graceui-manifest.toml)
   set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_en_fixture})

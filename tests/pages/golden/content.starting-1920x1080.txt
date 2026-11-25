@@ -24,6 +24,8 @@ text    gold.hi        50,1018  110x25   glyphs 12 "Content packs"
 fill    ground.well   340,  10  350x35   r3
 text    ink.faint     353,  15   51x25   glyphs 6 "Search"
 text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
+fill    ground.well  1626,  10  148x35   r3
+text    ink.body     1641,  15  118x25   glyphs 13 "Quick switches"
 line    rule          300,  55 1620x1   
 text    ink.hi        340,  86  258x45   clip1 glyphs 12 "Content packs"
 text    ink.mute      340, 136  641x25   clip1 glyphs 64 "What content EldenNet runs: its own, and the files of your overrides folder."
@@ -72,5 +74,5 @@ fill    ground.well   466,1044   42x28   r3
 stroke  edge          466,1044   42x28   r3 w1
 text    ink.body      474,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     515,1045   34x25   glyphs 4 "Back"
-stroke  gold.hi       362, 923 1496x61   r5 w3 clip1
-# 74 items, 3512 vertices, 7404 indices, 4 commands; check_draw_list: passes
+stroke  gold.hi       362, 218 1496x26   r5 w3 clip1
+# 76 items, 3588 vertices, 7584 indices, 4 commands; check_draw_list: passes

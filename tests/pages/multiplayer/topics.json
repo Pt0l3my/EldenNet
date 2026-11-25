@@ -398,6 +398,308 @@
   "ai.status": {
     "sentence": "Model calls wait while you play with others online."
   },
+  "calls": {
+    "home": {
+      "columns": [
+        {
+          "id": "time",
+          "label": "Time"
+        },
+        {
+          "id": "slot",
+          "label": "Job"
+        },
+        {
+          "id": "purpose",
+          "label": "Purpose"
+        },
+        {
+          "id": "speaker",
+          "label": "Speaker"
+        },
+        {
+          "id": "model",
+          "label": "Model"
+        },
+        {
+          "id": "first_token",
+          "label": "First token",
+          "numeric": true
+        },
+        {
+          "id": "total",
+          "label": "Total",
+          "numeric": true
+        },
+        {
+          "id": "outcome",
+          "label": "Outcome"
+        },
+        {
+          "drawer": true,
+          "id": "text",
+          "label": "Text shown"
+        }
+      ],
+      "rows": [
+        {
+          "id": "19",
+          "model": "talker-small",
+          "outcome": "waiting",
+          "purpose": "reply",
+          "slot": "Conversation",
+          "speaker": "Ysolde",
+          "time": "1:05:05"
+        },
+        {
+          "first_token": "0.64 s",
+          "id": "18",
+          "model": "talker-small",
+          "outcome": "shown",
+          "purpose": "reply",
+          "slot": "Conversation",
+          "speaker": "Old Bram",
+          "text": "Two coins for the crossing, friend, and the river decides how dry you land.",
+          "time": "1:00:55",
+          "total": "1.72 s"
+        },
+        {
+          "first_token": "2.95 s",
+          "id": "17",
+          "model": "talker-large",
+          "outcome": "fallback model",
+          "purpose": "reply",
+          "slot": "Conversation",
+          "speaker": "Old Bram",
+          "text": "Ask me again when the lamps are lit. I count better by their light.",
+          "time": "1:00:42",
+          "total": "4.10 s"
+        },
+        {
+          "first_token": "0.70 s",
+          "id": "16",
+          "model": "talker-small",
+          "outcome": "not shown",
+          "purpose": "reply",
+          "slot": "Conversation",
+          "speaker": "Ysolde",
+          "time": "1:00:10",
+          "total": "1.30 s"
+        },
+        {
+          "id": "15",
+          "model": "talker-small",
+          "outcome": "timed out",
+          "purpose": "reply",
+          "slot": "Conversation",
+          "speaker": "Ysolde",
+          "time": "0:59:50",
+          "total": "6.00 s"
+        },
+        {
+          "first_token": "0.90 s",
+          "id": "14",
+          "model": "talker-small",
+          "outcome": "answered",
+          "purpose": "profile draft",
+          "slot": "Profile drafts",
+          "time": "0:59:20",
+          "total": "3.40 s"
+        },
+        {
+          "id": "13",
+          "model": "talker-small",
+          "outcome": "failed",
+          "purpose": "reply",
+          "slot": "Conversation",
+          "speaker": "Old Bram",
+          "time": "0:58:20",
+          "total": "2.20 s"
+        },
+        {
+          "first_token": "0.61 s",
+          "id": "12",
+          "model": "talker-small",
+          "outcome": "shown",
+          "purpose": "reply",
+          "slot": "Conversation",
+          "speaker": "Old Bram",
+          "text": "The river is low today. Mind the third plank; it remembers every boot.",
+          "time": "0:58:00",
+          "total": "1.54 s"
+        }
+      ]
+    },
+    "requests": {
+      "columns": [
+        {
+          "id": "time",
+          "label": "Time"
+        },
+        {
+          "id": "slot",
+          "label": "Job"
+        },
+        {
+          "id": "purpose",
+          "label": "Purpose"
+        },
+        {
+          "id": "speaker",
+          "label": "Speaker"
+        },
+        {
+          "id": "provider_model",
+          "label": "Provider and model"
+        },
+        {
+          "id": "first_token",
+          "label": "First token",
+          "numeric": true
+        },
+        {
+          "id": "total",
+          "label": "Total",
+          "numeric": true
+        },
+        {
+          "id": "tokens",
+          "label": "Tokens",
+          "numeric": true
+        },
+        {
+          "id": "outcome",
+          "label": "Outcome"
+        },
+        {
+          "drawer": true,
+          "id": "why",
+          "label": "Why"
+        },
+        {
+          "drawer": true,
+          "id": "text",
+          "label": "Text shown"
+        }
+      ],
+      "rows": [
+        {
+          "at_ms": 3905000,
+          "id": "19",
+          "outcome": "waiting",
+          "provider_model": "talker-small on openrouter",
+          "purpose": "reply",
+          "slot": "Conversation",
+          "speaker": "Ysolde",
+          "time": "1:05:05"
+        },
+        {
+          "at_ms": 3655000,
+          "first_token": "0.64 s",
+          "first_token_ms": 640,
+          "id": "18",
+          "outcome": "shown",
+          "provider_model": "talker-small on openrouter",
+          "purpose": "reply",
+          "slot": "Conversation",
+          "speaker": "Old Bram",
+          "text": "Two coins for the crossing, friend, and the river decides how dry you land.",
+          "time": "1:00:55",
+          "tokens": 858,
+          "total": "1.72 s",
+          "total_ms": 1720
+        },
+        {
+          "at_ms": 3642000,
+          "first_token": "2.95 s",
+          "first_token_ms": 2950,
+          "id": "17",
+          "outcome": "fallback model",
+          "provider_model": "talker-large on openrouter",
+          "purpose": "reply",
+          "slot": "Conversation",
+          "speaker": "Old Bram",
+          "text": "Ask me again when the lamps are lit. I count better by their light.",
+          "time": "1:00:42",
+          "tokens": 842,
+          "total": "4.10 s",
+          "total_ms": 4100,
+          "why": "Took too long to start its answer."
+        },
+        {
+          "at_ms": 3610000,
+          "first_token": "0.70 s",
+          "first_token_ms": 700,
+          "id": "16",
+          "outcome": "not shown",
+          "provider_model": "talker-small on openrouter",
+          "purpose": "reply",
+          "slot": "Conversation",
+          "speaker": "Ysolde",
+          "time": "1:00:10",
+          "tokens": 800,
+          "total": "1.30 s",
+          "total_ms": 1300
+        },
+        {
+          "at_ms": 3590000,
+          "id": "15",
+          "outcome": "timed out",
+          "provider_model": "talker-small on openrouter",
+          "purpose": "reply",
+          "slot": "Conversation",
+          "speaker": "Ysolde",
+          "time": "0:59:50",
+          "total": "6.00 s",
+          "total_ms": 6000,
+          "why": "Took too long to start its answer."
+        },
+        {
+          "at_ms": 3560000,
+          "first_token": "0.90 s",
+          "first_token_ms": 900,
+          "id": "14",
+          "outcome": "answered",
+          "provider_model": "talker-small on openrouter",
+          "purpose": "profile draft",
+          "slot": "Profile drafts",
+          "time": "0:59:20",
+          "tokens": 600,
+          "total": "3.40 s",
+          "total_ms": 3400
+        },
+        {
+          "at_ms": 3500000,
+          "id": "13",
+          "outcome": "failed",
+          "provider_model": "talker-small on openrouter",
+          "purpose": "reply",
+          "slot": "Conversation",
+          "speaker": "Old Bram",
+          "time": "0:58:20",
+          "total": "2.20 s",
+          "total_ms": 2200,
+          "why": "Failed on the provider's side."
+        },
+        {
+          "at_ms": 3480000,
+          "first_token": "0.61 s",
+          "first_token_ms": 610,
+          "id": "12",
+          "outcome": "shown",
+          "provider_model": "talker-small on openrouter",
+          "purpose": "reply",
+          "slot": "Conversation",
+          "speaker": "Old Bram",
+          "text": "The river is low today. Mind the third plank; it remembers every boot.",
+          "time": "0:58:00",
+          "tokens": 740,
+          "total": "1.54 s",
+          "total_ms": 1540
+        }
+      ]
+    }
+  },
   "content": {
     "off": {
       "items": [
@@ -1071,46 +1373,55 @@
   },
   "logs": [
     {
+      "level": "info",
       "line": "boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev",
       "seq": 1,
       "time": "0:00:00"
     },
     {
+      "level": "info",
       "line": "gate result=passed ms=11",
       "seq": 2,
       "time": "0:00:00"
     },
     {
+      "level": "info",
       "line": "init state=settings",
       "seq": 3,
       "time": "0:00:00"
     },
     {
+      "level": "info",
       "line": "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.12",
       "seq": 4,
       "time": "0:00:01"
     },
     {
+      "level": "info",
       "line": "init state=ready",
       "seq": 5,
       "time": "0:00:06"
     },
     {
+      "level": "info",
       "line": "change what=phase to=title",
       "seq": 6,
       "time": "0:00:06"
     },
     {
+      "level": "info",
       "line": "change what=phase to=in_world",
       "seq": 7,
       "time": "0:01:01"
     },
     {
+      "level": "warning",
       "line": "tripped group=camera",
       "seq": 8,
       "time": "0:20:00"
     },
     {
+      "level": "info",
       "line": "change what=badge to=up",
       "seq": 9,
       "time": "0:21:40"
@@ -1185,7 +1496,7 @@
     ]
   },
   "profiles/persona.ferryman": {
-    "draft_blocked": "Drafts wait until EldenNet may use the network.",
+    "draft_blocked": "Drafts wait while AI is paused for this session.",
     "fields": [
       {
         "help": "One paragraph in your own words: how they speak and carry themselves. It joins the end of their voice in every conversation.",
@@ -1268,7 +1579,7 @@
     "target": "persona.ferryman"
   },
   "profiles/persona.weaver": {
-    "draft_blocked": "Drafts wait until EldenNet may use the network.",
+    "draft_blocked": "Drafts wait while AI is paused for this session.",
     "fields": [
       {
         "help": "One paragraph in your own words: how they speak and carry themselves. It joins the end of their voice in every conversation.",
@@ -1646,6 +1957,7 @@
     "greyed": {}
   },
   "status": {
+    "ai_paused": false,
     "items": [
       {
         "label": "State",
@@ -1670,12 +1982,105 @@
       {
         "label": "This session",
         "value": "1 h 5 min"
+      },
+      {
+        "label": "Pause AI",
+        "value": "Off"
       }
     ],
     "page": "system.status",
     "reason": "EldenNet pauses while you play with others online.",
     "tone": "glint",
     "word": "Dormant"
+  },
+  "system.performance": {
+    "budgets": {
+      "checks": [
+        {
+          "detail": "0.12 ms, within its 0.15 ms limit",
+          "label": "Reading the game: the mean step",
+          "state": "pass"
+        },
+        {
+          "detail": "0.64 ms, over its 0.50 ms limit",
+          "label": "Reading the game: 99 steps in 100",
+          "state": "warn"
+        }
+      ]
+    },
+    "storage": {
+      "items": [
+        {
+          "label": "Database",
+          "value": "None in this version: what is said stays in memory until the game closes"
+        },
+        {
+          "label": "Kept in memory",
+          "value": "4,096 entries from this session's conversations, 4,096 at most; the 212 oldest gave way to newer ones"
+        }
+      ]
+    },
+    "tasks": {
+      "columns": [
+        {
+          "id": "task",
+          "label": "Task"
+        },
+        {
+          "id": "steps",
+          "label": "Steps",
+          "numeric": true
+        },
+        {
+          "id": "mean",
+          "label": "Mean",
+          "numeric": true
+        },
+        {
+          "id": "p99",
+          "label": "p99",
+          "numeric": true
+        },
+        {
+          "id": "longest",
+          "label": "Longest",
+          "numeric": true
+        }
+      ],
+      "rows": [
+        {
+          "longest": "4.80 ms",
+          "mean": "0.12 ms",
+          "p99": "0.64 ms",
+          "steps": "117,800",
+          "task": "Reading the game: each step"
+        },
+        {
+          "longest": "3.90 ms",
+          "mean": "0.16 ms",
+          "p99": "0.38 ms",
+          "steps": "9,600",
+          "task": "Reading the game: each reading built"
+        },
+        {
+          "longest": "6.10 ms",
+          "mean": "0.02 ms",
+          "p99": "0.10 ms",
+          "steps": "80,100",
+          "task": "The core: each step"
+        }
+      ]
+    },
+    "tiles": [
+      {
+        "label": "The core's steps, p99",
+        "value": "0.10 ms"
+      },
+      {
+        "label": "Reading the game, p99",
+        "value": "0.64 ms"
+      }
+    ]
   },
   "system.status": {
     "checks": [
@@ -1809,6 +2214,157 @@
       {
         "group": "Statuses",
         "state": "Not tested yet"
+      }
+    ]
+  },
+  "traces": {
+    "columns": [
+      {
+        "id": "time",
+        "label": "Time"
+      },
+      {
+        "id": "kind",
+        "label": "Kind"
+      },
+      {
+        "id": "slot",
+        "label": "Job"
+      },
+      {
+        "id": "queue",
+        "label": "Queue",
+        "numeric": true
+      },
+      {
+        "id": "first_token",
+        "label": "First token",
+        "numeric": true
+      },
+      {
+        "id": "first_page",
+        "label": "First page shown",
+        "numeric": true
+      },
+      {
+        "id": "total",
+        "label": "Total",
+        "numeric": true
+      },
+      {
+        "id": "verdict",
+        "label": "Verdict"
+      }
+    ],
+    "rows": [
+      {
+        "kind": "reply",
+        "slot": "Conversation",
+        "time": "1:05:05"
+      },
+      {
+        "first_page": "1.18 s",
+        "first_token": "0.64 s",
+        "kind": "reply",
+        "queue": "0.04 s",
+        "slot": "Conversation",
+        "time": "1:00:55",
+        "total": "1.72 s",
+        "verdict": "quick"
+      },
+      {
+        "first_page": "3.42 s",
+        "first_token": "2.95 s",
+        "kind": "reply",
+        "queue": "0.04 s",
+        "slot": "Conversation",
+        "time": "1:00:42",
+        "total": "4.10 s",
+        "verdict": "slow"
+      },
+      {
+        "first_page": "1.45 s",
+        "first_token": "0.70 s",
+        "kind": "reply",
+        "queue": "0.03 s",
+        "slot": "Conversation",
+        "time": "1:00:10",
+        "total": "1.30 s",
+        "verdict": "quick"
+      },
+      {
+        "kind": "reply",
+        "queue": "0.03 s",
+        "slot": "Conversation",
+        "time": "0:59:50",
+        "total": "6.00 s"
+      },
+      {
+        "kind": "reply",
+        "queue": "0.02 s",
+        "slot": "Conversation",
+        "time": "0:58:20",
+        "total": "2.20 s"
+      },
+      {
+        "first_page": "1.09 s",
+        "first_token": "0.61 s",
+        "kind": "reply",
+        "queue": "0.03 s",
+        "slot": "Conversation",
+        "time": "0:58:00",
+        "total": "1.54 s",
+        "verdict": "quick"
+      }
+    ],
+    "sentence": "Against the targets for a cloud model, the median first page is within 1.6 s and the 90th percentile is over 3.0 s.",
+    "tiles": [
+      {
+        "label": "First page, median",
+        "value": "1.24 s"
+      },
+      {
+        "label": "First page, 90th percentile",
+        "value": "3.18 s"
+      },
+      {
+        "label": "First token, median",
+        "value": "0.66 s"
+      },
+      {
+        "label": "Lines this session",
+        "unit": "of 24 shown",
+        "value": "21"
+      }
+    ]
+  },
+  "usage": {
+    "sentence": "In the last hour: no own-initiative calls, and 24 of the 600 requests EldenNet may send in an hour.",
+    "tiles": [
+      {
+        "label": "Calls",
+        "value": "31"
+      },
+      {
+        "label": "Tokens in",
+        "value": "21,480"
+      },
+      {
+        "label": "Tokens out",
+        "value": "1,322"
+      },
+      {
+        "label": "Failures",
+        "value": "3"
+      },
+      {
+        "label": "Own-initiative this hour",
+        "value": "0"
+      },
+      {
+        "label": "Cost reported",
+        "unit": "by 19 calls",
+        "value": "0.0187"
       }
     ]
   }

@@ -44,7 +44,7 @@ T1 then runs, each state logged and written to the watch block for the launcher'
 8. **Connect** (`overlay.cpp`, en-overlay): GraceUI found by graceui-sys's look (its module name, an export scan, then
    `GraceUI\graceui.dll` in the game's folder, which it loads), again every 250 ms for at most 30 s, but at once when no
    copy is installed there and none is loaded (graceui-sys's own rule, `GRACEUI_SYS_STOP_IF_ABSENT`, GraceUI D164); then
-   `connect` as `eldennet`, with its floor (GraceUI 0.2.44) and the caps it uses, and, connected, the F11 view, the
+   `connect` as `eldennet`, with its floor (GraceUI 0.2.50) and the caps it uses, and, connected, the F11 view, the
    Mark's hotkey and, on the main path, the conversation's surfaces with GraceUI's own fonts read from its folder
    (below; `surfaces state=… faces=… talk=… chord=… wake=…`). One log line, `connect ok=… outcome=… how=… looks=… installed=… graceui=… view=… mark=…
    mark_bound=… world=…` (`view=unbound` when F11 was taken first, with a line `view hotkey=unbound` beside it); a
@@ -237,8 +237,19 @@ After each wake, once T1 has published the connection:
   result=paused`), the self-test and the model list are refused (`selftest result=refused why=paused`, `models_list
   result=refused why=paused`), and a draft is blocked with en-proto's `kAiPausedDraft`. Never stored: every start has it
   off. The tests' switch, `ELDENNET_TEST_PAUSE=on` in the environment, pauses from T6's start in a probe build alone;
-  the release DLL logs `ai_pause asked=test accepted=0` and refuses. The space's command, its state and the words of a
-  refused self-test or model list (en-proto's `kAiPausedSelfTest`, `kAiPausedModelList`) are bound by the pages' job.
+  the release DLL logs `ai_pause asked=test accepted=0` and refuses. The pages bind it (`overlay.cpp`): each wake
+  `SpaceFacts::calls` is `ai_calls` and `SpaceFacts::ai_paused` is `ai_paused` (AI › Requests, Home's Model calls card
+  and the Status card's line); the space's `ai.pause`, GraceUI's quick switch, comes as an `AiRequest` of kind Pause,
+  which `ai_request` hands to `ai_pause` whether or not the AI files are read (`page what=command name=ai.pause key=on
+  result=ok`); and the space refuses `selftest.run` and `models.list` itself while paused, in en-proto's
+  `kAiPausedSelfTest` and `kAiPausedModelList`, before the DLL would.
+- **System › Traces and Performance** (`shell.cpp`, `overlay.cpp`, `platform.cpp`; PAGES §4.6.7; S11.4.a): each wake
+  `SpaceFacts::traces` is `ai_traces` (the record's lines, the first page shown from the commit of each reply's first
+  page, which `record_step` now times), and `SpaceFacts::perf` a `PerfView` that `fill_perf` makes: the reader's steps
+  and readings from the task's histograms (`step_times`), the core's steps from `Shell::core_us`, C13's histogram that
+  T6 fills around each `Core::step` alone, timed by QPC in µs (`mono_us`), and the core's log in memory (its entries,
+  those dropped, its capacity). Nothing of GraceUI's or the game's: the DLL registers no `on_present` callback, so it
+  has no frame cost to give, and it counts none of its memory.
 - GraceUI gone (`poll` answers not connected or inactive): `overlay lost=1`, and nothing more is called.
 
 ## The watch block and the crash filter (O71, O90)

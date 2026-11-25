@@ -158,6 +158,106 @@
   "ai.status": {
     "sentence": "EldenNet inactive: game build 3.14.15.0 not supported yet"
   },
+  "calls": {
+    "home": {
+      "columns": [
+        {
+          "id": "time",
+          "label": "Time"
+        },
+        {
+          "id": "slot",
+          "label": "Job"
+        },
+        {
+          "id": "purpose",
+          "label": "Purpose"
+        },
+        {
+          "id": "speaker",
+          "label": "Speaker"
+        },
+        {
+          "id": "model",
+          "label": "Model"
+        },
+        {
+          "id": "first_token",
+          "label": "First token",
+          "numeric": true
+        },
+        {
+          "id": "total",
+          "label": "Total",
+          "numeric": true
+        },
+        {
+          "id": "outcome",
+          "label": "Outcome"
+        },
+        {
+          "drawer": true,
+          "id": "text",
+          "label": "Text shown"
+        }
+      ],
+      "rows": []
+    },
+    "requests": {
+      "columns": [
+        {
+          "id": "time",
+          "label": "Time"
+        },
+        {
+          "id": "slot",
+          "label": "Job"
+        },
+        {
+          "id": "purpose",
+          "label": "Purpose"
+        },
+        {
+          "id": "speaker",
+          "label": "Speaker"
+        },
+        {
+          "id": "provider_model",
+          "label": "Provider and model"
+        },
+        {
+          "id": "first_token",
+          "label": "First token",
+          "numeric": true
+        },
+        {
+          "id": "total",
+          "label": "Total",
+          "numeric": true
+        },
+        {
+          "id": "tokens",
+          "label": "Tokens",
+          "numeric": true
+        },
+        {
+          "id": "outcome",
+          "label": "Outcome"
+        },
+        {
+          "drawer": true,
+          "id": "why",
+          "label": "Why"
+        },
+        {
+          "drawer": true,
+          "id": "text",
+          "label": "Text shown"
+        }
+      ],
+      "rows": []
+    }
+  },
   "content": {
     "off": {
       "items": [
@@ -812,26 +912,31 @@
   },
   "logs": [
     {
+      "level": "info",
       "line": "boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev",
       "seq": 1,
       "time": "0:00:00"
     },
     {
+      "level": "info",
       "line": "gate result=unknown_build ms=11",
       "seq": 2,
       "time": "0:00:00"
     },
     {
+      "level": "info",
       "line": "init state=settings",
       "seq": 3,
       "time": "0:00:00"
     },
     {
+      "level": "warning",
       "line": "settings_problem where=debug.log_level",
       "seq": 4,
       "time": "0:00:00"
     },
     {
+      "level": "warning",
       "line": "banner reason=unknown_build detail=unknown_build",
       "seq": 5,
       "time": "0:00:01"
@@ -1259,11 +1364,13 @@
     "greyed": {
       "ai.models": "EldenNet inactive: game build 3.14.15.0 not supported yet",
       "ai.providers": "EldenNet inactive: game build 3.14.15.0 not supported yet",
+      "ai.requests": "EldenNet inactive: game build 3.14.15.0 not supported yet",
       "ai.selftest": "EldenNet inactive: game build 3.14.15.0 not supported yet",
       "home": "EldenNet inactive: game build 3.14.15.0 not supported yet"
     }
   },
   "status": {
+    "ai_paused": false,
     "items": [
       {
         "label": "State",
@@ -1288,12 +1395,76 @@
       {
         "label": "This session",
         "value": "Under a minute"
+      },
+      {
+        "label": "Pause AI",
+        "value": "Off"
       }
     ],
     "page": "system.status",
     "reason": "EldenNet inactive: game build 3.14.15.0 not supported yet",
     "tone": "rot",
     "word": "Inactive"
+  },
+  "system.performance": {
+    "budgets": {
+      "checks": []
+    },
+    "storage": {
+      "items": [
+        {
+          "label": "Database",
+          "value": "None in this version: what is said stays in memory until the game closes"
+        },
+        {
+          "label": "Kept in memory",
+          "value": "0 entries from this session's conversations, 4,096 at most"
+        }
+      ]
+    },
+    "tasks": {
+      "columns": [
+        {
+          "id": "task",
+          "label": "Task"
+        },
+        {
+          "id": "steps",
+          "label": "Steps",
+          "numeric": true
+        },
+        {
+          "id": "mean",
+          "label": "Mean",
+          "numeric": true
+        },
+        {
+          "id": "p99",
+          "label": "p99",
+          "numeric": true
+        },
+        {
+          "id": "longest",
+          "label": "Longest",
+          "numeric": true
+        }
+      ],
+      "rows": [
+        {
+          "longest": "0.10 ms",
+          "mean": "0.01 ms",
+          "p99": "0.03 ms",
+          "steps": "40",
+          "task": "The core: each step"
+        }
+      ]
+    },
+    "tiles": [
+      {
+        "label": "The core's steps, p99",
+        "value": "0.03 ms"
+      }
+    ]
   },
   "system.status": {
     "checks": [
@@ -1376,5 +1547,78 @@
       }
     ],
     "rows": []
+  },
+  "traces": {
+    "columns": [
+      {
+        "id": "time",
+        "label": "Time"
+      },
+      {
+        "id": "kind",
+        "label": "Kind"
+      },
+      {
+        "id": "slot",
+        "label": "Job"
+      },
+      {
+        "id": "queue",
+        "label": "Queue",
+        "numeric": true
+      },
+      {
+        "id": "first_token",
+        "label": "First token",
+        "numeric": true
+      },
+      {
+        "id": "first_page",
+        "label": "First page shown",
+        "numeric": true
+      },
+      {
+        "id": "total",
+        "label": "Total",
+        "numeric": true
+      },
+      {
+        "id": "verdict",
+        "label": "Verdict"
+      }
+    ],
+    "rows": [],
+    "sentence": "No line has reached the screen yet this session.",
+    "tiles": [
+      {
+        "label": "Lines this session",
+        "value": "0"
+      }
+    ]
+  },
+  "usage": {
+    "sentence": "In the last hour: no own-initiative calls, and no requests sent.",
+    "tiles": [
+      {
+        "label": "Calls",
+        "value": "0"
+      },
+      {
+        "label": "Tokens in",
+        "value": "0"
+      },
+      {
+        "label": "Tokens out",
+        "value": "0"
+      },
+      {
+        "label": "Failures",
+        "value": "0"
+      },
+      {
+        "label": "Own-initiative this hour",
+        "value": "0"
+      }
+    ]
   }
 }

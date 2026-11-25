@@ -1,7 +1,7 @@
 {
   "space": "eldennet",
   "name": "EldenNet",
-  "minor": 12,
+  "minor": 16,
   "categories": [
     {
       "id": "home",
@@ -16,7 +16,8 @@
       "pages": [
         "ai.providers",
         "ai.models",
-        "ai.selftest"
+        "ai.selftest",
+        "ai.requests"
       ]
     },
     {
@@ -51,6 +52,8 @@
       "name": "System",
       "pages": [
         "system.status",
+        "system.performance",
+        "system.traces",
         "system.logs"
       ]
     },
@@ -91,20 +94,35 @@
       "id": "home",
       "category": "home",
       "name": "Home",
-      "description": "Whether EldenNet is working on this game, and what to do if it is not.",
+      "description": "Whether EldenNet is working on this game, what to do if it is not, and what it asked of a model.",
       "help": {
-        "purpose": "See at a glance whether EldenNet is working, and what to do when something is wrong.",
+        "purpose": "See at a glance whether EldenNet is working, what to do when something is wrong, and its model calls.",
         "steps": [
           "Read the Status card: its first line says how EldenNet stands, the next one why.",
           "Look at Problems: each says what went wrong and what to do about it.",
+          "Read Model calls for the last calls to a model; open a row for the text that reached the screen.",
+          "Pause AI for this session with its switch at the top or in the quick switches: no model is called until it is off.",
           "Open System for the details: the start, EldenNet's parts and its log."
         ]
       },
       "related": [
         "system.status",
+        "ai.requests",
         "system.logs"
       ],
       "increment": "0.1",
+      "actions": [
+        {
+          "id": "pause",
+          "label": "Pause AI",
+          "command": "ai.pause",
+          "tone": "secondary",
+          "state": {
+            "topic": "status",
+            "field": "ai_paused"
+          }
+        }
+      ],
       "sections": [
         {
           "id": "status",
@@ -130,8 +148,30 @@
               }
             }
           ]
+        },
+        {
+          "id": "calls",
+          "title": "Model calls",
+          "description": "The last 20 calls to a model, newest first. A reply's text shows only once it reached the screen.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "calls",
+              "props": {
+                "field": "home",
+                "empty": "No model call yet this session."
+              }
+            },
+            {
+              "kind": "component",
+              "component": "computed_sentence",
+              "topic": "usage"
+            }
+          ]
         }
-      ]
+      ],
+      "live": true
     },
     {
       "id": "system.status",
@@ -147,6 +187,7 @@
         ]
       },
       "related": [
+        "system.performance",
         "system.logs",
         "home"
       ],
@@ -218,6 +259,143 @@
       ]
     },
     {
+      "id": "system.performance",
+      "category": "system",
+      "name": "Performance",
+      "description": "What EldenNet's own work costs this session, beside its limits, and what it keeps.",
+      "help": {
+        "purpose": "See how long EldenNet's own steps take while you play, and whether they stay within its limits.",
+        "steps": [
+          "Read the tiles: the time within which 99 in 100 of the core's steps and of the reader's finish.",
+          "EldenNet reads the game on a thread of its own, and GraceUI draws its panels: none of it runs in the game's frame.",
+          "Look down Budgets: each of EldenNet's limits beside what it measured, passed or a warning.",
+          "Read Tasks for each kind of step: how many ran, their mean, their p99 and the longest.",
+          "Storage says what this version keeps, and until when."
+        ]
+      },
+      "related": [
+        "system.status",
+        "system.traces"
+      ],
+      "increment": "0.2",
+      "sections": [
+        {
+          "id": "now",
+          "title": "This session",
+          "description": "Measured on EldenNet's own threads: none of its code runs in the game's frame in this version.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "stat_tiles",
+              "topic": "system.performance"
+            }
+          ]
+        },
+        {
+          "id": "budgets",
+          "title": "Budgets",
+          "description": "EldenNet's limits for its reader's steps, beside what it measured this session.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "check_list",
+              "topic": "system.performance",
+              "props": {
+                "field": "budgets",
+                "empty": "Each limit appears here once EldenNet has read the game."
+              }
+            }
+          ]
+        },
+        {
+          "id": "tasks",
+          "title": "Tasks",
+          "description": "p99 is the time within which 99 steps in 100 finish. The reader steps about 30 times a second.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "system.performance",
+              "props": {
+                "field": "tasks",
+                "empty": "Each kind of step appears here once it has run."
+              }
+            }
+          ]
+        },
+        {
+          "id": "storage",
+          "title": "Storage",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "system.performance",
+              "props": {
+                "field": "storage"
+              }
+            }
+          ]
+        }
+      ],
+      "live": true
+    },
+    {
+      "id": "system.traces",
+      "category": "system",
+      "name": "Traces",
+      "description": "How long each line took, from its request to the screen.",
+      "help": {
+        "purpose": "See how quickly each line reached the screen this session, against EldenNet's targets.",
+        "steps": [
+          "Read the tiles: the first page's median, its 90th percentile from 10 lines on, the first token's and the lines.",
+          "The sentence under them holds the first pages against the targets for where your Conversation model runs.",
+          "Read Lines: each line's wait to be sent, its first token, its first page on screen, its total and its verdict.",
+          "Quick is a first page within 1.6 s, acceptable within 3.0 s, slow beyond. AI › Requests says how each call ended."
+        ]
+      },
+      "related": [
+        "ai.requests",
+        "ai.selftest",
+        "settings.developer"
+      ],
+      "increment": "0.2",
+      "sections": [
+        {
+          "id": "now",
+          "title": "This session",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "stat_tiles",
+              "topic": "traces"
+            },
+            {
+              "kind": "component",
+              "component": "computed_sentence",
+              "topic": "traces"
+            }
+          ]
+        },
+        {
+          "id": "lines",
+          "title": "Lines",
+          "description": "Newest first, each time from the line's request; Queue is its wait to leave. No text is ever shown.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "traces",
+              "props": {
+                "empty": "No line yet this session."
+              }
+            }
+          ]
+        }
+      ],
+      "live": true
+    },
+    {
       "id": "system.logs",
       "category": "system",
       "name": "Logs",
@@ -226,6 +404,7 @@
         "purpose": "Read what EldenNet has written to its log this session. It holds EldenNet's own words and numbers only.",
         "steps": [
           "Read the newest lines at the top of the log.",
+          "Narrow it to one level, or find a word in it.",
           "Change how much it writes with Log detail; the change applies at once.",
           "Keep the page open while you play: new lines join the log as they are written."
         ]
@@ -246,6 +425,20 @@
               "topic": "logs",
               "props": {
                 "newest_first": true
+              },
+              "filter_bar": {
+                "filters": [
+                  {
+                    "column": "level",
+                    "label": "Level"
+                  }
+                ],
+                "search": {
+                  "columns": [
+                    "line"
+                  ],
+                  "label": "Find in the log"
+                }
               }
             }
           ]
@@ -639,7 +832,8 @@
       },
       "related": [
         "ai.models",
-        "ai.providers"
+        "ai.providers",
+        "system.traces"
       ],
       "increment": "0.2",
       "actions": [
@@ -719,6 +913,109 @@
           ]
         }
       ]
+    },
+    {
+      "id": "ai.requests",
+      "category": "ai",
+      "name": "Requests",
+      "description": "Every model call this session and what it cost, without the prompts EldenNet sent.",
+      "help": {
+        "purpose": "See every call EldenNet made to a model this session: what it was for, how long it took, how it ended.",
+        "steps": [
+          "Read the tiles: this session's calls, the tokens they used, the failures, and the last hour's own-initiative calls.",
+          "Narrow the table to one job, purpose or outcome, and sort it by time, first token, total or tokens.",
+          "Open a row for Why, what went wrong, and Text shown: a reply's text once it reached the screen, and nothing else.",
+          "With Developer views on (Settings › Developer), the next start keeps the last 200 calls rather than 20."
+        ]
+      },
+      "related": [
+        "ai.models",
+        "system.traces",
+        "system.logs"
+      ],
+      "increment": "0.2",
+      "sections": [
+        {
+          "id": "now",
+          "title": "Now",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "computed_sentence",
+              "topic": "ai.status"
+            }
+          ]
+        },
+        {
+          "id": "usage",
+          "title": "This session",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "stat_tiles",
+              "topic": "usage"
+            },
+            {
+              "kind": "component",
+              "component": "computed_sentence",
+              "topic": "usage"
+            }
+          ]
+        },
+        {
+          "id": "calls",
+          "title": "Calls",
+          "description": "Newest first. No prompt is ever shown, and a reply's text only once it reached the screen.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "calls",
+              "props": {
+                "field": "requests",
+                "empty": "No model call yet this session."
+              },
+              "filter_bar": {
+                "filters": [
+                  {
+                    "column": "slot",
+                    "label": "Job"
+                  },
+                  {
+                    "column": "purpose",
+                    "label": "Purpose"
+                  },
+                  {
+                    "column": "outcome",
+                    "label": "Outcome"
+                  }
+                ],
+                "sort": [
+                  {
+                    "key": "at_ms",
+                    "label": "Time",
+                    "direction": "descending"
+                  },
+                  {
+                    "key": "first_token_ms",
+                    "label": "First token"
+                  },
+                  {
+                    "key": "total_ms",
+                    "label": "Total"
+                  },
+                  {
+                    "key": "tokens",
+                    "label": "Tokens",
+                    "direction": "descending"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "live": true
     },
     {
       "id": "characters.named",
@@ -995,6 +1292,14 @@
       "shape": "state"
     },
     {
+      "id": "system.performance",
+      "shape": "state"
+    },
+    {
+      "id": "traces",
+      "shape": "state"
+    },
+    {
       "id": "logs",
       "shape": "stream",
       "ring": 500
@@ -1021,6 +1326,14 @@
     },
     {
       "id": "selftest",
+      "shape": "state"
+    },
+    {
+      "id": "calls",
+      "shape": "state"
+    },
+    {
+      "id": "usage",
       "shape": "state"
     },
     {
@@ -1117,7 +1430,8 @@
     "profile.restore",
     "profile.draft",
     "report.build",
-    "report.part"
+    "report.part",
+    "ai.pause"
   ],
   "slow_commands": [
     "profile.draft"
@@ -1129,5 +1443,17 @@
     "profile.save",
     "profile.reset",
     "profile.restore"
+  ],
+  "quick": [
+    {
+      "id": "pause",
+      "label": "Pause AI for this session",
+      "command": "ai.pause",
+      "state": {
+        "topic": "status",
+        "field": "ai_paused"
+      },
+      "home": "home"
+    }
   ]
 }

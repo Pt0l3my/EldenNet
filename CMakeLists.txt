@@ -83,23 +83,23 @@ endif()
 
 # GraceUI's graceui-sys (its C helper, C++ wrapper and headless Dear ImGui helper), the ABI header it includes, and
 # graceui_test.h, the test build's exports, which the fake game reads in the tests alone: all five vendored unmodified
-# from GraceUI at 3fac29b (GraceUI 0.2.44, protocol 1.12, ABI 1.7; graceui-sys's three unchanged since beca859,
-# graceui.h last changed at 8d30ac3 and graceui_test.h at a9755cb) with GraceUI's licence (third_party/graceui-sys,
+# from GraceUI at 7fa3042 (GraceUI 0.2.53, protocol 1.17, ABI 1.8; graceui-sys's three unchanged since beca859,
+# graceui.h and graceui_test.h last changed at 99cc52a) with GraceUI's licence (third_party/graceui-sys,
 # THIRD_PARTY.md).
 # Each file is checked against its SHA-256 here, so that an edit is caught when the build is configured.
 foreach(pin IN ITEMS
     "LICENSE|8cdd091310968c1af65a292fad858fb4a13509d829e4d1e5594f3a391028a4e0"
-    "graceui.h|531af31cb6f21184f882977f83775eb26c0b44a699ea07e591e7561d276349eb"
+    "graceui.h|e66149145c16cf00c4f5f97e323d1bfea0f5e8ac6b381de35f403e6deebae86e"
     "graceui_sys.h|ceb0caa996291b1d60b0e3b5e7f3d61dda0b1b50db6126d4333a9353dfdd1e0e"
     "graceui_sys.hpp|2b42e2db6d4c8fd35852a22049bd009a05a75f50bb88e7c7870adb57697b548f"
     "graceui_imgui.hpp|4206f176a70cda7a7fe78af0d75b8a1d015f4dd0fb3a1451164320a4e4ac7786"
-    "graceui_test.h|13906f0320fde8a4832e9f02cc50743ae0c7b1d85ac542ea05be8d772b1d43a9")
+    "graceui_test.h|a4b99d9a9237fa514ba08d74456433bbdd3cc0f032279d928b4c135f51986caa")
   string(REPLACE "|" ";" pin "${pin}")
   list(GET pin 0 _en_path)
   list(GET pin 1 _en_sha256)
   file(SHA256 ${CMAKE_CURRENT_SOURCE_DIR}/third_party/graceui-sys/${_en_path} _en_have)
   if(NOT _en_have STREQUAL _en_sha256)
-    message(FATAL_ERROR "third_party/graceui-sys/${_en_path} is not GraceUI 3fac29b's (SHA-256 ${_en_have})")
+    message(FATAL_ERROR "third_party/graceui-sys/${_en_path} is not GraceUI 7fa3042's (SHA-256 ${_en_have})")
   endif()
 endforeach()
 add_library(en_graceui_sys INTERFACE)
