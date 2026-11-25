@@ -405,9 +405,9 @@ source in this version left out (absence is silent).
   are lists T6 submits, which GraceUI draws) and no memory (EldenNet counts none), so PAGES' tiles for them wait for a
   source; nor C3's other limits (the render feed, the panels, the callback, the frame rate). Related: Status, Traces.
 - **Traces** (`system.traces`, on `traces`: `SpaceFacts::traces`, en-proto's `TracesView`, which en-core's calls'
-  record keeps with its rows, `ai_traces()`): This session, `stat_tiles` (First page, median; First page, 95th
-  percentile, from 20 lines shown on; First token, median; Lines this session, "of N shown" when some calls for a line
-  showed none) and a sentence, one line in game, holding the median and the 95th percentile against C5's targets for
+  record keeps with its rows, `ai_traces()`): This session, `stat_tiles` (First page, median; First page, 90th
+  percentile, from 10 lines shown on; First token, median; Lines this session, "of N shown" when some calls for a line
+  showed none) and a sentence, one line in game, holding the median and the 90th percentile against C5's targets for
   where the Conversation job's model runs (a cloud provider's 1.6 s and 3.0 s, a local one's 2.5 s and 4.5 s); Lines, a
   table of each line's call kept, newest first (Time, Kind in PAGES' words, Job as Requests shows it, Queue, First
   token, First page shown, Total, Verdict: quick within 1.6 s, acceptable within 3.0 s, slow beyond, a call-out's by
@@ -444,7 +444,7 @@ left out, the body within the frame to a page with the newest text kept), Pause 
 without a boolean, `status.ai_paused` and the Status card's line, the leads, the self-test and the model list refused
 in en-proto's words), Performance and Traces (`tests/system_fixture.hpp`: the tiles, C3's limits beside the figures with
 a warning over one, the tasks and the storage in words, a kind of step not yet run left out, no frame or memory figure;
-the traces' tiles and sentence against the cloud and the local targets, the 95th percentile only from 20 lines, the
+the traces' tiles and sentence against the cloud and the local targets, the 90th percentile only from 10 lines, the
 table in PAGES' columns, a time not known left out; nothing published without facts, the rates, and no text, address,
 path or SteamID in any frame of either), and in the Linux builds the five fixture states'
 `tests/pages/<state>/topics.json` (EN_UPDATE_FIXTURES=1 writes them anew). In the

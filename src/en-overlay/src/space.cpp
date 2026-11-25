@@ -1075,13 +1075,13 @@ std::string traces_words(const proto::TraceSummary& s, bool local) {
     return std::string(ms <= target ? "is within " : "is over ") + target_of(target);
   };
   const char* model = local ? " for a local model" : " for a cloud model";
-  if (s.first_page_p95_ms < 0) {
+  if (s.first_page_p90_ms < 0) {
     return std::string("Against the target") + model + ", the median first page " +
            against(s.first_page_median_ms, t.median_ms) + ".";
   }
   return std::string("Against the targets") + model + ", the median first page " +
-         against(s.first_page_median_ms, t.median_ms) + " and the 95th percentile " +
-         against(s.first_page_p95_ms, t.p95_ms) + ".";
+         against(s.first_page_median_ms, t.median_ms) + " and the 90th percentile " +
+         against(s.first_page_p90_ms, t.p90_ms) + ".";
 }
 
 json traces_body(const SpaceFacts& f) {
@@ -1089,7 +1089,7 @@ json traces_body(const SpaceFacts& f) {
   const proto::TraceSummary& s = f.traces->summary;
   json tiles = json::array();
   if (s.first_page_median_ms >= 0) tiles.push_back(item("First page, median", seconds_of(s.first_page_median_ms)));
-  if (s.first_page_p95_ms >= 0) tiles.push_back(item("First page, 95th percentile", seconds_of(s.first_page_p95_ms)));
+  if (s.first_page_p90_ms >= 0) tiles.push_back(item("First page, 90th percentile", seconds_of(s.first_page_p90_ms)));
   if (s.first_token_median_ms >= 0) tiles.push_back(item("First token, median", seconds_of(s.first_token_median_ms)));
   // The lines shown, of the calls for one when some were not (still waiting, or ended with no page).
   json lines = item("Lines this session", grouped(s.lines));

@@ -273,7 +273,7 @@ inline constexpr std::size_t kCallsBodyMax = 240 * 1024;  // bytes of the body, 
 //   keeps (no database; the conversations' log in memory, its entries and those that gave way). Only what EldenNet
 //   measured of its own work: no frame cost (it has no callback on GraceUI's frame in this version) and no memory (it
 //   counts none), and a row whose kind of step has not run yet is left out. No path, no SteamID.
-// - `traces`: tiles of the session's first pages (the median, and the 95th percentile from kTraceP95Lines lines on),
+// - `traces`: tiles of the session's first pages (the median, and the 90th percentile from kTraceP90Lines lines on),
 //   the first tokens' median and the lines shown; a sentence that holds them against C5's targets for where the
 //   Conversation job's model runs (a cloud provider's, or a local one's), with the lines' verdicts counted; and the
 //   table, a row per line's call kept (time, kind, job, queue, first token, first page shown, total, verdict), newest

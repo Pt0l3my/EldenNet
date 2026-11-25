@@ -44,7 +44,7 @@ fill    ground.3      365, 264  361x90   r3 clip1
 text    ink.mute      380, 274  152x25   clip1 glyphs 16 "First page, median"
 text    ink.hi        380, 299   86x35   clip1 glyphs 5 "1.24 s"
 fill    ground.3      741, 264  361x90   r3 clip1
-text    ink.mute      756, 274  228x25   clip1 glyphs 24 "First page, 95th percentile"
+text    ink.mute      756, 274  228x25   clip1 glyphs 24 "First page, 90th percentile"
 text    ink.hi        756, 299   86x35   clip1 glyphs 5 "3.18 s"
 fill    ground.3     1117, 264  361x90   r3 clip1
 text    ink.mute     1132, 274  160x25   clip1 glyphs 17 "First token, median"
@@ -53,7 +53,7 @@ fill    ground.3     1493, 264  361x90   r3 clip1
 text    ink.mute     1508, 274  152x25   clip1 glyphs 16 "Lines this session"
 text    ink.hi       1508, 299   29x35   clip1 glyphs 2 "21"
 text    ink.mute     1544, 306   93x25   clip1 glyphs 9 "of 24 shown"
-text    ink.body      365, 376  970x25   clip1 glyphs 93 "Against the targets for a cloud model, the median first page is within 1.6 s and the 95th percentile is over 3.0 s."
+text    ink.body      365, 376  970x25   clip1 glyphs 93 "Against the targets for a cloud model, the median first page is within 1.6 s and the 90th percentile is over 3.0 s."
 fill    ground.2      340, 456 1540x553  r5 clip1
 stroke  rule          340, 456 1540x553  r5 w1 clip1
 text    gold          365, 476   48x20   clip1 glyphs 5 "Lines"

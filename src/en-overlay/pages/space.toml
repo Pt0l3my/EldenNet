@@ -748,7 +748,7 @@ increment = "0.2"
 related = ["ai.requests", "ai.selftest", "settings.developer"]
 help.purpose = "See how quickly each line reached the screen this session, against EldenNet's targets."
 help.steps = [
-  "Read the tiles: the first page's median, its 95th percentile from 20 lines on, the first token's and the lines.",
+  "Read the tiles: the first page's median, its 90th percentile from 10 lines on, the first token's and the lines.",
   "The sentence under them holds the first pages against the targets for where your Conversation model runs.",
   "Read Lines: each line's wait to be sent, its first token, its first page on screen, its total and its verdict.",
   "Quick is a first page within 1.6 s, acceptable within 3.0 s, slow beyond. AI › Requests says how each call ended.",

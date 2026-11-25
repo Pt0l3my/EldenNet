@@ -469,7 +469,7 @@ TEST_CASE("a reply's trace: its queue, first token, first page shown and total f
   CHECK(s.lines == 1);
   CHECK(s.unshown == 0);
   CHECK(s.first_page_median_ms == 650);
-  CHECK(s.first_page_p95_ms == -1);  // one line is no 95th percentile
+  CHECK(s.first_page_p90_ms == -1);  // one line is no 90th percentile
   CHECK(s.first_token_median_ms == 480);
 }
 
@@ -558,7 +558,7 @@ TEST_CASE("a regeneration's trace: the queue its first request's, the times the 
   CHECK(calls.traces().summary.calls == 1);
 }
 
-TEST_CASE("the session's lines: the median from the first, the 95th from the twentieth, the rows as the view keeps") {
+TEST_CASE("the session's lines: the median from the first, the 90th from the tenth, the rows as the view keeps") {
   CallRecord calls;
   // 25 replies, the n-th's first page at n × 200 ms: the newest 20 rows kept, every line counted.
   for (proto::ReplyId n = 1; n <= 25; ++n) {
@@ -568,9 +568,10 @@ TEST_CASE("the session's lines: the median from the first, the 95th from the twe
     calls.shown(1, n, "A line.", at + 200 * n);
     const proto::TraceSummary& s = calls.traces().summary;
     CHECK(s.lines == n);
-    if (n < proto::kTraceP95Lines) {
-      CHECK(s.first_page_p95_ms == -1);
+    if (n <= 9) {
+      CHECK(s.first_page_p90_ms == -1);  // up to nine lines none: it would be the slowest
     }
+    if (n == 10) CHECK(s.first_page_p90_ms == 1800);  // from ten: at ten rank 9 of 10, the ninth's
   }
   const proto::TracesView& v = calls.traces();
   REQUIRE(v.rows.size() == proto::kCallsKept);
@@ -578,7 +579,7 @@ TEST_CASE("the session's lines: the median from the first, the 95th from the twe
   CHECK(v.rows.back().at_ms == 60'000);
   CHECK(v.summary.calls == 25);
   CHECK(v.summary.first_page_median_ms == 2600);  // rank 13 of 25
-  CHECK(v.summary.first_page_p95_ms == 4800);     // rank 24 of 25
+  CHECK(v.summary.first_page_p90_ms == 4600);     // rank 23 of 25
   CHECK(v.summary.first_token_median_ms == 400);
   CHECK(v.rows.front().verdict == proto::LineVerdict::Slow);    // the 25th, at 5,000 ms
   CHECK(v.rows[16].verdict == proto::LineVerdict::Acceptable);  // the ninth, at 1,800 ms

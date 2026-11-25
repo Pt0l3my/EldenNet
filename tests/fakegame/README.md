@@ -273,7 +273,7 @@ tokens the server reported, shown) with the page shown as its text, Home's card'
 case and the editor case take one more Page Down past AI › Requests on their way to System › Status and Named NPCs.
 `launcher-eldennet-graceui-talk-traces` (PAGES §4.6.7): the same run with a browser reading System › Traces' and
 Performance's topics once the reply is shown: the reply's line (a reply, Conversation, its queue, first token, first
-page shown and total in seconds, a verdict), the tiles (the first page's median, one line, no 95th percentile yet) and
+page shown and total in seconds, a verdict), the tiles (the first page's median, one line, no 90th percentile yet) and
 the sentence against the targets for a local model; EldenNet's own steps (the core's and the reader's p99 as tiles,
 C3's two limits for the reader beside its figures, the three kinds of step) and the conversation's entries in the log
 kept in memory; and no frame of `traces` or `system.performance` holding the line typed, the reply's or the prompt's

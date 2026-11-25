@@ -86,7 +86,7 @@ inline pr::TraceRow line(std::uint64_t id, std::uint64_t at_ms, std::int64_t que
 // Until the world no line: the title's calls are the self-test's and the model lists, which are no lines. In the world
 // calls_fixture.hpp's conversation's replies: waiting; shown, quick; by the fallback, slow; withheld, the persona's own
 // line its first page, quick; timed out and failed, no page; and the first, quick. The session's summary counts 21
-// lines shown, so its 95th percentile is given, over the 3.0 s target.
+// lines shown, so its 90th percentile is given, over the 3.0 s target.
 inline const pr::TracesView* traces_fixture(std::string_view state) {
   static const pr::TracesView world = [] {
     pr::TracesView v;
@@ -100,7 +100,7 @@ inline const pr::TracesView* traces_fixture(std::string_view state) {
     s.lines = 21;
     s.unshown = 2;
     s.first_page_median_ms = 1'240;
-    s.first_page_p95_ms = 3'180;
+    s.first_page_p90_ms = 3'180;
     s.first_token_median_ms = 660;
     return v;
   }();

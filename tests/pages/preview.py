@@ -46,7 +46,7 @@ import browser  # noqa: E402
 # a cost reported); Home over the world too (its Model calls card with the replies' text, and Pause AI on).
 # System › Performance (PAGES §4.6.7) over the title (every kind of step within C3's limits, the log empty) and over the
 # world (the reader's p99 over its limit: a warning; the log's entries); System › Traces over the title (no line yet:
-# the lines' tile alone and each section's own words) and over the world (a conversation's lines, the 95th percentile
+# the lines' tile alone and each section's own words) and over the world (a conversation's lines, the 90th percentile
 # over its target, a line waiting, two with no page).
 PAGES = (("home", "title"), ("system.status", "title"), ("system.logs", "title"), ("settings.developer", "title"),
          ("ai.providers", "title"), ("ai.models", "title"), ("ai.selftest", "title"), ("ai.selftest", "banner"),

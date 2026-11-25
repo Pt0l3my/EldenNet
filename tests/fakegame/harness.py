@@ -2934,7 +2934,7 @@ def check_talk_traces(r):
          "the reply's line: %s" % row, failures)
     tiles = {t.get("label"): t.get("value") for t in traces.get("tiles", [])}
     need(tiles.get("Lines this session") == "1" and seconds.match(tiles.get("First page, median") or "") and
-         "First page, 95th percentile" not in tiles, "the traces' tiles: %s" % tiles, failures)
+         "First page, 90th percentile" not in tiles, "the traces' tiles: %s" % tiles, failures)
     need((traces.get("sentence") or "").startswith("Against the target for a local model, the median first page is "),
          "the traces' sentence: %s" % traces.get("sentence"), failures)
     perf = d.get("performance") or {}

@@ -38,26 +38,33 @@ TEST_CASE("the verdict: quick within 1.6 s, acceptable within 3.0 s, slow beyond
   CHECK(verdict_of(LineKind::OwnInitiative, 9000) == LineVerdict::None);
   // The rule is the self-test's (ARCH §11.7), C5's cloud targets.
   CHECK(kQuickPageMs == kCloudTargets.median_ms);
-  CHECK(kAcceptablePageMs == kCloudTargets.p95_ms);
+  CHECK(kAcceptablePageMs == kCloudTargets.p90_ms);
   CHECK(kLocalTargets.median_ms == 2500);
-  CHECK(kLocalTargets.p95_ms == 4500);
+  CHECK(kLocalTargets.p90_ms == 4500);
 }
 
-TEST_CASE("the percentiles are nearest-rank: the median of one is itself, of two the lower, a 95th of 20 the 19th") {
+TEST_CASE("the percentiles are nearest-rank: the median of one is itself, of two the lower, a 90th of 20 the 18th") {
   CHECK(percentile({}, 500) == -1);
   CHECK(percentile({1400}, 500) == 1400);
-  CHECK(percentile({1400}, 950) == 1400);
+  CHECK(percentile({1400}, 900) == 1400);
   CHECK(percentile({2000, 1000}, 500) == 1000);
   CHECK(percentile({3000, 1000, 2000}, 500) == 2000);
   std::vector<std::uint32_t> twenty;
   for (std::uint32_t i = 20; i >= 1; --i) twenty.push_back(i * 100);  // 2000 down to 100, unsorted for it
   CHECK(percentile(twenty, 500) == 1000);  // rank 10
-  CHECK(percentile(twenty, 950) == 1900);  // rank 19: the slowest one in twenty above it
+  CHECK(percentile(twenty, 900) == 1800);  // rank 18: the slowest two in twenty above it
   CHECK(percentile(twenty, 1000) == 2000);
   CHECK(percentile(twenty, 0) == 100);     // rank 1 at the least
   CHECK(percentile(twenty, 2000) == 2000); // past 1000 counts as 1000
   // The samples are its own copy: the caller's order is left as it was.
   CHECK(twenty.front() == 2000);
+  // Below kTraceP90Lines the 90th is the slowest (ceil(0.9 n) is n), so Traces leaves it out; from 10 on it is not.
+  CHECK(kTraceP90Lines == 10);
+  std::vector<std::uint32_t> some;
+  for (std::uint32_t n = 1; n <= 10; ++n) {
+    some.push_back(n * 100);  // 100 up to n × 100
+    CHECK(percentile(some, 900) == (n < kTraceP90Lines ? n * 100 : (n - 1) * 100));
+  }
 }
 
 TEST_CASE("every kind and verdict has PAGES' words, and each its own name") {

@@ -353,7 +353,7 @@ void CallRecord::trace(Entry& e) {
     sample(pages_, e.row.first_page_ms);
     const std::vector<std::uint32_t> all(pages_.begin(), pages_.end());
     s.first_page_median_ms = pr::percentile(all, 500);
-    s.first_page_p95_ms = all.size() >= pr::kTraceP95Lines ? pr::percentile(all, 950) : -1;
+    s.first_page_p90_ms = all.size() >= pr::kTraceP90Lines ? pr::percentile(all, 900) : -1;
   }
   const bool unshown = e.ended && !page;
   if (unshown != e.line_unshown) {

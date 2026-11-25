@@ -80,7 +80,7 @@ a dynamic initialiser or an exit-time destructor (ARCH §3.1, §1.7).
 - **System › Traces and Performance** (`traces.hpp`, `perf.hpp`; PAGES §4.6.7; DESIGN §1.3's C3 and C5): `TracesView`,
   each line's call (`TraceRow`: its kind, slot, queue, first token, first page shown, total and verdict, every time from
   its send, and no text) newest first, and `TraceSummary` (the session's calls for a line, the lines shown and those
-  that ended with none, the first pages' median and 95th percentile, the first tokens' median); `line_of` (which
+  that ended with none, the first pages' median and 90th percentile, the first tokens' median); `line_of` (which
   purposes are lines), `verdict_of` (ARCH §11.7's one rule: quick within 1.6 s, acceptable within 3.0 s, slow beyond; a
   call-out by DESIGN §1.4's 1.5 s and 2.5 s; none for an own-initiative line), C5's targets (cloud 1.6 s and 3.0 s,
   local 2.5 s and 4.5 s), the nearest-rank `percentile`, and PAGES' words for the kinds and verdicts. `PerfView`:

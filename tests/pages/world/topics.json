@@ -2338,14 +2338,14 @@
         "verdict": "quick"
       }
     ],
-    "sentence": "Against the targets for a cloud model, the median first page is within 1.6 s and the 95th percentile is over 3.0 s.",
+    "sentence": "Against the targets for a cloud model, the median first page is within 1.6 s and the 90th percentile is over 3.0 s.",
     "tiles": [
       {
         "label": "First page, median",
         "value": "1.24 s"
       },
       {
-        "label": "First page, 95th percentile",
+        "label": "First page, 90th percentile",
         "value": "3.18 s"
       },
       {

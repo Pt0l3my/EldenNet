@@ -2673,15 +2673,15 @@ TEST_CASE("space: System › Traces: tiles against C5's targets, the table in PA
     }
   }
 
-  // The world: the conversation's lines; 21 shown, so the 95th percentile too, over its 3.0 s target.
+  // The world: the conversation's lines; 21 shown, so the 90th percentile too, over its 3.0 s target.
   const SpaceFacts f = facts_of("world");
   json b = s.body("traces", f);
   CHECK(b["tiles"] == json::array({{{"label", "First page, median"}, {"value", "1.24 s"}},
-                                   {{"label", "First page, 95th percentile"}, {"value", "3.18 s"}},
+                                   {{"label", "First page, 90th percentile"}, {"value", "3.18 s"}},
                                    {{"label", "First token, median"}, {"value", "0.66 s"}},
                                    {{"label", "Lines this session"}, {"value", "21"}, {"unit", "of 24 shown"}}}));
   // One line in game (a computed sentence is drawn on one): the figures against C5's targets for a cloud model.
-  CHECK(b["sentence"] == "Against the targets for a cloud model, the median first page is within 1.6 s and the 95th "
+  CHECK(b["sentence"] == "Against the targets for a cloud model, the median first page is within 1.6 s and the 90th "
                          "percentile is over 3.0 s.");
   std::vector<std::string> ids;
   for (const json& c : b["columns"]) ids.push_back(c["id"].get<std::string>());
@@ -2700,16 +2700,16 @@ TEST_CASE("space: System › Traces: tiles against C5's targets, the table in PA
   CHECK_FALSE(rows[4].contains("first_token"));
   CHECK(rows[4]["total"] == "6.00 s");
 
-  // On a local model C5's local targets: the median within 2.5 s, the 95th within 4.5 s.
+  // On a local model C5's local targets: the median within 2.5 s, the 90th within 4.5 s.
   AiFacts local = *f.ai;
   local.providers.push_back(lantern());
   local.slots[0].provider = "lantern-box";
   SpaceFacts on_local = f;
   on_local.ai = &local;
   CHECK(s.body("traces", on_local)["sentence"] == "Against the targets for a local model, the median first page is "
-                                                  "within 2.5 s and the 95th percentile is within 4.5 s.");
+                                                  "within 2.5 s and the 90th percentile is within 4.5 s.");
 
-  // Fewer than 20 lines: no 95th percentile, its tile and its clause left out; one quick line.
+  // Fewer than 10 lines: no 90th percentile, its tile and its clause left out; one quick line.
   en::proto::TracesView few;
   few.summary.calls = 1;
   few.summary.lines = 1;
