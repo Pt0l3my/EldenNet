@@ -2568,7 +2568,7 @@ them as built, or change any of them.
 
 ## O128
 
-**System › Performance and System › Traces: their words and readings, and which percentile Traces holds to its target** · *2026-11-25 · Open*
+**System › Performance and System › Traces: their words and readings, and which percentile Traces holds to its target** · *2026-11-25 · Decided by the owner, as recommended*
 
 **Question.** System › Performance and System › Traces were built at GraceUI 0.2.46 (S11.4.a; engine 0b0030b; WHY§638
 to §644). (a) PAGES §4.6.7 gives Traces a tile for the first page's 95th percentile, while C5 and DESIGN §1.4 give the
@@ -2584,5 +2584,11 @@ before the first attempt left; a verdict for replies and call-outs alone; the 95
 p95 held to the p90's target, as built; (b) accept the words and readings as built, or change any of them.
 
 **Recommendation.** (a) p90, matching C5. (b) Accept as built.
+
+**Decision.** (a) Traces' tile and sentence show the first page's 90th percentile, held to C5's and §1.4's targets for
+it, and given from 10 lines on (below which the nearest-rank 90th is the slowest line). (b) The words and readings as
+built, as PAGES §4.6.7's dated notes of 2026-11-24 hold them, with the 95th read as the 90th.
+
+**Owner's words.** "p90, matching C5 (Recommended)" and "Accept as built (Recommended)" (question dialog, 2026-11-25).
 
 **Follows from.** D15, D18; C3, C5; O101, O127; PAGES §4.6.7; S11.4.a.
