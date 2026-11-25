@@ -1889,11 +1889,14 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Built the same day (GraceUI feat/foundations b4e10f8; GraceUI's docs/eldennet-changes.md §90): commands named only
     on pc_only pages are sensitive, and settings homed there are left out of a device's settings topic; page data's
     minor is the floor's (20 with pc_only).
-- br A space check of the browser view over a consumer's space folder (GraceUI 0.2.58) [planned]
+- br A space check of the browser view over a consumer's space folder (GraceUI 0.2.58) [done]
   - refs: GraceUI:D258, PAGES§4.6.8
   - gives: GraceUI's D265, planned on 2026-11-25: `npm run check:space` runs the real browser view over GraceUI's fake
     host with a space's fixtures and prints a text dump per page and state (shown_with on and off, a gate before and
     after its confirm), with the contrast, CSP and console checks; EldenNet keeps the dump as a golden of its own.
+    Built the same day (GraceUI feat/foundations 0c8d0fa; GraceUI's docs/eldennet-changes.md §91): the npm script
+    `check:space` in GraceUI's web, over a space folder and a golden, dumping this PC's view, a paired device's and each
+    shown_with switch turned the other way, a gated page's gate first and a page not there named absent.
 
 ### S11.3 EldenNet v0.2
 
