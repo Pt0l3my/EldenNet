@@ -88,59 +88,61 @@ line    rule          365,1065 1490x1    clip1
 text    moss          365,1083   51x25   clip1 glyphs 6 "Passed"
 text    ink.body      503,1081   66x28   clip1 glyphs 7 "GraceUI"
 text    ink.mute      589,1083  211x25   clip1 glyphs 23 "Connected, version 0.2.12"
-fill    ground.2      340,1160 1540x755  r5 clip1
-stroke  rule          340,1160 1540x755  r5 w1 clip1
+fill    ground.2      340,1160 1540x793  r5 clip1
+stroke  rule          340,1160 1540x793  r5 w1 clip1
 text    gold          365,1180  182x20   clip1 glyphs 17 "What EldenNet reads"
 text    ink.faint    1842,1180    8x25   clip1 glyphs 1 "-"
 text    ink.mute      365,1205  557x25   clip1 glyphs 56 "Each group of the game's state EldenNet reads, with its self-test."
-line    rule          365,1240 1490x1    clip1
-text    ink.hi        365,1256  103x28   clip1 glyphs 10 "The session"
-text    ink.mute      862,1258   51x25   clip1 glyphs 6 "Passed"
-line    rule          365,1300 1490x1    clip1
-text    ink.hi        365,1316   84x28   clip1 glyphs 8 "The world"
-text    ink.mute      862,1318   51x25   clip1 glyphs 6 "Passed"
-line    rule          365,1360 1490x1    clip1
-text    ink.hi        365,1376   56x28   clip1 glyphs 6 "Combat"
-text    ink.mute      862,1378  118x25   clip1 glyphs 12 "Not tested yet"
-line    rule          365,1420 1490x1    clip1
-text    ink.hi        365,1436  131x28   clip1 glyphs 13 "Your character"
-text    ink.mute      862,1438   51x25   clip1 glyphs 6 "Passed"
-line    rule          365,1480 1490x1    clip1
-text    ink.hi        365,1496   75x28   clip1 glyphs 8 "Progress"
-text    ink.mute      862,1498   51x25   clip1 glyphs 6 "Passed"
-line    rule          365,1540 1490x1    clip1
-text    ink.hi        365,1556  141x28   clip1 glyphs 13 "The game's text"
-text    ink.mute      862,1558   51x25   clip1 glyphs 6 "Passed"
-line    rule          365,1600 1490x1    clip1
-text    ink.hi        365,1616  169x28   clip1 glyphs 16 "The game's screens"
-text    ink.mute      862,1618   51x25   clip1 glyphs 6 "Passed"
-line    rule          365,1660 1490x1    clip1
-text    ink.hi        365,1676   47x28   clip1 glyphs 5 "Place"
-text    ink.mute      862,1678   51x25   clip1 glyphs 6 "Passed"
-line    rule          365,1720 1490x1    clip1
-text    ink.hi        365,1736   94x28   clip1 glyphs 9 "The camera"
-text    ink.mute      862,1738   51x25   clip1 glyphs 6 "Passed"
-line    rule          365,1780 1490x1    clip1
-text    ink.hi        365,1796  159x28   clip1 glyphs 15 "The game's tables"
-text    ink.mute      862,1798   51x25   clip1 glyphs 6 "Passed"
-line    rule          365,1840 1490x1    clip1
-text    ink.hi        365,1856   75x28   clip1 glyphs 8 "Statuses"
-text    ink.mute      862,1858  118x25   clip1 glyphs 12 "Not tested yet"
-fill    ground.2      340,1935 1540x230  r5 clip1
-stroke  rule          340,1935 1540x230  r5 w1 clip1
-text    gold          365,1955   67x20   clip1 glyphs 7 "Related"
-line    rule          365,1985 1490x1    clip1
-text    ink.hi        380,1999  103x28   clip1 glyphs 11 "Performance"
-text    ink.mute      862,2000  692x25   clip1 glyphs 69 "What EldenNet's own work costs this session, beside its limits, and what it keeps."
-text    gold         1820,1999    9x28   clip1 glyphs 1 "→"
-line    rule          365,2040 1490x1    clip1
-text    ink.hi        380,2054   38x28   clip1 glyphs 4 "Logs"
-text    ink.mute      862,2055  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
-text    gold         1820,2054    9x28   clip1 glyphs 1 "→"
-line    rule          365,2095 1490x1    clip1
-text    ink.hi        380,2109   38x28   clip1 glyphs 4 "Home"
-text    ink.mute      862,2110  810x25   clip1 glyphs 76 "Whether EldenNet is working on this game, what to do if it is not, and what it asked of a model."
-text    gold         1820,2109    9x28   clip1 glyphs 1 "→"
+text    ink.mute      365,1248   42x25   clip1 glyphs 5 "Group"
+text    ink.mute      862,1248   76x25   clip1 glyphs 9 "Self-test"
+line    rule          365,1278 1490x1    clip1
+text    ink.hi        365,1294  103x28   clip1 glyphs 10 "The session"
+text    ink.body      862,1296   51x25   clip1 glyphs 6 "Passed"
+line    rule          365,1338 1490x1    clip1
+text    ink.hi        365,1354   84x28   clip1 glyphs 8 "The world"
+text    ink.body      862,1356   51x25   clip1 glyphs 6 "Passed"
+line    rule          365,1398 1490x1    clip1
+text    ink.hi        365,1414   56x28   clip1 glyphs 6 "Combat"
+text    ink.body      862,1416  118x25   clip1 glyphs 12 "Not tested yet"
+line    rule          365,1458 1490x1    clip1
+text    ink.hi        365,1474  131x28   clip1 glyphs 13 "Your character"
+text    ink.body      862,1476   51x25   clip1 glyphs 6 "Passed"
+line    rule          365,1518 1490x1    clip1
+text    ink.hi        365,1534   75x28   clip1 glyphs 8 "Progress"
+text    ink.body      862,1536   51x25   clip1 glyphs 6 "Passed"
+line    rule          365,1578 1490x1    clip1
+text    ink.hi        365,1594  141x28   clip1 glyphs 13 "The game's text"
+text    ink.body      862,1596   51x25   clip1 glyphs 6 "Passed"
+line    rule          365,1638 1490x1    clip1
+text    ink.hi        365,1654  169x28   clip1 glyphs 16 "The game's screens"
+text    ink.body      862,1656   51x25   clip1 glyphs 6 "Passed"
+line    rule          365,1698 1490x1    clip1
+text    ink.hi        365,1714   47x28   clip1 glyphs 5 "Place"
+text    ink.body      862,1716   51x25   clip1 glyphs 6 "Passed"
+line    rule          365,1758 1490x1    clip1
+text    ink.hi        365,1774   94x28   clip1 glyphs 9 "The camera"
+text    ink.body      862,1776   51x25   clip1 glyphs 6 "Passed"
+line    rule          365,1818 1490x1    clip1
+text    ink.hi        365,1834  159x28   clip1 glyphs 15 "The game's tables"
+text    ink.body      862,1836   51x25   clip1 glyphs 6 "Passed"
+line    rule          365,1878 1490x1    clip1
+text    ink.hi        365,1894   75x28   clip1 glyphs 8 "Statuses"
+text    ink.body      862,1896  118x25   clip1 glyphs 12 "Not tested yet"
+fill    ground.2      340,1973 1540x230  r5 clip1
+stroke  rule          340,1973 1540x230  r5 w1 clip1
+text    gold          365,1993   67x20   clip1 glyphs 7 "Related"
+line    rule          365,2023 1490x1    clip1
+text    ink.hi        380,2037  103x28   clip1 glyphs 11 "Performance"
+text    ink.mute      862,2038  692x25   clip1 glyphs 69 "What EldenNet's own work costs this session, beside its limits, and what it keeps."
+text    gold         1820,2037    9x28   clip1 glyphs 1 "→"
+line    rule          365,2078 1490x1    clip1
+text    ink.hi        380,2092   38x28   clip1 glyphs 4 "Logs"
+text    ink.mute      862,2093  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
+text    gold         1820,2092    9x28   clip1 glyphs 1 "→"
+line    rule          365,2133 1490x1    clip1
+text    ink.hi        380,2147   38x28   clip1 glyphs 4 "Home"
+text    ink.mute      862,2148  810x25   clip1 glyphs 76 "Whether EldenNet is working on this game, what to do if it is not, and what it asked of a model."
+text    gold         1820,2147    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 fill    ground.well   340,1044   60x28   r3
 stroke  edge          340,1044   60x28   r3 w1

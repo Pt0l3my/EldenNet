@@ -87,28 +87,32 @@ text    ink.body      862,1144   51x25   clip1 glyphs 6 "Passed"
 line    rule          365,1186 1490x1    clip1
 text    ink.hi        365,1202   56x28   clip1 glyphs 5 "Run at"
 text    ink.body      862,1204   59x25   clip1 glyphs 7 "0:11:30"
-fill    ground.2      340,1281 1540x130  r5 clip1
-stroke  rule          340,1281 1540x130  r5 w1 clip1
+fill    ground.2      340,1281 1540x168  r5 clip1
+stroke  rule          340,1281 1540x168  r5 w1 clip1
 text    gold          365,1301  240x20   clip1 glyphs 22 "Earlier runs this session"
 text    ink.faint    1842,1301    8x25   clip1 glyphs 1 "-"
-line    rule          365,1336 1490x1    clip1
-text    ink.hi        365,1352   66x28   clip1 glyphs 7 "0:10:10"
-text    ink.mute      862,1354  228x25   clip1 glyphs 23 "talker-small  ·  Acceptable"
-fill    ground.2      340,1431 1540x230  r5 clip1
-stroke  rule          340,1431 1540x230  r5 w1 clip1
-text    gold          365,1451   67x20   clip1 glyphs 7 "Related"
-line    rule          365,1481 1490x1    clip1
-text    ink.hi        380,1495   56x28   clip1 glyphs 6 "Models"
-text    ink.mute      862,1496  515x25   clip1 glyphs 50 "Which model does each job, and the preset that sets them all."
-text    gold         1820,1495    9x28   clip1 glyphs 1 "→"
-line    rule          365,1536 1490x1    clip1
-text    ink.hi        380,1550   84x28   clip1 glyphs 9 "Providers"
-text    ink.mute      862,1551  624x25   clip1 glyphs 63 "Where EldenNet's model calls go, with whose key, and whether each answers."
-text    gold         1820,1550    9x28   clip1 glyphs 1 "→"
-line    rule          365,1591 1490x1    clip1
-text    ink.hi        380,1605   56x28   clip1 glyphs 6 "Traces"
-text    ink.mute      862,1606  472x25   clip1 glyphs 46 "How long each line took, from its request to the screen."
-text    gold         1820,1605    9x28   clip1 glyphs 1 "→"
+text    ink.mute      365,1344   34x25   clip1 glyphs 4 "Time"
+text    ink.mute      862,1344   42x25   clip1 glyphs 5 "Model"
+text    ink.mute     1358,1344   59x25   clip1 glyphs 7 "Verdict"
+line    rule          365,1374 1490x1    clip1
+text    ink.hi        365,1390   66x28   clip1 glyphs 7 "0:10:10"
+text    ink.body      862,1392  101x25   clip1 glyphs 12 "talker-small"
+text    ink.body     1358,1392   84x25   clip1 glyphs 10 "Acceptable"
+fill    ground.2      340,1469 1540x230  r5 clip1
+stroke  rule          340,1469 1540x230  r5 w1 clip1
+text    gold          365,1489   67x20   clip1 glyphs 7 "Related"
+line    rule          365,1519 1490x1    clip1
+text    ink.hi        380,1533   56x28   clip1 glyphs 6 "Models"
+text    ink.mute      862,1534  515x25   clip1 glyphs 50 "Which model does each job, and the preset that sets them all."
+text    gold         1820,1533    9x28   clip1 glyphs 1 "→"
+line    rule          365,1574 1490x1    clip1
+text    ink.hi        380,1588   84x28   clip1 glyphs 9 "Providers"
+text    ink.mute      862,1589  624x25   clip1 glyphs 63 "Where EldenNet's model calls go, with whose key, and whether each answers."
+text    gold         1820,1588    9x28   clip1 glyphs 1 "→"
+line    rule          365,1629 1490x1    clip1
+text    ink.hi        380,1643   56x28   clip1 glyphs 6 "Traces"
+text    ink.mute      862,1644  472x25   clip1 glyphs 46 "How long each line took, from its request to the screen."
+text    gold         1820,1643    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 fill    ground.well   340,1044   60x28   r3
 stroke  edge          340,1044   60x28   r3 w1

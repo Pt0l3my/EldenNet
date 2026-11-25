@@ -9,8 +9,8 @@ moved it to GraceUI 0.2.5's ABI 1.2 (§19, §23, §24, §26 to §29, §33, §34 
 C; WHY§364) adds EldenNet's own surfaces on GraceUI 0.2.20's ABI 1.5 (§31, §33, §47 to §50): the lower third, the chat
 box, the hint and the toasts. Later increments add the call-out box (v0.6) and the rest of its pages.
 
-It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 832b8d9, GraceUI
-0.2.52, ABI 1.8, protocol 1.17, whose uploads and on_present it does not use; its floor, 0.2.50, for Logs' filter bar on
+It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 7fa3042, GraceUI
+0.2.53, ABI 1.8, protocol 1.17, whose uploads and on_present it does not use; its floor, 0.2.50, for Logs' filter bar on
 its stream, which an older GraceUI refuses, with 0.2.49's header switch, Docs' document block and Bug report's prose
 field and preview, the profile editor's families, slow commands, editor block and chosen row, on 0.2.17's wait handle;
 0.2.36's italic face where GraceUI's folder has it, and 0.2.38's word for what pressed a hotkey behind its cap): its
@@ -449,7 +449,7 @@ table in PAGES' columns, a time not known left out; nothing published without fa
 path or SteamID in any frame of either), and in the Linux builds the five fixture states'
 `tests/pages/<state>/topics.json` (EN_UPDATE_FIXTURES=1 writes them anew). In the
 Windows builds, under Wine, the connection against a fake GraceUI of our own (`tests/fake_grace.hpp`; graceui-sys has no
-C mock): ABI 1.8's table, answering as GraceUI 0.2.52 answers and checking as it checks (connect's answers, notices
+C mock): ABI 1.8's table, answering as GraceUI 0.2.53 answers and checking as it checks (connect's answers, notices
 under keys, the registration window, hidden panels, hotkeys, poll's events by the event's size, the space's slots, and
 submit's draw-list checks: counts, bounds, ranges, indices, clip rectangles inside the panel, known textures, the
 stride). The cases: the space registered once for its views, or not without the cap or beside anti-cheat; watched

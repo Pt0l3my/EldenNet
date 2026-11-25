@@ -70,59 +70,110 @@ line    rule          365, 766 1490x1    clip1
 text    ember         365, 784   59x25   clip1 glyphs 7 "Warning"
 text    ink.body      503, 782  497x28   clip1 glyphs 46 "The camera: EldenNet stopped reading it after faults."
 text    ink.mute     1020, 784  506x25   clip1 glyphs 51 "Everything else goes on. Restarting the game tries it again."
-fill    ground.2      340, 861 1540x635  r5 clip1
-stroke  rule          340, 861 1540x635  r5 w1 clip1
+fill    ground.2      340, 861 1540x673  r5 clip1
+stroke  rule          340, 861 1540x673  r5 w1 clip1
 text    gold          365, 881  106x20   clip1 glyphs 10 "Model calls"
 text    ink.faint    1842, 881    8x25   clip1 glyphs 1 "-"
 text    ink.mute      365, 906  818x25   clip1 glyphs 79 "The last 20 calls to a model, newest first. A reply's text shows only once it reached the screen."
-line    rule          365, 941 1490x1    clip1
-tri     ink.mute      365, 965   13x13   clip1 >
-text    ink.hi        390, 957   66x28   clip1 glyphs 7 "1:05:05"
-text    ink.mute      862, 959  523x25   clip1 glyphs 46 "Conversation  ·  reply  ·  Ysolde  ·  talker-small  ·  waiting"
-line    rule          365,1001 1490x1    clip1
-tri     ink.mute      365,1025   13x13   clip1 >
-text    ink.hi        390,1017   66x28   clip1 glyphs 7 "1:00:55"
-text    ink.mute      862,1019  709x25   clip1 glyphs 57 "Conversation  ·  reply  ·  Old Bram  ·  talker-small  ·  0.64 s  ·  1.72 s  ·  shown"
-line    rule          365,1061 1490x1    clip1
-tri     ink.mute      365,1085   13x13   clip1 >
-text    ink.hi        390,1077   66x28   clip1 glyphs 7 "1:00:42"
-text    ink.mute      862,1079  785x25   clip1 glyphs 65 "Conversation  ·  reply  ·  Old Bram  ·  talker-large  ·  2.95 s  ·  4.10 s  ·  fallback model"
-line    rule          365,1121 1490x1    clip1
-tri     ink.mute      365,1145   13x13   clip1 >
-text    ink.hi        390,1137   66x28   clip1 glyphs 7 "1:00:10"
-text    ink.mute      862,1139  726x25   clip1 glyphs 59 "Conversation  ·  reply  ·  Ysolde  ·  talker-small  ·  0.70 s  ·  1.30 s  ·  not shown"
-line    rule          365,1181 1490x1    clip1
-tri     ink.mute      365,1205   13x13   clip1 >
-text    ink.hi        390,1197   66x28   clip1 glyphs 7 "0:59:50"
-text    ink.mute      862,1199  633x25   clip1 glyphs 53 "Conversation  ·  reply  ·  Ysolde  ·  talker-small  ·  6.00 s  ·  timed out"
-line    rule          365,1241 1490x1    clip1
-tri     ink.mute      365,1265   13x13   clip1 >
-text    ink.hi        390,1257   66x28   clip1 glyphs 7 "0:59:20"
-text    ink.mute      862,1259  709x25   clip1 glyphs 60 "Profile drafts  ·  profile draft  ·  talker-small  ·  0.90 s  ·  3.40 s  ·  answered"
-line    rule          365,1301 1490x1    clip1
-tri     ink.mute      365,1325   13x13   clip1 >
-text    ink.hi        390,1317   66x28   clip1 glyphs 7 "0:58:20"
-text    ink.mute      862,1319  624x25   clip1 glyphs 52 "Conversation  ·  reply  ·  Old Bram  ·  talker-small  ·  2.20 s  ·  failed"
-line    rule          365,1361 1490x1    clip1
-tri     ink.mute      365,1385   13x13   clip1 >
-text    ink.hi        390,1377   66x28   clip1 glyphs 7 "0:58:00"
-text    ink.mute      862,1379  709x25   clip1 glyphs 57 "Conversation  ·  reply  ·  Old Bram  ·  talker-small  ·  0.61 s  ·  1.54 s  ·  shown"
-text    ink.body      365,1436  835x25   clip1 glyphs 81 "In the last hour: no own-initiative calls, and 24 of the 600 requests EldenNet may send in an hour."
-fill    ground.2      340,1516 1540x230  r5 clip1
-stroke  rule          340,1516 1540x230  r5 w1 clip1
-text    gold          365,1536   67x20   clip1 glyphs 7 "Related"
-line    rule          365,1566 1490x1    clip1
-text    ink.hi        380,1580   56x28   clip1 glyphs 6 "Status"
-text    ink.mute      862,1581  599x25   clip1 glyphs 58 "Whether EldenNet is healthy on this PC and game build, and if not, why."
-text    gold         1820,1580    9x28   clip1 glyphs 1 "→"
-line    rule          365,1621 1490x1    clip1
-text    ink.hi        380,1635   75x28   clip1 glyphs 8 "Requests"
-text    ink.mute      862,1636  692x25   clip1 glyphs 69 "Every model call this session and what it cost, without the prompts EldenNet sent."
-text    gold         1820,1635    9x28   clip1 glyphs 1 "→"
-line    rule          365,1676 1490x1    clip1
-text    ink.hi        380,1690   38x28   clip1 glyphs 4 "Logs"
-text    ink.mute      862,1691  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
-text    gold         1820,1690    9x28   clip1 glyphs 1 "→"
+text    ink.mute      390, 949   34x25   clip1 glyphs 4 "Time"
+text    ink.mute      862, 949   25x25   clip1 glyphs 3 "Job"
+text    ink.mute     1003, 949   59x25   clip1 glyphs 7 "Purpose"
+text    ink.mute     1144, 949   59x25   clip1 glyphs 7 "Speaker"
+text    ink.mute     1285, 949   42x25   clip1 glyphs 5 "Model"
+text    ink.mute     1459, 949   93x25   clip1 glyphs 10 "First token"
+text    ink.mute     1650, 949   42x25   clip1 glyphs 5 "Total"
+text    ink.mute     1708, 949   59x25   clip1 glyphs 7 "Outcome"
+line    rule          365, 979 1490x1    clip1
+tri     ink.mute      365,1003   13x13   clip1 >
+text    ink.hi        390, 995   66x28   clip1 glyphs 7 "1:05:05"
+text    ink.body      862, 997  101x25   clip1 glyphs 12 "Conversation"
+text    ink.body     1003, 997   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1144, 997   51x25   clip1 glyphs 6 "Ysolde"
+text    ink.body     1285, 997  101x25   clip1 glyphs 12 "talker-small"
+text    ink.body     1708, 997   59x25   clip1 glyphs 7 "waiting"
+line    rule          365,1039 1490x1    clip1
+tri     ink.mute      365,1063   13x13   clip1 >
+text    ink.hi        390,1055   66x28   clip1 glyphs 7 "1:00:55"
+text    ink.body      862,1057  101x25   clip1 glyphs 12 "Conversation"
+text    ink.body     1003,1057   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1144,1057   68x25   clip1 glyphs 7 "Old Bram"
+text    ink.body     1285,1057  101x25   clip1 glyphs 12 "talker-small"
+text    ink.body     1501,1057   51x25   clip1 glyphs 5 "0.64 s"
+text    ink.body     1642,1057   51x25   clip1 glyphs 5 "1.72 s"
+text    ink.body     1708,1057   42x25   clip1 glyphs 5 "shown"
+line    rule          365,1099 1490x1    clip1
+tri     ink.mute      365,1123   13x13   clip1 >
+text    ink.hi        390,1115   66x28   clip1 glyphs 7 "1:00:42"
+text    ink.body      862,1117  101x25   clip1 glyphs 12 "Conversation"
+text    ink.body     1003,1117   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1144,1117   68x25   clip1 glyphs 7 "Old Bram"
+text    ink.body     1285,1117  101x25   clip1 glyphs 12 "talker-large"
+text    ink.body     1501,1117   51x25   clip1 glyphs 5 "2.95 s"
+text    ink.body     1642,1117   51x25   clip1 glyphs 5 "4.10 s"
+text    ink.body     1708,1117  118x25   clip1 glyphs 13 "fallback model"
+line    rule          365,1159 1490x1    clip1
+tri     ink.mute      365,1183   13x13   clip1 >
+text    ink.hi        390,1175   66x28   clip1 glyphs 7 "1:00:10"
+text    ink.body      862,1177  101x25   clip1 glyphs 12 "Conversation"
+text    ink.body     1003,1177   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1144,1177   51x25   clip1 glyphs 6 "Ysolde"
+text    ink.body     1285,1177  101x25   clip1 glyphs 12 "talker-small"
+text    ink.body     1501,1177   51x25   clip1 glyphs 5 "0.70 s"
+text    ink.body     1642,1177   51x25   clip1 glyphs 5 "1.30 s"
+text    ink.body     1708,1177   76x25   clip1 glyphs 8 "not shown"
+line    rule          365,1219 1490x1    clip1
+tri     ink.mute      365,1243   13x13   clip1 >
+text    ink.hi        390,1235   66x28   clip1 glyphs 7 "0:59:50"
+text    ink.body      862,1237  101x25   clip1 glyphs 12 "Conversation"
+text    ink.body     1003,1237   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1144,1237   51x25   clip1 glyphs 6 "Ysolde"
+text    ink.body     1285,1237  101x25   clip1 glyphs 12 "talker-small"
+text    ink.body     1642,1237   51x25   clip1 glyphs 5 "6.00 s"
+text    ink.body     1708,1237   76x25   clip1 glyphs 8 "timed out"
+line    rule          365,1279 1490x1    clip1
+tri     ink.mute      365,1303   13x13   clip1 >
+text    ink.hi        390,1295   66x28   clip1 glyphs 7 "0:59:20"
+text    ink.body      862,1297  118x25   clip1 glyphs 13 "Profile drafts"
+text    ink.body     1003,1297  110x25   clip1 glyphs 12 "profile draft"
+text    ink.body     1285,1297  101x25   clip1 glyphs 12 "talker-small"
+text    ink.body     1501,1297   51x25   clip1 glyphs 5 "0.90 s"
+text    ink.body     1642,1297   51x25   clip1 glyphs 5 "3.40 s"
+text    ink.body     1708,1297   68x25   clip1 glyphs 8 "answered"
+line    rule          365,1339 1490x1    clip1
+tri     ink.mute      365,1363   13x13   clip1 >
+text    ink.hi        390,1355   66x28   clip1 glyphs 7 "0:58:20"
+text    ink.body      862,1357  101x25   clip1 glyphs 12 "Conversation"
+text    ink.body     1003,1357   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1144,1357   68x25   clip1 glyphs 7 "Old Bram"
+text    ink.body     1285,1357  101x25   clip1 glyphs 12 "talker-small"
+text    ink.body     1642,1357   51x25   clip1 glyphs 5 "2.20 s"
+text    ink.body     1708,1357   51x25   clip1 glyphs 6 "failed"
+line    rule          365,1399 1490x1    clip1
+tri     ink.mute      365,1423   13x13   clip1 >
+text    ink.hi        390,1415   66x28   clip1 glyphs 7 "0:58:00"
+text    ink.body      862,1417  101x25   clip1 glyphs 12 "Conversation"
+text    ink.body     1003,1417   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1144,1417   68x25   clip1 glyphs 7 "Old Bram"
+text    ink.body     1285,1417  101x25   clip1 glyphs 12 "talker-small"
+text    ink.body     1501,1417   51x25   clip1 glyphs 5 "0.61 s"
+text    ink.body     1642,1417   51x25   clip1 glyphs 5 "1.54 s"
+text    ink.body     1708,1417   42x25   clip1 glyphs 5 "shown"
+text    ink.body      365,1474  835x25   clip1 glyphs 81 "In the last hour: no own-initiative calls, and 24 of the 600 requests EldenNet may send in an hour."
+fill    ground.2      340,1554 1540x230  r5 clip1
+stroke  rule          340,1554 1540x230  r5 w1 clip1
+text    gold          365,1574   67x20   clip1 glyphs 7 "Related"
+line    rule          365,1604 1490x1    clip1
+text    ink.hi        380,1618   56x28   clip1 glyphs 6 "Status"
+text    ink.mute      862,1619  599x25   clip1 glyphs 58 "Whether EldenNet is healthy on this PC and game build, and if not, why."
+text    gold         1820,1618    9x28   clip1 glyphs 1 "→"
+line    rule          365,1659 1490x1    clip1
+text    ink.hi        380,1673   75x28   clip1 glyphs 8 "Requests"
+text    ink.mute      862,1674  692x25   clip1 glyphs 69 "Every model call this session and what it cost, without the prompts EldenNet sent."
+text    gold         1820,1673    9x28   clip1 glyphs 1 "→"
+line    rule          365,1714 1490x1    clip1
+text    ink.hi        380,1728   38x28   clip1 glyphs 4 "Logs"
+text    ink.mute      862,1729  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
+text    gold         1820,1728    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 fill    ground.well   340,1044   60x28   r3
 stroke  edge          340,1044   60x28   r3 w1
@@ -133,4 +184,4 @@ stroke  edge          466,1044   42x28   r3 w1
 text    ink.body      474,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     515,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi      1697,  86  186x46   r5 w3 clip1
-# 94 items, 3520 vertices, 7452 indices, 4 commands; check_draw_list: passes
+# 102 items, 3430 vertices, 7305 indices, 4 commands; check_draw_list: passes

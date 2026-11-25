@@ -56,59 +56,71 @@ text    ink.body      862, 574   68x25   clip1 glyphs 8 "Included"
 line    rule          365, 616 1490x1    clip1
 text    ink.hi        365, 632  103x28   clip1 glyphs 10 "Event rules"
 text    ink.body      862, 634   68x25   clip1 glyphs 8 "Included"
-fill    ground.2      340, 711 1540x395  r5 clip1
-stroke  rule          340, 711 1540x395  r5 w1 clip1
+fill    ground.2      340, 711 1540x433  r5 clip1
+stroke  rule          340, 711 1540x433  r5 w1 clip1
 text    gold          365, 731  134x20   clip1 glyphs 13 "Your overrides"
 text    ink.faint    1842, 731    8x25   clip1 glyphs 1 "-"
 text    ink.mute      365, 756  810x25   clip1 glyphs 80 "Each file of your overrides folder, by its path there: it replaces EldenNet's file of that path."
-line    rule          365, 791 1490x1    clip1
-text    ink.hi        365, 807  112x28   clip1 glyphs 12 "disable.toml"
-text    ink.mute      862, 809  304x25   clip1 glyphs 31 "Not loaded: another file was refused"
-line    rule          365, 851 1490x1    clip1
-text    ink.hi        365, 867  262x28   clip1 glyphs 28 "layers/persona-ferryman.toml"
-text    ink.mute      862, 869  304x25   clip1 glyphs 31 "Not loaded: another file was refused"
-line    rule          365, 911 1490x1    clip1
-text    ink.hi        365, 927  244x28   clip1 glyphs 26 "layers/persona-weaver.toml"
-text    ink.mute      862, 929  304x25   clip1 glyphs 31 "Not loaded: another file was refused"
-line    rule          365, 971 1490x1    clip1
-text    ink.hi        365, 987  206x28   clip1 glyphs 22 "personas/ferryman.toml"
-text    ink.mute      862, 989  523x25   clip1 glyphs 48 "Refused  ·  Line 12  ·  voice.cadence: is longer than 60 words"
-line    rule          365,1031 1490x1    clip1
-text    ink.hi        365,1047  150x28   clip1 glyphs 16 "drafts/old/a/b/c"
-text    ink.mute      862,1049  523x25   clip1 glyphs 48 "Not read  ·  is a folder nested too deep: four levels are read"
-fill    ground.2      340,1126 1540x215  r5 clip1
-stroke  rule          340,1126 1540x215  r5 w1 clip1
-text    gold          365,1146   96x20   clip1 glyphs 9 "Turned off"
-text    ink.faint    1842,1146    8x25   clip1 glyphs 1 "-"
-text    ink.mute      365,1171  447x25   clip1 glyphs 46 "What disable.toml in your overrides folder turns off."
-line    rule          365,1206 1490x1    clip1
-text    ink.hi        365,1222   75x28   clip1 glyphs 8 "Personas"
-text    ink.body      862,1224  110x25   clip1 glyphs 13 "heron_watcher"
-line    rule          365,1266 1490x1    clip1
-text    ink.hi        365,1282   47x28   clip1 glyphs 5 "Cards"
-text    ink.body      862,1284   84x25   clip1 glyphs 10 "salt_crier"
-fill    ground.2      340,1361 1540x215  r5 clip1
-stroke  rule          340,1361 1540x215  r5 w1 clip1
-text    gold          365,1381   67x20   clip1 glyphs 7 "Reloads"
-text    ink.faint    1842,1381    8x25   clip1 glyphs 1 "-"
-text    ink.mute      365,1406  548x25   clip1 glyphs 56 "Each time EldenNet loaded its content this session, newest first."
-line    rule          365,1441 1490x1    clip1
-text    ink.hi        365,1457   66x28   clip1 glyphs 7 "0:21:15"
-text    ink.mute      862,1459  675x25   clip1 glyphs 65 "Your overrides  ·  Refused for a problem: the content loaded before stays in use"
-line    rule          365,1501 1490x1    clip1
-text    ink.hi        365,1517   66x28   clip1 glyphs 7 "0:00:06"
-text    ink.mute      862,1519  523x25   clip1 glyphs 51 "Shipped content and your overrides  ·  Loaded, with 2 warnings"
-fill    ground.2      340,1596 1540x175  r5 clip1
-stroke  rule          340,1596 1540x175  r5 w1 clip1
-text    gold          365,1616   67x20   clip1 glyphs 7 "Related"
-line    rule          365,1646 1490x1    clip1
-text    ink.hi        380,1660   94x28   clip1 glyphs 9 "Named NPCs"
-text    ink.mute      862,1661  751x25   clip1 glyphs 74 "Every named character EldenNet voices: who they appear to be, and your own notes on them."
-text    gold         1820,1660    9x28   clip1 glyphs 1 "→"
-line    rule          365,1701 1490x1    clip1
-text    ink.hi        380,1715   38x28   clip1 glyphs 4 "Logs"
-text    ink.mute      862,1716  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
-text    gold         1820,1715    9x28   clip1 glyphs 1 "→"
+text    ink.mute      365, 799   34x25   clip1 glyphs 4 "File"
+text    ink.mute      862, 799   42x25   clip1 glyphs 5 "State"
+text    ink.mute     1193, 799   42x25   clip1 glyphs 5 "Where"
+text    ink.mute     1524, 799   59x25   clip1 glyphs 7 "Problem"
+line    rule          365, 829 1490x1    clip1
+text    ink.hi        365, 845  112x28   clip1 glyphs 12 "disable.toml"
+text    ink.body      862, 847  304x25   clip1 glyphs 31 "Not loaded: another file was refused"
+line    rule          365, 889 1490x1    clip1
+text    ink.hi        365, 905  262x28   clip1 glyphs 28 "layers/persona-ferryman.toml"
+text    ink.body      862, 907  304x25   clip1 glyphs 31 "Not loaded: another file was refused"
+line    rule          365, 949 1490x1    clip1
+text    ink.hi        365, 965  244x28   clip1 glyphs 26 "layers/persona-weaver.toml"
+text    ink.body      862, 967  304x25   clip1 glyphs 31 "Not loaded: another file was refused"
+line    rule          365,1009 1490x1    clip1
+text    ink.hi        365,1025  206x28   clip1 glyphs 22 "personas/ferryman.toml"
+text    ink.body      862,1027   59x25   clip1 glyphs 7 "Refused"
+text    ink.body     1193,1027   59x25   clip1 glyphs 6 "Line 12"
+text    ink.body     1524,1027  312x25   clip1 glyphs 32 "voice.cadence: is longer than 60 words"
+line    rule          365,1069 1490x1    clip1
+text    ink.hi        365,1085  150x28   clip1 glyphs 16 "drafts/old/a/b/c"
+text    ink.body      862,1087   68x25   clip1 glyphs 7 "Not read"
+text    ink.body     1524,1087  312x25   clip1 glyphs 30 "is a folder nested too deep: four levels are read"
+fill    ground.2      340,1164 1540x215  r5 clip1
+stroke  rule          340,1164 1540x215  r5 w1 clip1
+text    gold          365,1184   96x20   clip1 glyphs 9 "Turned off"
+text    ink.faint    1842,1184    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365,1209  447x25   clip1 glyphs 46 "What disable.toml in your overrides folder turns off."
+line    rule          365,1244 1490x1    clip1
+text    ink.hi        365,1260   75x28   clip1 glyphs 8 "Personas"
+text    ink.body      862,1262  110x25   clip1 glyphs 13 "heron_watcher"
+line    rule          365,1304 1490x1    clip1
+text    ink.hi        365,1320   47x28   clip1 glyphs 5 "Cards"
+text    ink.body      862,1322   84x25   clip1 glyphs 10 "salt_crier"
+fill    ground.2      340,1399 1540x253  r5 clip1
+stroke  rule          340,1399 1540x253  r5 w1 clip1
+text    gold          365,1419   67x20   clip1 glyphs 7 "Reloads"
+text    ink.faint    1842,1419    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365,1444  548x25   clip1 glyphs 56 "Each time EldenNet loaded its content this session, newest first."
+text    ink.mute      365,1487   34x25   clip1 glyphs 4 "Time"
+text    ink.mute      862,1487  101x25   clip1 glyphs 10 "What it read"
+text    ink.mute     1358,1487   51x25   clip1 glyphs 6 "Result"
+line    rule          365,1517 1490x1    clip1
+text    ink.hi        365,1533   66x28   clip1 glyphs 7 "0:21:15"
+text    ink.body      862,1535  118x25   clip1 glyphs 13 "Your overrides"
+text    ink.body     1358,1535  481x25   clip1 glyphs 48 "Refused for a problem: the content loaded before stays in use"
+line    rule          365,1577 1490x1    clip1
+text    ink.hi        365,1593   66x28   clip1 glyphs 7 "0:00:06"
+text    ink.body      862,1595  287x25   clip1 glyphs 30 "Shipped content and your overrides"
+text    ink.body     1358,1595  194x25   clip1 glyphs 20 "Loaded, with 2 warnings"
+fill    ground.2      340,1672 1540x175  r5 clip1
+stroke  rule          340,1672 1540x175  r5 w1 clip1
+text    gold          365,1692   67x20   clip1 glyphs 7 "Related"
+line    rule          365,1722 1490x1    clip1
+text    ink.hi        380,1736   94x28   clip1 glyphs 9 "Named NPCs"
+text    ink.mute      862,1737  751x25   clip1 glyphs 74 "Every named character EldenNet voices: who they appear to be, and your own notes on them."
+text    gold         1820,1736    9x28   clip1 glyphs 1 "→"
+line    rule          365,1777 1490x1    clip1
+text    ink.hi        380,1791   38x28   clip1 glyphs 4 "Logs"
+text    ink.mute      862,1792  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
+text    gold         1820,1791    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 fill    ground.well   340,1044   60x28   r3
 stroke  edge          340,1044   60x28   r3 w1
@@ -119,4 +131,4 @@ stroke  edge          466,1044   42x28   r3 w1
 text    ink.body      474,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     515,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi       362, 218 1496x26   r5 w3 clip1
-# 85 items, 3176 vertices, 6120 indices, 4 commands; check_draw_list: passes
+# 90 items, 3244 vertices, 6222 indices, 4 commands; check_draw_list: passes
