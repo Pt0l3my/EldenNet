@@ -1870,11 +1870,15 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     to 0.2.55 once Logs' Level filter takes words of its own, which go to the owner first. Home's first focus leaves the
     Pause AI switch, so a stray Enter after F5 pauses nothing (amending D256); a cut cell ends in "…". With no body
     control yet, the first focus is the first section's label. EldenNet's next pin takes 0.2.54 and 0.2.55.
-- bp The Bug report's copy and save through GraceUI's share (GraceUI's proposal 0015; GraceUI 0.2.56, protocol 1.19) [planned]
+- bp The Bug report's copy and save through GraceUI's share (GraceUI's proposal 0015; GraceUI 0.2.56, protocol 1.19) [done]
   - refs: GraceUI:docs/proposals/0015-report-copy-and-save.md, WHY§653, PAGES§4.6.8
   - gives: GraceUI's D263, settled on 2026-11-25 in EldenNet's formats (WHY§653): the scanned report as the preview's
     `share`, the clipboard GraceUI's in both views, `report.save` EldenNet's in game and a download in the browser,
     neither text nor buttons on a paired device. For EldenNet's 0.6 Bug report, or sooner.
+    Built the same day (GraceUI feat/foundations e62f0ca; GraceUI's docs/eldennet-changes.md §89): `share = { copy =
+    true, save = "report.save" }` on the preview block, `report.save` sensitive and not a file command, the block's topic
+    the space's own; a device receives no `share` for any topic a report preview draws. EldenNet's floor for it is
+    0.2.56. Copy alone also serves Workshop's unknown characters' TOML.
 - bq This-PC-only pages and topics, and page data above GraceUI's minor refused at registration (GraceUI 0.2.57, protocol 1.20) [next]
   - refs: GraceUI:D258, WHY§653, PAGES§4.6.8, O132
   - gives: GraceUI's D264, agreed on 2026-11-25 from EldenNet's Workshop survey: a page's `pc_only` keeps it out of a
