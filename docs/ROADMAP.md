@@ -1827,12 +1827,15 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     a row's drawer; a page's header action may be a switch on a state topic's boolean. EldenNet's next pin (after
     S11.4.a's System pages) takes 0.2.49: Docs' exit dropped, Requests' Why and Text shown in the drawer, Home's Pause AI
     chip beside the quick switch.
+    Taken by EldenNet's pin of 2026-11-25 at 0.2.53 (engine 6b92444; WHY§646, §647, §650).
 - bj Live feeds and log tails drawn in game, and a filter bar on a stream (GraceUI 0.2.50, protocol 1.16) [done]
   - refs: GraceUI:D257, PAGES§4.6.7
   - gives: built on 2026-11-24 (GraceUI feat/foundations 789a17f; GraceUI's docs/eldennet-changes.md §83): in game a
     stream shows its newest 200 rows, each with its time, wrapped (System › Logs and any feed on Home); a log tail may
     carry a filter bar (a `level` filter and a search on the line), standing in for PAGES §4.6.7's level tiles as one
     control in both views. EldenNet's next pin takes it with 0.2.49, a `level` on each log row.
+    Taken by EldenNet's pin of 2026-11-25 at 0.2.53 (engine 6b92444; WHY§646, §651): EldenNet's GraceUI floor is 0.2.50,
+    the first whose page check takes a filter bar on a stream.
 - bk A page in the browser alone, shown with a setting, behind a gate, with a ribbon (GraceUI 0.2.51, protocol 1.17) [done]
   - refs: GraceUI:D258, PAGES§4.6.8, PAGES§4.9
   - gives: built on 2026-11-24 (GraceUI feat/foundations 337b143; GraceUI's docs/eldennet-changes.md §84) for
@@ -1854,7 +1857,21 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: built on 2026-11-25 (GraceUI main 7fa3042; GraceUI's docs/eldennet-changes.md §86). In grace-view alone, with no change to EldenNet's page data: the in-game table gets a header line and a slot
     per column (numbers right-aligned; a missing cell leaves its slot empty), or each value with its column's label when
     slots would be too narrow; a computed sentence and a section's description wrap to the card; a tile's unit drawn in
-    the small face. EldenNet's pin takes 0.2.49 to 0.2.53 together, its goldens moving once.
+    the small face. Taken with 0.2.49 to 0.2.52 by EldenNet's pin of 2026-11-25 (engine 6b92444; WHY§652).
+- bn Wrapped in game: a page's description, a statement, a key-value list's value and a focused setting's help (GraceUI 0.2.54) [active]
+  - refs: GraceUI:D260, WHY§642, PAGES§4.6
+  - gives: GraceUI's D261, in its full run on 2026-11-25; in grace-view alone, with no change to EldenNet's page data.
+    EldenNet's goldens move with it at the next pin.
+- bo The points from EldenNet's 0.2.53 pin: a stream's rows in grace-dev's dump, words for an unpaged filter's values, no drawer for an empty row, a stream's bar with or without rows, a page's first focus in its body, slots by their widest values (GraceUI 0.2.55) [next]
+  - refs: GraceUI:D260, WHY§648, WHY§649, WHY§650, WHY§651, WHY§652, PAGES§4.6.7
+  - gives: GraceUI's D262, agreed on 2026-11-25. An unpaged filter's `choices` (protocol 1.18) raises EldenNet's floor
+    to 0.2.55 once Logs' Level filter takes words of its own, which go to the owner first. Home's first focus leaves the
+    Pause AI switch, so a stray Enter after F5 pauses nothing (amending D256); a cut cell ends in "…".
+- bp The Bug report's copy and save through GraceUI's share (GraceUI's proposal 0015; GraceUI 0.2.56) [planned]
+  - refs: GraceUI:docs/proposals/0015-report-copy-and-save.md, WHY§653, PAGES§4.6.8
+  - gives: GraceUI's D263, settled on 2026-11-25 in EldenNet's formats (WHY§653): the scanned report as the preview's
+    `share`, the clipboard GraceUI's in both views, `report.save` EldenNet's in game and a download in the browser,
+    neither text nor buttons on a paired device. For EldenNet's 0.6 Bug report, or sooner.
 
 ### S11.3 EldenNet v0.2
 
@@ -2035,6 +2052,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Frame cost and memory are left out until a source exists: GraceUI 0.2.52's `on_present` (S11.2.bl) gives the first.
     The fake game's suite under Wine: 145 of 145. Its words, and whether Traces holds its p90 or its p95 to C5's target,
     put to the owner (O128). Left: Tools › Workshop, on GraceUI 0.2.51 (S11.2.bk).
+    The owner chose the 90th percentile and accepted the words as built on 2026-11-25 (O128).
+    GraceUI 0.2.53's pin on 2026-11-25 (engine 361fd65 and 4058eb0, merged at 6b92444; WHY§646 to §652), taking 0.2.49 to
+    0.2.53 together: Docs' exit dropped; Requests' Why and Text shown and Home's card's Text shown in row drawers, each
+    row keyed by its call's id; Home's Pause AI header switch beside the quick switch; Logs' filter bar on each row's
+    own level, and Logs in game; in-game tables with a header line and slots; Traces at its 90th percentile from 10
+    lines on. EldenNet's GraceUI floor is 0.2.50, page data minor 16. The fake game's suite under Wine: 145 of 145.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
