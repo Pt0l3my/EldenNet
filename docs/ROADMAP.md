@@ -1875,6 +1875,18 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: GraceUI's D263, settled on 2026-11-25 in EldenNet's formats (WHY§653): the scanned report as the preview's
     `share`, the clipboard GraceUI's in both views, `report.save` EldenNet's in game and a download in the browser,
     neither text nor buttons on a paired device. For EldenNet's 0.6 Bug report, or sooner.
+- bq This-PC-only pages and topics, and page data above GraceUI's minor refused at registration (GraceUI 0.2.57, protocol 1.20) [next]
+  - refs: GraceUI:D258, WHY§653, PAGES§4.6.8, O132
+  - gives: GraceUI's D264, agreed on 2026-11-25 from EldenNet's Workshop survey: a page's `pc_only` keeps it out of a
+    paired device's view and page data, a topic's `pc_only` refuses a device's watch ("Only on the PC the game runs
+    on."), checked so that such a topic is drawn on such pages alone and a setting homed there is sensitive; and
+    register_pages refuses page data whose minor its GraceUI does not have, in its log and its one notice. Workshop
+    takes both marks at the pin after it (O132: not released before).
+- br A space check of the browser view over a consumer's space folder (GraceUI 0.2.58) [planned]
+  - refs: GraceUI:D258, PAGES§4.6.8
+  - gives: GraceUI's D265, planned on 2026-11-25: `npm run check:space` runs the real browser view over GraceUI's fake
+    host with a space's fixtures and prints a text dump per page and state (shown_with on and off, a gate before and
+    after its confirm), with the contrast, CSP and console checks; EldenNet keeps the dump as a golden of its own.
 
 ### S11.3 EldenNet v0.2
 
