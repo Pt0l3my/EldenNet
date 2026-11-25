@@ -226,6 +226,7 @@ TEST_CASE("overlay: the F11 view: its atlas before any submit, a hidden panel, F
   g.press("debug-view", 3);
   s = o->step(status());
   CHECK(o->view_open());
+  CHECK(g.present_sets == 0);  // its lists are submitted, never drawn each frame (ABI 1.8's on_present, D259)
 }
 
 TEST_CASE("overlay: a view that cannot be made leaves the connection as it is") {
@@ -300,7 +301,7 @@ TEST_CASE("overlay: poll passes over the display's event and any kind it does no
   CHECK(s.view_presses == 1);
   CHECK(o->view_open());
   CHECK(g.events.empty());  // everything waiting was taken
-  // Asked at the vendored header's size, ABI 1.7's.
+  // Asked at the vendored header's size, ABI 1.8's (the event unchanged since 1.7).
   CHECK(g.poll_sizes.count(static_cast<std::uint32_t>(sizeof(GraceUiEvent))) == 1);
 
   // A GraceUI without the holder's events is asked at 0.1's size, and never gives the display's.

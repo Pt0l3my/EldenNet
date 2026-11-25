@@ -93,6 +93,12 @@ typedef struct GraceUiTestState {
   /* Appended for the in-game spikes (D175): */
   uint32_t present_prologue;      /* GRACEUI_TEST_PROLOGUE_*: Present's first bytes as GraceUI found them at install */
   uint32_t reserved2;
+  /* Appended for the on_present callbacks (ABI 1.8, D259): */
+  uint64_t present_calls;         /* callbacks called on the present thread */
+  uint64_t present_drawn;         /* lists a callback gave that were checked and drawn */
+  uint64_t present_refused;       /* lists a callback gave that did not fit their hook or failed the check */
+  uint32_t present_hooks;         /* callbacks set now */
+  uint32_t present_suspended;     /* mods whose callbacks were suspended this session (budget or exception) */
 } GraceUiTestState;
 
 /* What Present's first bytes held when GraceUI installed its hook (D86's cue that another hook was there first). */

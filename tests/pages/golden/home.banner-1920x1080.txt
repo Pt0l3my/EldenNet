@@ -29,73 +29,73 @@ text    ink.body     1641,  15  118x25   glyphs 13 "Quick switches"
 fill    ground.well  1471,  10  140x35   r3
 text    ink.body     1486,  15  110x25   glyphs 12 "Updates: Live"
 line    rule          300,  55 1620x1   
-text    ink.hi        340,-245   80x45   clip1 glyphs 4 "Home"
-text    ink.mute      340,-195  810x25   clip1 glyphs 76 "Whether EldenNet is working on this game, what to do if it is not, and what it asked of a model."
-line    rule.strong   340,-155 1540x1    clip1
-diamond gold.deep     340,-160   11x11   w1 clip1
-fill    ground.3      340,-130 1540x55   r3 clip1
-fill    ember         340,-130    4x55   clip1
-text    ink.hi        360,-116  534x28   clip1 glyphs 50 "EldenNet inactive: game build 3.14.15.0 not supported yet"
-fill    ground.2      340, -55 1540x490  r5 clip1
-stroke  rule          340, -55 1540x490  r5 w1 clip1
-text    gold          365, -35   58x20   clip1 glyphs 6 "Status"
-text    ink.faint    1842, -35    8x25   clip1 glyphs 1 "-"
-line    rule          365,   0 1490x1    clip1
-text    ink.hi        365,  16   47x28   clip1 glyphs 5 "State"
-text    ink.body      862,  18   68x25   clip1 glyphs 8 "Inactive"
-line    rule          365,  60 1490x1    clip1
-text    ink.hi        365,  76   28x28   clip1 glyphs 3 "Why"
-text    ink.body      862,  78  481x25   clip1 glyphs 50 "EldenNet inactive: game build 3.14.15.0 not supported yet"
-line    rule          365, 120 1490x1    clip1
-text    ink.hi        365, 136   75x28   clip1 glyphs 8 "EldenNet"
-text    ink.body      862, 138   42x25   clip1 glyphs 5 "0.1.0"
-line    rule          365, 180 1490x1    clip1
-text    ink.hi        365, 196   66x28   clip1 glyphs 7 "GraceUI"
-text    ink.body      862, 198   51x25   clip1 glyphs 6 "0.2.12"
-line    rule          365, 240 1490x1    clip1
-text    ink.hi        365, 256   94x28   clip1 glyphs 9 "Game build"
-text    ink.body      862, 258  236x25   clip1 glyphs 25 "3.14.15.0, not supported yet"
-line    rule          365, 300 1490x1    clip1
-text    ink.hi        365, 316  112x28   clip1 glyphs 11 "This session"
-text    ink.body      862, 318  118x25   clip1 glyphs 12 "Under a minute"
-line    rule          365, 360 1490x1    clip1
-text    ink.hi        365, 376   75x28   clip1 glyphs 7 "Pause AI"
-text    ink.body      862, 378   25x25   clip1 glyphs 3 "Off"
-fill    ground.2      340, 455 1540x190  r5 clip1
-stroke  rule          340, 455 1540x190  r5 w1 clip1
-text    gold          365, 475   77x20   clip1 glyphs 8 "Problems"
-text    ink.faint    1842, 475    8x25   clip1 glyphs 1 "-"
-line    rule          365, 510 1490x1    clip1
-text    rot           365, 528   51x25   clip1 glyphs 6 "Failed"
-text    ink.body      503, 526  534x28   clip1 glyphs 50 "EldenNet inactive: game build 3.14.15.0 not supported yet"
-text    ink.mute     1057, 528  793x25   clip1 glyphs 77 "An update of EldenNet adds this build once it has been checked. The game itself runs as usual."
-line    rule          365, 570 1490x1    clip1
-text    ember         365, 588   59x25   clip1 glyphs 7 "Warning"
-text    ink.body      503, 586  600x28   clip1 glyphs 54 "Your settings file has a problem, so EldenNet uses its defaults."
-text    ink.mute     1123, 588  726x25   clip1 glyphs 72 "System › Logs names the setting. Correct it in settings.toml, then start the game again."
-fill    ground.2      340, 665 1540x215  r5 clip1
-stroke  rule          340, 665 1540x215  r5 w1 clip1
-text    gold          365, 685  106x20   clip1 glyphs 10 "Model calls"
-text    ink.faint    1842, 685    8x25   clip1 glyphs 1 "-"
-text    ink.mute      365, 710  818x25   clip1 glyphs 79 "The last 20 calls to a model, newest first. A reply's text shows only once it reached the screen."
-line    rule          365, 745 1490x1    clip1
-text    ink.mute      365, 760  262x25   clip1 glyphs 26 "No model call yet this session."
-text    ink.body      365, 820  540x25   clip1 glyphs 54 "In the last hour: no own-initiative calls, and no requests sent."
-fill    ground.2      340, 900 1540x230  r5 clip1
-stroke  rule          340, 900 1540x230  r5 w1 clip1
-text    gold          365, 920   67x20   clip1 glyphs 7 "Related"
-line    rule          365, 950 1490x1    clip1
-text    ink.hi        380, 964   56x28   clip1 glyphs 6 "Status"
-text    ink.mute      862, 965  599x25   clip1 glyphs 58 "Whether EldenNet is healthy on this PC and game build, and if not, why."
-text    gold         1820, 964    9x28   clip1 glyphs 1 "→"
-line    rule          365,1005 1490x1    clip1
-text    ink.hi        380,1019   75x28   clip1 glyphs 8 "Requests"
-text    ink.mute      862,1020  692x25   clip1 glyphs 69 "Every model call this session and what it cost, without the prompts EldenNet sent."
-text    gold         1820,1019    9x28   clip1 glyphs 1 "→"
-line    rule          365,1060 1490x1    clip1
-text    ink.hi        380,1074   38x28   clip1 glyphs 4 "Logs"
-text    ink.mute      862,1075  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
-text    gold         1820,1074    9x28   clip1 glyphs 1 "→"
+text    ink.hi        340,  86   80x45   clip1 glyphs 4 "Home"
+text    ink.mute      340, 136  810x25   clip1 glyphs 76 "Whether EldenNet is working on this game, what to do if it is not, and what it asked of a model."
+line    rule.strong   340, 176 1540x1    clip1
+diamond gold.deep     340, 171   11x11   w1 clip1
+fill    ground.3      340, 201 1540x55   r3 clip1
+fill    ember         340, 201    4x55   clip1
+text    ink.hi        360, 215  534x28   clip1 glyphs 50 "EldenNet inactive: game build 3.14.15.0 not supported yet"
+fill    ground.2      340, 276 1540x490  r5 clip1
+stroke  rule          340, 276 1540x490  r5 w1 clip1
+text    gold          365, 296   58x20   clip1 glyphs 6 "Status"
+text    ink.faint    1842, 296    8x25   clip1 glyphs 1 "-"
+line    rule          365, 331 1490x1    clip1
+text    ink.hi        365, 347   47x28   clip1 glyphs 5 "State"
+text    ink.body      862, 349   68x25   clip1 glyphs 8 "Inactive"
+line    rule          365, 391 1490x1    clip1
+text    ink.hi        365, 407   28x28   clip1 glyphs 3 "Why"
+text    ink.body      862, 409  481x25   clip1 glyphs 50 "EldenNet inactive: game build 3.14.15.0 not supported yet"
+line    rule          365, 451 1490x1    clip1
+text    ink.hi        365, 467   75x28   clip1 glyphs 8 "EldenNet"
+text    ink.body      862, 469   42x25   clip1 glyphs 5 "0.1.0"
+line    rule          365, 511 1490x1    clip1
+text    ink.hi        365, 527   66x28   clip1 glyphs 7 "GraceUI"
+text    ink.body      862, 529   51x25   clip1 glyphs 6 "0.2.12"
+line    rule          365, 571 1490x1    clip1
+text    ink.hi        365, 587   94x28   clip1 glyphs 9 "Game build"
+text    ink.body      862, 589  236x25   clip1 glyphs 25 "3.14.15.0, not supported yet"
+line    rule          365, 631 1490x1    clip1
+text    ink.hi        365, 647  112x28   clip1 glyphs 11 "This session"
+text    ink.body      862, 649  118x25   clip1 glyphs 12 "Under a minute"
+line    rule          365, 691 1490x1    clip1
+text    ink.hi        365, 707   75x28   clip1 glyphs 7 "Pause AI"
+text    ink.body      862, 709   25x25   clip1 glyphs 3 "Off"
+fill    ground.2      340, 786 1540x190  r5 clip1
+stroke  rule          340, 786 1540x190  r5 w1 clip1
+text    gold          365, 806   77x20   clip1 glyphs 8 "Problems"
+text    ink.faint    1842, 806    8x25   clip1 glyphs 1 "-"
+line    rule          365, 841 1490x1    clip1
+text    rot           365, 859   51x25   clip1 glyphs 6 "Failed"
+text    ink.body      503, 857  534x28   clip1 glyphs 50 "EldenNet inactive: game build 3.14.15.0 not supported yet"
+text    ink.mute     1057, 859  793x25   clip1 glyphs 77 "An update of EldenNet adds this build once it has been checked. The game itself runs as usual."
+line    rule          365, 901 1490x1    clip1
+text    ember         365, 919   59x25   clip1 glyphs 7 "Warning"
+text    ink.body      503, 917  600x28   clip1 glyphs 54 "Your settings file has a problem, so EldenNet uses its defaults."
+text    ink.mute     1123, 919  726x25   clip1 glyphs 72 "System › Logs names the setting. Correct it in settings.toml, then start the game again."
+fill    ground.2      340, 996 1540x215  r5 clip1
+stroke  rule          340, 996 1540x215  r5 w1 clip1
+text    gold          365,1016  106x20   clip1 glyphs 10 "Model calls"
+text    ink.faint    1842,1016    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365,1041  818x25   clip1 glyphs 79 "The last 20 calls to a model, newest first. A reply's text shows only once it reached the screen."
+line    rule          365,1076 1490x1    clip1
+text    ink.mute      365,1091  262x25   clip1 glyphs 26 "No model call yet this session."
+text    ink.body      365,1151  540x25   clip1 glyphs 54 "In the last hour: no own-initiative calls, and no requests sent."
+fill    ground.2      340,1231 1540x230  r5 clip1
+stroke  rule          340,1231 1540x230  r5 w1 clip1
+text    gold          365,1251   67x20   clip1 glyphs 7 "Related"
+line    rule          365,1281 1490x1    clip1
+text    ink.hi        380,1295   56x28   clip1 glyphs 6 "Status"
+text    ink.mute      862,1296  599x25   clip1 glyphs 58 "Whether EldenNet is healthy on this PC and game build, and if not, why."
+text    gold         1820,1295    9x28   clip1 glyphs 1 "→"
+line    rule          365,1336 1490x1    clip1
+text    ink.hi        380,1350   75x28   clip1 glyphs 8 "Requests"
+text    ink.mute      862,1351  692x25   clip1 glyphs 69 "Every model call this session and what it cost, without the prompts EldenNet sent."
+text    gold         1820,1350    9x28   clip1 glyphs 1 "→"
+line    rule          365,1391 1490x1    clip1
+text    ink.hi        380,1405   38x28   clip1 glyphs 4 "Logs"
+text    ink.mute      862,1406  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
+text    gold         1820,1405    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 fill    ground.well   340,1044   60x28   r3
 stroke  edge          340,1044   60x28   r3 w1
@@ -105,5 +105,5 @@ fill    ground.well   466,1044   42x28   r3
 stroke  edge          466,1044   42x28   r3 w1
 text    ink.body      474,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     515,1045   34x25   glyphs 4 "Back"
-stroke  gold.hi       362, 947 1496x61   r5 w3 clip1
-# 107 items, 5088 vertices, 9684 indices, 4 commands; check_draw_list: passes
+stroke  gold.hi       362, 293 1496x26   r5 w3 clip1
+# 88 items, 3504 vertices, 7026 indices, 4 commands; check_draw_list: passes

@@ -57,13 +57,6 @@ PAGES = (("home", "title"), ("system.status", "title"), ("system.logs", "title")
          ("home", "world"), ("system.performance", "title"), ("system.performance", "world"),
          ("system.traces", "title"), ("system.traces", "world"))
 SIZE = "1920x1080"
-# A page whose in-game list grace-dev's dump finds longer than a mod's draw list may be (check_draw_list: refused, and
-# grace-dev exits 1): since GraceUI 0.2.46 (D253) Docs draws the chosen document whole, and Getting started's text is
-# more vertices than a submission's 256 KiB. The menu's list is GraceUI's own, never a mod's submission, so its golden
-# records the dump's verdict and the exit is taken for it, on this page alone and with that verdict alone (asked of
-# Grace, 2026-11-24). Any other page so refused, or any other exit, fails.
-OVER_LIST = {"docs"}
-OVER_VERDICT = "check_draw_list: refused (more vertices, indices or commands than a list may hold)"
 INCREMENT = "0.2"  # en-overlay's kIncrement: the AI pages'
 
 
@@ -171,9 +164,9 @@ def main(argv):
             continue
         done = subprocess.run([args.grace_dev, "--dump", "eldennet", page, "--size", SIZE, "--space-dir",
                                str(args.work / state)], capture_output=True, text=True, encoding="utf-8")
-        over = (done.returncode == 1 and page in OVER_LIST and
-                done.stdout.rstrip("\n").rsplit("\n", 1)[-1].endswith(OVER_VERDICT))
-        if done.returncode != 0 and not over:
+        # Every dump within a mod's draw-list limits, Docs' too: since GraceUI 0.2.49 what is out of view costs nothing
+        # (D256 1), so its document drawn whole (D253) no longer exits 1, and no page's exit is taken.
+        if done.returncode != 0:
             failures.append("--dump %s: exit %d: %s" % (page, done.returncode, done.stderr.strip()))
             continue
         first = next(s for p, s in PAGES if p == page)

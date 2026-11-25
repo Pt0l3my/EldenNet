@@ -488,9 +488,12 @@ TEST_CASE("chat: what pressed the talk hotkey (ABI 1.7): the chord alone opens b
     CHECK(via == proto::OpenVia::TalkKey);
     CHECK(s.o->surfaces()->counts().swallowed == 1);
   }
-  // An older GraceUI (no "hotkey-by"): 0 whatever pressed it, taken as the key, as before 0.2.38.
+  // An older GraceUI (no "hotkey-by", nor 0.2.52's "on-present"): 0 whatever pressed it, taken as the key, as before
+  // 0.2.38.
   fake::Grace g;
-  g.caps.pop_back();
+  for (const char* later : {"hotkey-by", "on-present"}) {
+    g.caps.erase(std::remove(g.caps.begin(), g.caps.end(), std::string(later)), g.caps.end());
+  }
   REQUIRE(std::find(g.caps.begin(), g.caps.end(), "hotkey-by") == g.caps.end());
   Report r;
   auto o = connect(g, options(), r);

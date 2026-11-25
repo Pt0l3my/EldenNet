@@ -89,8 +89,8 @@ if(EN_BUILD_TESTS)
     # what the drafts build; its tests feed it invented drafts, each outside the format in its own way.
     add_test(NAME en_docs_build COMMAND ${Python3_EXECUTABLE} -I ${PROJECT_SOURCE_DIR}/tools/docs/build.py --check)
     add_test(NAME en_docs_tests COMMAND ${Python3_EXECUTABLE} -I ${PROJECT_SOURCE_DIR}/tools/docs/test_build.py)
-    set(EN_GRACEUI_SOURCE "" CACHE PATH "A GraceUI checkout at the pinned commit (fe7d9db), for its page lint")
-    set(EN_GRACE_DEV "" CACHE FILEPATH "grace-dev from a Linux build of GraceUI at the pinned commit (fe7d9db)")
+    set(EN_GRACEUI_SOURCE "" CACHE PATH "A GraceUI checkout at the pinned commit (832b8d9), for its page lint")
+    set(EN_GRACE_DEV "" CACHE FILEPATH "grace-dev from a Linux build of GraceUI at the pinned commit (832b8d9)")
     if(EN_GRACEUI_SOURCE)
       add_test(NAME en_pages_lint COMMAND ${Python3_EXECUTABLE} -I ${PROJECT_SOURCE_DIR}/tests/pages/lint.py
         --graceui ${EN_GRACEUI_SOURCE} ${CMAKE_CURRENT_SOURCE_DIR}/pages/space.toml)

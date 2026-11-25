@@ -38,7 +38,7 @@ fill    ground.2      340, 201 1540x130  r5 clip1
 stroke  rule          340, 201 1540x130  r5 w1 clip1
 text    gold          365, 221   29x20   clip1 glyphs 3 "Log"
 text    ink.faint    1842, 221    8x25   clip1 glyphs 1 "-"
-text    ink.mute      365, 271  219x25   clip1 glyphs 22 "Shown in the browser view."
+text    ink.mute      365, 271  135x25   clip1 glyphs 14 "Nothing to show."
 fill    ground.2      340, 351 1540x155  r5 clip1
 stroke  rule          340, 351 1540x155  r5 w1 clip1
 text    gold          365, 371   96x20   clip1 glyphs 9 "Log detail"
@@ -81,4 +81,4 @@ stroke  edge          687,1044   42x28   r3 w1
 text    ink.body      695,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     736,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi      1502, 414  356x44   r5 w3 clip1
-# 82 items, 2924 vertices, 6468 indices, 4 commands; check_draw_list: passes
+# 82 items, 2892 vertices, 6420 indices, 4 commands; check_draw_list: passes

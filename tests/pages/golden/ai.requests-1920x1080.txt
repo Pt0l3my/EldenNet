@@ -32,97 +32,97 @@ text    ink.body     1641,  15  118x25   glyphs 13 "Quick switches"
 fill    ground.well  1471,  10  140x35   r3
 text    ink.body     1486,  15  110x25   glyphs 12 "Updates: Live"
 line    rule          300,  55 1620x1   
-text    ink.hi        340, -85  159x45   clip1 glyphs 8 "Requests"
-text    ink.mute      340, -35  692x25   clip1 glyphs 69 "Every model call this session and what it cost, without the prompts EldenNet sent."
-line    rule.strong   340,   5 1540x1    clip1
-diamond gold.deep     340,   0   11x11   w1 clip1
-fill    ground.2      340,  30 1540x130  r5 clip1
-stroke  rule          340,  30 1540x130  r5 w1 clip1
-text    gold          365,  50   29x20   clip1 glyphs 3 "Now"
-text    ink.faint    1842,  50    8x25   clip1 glyphs 1 "-"
-text    ink.body      365, 100  768x25   clip1 glyphs 79 "NPCs speak once a model answers Conversation. The self-test checks your provider meanwhile."
-fill    ground.2      340, 180 1540x235  r5 clip1
-stroke  rule          340, 180 1540x235  r5 w1 clip1
-text    gold          365, 200  115x20   clip1 glyphs 11 "This session"
-text    ink.faint    1842, 200    8x25   clip1 glyphs 1 "-"
-fill    ground.3      365, 243  286x90   r3 clip1
-text    ink.mute      380, 253   42x25   clip1 glyphs 5 "Calls"
-text    ink.hi        380, 278   14x35   clip1 glyphs 1 "5"
-fill    ground.3      666, 243  286x90   r3 clip1
-text    ink.mute      681, 253   76x25   clip1 glyphs 8 "Tokens in"
-text    ink.hi        681, 278   43x35   clip1 glyphs 3 "184"
-fill    ground.3      967, 243  286x90   r3 clip1
-text    ink.mute      982, 253   84x25   clip1 glyphs 9 "Tokens out"
-text    ink.hi        982, 278   29x35   clip1 glyphs 2 "42"
-fill    ground.3     1268, 243  286x90   r3 clip1
-text    ink.mute     1283, 253   68x25   clip1 glyphs 8 "Failures"
-text    ink.hi       1283, 278   14x35   clip1 glyphs 1 "0"
-fill    ground.3     1569, 243  286x90   r3 clip1
-text    ink.mute     1584, 253  202x25   clip1 glyphs 22 "Own-initiative this hour"
-text    ink.hi       1584, 278   14x35   clip1 glyphs 1 "0"
-text    ink.body      365, 355  827x25   clip1 glyphs 80 "In the last hour: no own-initiative calls, and 6 of the 600 requests EldenNet may send in an hour."
-fill    ground.2      340, 435 1540x445  r5 clip1
-stroke  rule          340, 435 1540x445  r5 w1 clip1
-text    gold          365, 455   48x20   clip1 glyphs 5 "Calls"
-text    ink.faint    1842, 455    8x25   clip1 glyphs 1 "-"
-text    ink.mute      365, 480  759x25   clip1 glyphs 74 "Newest first. No prompt is ever shown, and a reply's text only once it reached the screen."
-text    ink.mute      365, 525   25x25   clip1 glyphs 3 "Job"
-fill    ground.well   400, 520  120x35   r3 clip1
-stroke  edge          400, 520  120x35   r3 w1 clip1
-text    ink.faint     410, 525    8x25   clip1 glyphs 1 "‹"
-text    ink.hi        428, 525   25x25   clip1 glyphs 3 "All"
-text    ink.faint     500, 525    8x25   clip1 glyphs 1 "›"
-text    ink.mute      540, 525   59x25   clip1 glyphs 7 "Purpose"
-fill    ground.well   609, 520  120x35   r3 clip1
-stroke  edge          609, 520  120x35   r3 w1 clip1
-text    ink.faint     619, 525    8x25   clip1 glyphs 1 "‹"
-text    ink.hi        637, 525   25x25   clip1 glyphs 3 "All"
-text    ink.faint     709, 525    8x25   clip1 glyphs 1 "›"
-text    ink.mute      749, 525   59x25   clip1 glyphs 7 "Outcome"
-fill    ground.well   818, 520  120x35   r3 clip1
-stroke  edge          818, 520  120x35   r3 w1 clip1
-text    ink.faint     828, 525    8x25   clip1 glyphs 1 "‹"
-text    ink.hi        846, 525   25x25   clip1 glyphs 3 "All"
-text    ink.faint     918, 525    8x25   clip1 glyphs 1 "›"
-text    ink.mute      958, 525   34x25   clip1 glyphs 4 "Sort"
-fill    ground.well  1002, 520  120x35   r3 clip1
-stroke  edge         1002, 520  120x35   r3 w1 clip1
-text    ink.faint    1012, 525    8x25   clip1 glyphs 1 "‹"
-text    ink.hi       1030, 525   34x25   clip1 glyphs 4 "Time"
-text    ink.faint    1102, 525    8x25   clip1 glyphs 1 "›"
-stroke  edge         1142, 520   35x35   r3 w1 clip1
-fill    ink.hi       1159, 530    2x9    clip1
-tri     ink.hi       1153, 538   14x7    clip1 v
-line    rule          365, 565 1490x1    clip1
-text    ink.hi        365, 581   66x28   clip1 glyphs 7 "0:11:45"
-text    ink.mute      862, 583  422x25   clip1 glyphs 36 "model list  ·  lantern-box  ·  0.14 s  ·  answered"
-line    rule          365, 625 1490x1    clip1
-text    ink.hi        365, 641   66x28   clip1 glyphs 7 "0:11:45"
-text    ink.mute      862, 643  413x25   clip1 glyphs 35 "model list  ·  openrouter  ·  0.61 s  ·  answered"
-line    rule          365, 685 1490x1    clip1
-text    ink.hi        365, 701   66x28   clip1 glyphs 7 "0:11:30"
-text    ink.mute      862, 703  818x25   clip1 glyphs 69 "Self-test  ·  self-test  ·  talker-small on openrouter  ·  0.38 s  ·  1.02 s  ·  120  ·  answered"
-line    rule          365, 745 1490x1    clip1
-text    ink.hi        365, 761   66x28   clip1 glyphs 7 "0:11:30"
-text    ink.mute      862, 763  818x25   clip1 glyphs 69 "Self-test  ·  self-test  ·  talker-small on openrouter  ·  0.42 s  ·  0.59 s  ·  106  ·  answered"
-line    rule          365, 805 1490x1    clip1
-text    ink.hi        365, 821   66x28   clip1 glyphs 7 "0:11:30"
-text    ink.mute      862, 823  405x25   clip1 glyphs 35 "self-test  ·  openrouter  ·  0.30 s  ·  answered"
-fill    ground.2      340, 900 1540x230  r5 clip1
-stroke  rule          340, 900 1540x230  r5 w1 clip1
-text    gold          365, 920   67x20   clip1 glyphs 7 "Related"
-line    rule          365, 950 1490x1    clip1
-text    ink.hi        380, 964   56x28   clip1 glyphs 6 "Models"
-text    ink.mute      862, 965  515x25   clip1 glyphs 50 "Which model does each job, and the preset that sets them all."
-text    gold         1820, 964    9x28   clip1 glyphs 1 "→"
-line    rule          365,1005 1490x1    clip1
-text    ink.hi        380,1019   56x28   clip1 glyphs 6 "Traces"
-text    ink.mute      862,1020  472x25   clip1 glyphs 46 "How long each line took, from its request to the screen."
-text    gold         1820,1019    9x28   clip1 glyphs 1 "→"
-line    rule          365,1060 1490x1    clip1
-text    ink.hi        380,1074   38x28   clip1 glyphs 4 "Logs"
-text    ink.mute      862,1075  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
-text    gold         1820,1074    9x28   clip1 glyphs 1 "→"
+text    ink.hi        340,  86  159x45   clip1 glyphs 8 "Requests"
+text    ink.mute      340, 136  692x25   clip1 glyphs 69 "Every model call this session and what it cost, without the prompts EldenNet sent."
+line    rule.strong   340, 176 1540x1    clip1
+diamond gold.deep     340, 171   11x11   w1 clip1
+fill    ground.2      340, 201 1540x130  r5 clip1
+stroke  rule          340, 201 1540x130  r5 w1 clip1
+text    gold          365, 221   29x20   clip1 glyphs 3 "Now"
+text    ink.faint    1842, 221    8x25   clip1 glyphs 1 "-"
+text    ink.body      365, 271  768x25   clip1 glyphs 79 "NPCs speak once a model answers Conversation. The self-test checks your provider meanwhile."
+fill    ground.2      340, 351 1540x235  r5 clip1
+stroke  rule          340, 351 1540x235  r5 w1 clip1
+text    gold          365, 371  115x20   clip1 glyphs 11 "This session"
+text    ink.faint    1842, 371    8x25   clip1 glyphs 1 "-"
+fill    ground.3      365, 414  286x90   r3 clip1
+text    ink.mute      380, 424   42x25   clip1 glyphs 5 "Calls"
+text    ink.hi        380, 449   14x35   clip1 glyphs 1 "5"
+fill    ground.3      666, 414  286x90   r3 clip1
+text    ink.mute      681, 424   76x25   clip1 glyphs 8 "Tokens in"
+text    ink.hi        681, 449   43x35   clip1 glyphs 3 "184"
+fill    ground.3      967, 414  286x90   r3 clip1
+text    ink.mute      982, 424   84x25   clip1 glyphs 9 "Tokens out"
+text    ink.hi        982, 449   29x35   clip1 glyphs 2 "42"
+fill    ground.3     1268, 414  286x90   r3 clip1
+text    ink.mute     1283, 424   68x25   clip1 glyphs 8 "Failures"
+text    ink.hi       1283, 449   14x35   clip1 glyphs 1 "0"
+fill    ground.3     1569, 414  286x90   r3 clip1
+text    ink.mute     1584, 424  202x25   clip1 glyphs 22 "Own-initiative this hour"
+text    ink.hi       1584, 449   14x35   clip1 glyphs 1 "0"
+text    ink.body      365, 526  827x25   clip1 glyphs 80 "In the last hour: no own-initiative calls, and 6 of the 600 requests EldenNet may send in an hour."
+fill    ground.2      340, 606 1540x445  r5 clip1
+stroke  rule          340, 606 1540x445  r5 w1 clip1
+text    gold          365, 626   48x20   clip1 glyphs 5 "Calls"
+text    ink.faint    1842, 626    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, 651  759x25   clip1 glyphs 74 "Newest first. No prompt is ever shown, and a reply's text only once it reached the screen."
+text    ink.mute      365, 696   25x25   clip1 glyphs 3 "Job"
+fill    ground.well   400, 691  120x35   r3 clip1
+stroke  edge          400, 691  120x35   r3 w1 clip1
+text    ink.faint     410, 696    8x25   clip1 glyphs 1 "‹"
+text    ink.hi        428, 696   25x25   clip1 glyphs 3 "All"
+text    ink.faint     500, 696    8x25   clip1 glyphs 1 "›"
+text    ink.mute      540, 696   59x25   clip1 glyphs 7 "Purpose"
+fill    ground.well   609, 691  120x35   r3 clip1
+stroke  edge          609, 691  120x35   r3 w1 clip1
+text    ink.faint     619, 696    8x25   clip1 glyphs 1 "‹"
+text    ink.hi        637, 696   25x25   clip1 glyphs 3 "All"
+text    ink.faint     709, 696    8x25   clip1 glyphs 1 "›"
+text    ink.mute      749, 696   59x25   clip1 glyphs 7 "Outcome"
+fill    ground.well   818, 691  120x35   r3 clip1
+stroke  edge          818, 691  120x35   r3 w1 clip1
+text    ink.faint     828, 696    8x25   clip1 glyphs 1 "‹"
+text    ink.hi        846, 696   25x25   clip1 glyphs 3 "All"
+text    ink.faint     918, 696    8x25   clip1 glyphs 1 "›"
+text    ink.mute      958, 696   34x25   clip1 glyphs 4 "Sort"
+fill    ground.well  1002, 691  120x35   r3 clip1
+stroke  edge         1002, 691  120x35   r3 w1 clip1
+text    ink.faint    1012, 696    8x25   clip1 glyphs 1 "‹"
+text    ink.hi       1030, 696   34x25   clip1 glyphs 4 "Time"
+text    ink.faint    1102, 696    8x25   clip1 glyphs 1 "›"
+stroke  edge         1142, 691   35x35   r3 w1 clip1
+fill    ink.hi       1159, 701    2x9    clip1
+tri     ink.hi       1153, 709   14x7    clip1 v
+line    rule          365, 736 1490x1    clip1
+text    ink.hi        365, 752   66x28   clip1 glyphs 7 "0:11:45"
+text    ink.mute      862, 754  422x25   clip1 glyphs 36 "model list  ·  lantern-box  ·  0.14 s  ·  answered"
+line    rule          365, 796 1490x1    clip1
+text    ink.hi        365, 812   66x28   clip1 glyphs 7 "0:11:45"
+text    ink.mute      862, 814  413x25   clip1 glyphs 35 "model list  ·  openrouter  ·  0.61 s  ·  answered"
+line    rule          365, 856 1490x1    clip1
+text    ink.hi        365, 872   66x28   clip1 glyphs 7 "0:11:30"
+text    ink.mute      862, 874  818x25   clip1 glyphs 69 "Self-test  ·  self-test  ·  talker-small on openrouter  ·  0.38 s  ·  1.02 s  ·  120  ·  answered"
+line    rule          365, 916 1490x1    clip1
+text    ink.hi        365, 932   66x28   clip1 glyphs 7 "0:11:30"
+text    ink.mute      862, 934  818x25   clip1 glyphs 69 "Self-test  ·  self-test  ·  talker-small on openrouter  ·  0.42 s  ·  0.59 s  ·  106  ·  answered"
+line    rule          365, 976 1490x1    clip1
+text    ink.hi        365, 992   66x28   clip1 glyphs 7 "0:11:30"
+text    ink.mute      862, 994  405x25   clip1 glyphs 35 "self-test  ·  openrouter  ·  0.30 s  ·  answered"
+fill    ground.2      340,1071 1540x230  r5 clip1
+stroke  rule          340,1071 1540x230  r5 w1 clip1
+text    gold          365,1091   67x20   clip1 glyphs 7 "Related"
+line    rule          365,1121 1490x1    clip1
+text    ink.hi        380,1135   56x28   clip1 glyphs 6 "Models"
+text    ink.mute      862,1136  515x25   clip1 glyphs 50 "Which model does each job, and the preset that sets them all."
+text    gold         1820,1135    9x28   clip1 glyphs 1 "→"
+line    rule          365,1176 1490x1    clip1
+text    ink.hi        380,1190   56x28   clip1 glyphs 6 "Traces"
+text    ink.mute      862,1191  472x25   clip1 glyphs 46 "How long each line took, from its request to the screen."
+text    gold         1820,1190    9x28   clip1 glyphs 1 "→"
+line    rule          365,1231 1490x1    clip1
+text    ink.hi        380,1245   38x28   clip1 glyphs 4 "Logs"
+text    ink.mute      862,1246  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
+text    gold         1820,1245    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 fill    ground.well   340,1044   60x28   r3
 stroke  edge          340,1044   60x28   r3 w1
@@ -132,5 +132,5 @@ fill    ground.well   466,1044   42x28   r3
 stroke  edge          466,1044   42x28   r3 w1
 text    ink.body      474,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     515,1045   34x25   glyphs 4 "Back"
-stroke  gold.hi       362, 947 1496x61   r5 w3 clip1
-# 134 items, 5374 vertices, 11373 indices, 4 commands; check_draw_list: passes
+stroke  gold.hi       362, 218 1496x26   r5 w3 clip1
+# 119 items, 4562 vertices, 9873 indices, 4 commands; check_draw_list: passes

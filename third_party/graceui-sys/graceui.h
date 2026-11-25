@@ -49,11 +49,12 @@ extern "C" {
 
 /* The ABI major this header describes, and its minor: the number of the newest appends (0: the first table). */
 #define GRACEUI_ABI_MAJOR 1u
-#define GRACEUI_ABI1_MINOR 7u /* 1: a holder's events and set_caret (GraceUI 0.2.1, D176); 2: the display and scaled
+#define GRACEUI_ABI1_MINOR 8u /* 1: a holder's events and set_caret (GraceUI 0.2.1, D176); 2: the display and scaled
                                  faces (GraceUI 0.2.2, D180); 3: pad chords (GraceUI 0.2.14, D204); 4: a hotkey's
                                  binding as the player set it (GraceUI 0.2.16, D210); 5: a wait handle for the mod's
                                  events (GraceUI 0.2.17, D212); 6: an uploaded file with its command (GraceUI 0.2.26,
-                                 D226); 7: what pressed a hotkey, its key or its pad chord (GraceUI 0.2.38, D243) */
+                                 D226); 7: what pressed a hotkey, its key or its pad chord (GraceUI 0.2.38, D243); 8: a
+                                 panel's drawing each frame, on the present thread (GraceUI 0.2.52, D259) */
 
 /*
  * GraceUI's own version (GRACEUI_VERSION_PACK). Needs no start: callable from any thread, at any time after the DLL is
@@ -134,6 +135,10 @@ typedef uint32_t GraceUiStatus;
 #define GRACEUI_DRAW_COMMAND_SIZE_MAX 256u /* a submission's command stride, in bytes (EST): a larger one is refused */
 #define GRACEUI_HOTKEYS_PER_MOD 8u     /* a mod's hotkeys (EST) */
 #define GRACEUI_HOTKEYS_MAX 64u        /* hotkeys in the session (EST) */
+#define GRACEUI_PRESENT_HOOKS_PER_MOD 4u /* a mod's panels drawn each frame by set_on_present (ABI 1.8, D259; EST) */
+#define GRACEUI_PRESENT_HOOKS_MAX 8u     /* ... and in the session (EST) */
+#define GRACEUI_PRESENT_BUDGET_US 500u   /* a mod's on_present callbacks together, each frame (D71, EST: 0.5 ms) */
+#define GRACEUI_PRESENT_OVER_FRAMES 120u /* frames running over that budget before they are suspended (D71) */
 
 /* ---- Capabilities: the features has_cap names. */
 
@@ -154,6 +159,7 @@ typedef uint32_t GraceUiStatus;
                                                         1.4 (D210) */
 #define GRACEUI_CAP_WAKE "wake" /* wake_event: since 0.2.17, ABI 1.5 (D212) */
 #define GRACEUI_CAP_HOTKEY_BY "hotkey-by" /* GraceUiEvent.hotkey_by: since 0.2.38, ABI 1.7 (D243) */
+#define GRACEUI_CAP_ON_PRESENT "on-present" /* set_on_present: since 0.2.52, ABI 1.8 (D259) */
 
 /* A connected mod's handle, which every slot after connect takes; 0 is none. */
 typedef uint64_t GraceUiConsumer;
@@ -338,6 +344,67 @@ typedef struct GraceUiDrawList {
   const uint16_t* indices;
   const GraceUiDrawCommand* commands;
 } GraceUiDrawList;
+
+/* ---- A panel's drawing each frame (ABI 1.8, D259; D71): an opt-in callback on the present thread.
+ *
+ * A panel is drawn from the newest list its mod submitted, one frame or more after the mod built it. A mod that must
+ * change a panel in every frame (a fade, a label that follows the camera) asks set_on_present for a callback on the
+ * game's present thread instead. In each frame the panel is shown, GraceUI calls it with the frame's time and the
+ * panel's place, and it answers:
+ *  - GRACEUI_PRESENT_KEEP: draw the panel's newest submitted list, as without a callback;
+ *  - GRACEUI_PRESENT_DRAW: draw the list it wrote into `list`, from arrays of its own that hold until it returns.
+ *    GraceUI copies that list into the room it reserved when the callback was set (the capacities below), checks the
+ *    copy as submit checks a list, and draws it in this frame alone, in place of the submitted one; a list that does
+ *    not fit or fails the check is not drawn (the submitted one is), and is logged once.
+ * Any other answer is KEEP. A callback binds invariant 10 as GraceUI's own drawing does: it never waits, takes no lock,
+ * allocates nothing per frame after its first frames, and never lets an exception leave it. It calls no slot of this
+ * table: from inside it each answers GRACEUI_REFUSED, has_cap alone excepted. A mod's callbacks together have
+ * GRACEUI_PRESENT_BUDGET_US in each frame (EST, measured on GraceUI's clock around each call): over it in
+ * GRACEUI_PRESENT_OVER_FRAMES frames running, or an exception out of one, and every callback of the mod is suspended
+ * for the session, with one notice naming the mod and a log line; its panels then draw their submitted lists, and
+ * set_on_present answers GRACEUI_REFUSED for a callback (clearing one is taken). set_on_present that replaces or clears
+ * a callback, and disconnect, return only once the old callback is not running, and it is never called again: a mod may
+ * then free what `user` points to, or unload. Each waits for the frame being drawn to end, for as long as that takes;
+ * never call either from DllMain, nor from a thread the present thread may be waiting for. */
+
+#define GRACEUI_PRESENT_KEEP 0u /* the callback's answers */
+#define GRACEUI_PRESENT_DRAW 1u
+
+#define GRACEUI_PRESENT_MENU_OPEN 1u /* GraceUiPresentFrame.flags: GraceUI's menu is open in this frame */
+
+typedef struct GraceUiPresentFrame {
+  uint32_t size;            /* sizeof(GraceUiPresentFrame) in this GraceUI: a field exists only if it ends within it */
+  uint32_t reserved;        /* 0 */
+  uint64_t panel;           /* the panel (create_panel's id) */
+  uint64_t frame;           /* GraceUI's frames this session in which it drew shown panels, counting this one: it rises by
+                               one in each frame a callback can be called in, not in frames GraceUI passed by */
+  int64_t time_us;          /* this frame's time: microseconds of a steady clock (on Windows, QueryPerformanceCounter's) */
+  float delta_seconds;      /* since the frame before it in that count (1/60 for the first, and at most 0.25 after a
+                               pause: time_us gives the clock itself) */
+  float x;                  /* the panel's place on the display now (its anchor applied), in the display's pixels: the */
+  float y;                  /*   list stays in the panel's own pixels, as submit's do, and GraceUI moves it there */
+  float width;
+  float height;
+  uint32_t display_width;   /* the back buffer's size */
+  uint32_t display_height;
+  uint32_t flags;           /* GRACEUI_PRESENT_MENU_OPEN, or 0 */
+  float spent_us;           /* the mod's callbacks together in the frame before it in that count, in microseconds on
+                               GraceUI's clock: what its budget weighs (0 if none of them ran then) */
+  uint32_t reserved2;       /* 0 */
+} GraceUiPresentFrame;
+
+/* `list` comes zeroed but for its size and command_size (sizeof(GraceUiDrawCommand)), which the callback may set to its
+ * own stride; it writes the counts, the generation and the array pointers, as for submit. */
+typedef uint32_t (*GraceUiPresentCallback)(void* user, const GraceUiPresentFrame* frame, GraceUiDrawList* list);
+
+typedef struct GraceUiPresentHook {
+  uint32_t size;
+  uint32_t vertex_capacity;   /* the most vertices a list it draws holds: 1 to GRACEUI_DRAW_VERTEX_BYTES_MAX's 13,107 */
+  uint32_t index_capacity;    /* ... indices: 1 to GRACEUI_DRAW_INDEX_BYTES_MAX's 131,072 */
+  uint32_t command_capacity;  /* ... commands: 1 to GRACEUI_DRAW_COMMANDS_MAX */
+  GraceUiPresentCallback callback; /* null: the panel's callback cleared (the capacities are then not read) */
+  void* user;                 /* given back to it as is */
+} GraceUiPresentHook;
 
 /* ---- Input (D77): one holder in the process at a time, answered at once. */
 
@@ -704,6 +771,15 @@ typedef struct GraceUiApi1 {
    * GRACEUI_EVENT_NONE, then waits again; a wake with nothing to poll can happen and costs one poll. GraceUI never calls
    * the mod's code to wake it. One event for the connection's life; since GraceUI 0.2.17 (GRACEUI_CAP_WAKE). */
   GraceUiStatus (*wake_event)(GraceUiConsumer consumer, void** event);
+
+  /* ---- ABI 1.8 (GraceUI 0.2.52, D259). */
+
+  /* Sets, replaces or clears (a null callback) the callback that draws one of the mod's panels each frame (above):
+   * GRACEUI_OK; _REFUSED (a panel not the mod's, a hook null or below its size, capacities outside their bounds, a
+   * callback set while the mod's are suspended (clearing one is taken), or called from inside a callback); _FULL (GRACEUI_PRESENT_HOOKS_PER_MOD, or the
+   * session's). Setting one closes the mod's registration window, as its first submit does. It may wait for the frame
+   * being drawn to end; GraceUI's present thread never waits for it. Since GraceUI 0.2.52 (GRACEUI_CAP_ON_PRESENT). */
+  GraceUiStatus (*set_on_present)(GraceUiConsumer consumer, uint64_t panel_id, const GraceUiPresentHook* hook);
 } GraceUiApi1;
 
 /* Whether `api`'s size covers `slot` (a member of GraceUiApi1): call a slot only then. */

@@ -119,4 +119,4 @@ stroke  edge          466,1044   42x28   r3 w1
 text    ink.body      474,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     515,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi      1715,  86  168x46   r5 w3 clip1
-# 120 items, 4476 vertices, 9264 indices, 4 commands; check_draw_list: passes
+# 89 items, 3080 vertices, 6606 indices, 4 commands; check_draw_list: passes
