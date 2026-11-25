@@ -1863,11 +1863,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: GraceUI's D261, built on 2026-11-25 (GraceUI feat/foundations 806d5dd; GraceUI's docs/eldennet-changes.md
     §87); in grace-view alone, with no change to EldenNet's page data, the protocol or the ABI. EldenNet's goldens move
     with it at the next pin.
-- bo The points from EldenNet's 0.2.53 pin: a stream's rows in grace-dev's dump, words for an unpaged filter's values, no drawer for an empty row, a stream's bar with or without rows, a page's first focus in its body, slots by their widest values (GraceUI 0.2.55) [next]
+- bo The points from EldenNet's 0.2.53 pin: a stream's rows in grace-dev's dump, words for an unpaged filter's values, no drawer for an empty row, a stream's bar with or without rows, a page's first focus in its body, slots by their widest values (GraceUI 0.2.55, protocol 1.18) [done]
   - refs: GraceUI:D260, WHY§648, WHY§649, WHY§650, WHY§651, WHY§652, PAGES§4.6.7
-  - gives: GraceUI's D262, agreed on 2026-11-25. An unpaged filter's `choices` (protocol 1.18) raises EldenNet's floor
+  - gives: GraceUI's D262, agreed and built on 2026-11-25 (GraceUI feat/foundations 3623304; GraceUI's
+    docs/eldennet-changes.md §88). An unpaged filter's `choices` (protocol 1.18) raises EldenNet's floor
     to 0.2.55 once Logs' Level filter takes words of its own, which go to the owner first. Home's first focus leaves the
-    Pause AI switch, so a stray Enter after F5 pauses nothing (amending D256); a cut cell ends in "…".
+    Pause AI switch, so a stray Enter after F5 pauses nothing (amending D256); a cut cell ends in "…". With no body
+    control yet, the first focus is the first section's label. EldenNet's next pin takes 0.2.54 and 0.2.55.
 - bp The Bug report's copy and save through GraceUI's share (GraceUI's proposal 0015; GraceUI 0.2.56, protocol 1.19) [planned]
   - refs: GraceUI:docs/proposals/0015-report-copy-and-save.md, WHY§653, PAGES§4.6.8
   - gives: GraceUI's D263, settled on 2026-11-25 in EldenNet's formats (WHY§653): the scanned report as the preview's
