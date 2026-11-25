@@ -1849,12 +1849,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     120 frames, or an exception, suspends a mod's callbacks for the session. For EldenNet's subtitle fades and world
     labels at the frame rate, and Performance's frame cost from `spent_us` by the flag, when taken. Nothing changes for
     EldenNet until it opts in.
-- bm The in-game points from EldenNet's 0.2.46 build: a table's column labels and slots, wrapped sentences and descriptions, a tile's unit in the small face (GraceUI 0.2.53) [active]
-  - refs: GraceUI:D259, WHY§642, WHY§643, PAGES§4.6.7
-  - gives: GraceUI's D260, once recorded. In grace-view alone, with no change to EldenNet's page data: the in-game table gets a header line and a slot
+- bm The in-game points from EldenNet's 0.2.46 build: a table's column labels and slots, wrapped sentences and descriptions, a tile's unit in the small face (GraceUI 0.2.53) [done]
+  - refs: GraceUI:D260, WHY§642, WHY§643, PAGES§4.6.7
+  - gives: built on 2026-11-25 (GraceUI main 7fa3042; GraceUI's docs/eldennet-changes.md §86). In grace-view alone, with no change to EldenNet's page data: the in-game table gets a header line and a slot
     per column (numbers right-aligned; a missing cell leaves its slot empty), or each value with its column's label when
     slots would be too narrow; a computed sentence and a section's description wrap to the card; a tile's unit drawn in
-    the small face. EldenNet's goldens move with it at the next pin.
+    the small face. EldenNet's pin takes 0.2.49 to 0.2.53 together, its goldens moving once.
 
 ### S11.3 EldenNet v0.2
 
