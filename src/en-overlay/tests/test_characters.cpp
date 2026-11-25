@@ -82,7 +82,7 @@ TEST_CASE("characters: the page data: Named NPCs' master list, its families, the
   // disk, as debug.record_sessions does (D221).
   CHECK(pages["sensitive_commands"] == json{"providers.add", "providers.remove", "providers.key", "profile.save",
                                             "profile.reset", "profile.restore", "recording.set"});
-  CHECK(pages["minor"] == 18);  // Logs' Level choices (GraceUI D262), on 1.17's to 1.8's marks
+  CHECK(pages["minor"] == 20);  // the floor's (GraceUI 0.2.57, D264), on 1.19's to 1.8's marks
   for (const char* c : {"profile.check", "profile.save", "profile.reset", "profile.restore", "profile.draft"}) {
     CHECK(std::find(pages["commands"].begin(), pages["commands"].end(), c) != pages["commands"].end());
   }

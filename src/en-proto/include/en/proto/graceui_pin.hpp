@@ -9,9 +9,12 @@
 namespace en::proto::graceui_pin {
 
 inline constexpr std::uint32_t kAbiMajor = 1;  // graceui.h's GRACEUI_ABI_MAJOR, which `connect` asks
-// GraceUI 0.2.55 (D262, protocol 1.18): System › Logs' Level filter with its own choices, in the owner's words (O133),
-// which an older GraceUI's registration refuses on a bar it filters itself (its own choices were a paged table's alone,
-// D254). It holds what the floor held before: 0.2.51's Tools › Workshop, in the browser alone, shown with Developer
+// GraceUI 0.2.57 (D264, protocol 1.20): Tools › Workshop on this PC alone, its page and its topics marked pc_only (the
+// owner's O132), which an older GraceUI does not read, so a paired device would see the page and watch its topics; and
+// its register_pages refuses page data of a newer minor (EldenNet's is its floor's, 20). It holds what the floor held
+// before: 0.2.56's Copy on the unknown characters' TOML (D263, protocol 1.19), which an older registration refuses;
+// 0.2.55's Logs' Level filter with its own choices, in the owner's words (O133, D262, protocol 1.18), which an older
+// registration refuses on a bar it filters itself; 0.2.51's Tools › Workshop, in the browser alone, shown with Developer
 // views, gated and with its ribbon (D258, protocol 1.17), whose four fields an older decoder drops without a word, so
 // that the page would be drawn in game, ungated (an older registration compares no page data's minor); 0.2.50's filter
 // bar on Logs' log tail (D257, protocol 1.16), which an older registration refuses; 0.2.49's header switch (D256, protocol 1.15: Home's Pause AI, which an older
@@ -20,11 +23,11 @@ inline constexpr std::uint32_t kAbiMajor = 1;  // graceui.h's GRACEUI_ABI_MAJOR,
 // editor block (0.2.21, D217) and a save's chosen row (0.2.22, D218), on 0.2.17's wait handle (ABI 1.5, D212), which
 // the chat box's opening within 50 ms needs (NPC §5.1); Docs' search, the filter bar (0.2.43, D250), and the rail's
 // foot (0.2.42, D248); and 0.2.45's quick switches and live pages (D252, protocol 1.13). The headers are GraceUI
-// 0.2.55's (ABI 1.8, protocol 1.18; EldenNet uses neither 1.6's uploads, D226, nor 1.8's on_present, D259); what came
+// 0.2.57's (ABI 1.8, protocol 1.20; EldenNet uses neither 1.6's uploads, D226, nor 1.8's on_present, D259); what came
 // after 0.2.22 but the pages is used only behind its has_cap, or, for 0.2.36's EB Garamond Italic (D241), where
 // GraceUI's folder holds the file: without it the Tarnished's lines are drawn upright.
-inline constexpr std::array<std::uint16_t, 3> kFloor = {0, 2, 55};
-inline constexpr std::string_view kCommit = "3623304";  // GraceUI's main (D169 to D262), GraceUI 0.2.55
+inline constexpr std::array<std::uint16_t, 3> kFloor = {0, 2, 57};
+inline constexpr std::string_view kCommit = "b4e10f8";  // GraceUI's main (D169 to D264), GraceUI 0.2.57
 
 // Whether a GraceUI version (major, minor, patch) is at least the floor.
 [[nodiscard]] constexpr bool at_least_floor(const std::array<std::uint16_t, 3>& v) noexcept {
