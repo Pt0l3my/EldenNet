@@ -1840,6 +1840,21 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     words once a browser session, and a `ribbon` at the page's top while it is open. SP8's ribbon is read as each
     page's: every page that shows unfiltered developer content carries it (Workshop now, the Event monitor's plumbing at
     0.4), not every page of the session. For Workshop's build after the next pin.
+- bl A panel drawn in each frame by its mod's callback, on the present thread: on_present, told its time and whether the menu is open (GraceUI 0.2.52, ABI 1.8) [done]
+  - refs: GraceUI:D259, GraceUI:D71, WHY§364, WHY§645, PAGES§4.6.7
+  - gives: built on 2026-11-25 (GraceUI feat/foundations 832b8d9; GraceUI's docs/eldennet-changes.md §85): one of a
+    mod's panels gets a callback on the present thread with room reserved for its lists; it answers KEEP or DRAW, and
+    GraceUI copies and checks the list without allocating. Each call is told the frame, its delta, the panel's place,
+    `spent_us` (the mod's callbacks together in the frame before) and GRACEUI_PRESENT_MENU_OPEN. Over 0.5 ms a frame for
+    120 frames, or an exception, suspends a mod's callbacks for the session. For EldenNet's subtitle fades and world
+    labels at the frame rate, and Performance's frame cost from `spent_us` by the flag, when taken. Nothing changes for
+    EldenNet until it opts in.
+- bm The in-game points from EldenNet's 0.2.46 build: a table's column labels and slots, wrapped sentences and descriptions, a tile's unit in the small face (GraceUI 0.2.53) [active]
+  - refs: GraceUI:D259, WHY§642, WHY§643, PAGES§4.6.7
+  - gives: GraceUI's D260, once recorded. In grace-view alone, with no change to EldenNet's page data: the in-game table gets a header line and a slot
+    per column (numbers right-aligned; a missing cell leaves its slot empty), or each value with its column's label when
+    slots would be too narrow; a computed sentence and a section's description wrap to the card; a tile's unit drawn in
+    the small face. EldenNet's goldens move with it at the next pin.
 
 ### S11.3 EldenNet v0.2
 
@@ -1922,7 +1937,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 - S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs [active]
   - needs: S11.2.h
-  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, O99, O104, O119, O120, O125, O127, G34, G36
+  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, O99, O104, O119, O120, O125, O127, O128, G34, G36
   - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format. The
     allowances' and reactions' inherit tri-states (PAGES) use GraceUI's third = "inherit" and the settings topic's
     `inherited` list, added on 2026-11-20 at EldenNet's request (GraceUI feat/foundations ac4bc39). Since GraceUI
@@ -2012,6 +2027,14 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     (`ai.pause`, `status.ai_paused`, not sensitive; the Status card's line; the self-test and model lists refused).
     Left: a row drawer for Why and Text shown, and Pause AI's chip in Home's header, both asked of Grace. The new words
     accepted as built by the owner the same day (O127). The fake game's suite under Wine: 144 of 144.
+    System › Performance and System › Traces built the same day at GraceUI 0.2.46 (engine 1ee7d14, merged at 0b0030b;
+    WHY§638 to §644): Performance with the core's and the reader's step p99 as tiles, C3's two task limits as Budgets,
+    a row per kind of step, and Storage in words (no database in v0.2); Traces with the first page's median and 95th
+    percentile (from 20 lines on), the first token's median and the lines, a sentence against the targets for where the
+    Conversation model runs, and a row per line with its queue, first token, first page, total and verdict, never text.
+    Frame cost and memory are left out until a source exists: GraceUI 0.2.52's `on_present` (S11.2.bl) gives the first.
+    The fake game's suite under Wine: 145 of 145. Its words, and whether Traces holds its p90 or its p95 to C5's target,
+    put to the owner (O128). Left: Tools › Workshop, on GraceUI 0.2.51 (S11.2.bk).
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2

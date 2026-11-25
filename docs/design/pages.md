@@ -743,6 +743,11 @@ a later version (O41, EldenNet DESIGN §13); v1 is dialogue only and never write
   size, the backups' count and last time; no paths, no SteamID).
 - **Data.** Reads `system.performance`.
 - **Related.** Status, Traces.
+- *Since 2026-11-24, as built (engine 0b0030b; WHY§638, §639; O128 open):* the tiles are the core's step p99 and the
+  reader's step p99 (C3's task); frame cost and memory are absent until a source exists, since v0.2 runs none of its
+  code in the game's frame and counts none of its memory (GraceUI D259's `on_present` gives the first, by its menu-open
+  flag, once EldenNet takes it). Budgets holds C3's reader's mean and p99 as checks, Passed or a Warning; Tasks a row
+  per kind of step (count, mean, p99, longest); Storage in words, since v0.2 keeps no database and no backups.
 
 **Traces** (`system.traces`; 0.2).
 
@@ -752,6 +757,11 @@ a later version (O41, EldenNet DESIGN §13); v1 is dialogue only and never write
   (quick, acceptable, slow). No text.
 - **Data.** Reads `traces`.
 - **Related.** AI › Requests, AI › Self-test, Settings › Developer (latency toasts).
+- *Since 2026-11-24, as built (engine 0b0030b; WHY§640, §641; O128 open):* times run from the request's handover;
+  Queue is the model client's wait before the first attempt left; the first page is the reply's first page committed,
+  whatever it said. The p95 tile and its clause appear from 20 lines on, held to C5's p90 target; the targets follow
+  where the Conversation model runs. A verdict for replies (ARCH §11.7's rule) and call-outs (DESIGN §1.4's) alone.
+  The slot is shown as its job ("Job"). As many lines as the calls' record keeps rows (20, 200 with Developer views).
 
 **Logs** (`system.logs`; 0.2).
 
