@@ -78,9 +78,10 @@ TEST_CASE("characters: the page data: Named NPCs' master list, its families, the
   CHECK(families == 3);  // named and profiles; and Docs' documents (docs.hpp)
   CHECK(pages["slow_commands"] == json{"profile.draft"});
   // The player's notes are saved, reset and restored on this PC alone (the owner's O112 (b)); a check and a draft write
-  // nothing and stay open to a paired device, as Pause AI does (ai.pause).
+  // nothing and stay open to a paired device, as Pause AI does (ai.pause). Workshop's recording.set writes to this PC's
+  // disk, as debug.record_sessions does (D221).
   CHECK(pages["sensitive_commands"] == json{"providers.add", "providers.remove", "providers.key", "profile.save",
-                                            "profile.reset", "profile.restore"});
+                                            "profile.reset", "profile.restore", "recording.set"});
   CHECK(pages["minor"] == 18);  // Logs' Level choices (GraceUI D262), on 1.17's to 1.8's marks
   for (const char* c : {"profile.check", "profile.save", "profile.reset", "profile.restore", "profile.draft"}) {
     CHECK(std::find(pages["commands"].begin(), pages["commands"].end(), c) != pages["commands"].end());

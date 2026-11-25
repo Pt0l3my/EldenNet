@@ -1532,6 +1532,11 @@ std::uint64_t interval_of(std::string_view topic) noexcept {
   if (topic == kUsageTopic) return 1000;    // GraceUI DESIGN §6.5: at most once a second
   if (topic == kPerformanceTopic) return 1000;  // its steps' counts move at every wake
   if (topic == kTracesTopic) return 500;        // as `calls`: a line's first token, its first page and its end
+  if (topic == kWorkshopExchange) return 250;   // a reply's pieces stream in
+  if (topic == kWorkshopStatus) return 250;     // the header switch's state follows a press at once
+  if (topic == kWorkshopWorld || topic == kWorkshopKnown || topic == kWorkshopUnknown || topic == kWorkshopKinds) {
+    return 1000;  // built by the DLL at most once a second while watched
+  }
   return 0;  // on change
 }
 
@@ -1616,6 +1621,8 @@ std::string scrubbed(std::string_view line) {
   return out;
 }
 
+std::string words_scrubbed(std::string_view text) { return report_scrubbed(text); }
+
 bool pickable(std::string_view id) noexcept {
   if (id.empty() || id.size() > 200) return false;
   if (std::any_of(id.begin(), id.end(), [](char c) {
@@ -1681,6 +1688,7 @@ void Space::watched(std::string_view sub_frame) {
   watched_.insert(topic);
   topics_[topic].fresh = true;
   if (topic == "logs") logs_sent_ = 0;  // a new watcher: the stream from its oldest row held (§22 item 3)
+  if (topic == kWorkshopEvents) workshop_.restart();  // likewise Workshop's events
   notes_.push_back(note_of(SpaceNote::What::Watched, topic));
 }
 
@@ -2251,6 +2259,7 @@ std::string Space::command(std::string_view cmd_frame, const SpaceFacts& facts, 
       notes_.back().result = "ok";
       return answer(id, "", "");
     }
+    if (Workshop::owns_command(name)) return workshop_command(id, args);
     if (Characters::owns_command(name)) {  // the profile editor's (characters.hpp): answered now, or by the DLL later
       notes_.back().key = args.is_object() && args.contains("target") && args["target"].is_string()
                               ? args["target"].get<std::string>()
@@ -2402,6 +2411,7 @@ json Space::body(std::string_view topic, const SpaceFacts& facts) const {
     return docs_body(topic.substr(kDocsFamily.size() + 1), facts);
   }
   if (topic == kProviderChoices) return provider_choices_body(facts);
+  if (Workshop::owns_topic(topic)) return Workshop::body(topic, workshop_on() ? facts.workshop : nullptr);
   if (topic == kNamedList) return Characters::list_body(facts.characters);
   if (topic.rfind(std::string(kNamedFamily) + "/", 0) == 0) {
     return Characters::general_body(facts.characters, topic.substr(kNamedFamily.size() + 1));
@@ -2449,6 +2459,76 @@ void Space::collect_docs(const SpaceFacts& facts, std::uint64_t now_ms, std::vec
     frames.push_back(R"({"v":1,"t":"state","space":"eldennet","topic":")" + topic + R"(","rev":)" +
                      std::to_string(t.rev) + R"(,"body":)" + t.last + "}");
   }
+}
+
+// ---- Tools › Workshop (workshop.hpp) ----
+
+bool Space::workshop_on() const {
+  const auto it = values_.find(std::string(kPanelSetting));
+  return it != values_.end() && it->is_boolean() && it->get<bool>();
+}
+
+void Space::workshop_event(const proto::WorkshopEvent& e) {
+  if (workshop_on()) workshop_.push(e);
+}
+
+std::vector<RecordingRequest> Space::take_recording_requests() { return std::exchange(recording_requests_, {}); }
+
+// recording.set {"on": bool} (GraceUI D256's header switch, its state workshop.status.recording_on): handed to the DLL,
+// which starts a recording now or stops the one being written, in the same wake. Refused while Developer views are off
+// (Workshop is absent then), and with no boolean. Sensitive (D221): GraceUI refuses it from a paired device.
+std::string Space::workshop_command(const json& id, const json& args) {
+  SpaceNote& note = notes_.back();
+  const auto on = args.is_object() ? args.find("on") : args.end();
+  if (!args.is_object() || on == args.end() || !on->is_boolean()) {
+    note.result = "invalid_value";
+    return answer(id, "invalid_value", "");
+  }
+  if (!workshop_on()) {
+    note.result = "not_now";
+    return answer(id, "not_now", "Turn on Developer views in Settings › Developer first.");
+  }
+  recording_requests_.push_back(RecordingRequest{on->get<bool>()});
+  note.key = on->get<bool>() ? "on" : "off";
+  note.result = "ok";
+  return answer(id, "", "");
+}
+
+// Workshop's frames: while Developer views are on, each watched state topic's body from the facts at its rate, and the
+// events stream's new rows; the moment they go off, `{}` once on each watched state topic and the stream cleared by an
+// empty batch past a gap, since GraceUI's server holds a watched topic's newest body and a stream's rows for later
+// watchers; then nothing until they come on again.
+void Space::collect_workshop(const SpaceFacts& facts, std::uint64_t now_ms, std::vector<std::string>& frames) {
+  const bool on = workshop_on();
+  const bool going_off = workshop_was_on_ && !on;
+  workshop_was_on_ = on;
+  for (const std::string& topic : watched_) {
+    if (!Workshop::owns_topic(topic) || topic == kWorkshopEvents) continue;
+    Topic& t = topics_[topic];
+    json b;
+    if (going_off) {
+      b = json::object();
+    } else {
+      if (!on || facts.workshop == nullptr) continue;
+      if (!t.fresh && t.rev != 0 && now_ms - t.last_ms < interval_of(topic)) continue;
+      b = Workshop::body(topic, facts.workshop);
+    }
+    std::string text = text_of(b);
+    if (!t.fresh && !going_off && text == t.last) continue;
+    if (going_off && t.rev == 0) continue;  // never published: nothing to clear
+    t.fresh = false;
+    t.last = std::move(text);
+    t.last_ms = now_ms;
+    ++t.rev;
+    frames.push_back(R"({"v":1,"t":"state","space":"eldennet","topic":")" + topic + R"(","rev":)" +
+                     std::to_string(t.rev) + R"(,"body":)" + t.last + "}");
+  }
+  if (going_off) {
+    std::string cleared = workshop_.clear_events();
+    if (watching(kWorkshopEvents)) frames.push_back(std::move(cleared));
+    return;
+  }
+  if (on && watching(kWorkshopEvents)) workshop_.collect_events(frames);
 }
 
 // Tools › Bug report's commands (space.hpp): the player's words, kept in memory for the preview alone, and an optional
@@ -2590,6 +2670,7 @@ void Space::collect(const SpaceFacts& facts, std::uint64_t now_ms, std::vector<s
                      std::to_string(t.rev) + R"(,"body":)" + t.last + "}");
   }
   collect_docs(facts, now_ms, frames);
+  collect_workshop(facts, now_ms, frames);
   if (watching("logs") && !rows_.empty()) {
     Topic& t = topics_["logs"];
     const bool due = t.fresh || now_ms - t.last_ms >= interval_of("logs");

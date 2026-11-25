@@ -22,6 +22,7 @@
 #include "en/overlay/space.hpp"
 #include "graceui.h"
 #include "system_fixture.hpp"
+#include "workshop_fixture.hpp"
 
 using namespace en::overlay;
 using nlohmann::json;
@@ -303,6 +304,7 @@ SpaceFacts facts_of(std::string_view state) {
   f.calls = en::overlay::test::calls_fixture(state);            // AI › Requests, Home's Model calls (calls_fixture.hpp)
   f.perf = en::overlay::test::perf_fixture(state);              // System › Performance (system_fixture.hpp)
   f.traces = en::overlay::test::traces_fixture(state);          // System › Traces (system_fixture.hpp)
+  f.workshop = en::overlay::test::workshop_fixture(state);      // Tools › Workshop (workshop_fixture.hpp)
   return f;
 }
 
@@ -376,7 +378,8 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
   }
   CHECK(ids == std::vector<std::string>{"home", "system.status", "system.performance", "system.traces", "system.logs",
                                         "settings.developer", "ai.providers", "ai.models", "ai.selftest",
-                                        "ai.requests", "characters.named", "content", "tools.report", "docs"});
+                                        "ai.requests", "characters.named", "content", "tools.report", "tools.workshop",
+                                        "docs"});
   // The rail holds PAGES §4.2.1's categories in their order, the slice's pages in theirs.
   std::vector<std::string> rail;
   for (const json& c : pages["categories"]) rail.push_back(c["id"].get<std::string>());
@@ -393,7 +396,9 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
   for (const json& t : pages["topics"]) {
     const std::string id = t["id"].get<std::string>();
     if (t["shape"] == "stream") {
-      CHECK(id == "logs");
+      CHECK((id == "logs" || id == "workshop.events"));
+    } else if (id.rfind("workshop.", 0) == 0) {
+      CHECK(s.body(id, facts_of("title")).empty());  // Tools › Workshop's: nothing while Developer views are off
     } else if (t.value("family", false)) {
       CHECK(s.body(id, facts_of("title")).empty());  // a family is never published itself, only its members (D215)
     } else {
@@ -404,10 +409,11 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
   CHECK(pages["commands"] == json::array({"settings.set", "settings.reset", "selftest.run", "models.list",
                                           "providers.add", "providers.remove", "providers.key", "profile.check",
                                           "profile.save", "profile.reset", "profile.restore", "profile.draft",
-                                          "report.build", "report.part", "ai.pause"}));
-  // Logs' Level filter's own choices: protocol 1.18's (GraceUI D262), on 1.16's stream's filter bar (D257), 1.15's
-  // header switch (D256), 1.13's quick switches and live pages (D252), 1.12's document block, prose field and preview
-  // (D251), 1.11's filter bar (D250), 1.10's foot (D248) and 1.8's sensitive marks (D221).
+                                          "report.build", "report.part", "ai.pause", "recording.set"}));
+  // Logs' Level filter's own choices: protocol 1.18's (GraceUI D262), on 1.17's browser-only page (D258), 1.16's
+  // stream's filter bar (D257), 1.15's header switch (D256), 1.13's quick switches and live pages (D252), 1.12's
+  // document block, prose field and preview (D251), 1.11's filter bar (D250), 1.10's foot (D248) and 1.8's sensitive
+  // marks (D221).
   CHECK(pages["minor"] == 18);
   // Pause AI for this session, the one quick switch (GraceUI §78's form), and not sensitive: a paired device may pause.
   CHECK(pages["quick"] == json::array({{{"id", "pause"}, {"label", "Pause AI for this session"},
@@ -415,12 +421,13 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
                                         {"state", {{"topic", "status"}, {"field", "ai_paused"}}}, {"home", "home"}}}));
   CHECK(std::find(pages["sensitive_commands"].begin(), pages["sensitive_commands"].end(), "ai.pause") ==
         pages["sensitive_commands"].end());
-  // Home, Performance, Traces and Requests are live (D252): their topics move by themselves; no other page is.
+  // Home, Performance, Traces, Requests and Workshop are live (D252): their topics move by themselves; no other page is.
   std::vector<std::string> live;
   for (const json& p : pages["pages"]) {
     if (p.value("live", false)) live.push_back(p["id"].get<std::string>());
   }
-  CHECK(live == std::vector<std::string>{"home", "system.performance", "system.traces", "ai.requests"});
+  CHECK(live == std::vector<std::string>{"home", "system.performance", "system.traces", "ai.requests",
+                                         "tools.workshop"});
   // System's pages in PAGES §4.2.1's order, Performance and Traces after Status.
   for (const json& c : pages["categories"]) {
     if (c["id"] == "system") {
@@ -2784,6 +2791,32 @@ TEST_CASE("space: the fixture states' topics.json, which grace-dev previews (tes
     }
     topics["report"] = s.body("report", f);
     topics["logs"] = s.log_rows();
+    // Tools › Workshop: in the world, with Developer views on, its topics from the fixture's facts and three events.
+    if (std::string_view(state) == "world") {
+      s.set_value("debug.panel", true);
+      for (const char* topic : {"workshop.exchange", "workshop.world", "workshop.known", "workshop.unknown",
+                                "workshop.status", "workshop.kinds"}) {
+        topics[topic] = s.body(topic, f);
+      }
+      s.workshop_event(en::overlay::test::workshop_event_of(
+          61'250, "LoadingEnded", "T", "lifecycle",
+          R"({"seq":[402,0],"t":61250,"t_play":0,"kind":"LoadingEnded","class":"T","rule":null,"source":"lifecycle",)"
+          R"("subject":null,"object":null,"key":null,"conf":1.0,"audience":[],"count":1,"merged":false,)"
+          R"("interrupts":[],"payload":{}})"));
+      s.workshop_event(en::overlay::test::workshop_event_of(
+          1'200'400, "GroupTripped", "T", "lifecycle",
+          R"({"seq":[9811,0],"t":1200400,"t_play":1140000,"kind":"GroupTripped","class":"T","rule":null,)"
+          R"("source":"lifecycle","subject":null,"object":null,"key":null,"conf":1.0,"audience":[],"count":1,)"
+          R"("merged":false,"interrupts":[],"payload":{"group":"camera"}})"));
+      s.workshop_event(en::overlay::test::workshop_event_of(
+          1'203'900, "Struck", "K", "snapshot_diff",
+          R"({"seq":[9840,1],"t":1203900,"t_play":1143500,"kind":"Struck","class":"K","rule":"struck.player",)"
+          R"("source":"snapshot_diff","subject":"mute#h1","object":null,"key":"struck:h1","conf":1.0,)"
+          R"("audience":[[0,"witnessed"]],"count":1,"merged":false,"interrupts":["ambient"],)"
+          R"("payload":{"att":"mute#h1","vic":"player","hard":false,"unseen":false,"count":1,"frac_total":0.12,)"
+          R"("dmg_type":0}})"));
+      topics["workshop.events"] = s.workshop_rows();
+    }
     const std::string text = topics.dump(2) + "\n";
     const std::string path = std::string(EN_PAGES_FIXTURES) + "/" + state + "/topics.json";
     if (update) {

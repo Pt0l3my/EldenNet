@@ -328,8 +328,8 @@ bundled), About again when its slots' values change.
 
 ## Tools › Bug report (`tools.report`; PAGES §4.6.8; S11.4.a)
 
-Tools' one page in 0.2 (Event monitor and Workshop come later), increment 0.2, both views: a preview, with no copy or
-save until 0.6, after EldenNet's scan. Two sections:
+Tools' first page in 0.2 (Workshop, below, is in the browser alone; Event monitor comes later), increment 0.2, both
+views: a preview, with no copy or save until 0.6, after EldenNet's scan. Two sections:
 
 - **What happened**: a form (`report.build` {what}) with one prose field (D251), 2000 characters at most, its caution
   in the section's description. The space keeps the words in memory for the preview alone (`Space::report_what_`):
@@ -418,6 +418,62 @@ source in this version left out (absence is silent).
   all: no line, prompt, speaker, provider or model. Related: AI › Requests, AI › Self-test, Settings › Developer.
   Requests and Self-test name Traces among their Related now, and Status names Performance, as PAGES gives them.
 
+## Tools › Workshop (`tools.workshop`; PAGES §4.6.8, SP8; S11.4.a; GraceUI D258)
+
+EldenNet's raw workings for testers, SP1's one exception, increment 0.2, in the browser alone (`browser_only = true`:
+absent in game, from its rail, search and Related), present only while Developer views are on (`shown_with =
+"debug.panel"`), behind its gate once a page load, nothing of it drawn or watched before (`gate`), and under the red
+Spoilers ribbon at its top (`ribbon`; SP8's ribbon read as the page's own, S11.2.bk). Its words are the owner's (O129
+(a)): the gate's "Workshop shows EldenNet's raw workings: the text sent to the model and its replies, every event, and
+what each character knows. It contains spoilers. Open it for this session?", its button "Open Workshop", its
+description, help and section titles. Live (D252). Its header switch, Record this session (D256), sends
+`recording.set` {on}, sensitive (D221: it writes to this PC's disk, as `debug.record_sessions` does; O131 (b)). Its
+facts are en-proto's `WorkshopView` (`workshop.hpp` there), which the DLL keeps on T6 while the switch is on, null while
+it is off; `Workshop` (`workshop.hpp`) builds the bodies, keeps the events stream and takes the command:
+
+- **The last prompt and reply** (`workshop.exchange`, members `facts` and `parts`): the newest call of a conversation
+  or of the profile editor (O-g (a)), as sent and as answered: its job, purpose, provider, model and the model that
+  answered, its outcome in en-proto's words, finish reason, times, tokens and attempts, what was asked for (the length,
+  the temperature, the stop sequences, a schema), and the bytes left out past its bounds (64 KiB of messages, 16 KiB of
+  reply and of raw text); then a `report_preview` part a message (its role, and the cache mark after it) and one for
+  the reply (its text, and the content as the model wrote it, its reasoning included, where it differs), each a `code`
+  field. The DLL has replaced each configured key's value, anything shaped like a key and the playthrough's name
+  (matched whole: "[the Tarnished's name]", PV2) before it kept them; here the words shaped like a path or a local
+  address and a SteamID64's shape are scrubbed again (`words_scrubbed`, the bug report's rule, PV5). A server's
+  message is never kept: the outcome names the error class and its HTTP status.
+- **Every event** (`workshop.events`, a stream, ring 500): each of Augur's events of every step, unfiltered, in the
+  golden files' form (en-augur's `event_json`), the game's handles named h1, h2, ... for the session; a filter bar on
+  kind, class and source and a search in the line (D257); and `workshop.status`'s `events`: how many came, how many
+  are kept, and the bus's drops this session.
+- **World view** (`workshop.world`, members `frame`, `stages`, `flags`, `tracks`): whether the playthrough's flag frame
+  is read, the journey, the watch list, the region; each world stage T, U or F with its `when`; each catalogue flag's
+  id, block, whether it is watched, its bit, whether its id exists, whether it is verified in the file and here, what
+  it reads, its kind, NG+ rule and spoiler level (a filter on what it reads and on verified here, a search on its
+  alias); each track's active step.
+- **What each character knows** (`workshop.known`): each persona's known set at its active stage, an item a row, its
+  certainty, path, own affairs and whether block 5b shows it or offers it (a filter by character). The reaction cue
+  that would fire now comes with memories (v0.3): absent until then (O-c (a)).
+- **Unknown characters** (`workshop.unknown`, members `rows`, `toml`): those of the snapshots that bind no persona, by
+  NpcParam row and entity id (64 kept, the least recently seen going), with their model, type, team, snapshots, first
+  and last seen and nearest distance; and a `report_preview` part each with its `[[persona]]` row for
+  identity/personas.toml (ids and numbers only, never a name), a `code` field to select by hand. A Copy button waits
+  for a later pin (GraceUI 0.2.56's `share = { copy = true }`, G-2).
+- **Recording** (`workshop.status`'s `recording_on` and `recording`): on or off and why, the file this session, its
+  lines and size, the rotation, the folder named in words, never its path; and a shortcut to `debug.record_sessions`
+  (homed on Settings › Developer: a browser-only page is no setting's home).
+- **Event kinds** (`workshop.kinds`, members `kinds`, `rules`): each of Augur's 50 kinds, its builder or what it waits
+  for, its placeholders, its payload's fields as the golden form writes them (en-augur's `kind_fields`), the rules
+  loaded for it; and each rule loaded, its signal, detector, class, radius, key, times and file and line.
+
+While Developer views are off the space publishes nothing on these topics and takes no event; `recording.set` is
+refused `not_now` with "Turn on Developer views in Settings › Developer first."; and the moment they go off each watched
+state topic gets `{}` once and the stream an empty batch past a gap (protocol 1.1), since GraceUI's server holds a
+watched topic's newest body and a stream's rows for later watchers (G-5's answer: as planned). Every body stays within
+`kWorkshopBodyMax` (240 KiB): a table's rows past it are left out and counted. Every `workshop.*` topic is drawn on
+Workshop alone and no setting is homed there, so that GraceUI 0.2.57's `pc_only` marks (D264, protocol 1.20) are one
+line each when the pin takes them. **Workshop is not to be released before those marks are in** (O132 (a)): until then a
+paired device's view shows it while Developer views are on.
+
 ## Tests
 
 `en_overlay_tests` (doctest): in every build, the Characters pages (`test_characters.cpp`: the page data with its
@@ -472,10 +528,19 @@ CTest also runs `en_pages_build` (`tools/pages/build.py --check`), `en_pages_lin
 GraceUI checkout whose files match the pin, `EN_GRACEUI_SOURCE`) and, in a Linux build with `EN_GRACE_DEV`,
 `en_pages_preview`: grace-dev serves each fixture state, a browser of our own (`tests/pages/browser.py`) reads every
 topic back and sends commands, and each page's in-game structure (`--dump`) matches `tests/pages/golden/`
-(EN_UPDATE_GOLDENS=1 writes them anew).
+(EN_UPDATE_GOLDENS=1 writes them anew), but Tools › Workshop's, whose dump is refused in every state (it is in the
+browser alone). Workshop's own cases (`test_workshop.cpp`): its four page fields in the owner's words and its place,
+every `workshop.*` topic drawn there alone and no setting homed there, nothing published, kept or taken while
+Developer views are off, `{}` and the stream cleared the moment they go off and the bodies back when they come on, the
+stream's ring and batches, the bodies from invented facts with the prompt's paths, addresses and a SteamID's shape
+scrubbed, recording.set at its one command path, and every body within the frame at the facts' bounds; the world
+state's `topics.json` holds Workshop's topics with Developer views on.
 
 End to end, the fake game's harness runs eldennet.dll with a test build of GraceUI under Wine with Direct3D 12
 (`tests/fakegame/README.md`), `launcher-eldennet-graceui-pages` among its cases: F5's menu on EldenNet's pages, a
 setting changed from it, and a browser on GraceUI's server reading the topics and sending commands; and
 `launcher-eldennet-graceui-events`: the fake game's world and the lifecycle raising Augur's events, and the view's
-squares of both colours counted on the game's frame.
+squares of both colours counted on the game's frame; `launcher-eldennet-graceui-workshop`: Workshop's page data,
+its topics while Developer views are on, Record this session off and on, Workshop never drawn in game, and its topics
+cleared once the switch is off; and `launcher-eldennet-graceui-talk-workshop`: the first conversation's request and
+reply on Workshop, the character's name masked in the line typed.
