@@ -94,19 +94,24 @@ stroke  edge         1142, 691   35x35   r3 w1 clip1
 fill    ink.hi       1159, 701    2x9    clip1
 tri     ink.hi       1153, 709   14x7    clip1 v
 line    rule          365, 736 1490x1    clip1
-text    ink.hi        365, 752   66x28   clip1 glyphs 7 "0:11:45"
+tri     ink.mute      365, 760   13x13   clip1 >
+text    ink.hi        390, 752   66x28   clip1 glyphs 7 "0:11:45"
 text    ink.mute      862, 754  422x25   clip1 glyphs 36 "model list  ·  lantern-box  ·  0.14 s  ·  answered"
 line    rule          365, 796 1490x1    clip1
-text    ink.hi        365, 812   66x28   clip1 glyphs 7 "0:11:45"
+tri     ink.mute      365, 820   13x13   clip1 >
+text    ink.hi        390, 812   66x28   clip1 glyphs 7 "0:11:45"
 text    ink.mute      862, 814  413x25   clip1 glyphs 35 "model list  ·  openrouter  ·  0.61 s  ·  answered"
 line    rule          365, 856 1490x1    clip1
-text    ink.hi        365, 872   66x28   clip1 glyphs 7 "0:11:30"
+tri     ink.mute      365, 880   13x13   clip1 >
+text    ink.hi        390, 872   66x28   clip1 glyphs 7 "0:11:30"
 text    ink.mute      862, 874  818x25   clip1 glyphs 69 "Self-test  ·  self-test  ·  talker-small on openrouter  ·  0.38 s  ·  1.02 s  ·  120  ·  answered"
 line    rule          365, 916 1490x1    clip1
-text    ink.hi        365, 932   66x28   clip1 glyphs 7 "0:11:30"
+tri     ink.mute      365, 940   13x13   clip1 >
+text    ink.hi        390, 932   66x28   clip1 glyphs 7 "0:11:30"
 text    ink.mute      862, 934  818x25   clip1 glyphs 69 "Self-test  ·  self-test  ·  talker-small on openrouter  ·  0.42 s  ·  0.59 s  ·  106  ·  answered"
 line    rule          365, 976 1490x1    clip1
-text    ink.hi        365, 992   66x28   clip1 glyphs 7 "0:11:30"
+tri     ink.mute      365,1000   13x13   clip1 >
+text    ink.hi        390, 992   66x28   clip1 glyphs 7 "0:11:30"
 text    ink.mute      862, 994  405x25   clip1 glyphs 35 "self-test  ·  openrouter  ·  0.30 s  ·  answered"
 fill    ground.2      340,1071 1540x230  r5 clip1
 stroke  rule          340,1071 1540x230  r5 w1 clip1
@@ -133,4 +138,4 @@ stroke  edge          466,1044   42x28   r3 w1
 text    ink.body      474,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     515,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi       362, 218 1496x26   r5 w3 clip1
-# 119 items, 4562 vertices, 9873 indices, 4 commands; check_draw_list: passes
+# 124 items, 4592 vertices, 9978 indices, 4 commands; check_draw_list: passes

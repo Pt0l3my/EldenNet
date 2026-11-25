@@ -196,6 +196,7 @@
           "label": "Outcome"
         },
         {
+          "drawer": true,
           "id": "text",
           "label": "Text shown"
         }
@@ -244,10 +245,12 @@
           "label": "Outcome"
         },
         {
+          "drawer": true,
           "id": "why",
           "label": "Why"
         },
         {
+          "drawer": true,
           "id": "text",
           "label": "Text shown"
         }
@@ -790,21 +793,25 @@
   },
   "logs": [
     {
+      "level": "info",
       "line": "boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev",
       "seq": 1,
       "time": "0:00:00"
     },
     {
+      "level": "info",
       "line": "gate result=passed ms=11",
       "seq": 2,
       "time": "0:00:00"
     },
     {
+      "level": "info",
       "line": "init state=settings",
       "seq": 3,
       "time": "0:00:00"
     },
     {
+      "level": "info",
       "line": "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.12",
       "seq": 4,
       "time": "0:00:01"

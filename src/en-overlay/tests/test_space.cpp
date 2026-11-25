@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <map>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -263,26 +264,28 @@ SpaceFacts banner() {
 }
 
 #if !defined(_WIN32)
-// The log lines a state's session wrote, invented in the log's own vocabulary (the fixtures', compared in the Linux
-// builds alone).
+// The log lines a state's session wrote, invented in the log's own vocabulary, each at the level the DLL writes it
+// (the fixtures', compared in the Linux builds alone).
 void feed(Space& s, std::string_view state) {
-  s.log_line("boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev", 3);
-  s.log_line("gate result=" + std::string(state == "banner" ? "unknown_build" : "passed") + " ms=11", 11);
-  s.log_line("init state=settings", 14);
+  constexpr LogLevel info = LogLevel::Info;
+  constexpr LogLevel warning = LogLevel::Warning;
+  s.log_line("boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev", 3, info);
+  s.log_line("gate result=" + std::string(state == "banner" ? "unknown_build" : "passed") + " ms=11", 11, info);
+  s.log_line("init state=settings", 14, info);
   if (state == "banner") {
-    s.log_line("settings_problem where=debug.log_level", 15);
-    s.log_line("banner reason=unknown_build detail=unknown_build", 1210);
+    s.log_line("settings_problem where=debug.log_level", 15, warning);
+    s.log_line("banner reason=unknown_build detail=unknown_build", 1210, warning);
     return;
   }
-  s.log_line("connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.12", 1830);
+  s.log_line("connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.12", 1830, info);
   if (state == "starting") return;
-  s.log_line("init state=ready", 6120);
-  s.log_line("change what=phase to=title", 6140);
+  s.log_line("init state=ready", 6120, info);
+  s.log_line("change what=phase to=title", 6140, info);
   if (state == "world" || state == "multiplayer") {
-    s.log_line("change what=phase to=in_world", 61200);
-    s.log_line("tripped group=camera", 1200400);
+    s.log_line("change what=phase to=in_world", 61200, info);
+    s.log_line("tripped group=camera", 1200400, warning);
   }
-  if (state == "multiplayer") s.log_line("change what=badge to=up", 1300800);
+  if (state == "multiplayer") s.log_line("change what=badge to=up", 1300800, info);
 }
 #endif
 
@@ -402,9 +405,10 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
                                           "providers.add", "providers.remove", "providers.key", "profile.check",
                                           "profile.save", "profile.reset", "profile.restore", "profile.draft",
                                           "report.build", "report.part", "ai.pause"}));
-  // The quick switches and live pages: protocol 1.13's (GraceUI D252), on 1.12's document block, prose field and
-  // preview (D251), 1.11's filter bar (D250), 1.10's foot (D248) and 1.8's sensitive marks (D221).
-  CHECK(pages["minor"] == 13);
+  // A stream's filter bar: protocol 1.16's (GraceUI D257), on 1.15's header switch (D256), 1.13's quick switches and
+  // live pages (D252), 1.12's document block, prose field and preview (D251), 1.11's filter bar (D250), 1.10's foot
+  // (D248) and 1.8's sensitive marks (D221).
+  CHECK(pages["minor"] == 16);
   // Pause AI for this session, the one quick switch (GraceUI §78's form), and not sensitive: a paired device may pause.
   CHECK(pages["quick"] == json::array({{{"id", "pause"}, {"label", "Pause AI for this session"},
                                         {"command", "ai.pause"},
@@ -655,7 +659,7 @@ TEST_CASE("space: nothing is published unwatched; a state when watched, when it 
 TEST_CASE("space: the logs stream from its oldest row held, in batches of 100, then each new row; its ring of 500") {
   Space s;
   const SpaceFacts f = title();
-  for (int i = 0; i < 520; ++i) s.log_line("line n=" + std::to_string(i), 1000u * i);
+  for (int i = 0; i < 520; ++i) s.log_line("line n=" + std::to_string(i), 1000u * i, LogLevel::Info);
   CHECK(s.log_rows().size() == 500);
   CHECK(s.log_rows()[0]["seq"] == 21);
   CHECK(collect(s, f, 0).empty());  // unwatched
@@ -669,10 +673,11 @@ TEST_CASE("space: the logs stream from its oldest row held, in batches of 100, t
   CHECK(out[0]["rows"].size() == 100);
   CHECK(out[0]["rows"][0]["line"] == "line n=20");
   CHECK(out[0]["rows"][0]["time"] == "0:00:20");
+  CHECK(out[0]["rows"][0]["level"] == "info");
   CHECK(out[4]["from_seq"] == 421);
   CHECK(out[4]["dropped"] == 0);
   CHECK(out[4]["rows"].back()["seq"] == 520);
-  s.log_line("line n=520", 700'000);
+  s.log_line("line n=520", 700'000, LogLevel::Info);
   CHECK(collect(s, f, 600'500).empty());  // within its second
   out = collect(s, f, 601'100);
   REQUIRE(out.size() == 1);
@@ -1788,8 +1793,52 @@ TEST_CASE("space: the log's rows are scrubbed of a SteamID64's shape; the clock"
   CHECK(clock_of(0) == "0:00:00");
   CHECK(clock_of(3'723'000) == "1:02:03");
   Space s;
-  s.log_line("x id=76561197960287930", 5);
+  s.log_line("x id=76561197960287930", 5, LogLevel::Info);
   CHECK(s.log_rows()[0]["line"] == "x id=redacted");
+}
+
+TEST_CASE("space: each log row's level is the logger's, in GraceUI D257's words, never read from its text") {
+  Space s;
+  s.log_line("ai_fail slot=dialogue class=server", 10, LogLevel::Error);
+  s.log_line("tripped group=camera", 20, LogLevel::Warning);
+  s.log_line("init state=ready", 30, LogLevel::Info);
+  s.log_line("watch n=3", 40, LogLevel::Debug);
+  s.log_line("step n=9", 50, LogLevel::Trace);
+  // A line whose words name a level keeps the level it was written at.
+  s.log_line("error warning level=error", 60, LogLevel::Info);
+  s.log_line("info only", 70, LogLevel::Error);
+  const json rows = s.log_rows();
+  REQUIRE(rows.size() == 7);
+  std::vector<std::string> levels;
+  for (const json& r : rows) levels.push_back(r["level"].get<std::string>());
+  CHECK(levels == std::vector<std::string>{"error", "warning", "info", "debug", "trace", "info", "error"});
+  // The stream's frames carry it, with each row's seq, time and scrubbed line: what both views filter.
+  s.watched(sub("logs"));
+  const auto out = collect(s, title(), 1000);
+  REQUIRE(out.size() == 1);
+  REQUIRE(out[0]["rows"].size() == 7);
+  for (std::size_t i = 0; i < 7; ++i) {
+    const json& row = out[0]["rows"][i];
+    CHECK(row == rows[i]);
+    CHECK(row.size() == 4);  // seq, time, line, level
+    CHECK(row["level"] == levels[i]);
+  }
+  // And the page data: Logs' log tail has the bar GraceUI D257 gives, a level filter and a search in the lines, and no
+  // sort (the rows come in time's order).
+  const json pages = json::parse(space_pages());
+  json tail;
+  for (const json& page : pages["pages"]) {
+    if (page["id"] != "system.logs") continue;
+    for (const json& sec : page["sections"]) {
+      for (const json& b : sec["blocks"]) {
+        if (b.value("component", "") == "log_tail") tail = b;
+      }
+    }
+  }
+  CHECK(tail["topic"] == "logs");
+  CHECK(tail["props"]["newest_first"] == true);
+  CHECK(tail["filter_bar"] == json{{"filters", json::array({{{"column", "level"}, {"label", "Level"}}})},
+                                   {"search", {{"columns", json::array({"line"})}, {"label", "Find in the log"}}}});
 }
 
 // ---- Docs (PAGES §4.6.9; GraceUI D251): what tools/docs/build.py bundled, checked again as GraceUI's reader checks
@@ -1978,8 +2027,8 @@ TEST_CASE("space: Bug report: a form with one prose field, the preview with its 
   for (const json& c : pages["commands"]) CHECK((c != "report.copy" && c != "report.save"));
 
   Space s;
-  s.log_line("boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev", 3);
-  s.log_line("tripped group=camera", 1200400);
+  s.log_line("boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev", 3, LogLevel::Info);
+  s.log_line("tripped group=camera", 1200400, LogLevel::Warning);
   const SpaceFacts f = facts_of("world");
   const json body = s.body("report", f);
   std::vector<std::string> ids;
@@ -2031,7 +2080,7 @@ TEST_CASE("space: Bug report: a form with one prose field, the preview with its 
 
 TEST_CASE("space: Bug report: what happened is kept for the preview alone; the switches; refusals in words") {
   Space s;
-  s.log_line("boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev", 3);
+  s.log_line("boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev", 3, LogLevel::Info);
   const SpaceFacts f = facts_of("title");
   for (const std::string_view topic : {"report", "status", "errors", "system.status", "settings", "content"}) {
     s.watched(sub(topic));
@@ -2115,8 +2164,10 @@ TEST_CASE("space: Bug report: the log's tail scrubbed again, settings without se
   REQUIRE(s.valid());
   s.set_value("a.key", "an invented key");
   s.set_value("a.model", "C:\\Users\\Someone\\models\\lamp.gguf");
-  for (int i = 0; i < 40; ++i) s.log_line("tick n=" + std::to_string(i), 1000u * static_cast<unsigned>(i));
-  s.log_line("ai_change what=key name=76561197960287930 host=198.51.100.7", 50000);
+  for (int i = 0; i < 40; ++i) {
+    s.log_line("tick n=" + std::to_string(i), 1000u * static_cast<unsigned>(i), LogLevel::Debug);
+  }
+  s.log_line("ai_change what=key name=76561197960287930 host=198.51.100.7", 50000, LogLevel::Info);
   const json parts = s.body("report", facts_of("title"))["parts"];
   std::string values, lines;
   for (const json& p : parts) {
@@ -2165,15 +2216,33 @@ TEST_CASE("space: AI › Requests and Home's Model calls: PAGES' columns and wor
   CHECK(keys == std::vector<std::string>{"at_ms", "first_token_ms", "total_ms", "tokens"});
   CHECK(table["filter_bar"]["sort"][0]["direction"] == "descending");
   CHECK_FALSE(table["filter_bar"].contains("search"));
-  // PAGES' nine columns, then why and the text shown: GraceUI has no row drawer yet.
+  // PAGES' nine columns on the row, then why and the text shown, the row's drawer (GraceUI D256): those two alone.
   CHECK(ids_of(requests["columns"]) == std::vector<std::string>{"time", "slot", "purpose", "speaker", "provider_model",
                                                                  "first_token", "total", "tokens", "outcome", "why",
                                                                  "text"});
+  const auto drawers_of = [](const json& columns) {
+    std::vector<std::string> ids;
+    for (const json& c : columns) {
+      if (c.value("drawer", false)) ids.push_back(c["id"].get<std::string>());
+    }
+    return ids;
+  };
+  CHECK(drawers_of(requests["columns"]) == std::vector<std::string>{"why", "text"});
+  CHECK(requests["columns"][9] == json{{"id", "why"}, {"label", "Why"}, {"drawer", true}});
+  CHECK(requests["columns"][10] == json{{"id", "text"}, {"label", "Text shown"}, {"drawer", true}});
   REQUIRE(requests["rows"].size() == 8);
+  // Each row has an id, the record's, as words (a drawer follows its row by it: GraceUI reads a string id alone), one
+  // of its own.
+  std::set<std::string> row_ids;
+  for (const json& r : requests["rows"]) {
+    REQUIRE(r["id"].is_string());
+    row_ids.insert(r["id"].get<std::string>());
+  }
+  CHECK(row_ids.size() == requests["rows"].size());
   // Newest first. A call still waiting has no first token, total or tokens: those keys are left out, so that it sorts
   // last on them (GraceUI D250), and no text.
   const json& waiting = requests["rows"][0];
-  CHECK(waiting["id"] == 19);
+  CHECK(waiting["id"] == "19");
   CHECK(waiting["at_ms"] == 3'905'000);
   CHECK(waiting["time"] == "1:05:05");
   CHECK(waiting["outcome"] == "waiting");
@@ -2223,15 +2292,19 @@ TEST_CASE("space: AI › Requests and Home's Model calls: PAGES' columns and wor
     const std::string job = r["slot"].get<std::string>();
     CHECK((job == "Conversation" || job == "Profile drafts"));
   }
-  // Home's card: the newest 20 (8 here), its own columns, no sort key, no why.
+  // Home's card: the newest 20 (8 here), its own columns, the text shown its drawer, no sort key, no why; each row
+  // with the id its call has on Requests.
   const json& home = calls["home"];
   CHECK(ids_of(home["columns"]) == std::vector<std::string>{"time", "slot", "purpose", "speaker", "model",
                                                              "first_token", "total", "outcome", "text"});
+  CHECK(drawers_of(home["columns"]) == std::vector<std::string>{"text"});
   REQUIRE(home["rows"].size() == 8);
   CHECK(home["rows"][1]["model"] == "talker-small");
   CHECK(home["rows"][1]["text"] == shown["text"]);
-  for (const json& r : home["rows"]) {
-    for (const char* key : {"id", "at_ms", "first_token_ms", "total_ms", "tokens", "why", "provider_model"}) {
+  for (std::size_t i = 0; i < home["rows"].size(); ++i) {
+    const json& r = home["rows"][i];
+    CHECK(r["id"] == requests["rows"][i]["id"]);
+    for (const char* key : {"at_ms", "first_token_ms", "total_ms", "tokens", "why", "provider_model"}) {
       CHECK_FALSE(r.contains(key));
     }
   }
@@ -2291,6 +2364,31 @@ TEST_CASE("space: AI › Requests and Home's Model calls: PAGES' columns and wor
   }
   CHECK(watching.body("calls", g)["requests"]["rows"][1]["provider_model"] == "openrouter");
   CHECK_FALSE(watching.body("calls", g)["home"]["rows"][1].contains("model"));
+
+  // PV4 in the drawer, which shows only what its row holds: no frame of either table holds a text the record did not
+  // keep as shown. A row with none (not shown, timed out, failed, waiting, a draft) has no text in any frame, and a
+  // shown reply's is the record's own, on that row alone.
+  std::map<std::string, std::string> kept;
+  for (const en::proto::CallRow& r : f.calls->rows) {
+    if (!r.text.empty()) kept[std::to_string(r.id)] = r.text;
+  }
+  CHECK(kept.size() == 3);
+  Space drawn;
+  drawn.watched(sub("calls"));
+  const std::vector<json> frames = collect(drawn, f, 0);
+  REQUIRE(frames.size() == 1);
+  for (const char* member : {"requests", "home"}) {
+    for (const json& r : frames[0]["body"][member]["rows"]) {
+      const std::string id = r["id"].get<std::string>();
+      if (r.contains("text")) {
+        CHECK(kept.count(id) == 1);
+        CHECK(r["text"] == kept[id]);
+        CHECK((r["outcome"] == "shown" || r["outcome"] == "fallback model"));
+      } else {
+        CHECK(kept.count(id) == 0);
+      }
+    }
+  }
 }
 
 TEST_CASE("space: Requests' body stays within GraceUI's frame to a page; the oldest rows give up their text first") {
@@ -2356,10 +2454,35 @@ TEST_CASE("space: Pause AI: ai.pause {on} handed to the DLL at once; status.ai_p
   CHECK(notes[0].topic == "ai.pause");
   CHECK(notes[0].key == "on");
   CHECK(notes[0].result == "ok");
+  // Anything but a boolean `on` is refused, {} among them (what a plain header button would send: a GraceUI before
+  // 0.2.49 reads Home's header switch as one, D256).
   for (const json& bad : {json::object(), json{{"on", "yes"}}, json{{"on", 1}}, json{{"off", true}}}) {
     CHECK(answer_of("ai.pause", bad)["error"] == "invalid_value");
   }
   CHECK(s.take_requests().empty());
+
+  // Home's header switch (GraceUI D256; eldennet-changes §82, PAGES §4.6.1's chip): the quick switch's command and
+  // state, beside the quick switch, which stays; secondary, not destructive, no confirmation. Its state topic is a
+  // state topic of the space's own, not a family, and its command a declared one, neither sensitive nor slow.
+  const json pages = json::parse(space_pages());
+  json home_page;
+  for (const json& p : pages["pages"]) {
+    if (p["id"] == "home") home_page = p;
+  }
+  CHECK(home_page["actions"] == json::array({{{"id", "pause"}, {"label", "Pause AI"}, {"command", "ai.pause"},
+                                              {"tone", "secondary"},
+                                              {"state", {{"topic", "status"}, {"field", "ai_paused"}}}}}));
+  CHECK(pages["quick"][0]["command"] == home_page["actions"][0]["command"]);
+  CHECK(pages["quick"][0]["state"] == home_page["actions"][0]["state"]);
+  for (const json& topic : pages["topics"]) {
+    if (topic["id"] == "status") CHECK(topic["shape"] == "state");
+  }
+  for (const char* list : {"sensitive_commands", "slow_commands"}) {
+    const json& names = pages[list];
+    CHECK(std::find(names.begin(), names.end(), "ai.pause") == names.end());
+  }
+  // The switch sends {"on": ...} flipped from what `status` says: the space's answers to both, as the quick switch's.
+  CHECK(s.body("status", f)["ai_paused"].is_boolean());
 
   // Off: the status says so, and its member is false from the first body, starting or not.
   json status = s.body("status", f);

@@ -101,7 +101,8 @@ TEST_CASE("rings: the logger's ring from four threads keeps every line it accept
     threads.emplace_back([&, t] {
       for (int i = 0; i < 300; ++i) {
         const std::string text = "t" + std::to_string(t) + " i=" + std::to_string(i);
-        if (ring.try_push(text, static_cast<std::uint64_t>(i))) ++accepted;
+        const LogLevel level = i % 3 == 0 ? LogLevel::Warn : LogLevel::Info;
+        if (ring.try_push(text, static_cast<std::uint64_t>(i), level)) ++accepted;
       }
     });
   }
@@ -112,6 +113,10 @@ TEST_CASE("rings: the logger's ring from four threads keeps every line it accept
     ++popped;
     CHECK(e.len > 0);
     CHECK(e.text[0] == 't');
+    // Each line keeps the level it was pushed with (System › Logs' Level filter reads it, never the text).
+    const std::string_view text(e.text.data(), e.len);
+    const int i = std::stoi(std::string(text.substr(text.find("i=") + 2)));
+    CHECK(e.level == (i % 3 == 0 ? LogLevel::Warn : LogLevel::Info));
   }
   CHECK(popped == accepted.load());
   CHECK(popped + ring.dropped() == 1200);

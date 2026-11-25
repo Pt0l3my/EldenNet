@@ -91,11 +91,11 @@ TEST_CASE("GraceUI's pre-flight: every listed file matches, the ABI and the floo
   f.put("graceui.dll", kDll);
   f.put("fonts/NotoSans-Regular.ttf", kFont);
   f.put("user/settings.toml", "not listed: GraceUI's own, at run time (D84)");
-  f.manifest("0.2.44", "[1, 7]",
+  f.manifest("0.2.50", "[1, 7]",
              Folder::entry("graceui.dll", kDll) + Folder::entry("fonts/NotoSans-Regular.ttf", kFont));
   const GraceReport r = check_graceui(f.grace);
   CHECK(r.result == GraceCheck::Ok);
-  CHECK(r.version == std::array<std::uint16_t, 3>{0, 2, 44});
+  CHECK(r.version == std::array<std::uint16_t, 3>{0, 2, 50});
   CHECK(r.abi_major == 1);
   CHECK(r.files == 2);
   CHECK(r.checked == 2);
@@ -119,7 +119,7 @@ TEST_CASE("GraceUI's pre-flight: each way it fails, named without a path") {
   SUBCASE("a file missing, of another size, or another hash") {
     Folder f;
     f.put("graceui.dll", kDll);
-    f.manifest("0.2.44", "[1, 7]",
+    f.manifest("0.2.50", "[1, 7]",
                Folder::entry("graceui.dll", kDll) + Folder::entry("fonts/NotoSans-Regular.ttf", kFont));
     GraceReport r = check_graceui(f.grace);
     CHECK(r.result == GraceCheck::FileMissing);
@@ -144,10 +144,10 @@ TEST_CASE("GraceUI's pre-flight: each way it fails, named without a path") {
     GraceReport r = check_graceui(f.grace);
     CHECK(r.result == GraceCheck::AbiMajor);
     CHECK(graceui_problem(r) == "this GraceUI speaks ABI 2, and EldenNet needs ABI 1");
-    f.manifest("0.2.43", "[1, 7]", Folder::entry("graceui.dll", kDll));
+    f.manifest("0.2.49", "[1, 7]", Folder::entry("graceui.dll", kDll));
     r = check_graceui(f.grace);
     CHECK(r.result == GraceCheck::TooOld);
-    CHECK(graceui_problem(r) == "this GraceUI is version 0.2.43, and EldenNet needs 0.2.44 or newer");
+    CHECK(graceui_problem(r) == "this GraceUI is version 0.2.49, and EldenNet needs 0.2.50 or newer");
   }
 }
 

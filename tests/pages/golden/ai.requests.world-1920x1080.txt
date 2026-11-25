@@ -97,29 +97,37 @@ stroke  edge         1142, 691   35x35   r3 w1 clip1
 fill    ink.hi       1159, 701    2x9    clip1
 tri     ink.hi       1153, 709   14x7    clip1 v
 line    rule          365, 736 1490x1    clip1
-text    ink.hi        365, 752   66x28   clip1 glyphs 7 "1:05:05"
+tri     ink.mute      365, 760   13x13   clip1 >
+text    ink.hi        390, 752   66x28   clip1 glyphs 7 "1:05:05"
 text    ink.mute      862, 754  641x25   clip1 glyphs 58 "Conversation  ·  reply  ·  Ysolde  ·  talker-small on openrouter  ·  waiting"
 line    rule          365, 796 1490x1    clip1
-text    ink.hi        365, 812   66x28   clip1 glyphs 7 "1:00:55"
-text    ink.mute      862, 814  970x25   clip1 glyphs 78 "Conversation  ·  reply  ·  Old Bram  ·  talker-small on openrouter  ·  0.64 s  ·  1.72 s  ·  858  ·  shown  ·  Two coins for the crossing, friend, and the river decides how dry you land."
+tri     ink.mute      365, 820   13x13   clip1 >
+text    ink.hi        390, 812   66x28   clip1 glyphs 7 "1:00:55"
+text    ink.mute      862, 814  894x25   clip1 glyphs 73 "Conversation  ·  reply  ·  Old Bram  ·  talker-small on openrouter  ·  0.64 s  ·  1.72 s  ·  858  ·  shown"
 line    rule          365, 856 1490x1    clip1
-text    ink.hi        365, 872   66x28   clip1 glyphs 7 "1:00:42"
-text    ink.mute      862, 874  970x25   clip1 glyphs 81 "Conversation  ·  reply  ·  Old Bram  ·  talker-large on openrouter  ·  2.95 s  ·  4.10 s  ·  842  ·  fallback model  ·  Took too long to start its answer.  ·  Ask me again when the lamps are lit. I count better by their light."
+tri     ink.mute      365, 880   13x13   clip1 >
+text    ink.hi        390, 872   66x28   clip1 glyphs 7 "1:00:42"
+text    ink.mute      862, 874  970x25   clip1 glyphs 81 "Conversation  ·  reply  ·  Old Bram  ·  talker-large on openrouter  ·  2.95 s  ·  4.10 s  ·  842  ·  fallback model"
 line    rule          365, 916 1490x1    clip1
-text    ink.hi        365, 932   66x28   clip1 glyphs 7 "1:00:10"
+tri     ink.mute      365, 940   13x13   clip1 >
+text    ink.hi        390, 932   66x28   clip1 glyphs 7 "1:00:10"
 text    ink.mute      862, 934  911x25   clip1 glyphs 75 "Conversation  ·  reply  ·  Ysolde  ·  talker-small on openrouter  ·  0.70 s  ·  1.30 s  ·  800  ·  not shown"
 line    rule          365, 976 1490x1    clip1
-text    ink.hi        365, 992   66x28   clip1 glyphs 7 "0:59:50"
-text    ink.mute      862, 994  970x25   clip1 glyphs 83 "Conversation  ·  reply  ·  Ysolde  ·  talker-small on openrouter  ·  6.00 s  ·  timed out  ·  Took too long to start its answer."
+tri     ink.mute      365,1000   13x13   clip1 >
+text    ink.hi        390, 992   66x28   clip1 glyphs 7 "0:59:50"
+text    ink.mute      862, 994  751x25   clip1 glyphs 65 "Conversation  ·  reply  ·  Ysolde  ·  talker-small on openrouter  ·  6.00 s  ·  timed out"
 line    rule          365,1036 1490x1    clip1
-text    ink.hi        365,1052   66x28   clip1 glyphs 7 "0:59:20"
+tri     ink.mute      365,1060   13x13   clip1 >
+text    ink.hi        390,1052   66x28   clip1 glyphs 7 "0:59:20"
 text    ink.mute      862,1054  894x25   clip1 glyphs 76 "Profile drafts  ·  profile draft  ·  talker-small on openrouter  ·  0.90 s  ·  3.40 s  ·  600  ·  answered"
 line    rule          365,1096 1490x1    clip1
-text    ink.hi        365,1112   66x28   clip1 glyphs 7 "0:58:20"
-text    ink.mute      862,1114  970x25   clip1 glyphs 84 "Conversation  ·  reply  ·  Old Bram  ·  talker-small on openrouter  ·  2.20 s  ·  failed  ·  Failed on the provider's side."
+tri     ink.mute      365,1120   13x13   clip1 >
+text    ink.hi        390,1112   66x28   clip1 glyphs 7 "0:58:20"
+text    ink.mute      862,1114  742x25   clip1 glyphs 64 "Conversation  ·  reply  ·  Old Bram  ·  talker-small on openrouter  ·  2.20 s  ·  failed"
 line    rule          365,1156 1490x1    clip1
-text    ink.hi        365,1172   66x28   clip1 glyphs 7 "0:58:00"
-text    ink.mute      862,1174  970x25   clip1 glyphs 78 "Conversation  ·  reply  ·  Old Bram  ·  talker-small on openrouter  ·  0.61 s  ·  1.54 s  ·  740  ·  shown  ·  The river is low today. Mind the third plank; it remembers every boot."
+tri     ink.mute      365,1180   13x13   clip1 >
+text    ink.hi        390,1172   66x28   clip1 glyphs 7 "0:58:00"
+text    ink.mute      862,1174  894x25   clip1 glyphs 73 "Conversation  ·  reply  ·  Old Bram  ·  talker-small on openrouter  ·  0.61 s  ·  1.54 s  ·  740  ·  shown"
 fill    ground.2      340,1251 1540x230  r5 clip1
 stroke  rule          340,1251 1540x230  r5 w1 clip1
 text    gold          365,1271   67x20   clip1 glyphs 7 "Related"
@@ -145,4 +153,4 @@ stroke  edge          466,1044   42x28   r3 w1
 text    ink.body      474,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     515,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi       362, 218 1496x26   r5 w3 clip1
-# 123 items, 5302 vertices, 11049 indices, 4 commands; check_draw_list: passes
+# 128 items, 5240 vertices, 11016 indices, 4 commands; check_draw_list: passes

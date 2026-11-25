@@ -30,6 +30,11 @@ fill    ground.well  1471,  10  140x35   r3
 text    ink.body     1486,  15  110x25   glyphs 12 "Updates: Live"
 line    rule          300,  55 1620x1   
 text    ink.hi        340,  86   80x45   clip1 glyphs 4 "Home"
+stroke  edge         1700,  89  180x40   r3 w1 clip1
+text    ink.hi       1720,  95   75x28   clip1 glyphs 7 "Pause AI"
+fill    ground.well  1810,  95   50x28   r14 clip1
+stroke  edge         1810,  95   50x28   r14 w1 clip1
+circle  ink.mute     1814,  99   20x20   clip1
 text    ink.mute      340, 136  810x25   clip1 glyphs 76 "Whether EldenNet is working on this game, what to do if it is not, and what it asked of a model."
 line    rule.strong   340, 176 1540x1    clip1
 diamond gold.deep     340, 171   11x11   w1 clip1
@@ -97,13 +102,10 @@ text    ink.hi        380,1405   38x28   clip1 glyphs 4 "Logs"
 text    ink.mute      862,1406  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
 text    gold         1820,1405    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
-fill    ground.well   340,1044   60x28   r3
-stroke  edge          340,1044   60x28   r3 w1
-text    ink.body      348,1046   44x25   glyphs 5 "Enter"
-text    ink.faint     407,1045   34x25   glyphs 4 "Open"
-fill    ground.well   466,1044   42x28   r3
-stroke  edge          466,1044   42x28   r3 w1
-text    ink.body      474,1046   26x25   glyphs 3 "Esc"
-text    ink.faint     515,1045   34x25   glyphs 4 "Back"
-stroke  gold.hi       362, 293 1496x26   r5 w3 clip1
-# 88 items, 3504 vertices, 7026 indices, 4 commands; check_draw_list: passes
+text    ink.faint     340,1045  143x25   glyphs 15 "Not available now"
+fill    ground.well   508,1044   42x28   r3
+stroke  edge          508,1044   42x28   r3 w1
+text    ink.body      516,1046   26x25   glyphs 3 "Esc"
+text    ink.faint     558,1045   34x25   glyphs 4 "Back"
+stroke  gold.hi      1697,  86  186x46   r5 w3 clip1
+# 90 items, 3764 vertices, 8034 indices, 4 commands; check_draw_list: passes

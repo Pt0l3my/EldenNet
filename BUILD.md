@@ -143,12 +143,12 @@ cmake --build build-cl
   (`mesa-vulkan-drivers`) for Wine's Direct3D 12, as GraceUI's harness does. Build GraceUI at the commit
   third_party/graceui-sys comes from (832b8d9, GraceUI 0.2.52), so the space and the surfaces meet the checks they will
   meet. The page lint and the preview are pinned to the same commit (`tests/pages/lint.py`): the page data is protocol
-  1.13's since the quick switches and live pages (GraceUI D252), which an older GraceUI reads past, so the GraceUI
-  floor stays 0.2.44 (Docs' document block, D251). `launcher-eldennet-graceui-pages` drives EldenNet's pages through
-  that GraceUI, Content packs, Docs and Bug report among them, `-pause` Pause AI by its quick switch's command,
-  `-talk-calls` AI › Requests after a reply and `-talk-traces` System › Traces and Performance after one: F5's menu
-  and, from Linux, a browser of the tests' own (`tests/pages/browser.py`) on GraceUI's server at the port the fake
-  game's report names. Every
+  1.16's since Logs' filter bar on its log tail (GraceUI D257), which an older GraceUI's registration refuses, so the
+  GraceUI floor is 0.2.50. `launcher-eldennet-graceui-pages` drives EldenNet's pages through that GraceUI, Content
+  packs, Docs, Bug report and Logs drawn in game among them, `-pause` Pause AI by its quick switch's command and by
+  Home's header switch's, `-talk-calls` AI › Requests after a reply and `-talk-traces` System › Traces and Performance
+  after one: F5's menu and, from Linux, a browser of the tests' own (`tests/pages/browser.py`) on GraceUI's server at
+  the port the fake game's report names. Every
   GraceUI case sets `GRACEUI_TEST_PORT=free` (GraceUI 0.2.31's D234) in the game's environment, so the test build serves
   the browser view on a loopback port the system has free, never `dashboard.port`'s default (8642), and two trees can
   run these cases at once; GraceUI's settings file is left as it is.

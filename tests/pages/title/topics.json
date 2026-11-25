@@ -416,18 +416,21 @@
           "label": "Outcome"
         },
         {
+          "drawer": true,
           "id": "text",
           "label": "Text shown"
         }
       ],
       "rows": [
         {
+          "id": "5",
           "outcome": "answered",
           "purpose": "model list",
           "time": "0:11:45",
           "total": "0.14 s"
         },
         {
+          "id": "4",
           "outcome": "answered",
           "purpose": "model list",
           "time": "0:11:45",
@@ -435,6 +438,7 @@
         },
         {
           "first_token": "0.38 s",
+          "id": "3",
           "model": "talker-small",
           "outcome": "answered",
           "purpose": "self-test",
@@ -444,6 +448,7 @@
         },
         {
           "first_token": "0.42 s",
+          "id": "2",
           "model": "talker-small",
           "outcome": "answered",
           "purpose": "self-test",
@@ -452,6 +457,7 @@
           "total": "0.59 s"
         },
         {
+          "id": "1",
           "outcome": "answered",
           "purpose": "self-test",
           "time": "0:11:30",
@@ -501,10 +507,12 @@
           "label": "Outcome"
         },
         {
+          "drawer": true,
           "id": "why",
           "label": "Why"
         },
         {
+          "drawer": true,
           "id": "text",
           "label": "Text shown"
         }
@@ -512,7 +520,7 @@
       "rows": [
         {
           "at_ms": 705000,
-          "id": 5,
+          "id": "5",
           "outcome": "answered",
           "provider_model": "lantern-box",
           "purpose": "model list",
@@ -522,7 +530,7 @@
         },
         {
           "at_ms": 705000,
-          "id": 4,
+          "id": "4",
           "outcome": "answered",
           "provider_model": "openrouter",
           "purpose": "model list",
@@ -534,7 +542,7 @@
           "at_ms": 690900,
           "first_token": "0.38 s",
           "first_token_ms": 380,
-          "id": 3,
+          "id": "3",
           "outcome": "answered",
           "provider_model": "talker-small on openrouter",
           "purpose": "self-test",
@@ -548,7 +556,7 @@
           "at_ms": 690300,
           "first_token": "0.42 s",
           "first_token_ms": 420,
-          "id": 2,
+          "id": "2",
           "outcome": "answered",
           "provider_model": "talker-small on openrouter",
           "purpose": "self-test",
@@ -560,7 +568,7 @@
         },
         {
           "at_ms": 690000,
-          "id": 1,
+          "id": "1",
           "outcome": "answered",
           "provider_model": "openrouter",
           "purpose": "self-test",
@@ -1227,31 +1235,37 @@
   },
   "logs": [
     {
+      "level": "info",
       "line": "boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev",
       "seq": 1,
       "time": "0:00:00"
     },
     {
+      "level": "info",
       "line": "gate result=passed ms=11",
       "seq": 2,
       "time": "0:00:00"
     },
     {
+      "level": "info",
       "line": "init state=settings",
       "seq": 3,
       "time": "0:00:00"
     },
     {
+      "level": "info",
       "line": "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.12",
       "seq": 4,
       "time": "0:00:01"
     },
     {
+      "level": "info",
       "line": "init state=ready",
       "seq": 5,
       "time": "0:00:06"
     },
     {
+      "level": "info",
       "line": "change what=phase to=title",
       "seq": 6,
       "time": "0:00:06"

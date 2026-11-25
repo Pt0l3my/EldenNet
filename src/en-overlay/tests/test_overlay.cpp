@@ -46,7 +46,7 @@ TEST_CASE("overlay: connect as eldennet, with EldenNet's floor and the caps it u
   CHECK(r.outcome == Outcome::Connected);
   CHECK(g.id == "eldennet");
   CHECK(g.name == "EldenNet");
-  CHECK(g.floor == GRACEUI_VERSION_PACK(0, 2, 44));  // GraceUI 0.2.44: Docs and Bug report's blocks (D251)
+  CHECK(g.floor == GRACEUI_VERSION_PACK(0, 2, 50));  // GraceUI 0.2.50: Logs' filter bar on its stream (D257)
   CHECK(g.mod_version == GRACEUI_VERSION_PACK(0, 1, 0));
   CHECK(g.mod_caps == "notices world-state hotkeys");
   CHECK(std::string(r.view) == "off");
@@ -447,7 +447,7 @@ TEST_CASE("overlay: watched topics published, each command answered once at once
   auto o = connect(g, with_space(), r);
   REQUIRE(o != nullptr);
   Space space;
-  space.log_line("init state=ready", 10);
+  space.log_line("init state=ready", 10, LogLevel::Info);
   SpaceFacts facts;
   facts.version = {0, 1, 0};
   facts.graceui = g.version;
@@ -502,7 +502,7 @@ TEST_CASE("overlay: watched topics published, each command answered once at once
   facts.level = Level::Inactive;
   facts.stop = Stop::TaskTripped;
   facts.stop_text = "EldenNet stopped reading the game after an error. Your game is not affected.";
-  space.log_line("tripped group=camera", 1300);
+  space.log_line("tripped group=camera", 1300, LogLevel::Warning);
   (void)o->step(status(), &space, &facts, 5000);
   CHECK(g.published.size() == before);
   CHECK_FALSE(space.watching("status"));

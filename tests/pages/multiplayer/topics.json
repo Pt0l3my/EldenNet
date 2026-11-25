@@ -436,12 +436,14 @@
           "label": "Outcome"
         },
         {
+          "drawer": true,
           "id": "text",
           "label": "Text shown"
         }
       ],
       "rows": [
         {
+          "id": "19",
           "model": "talker-small",
           "outcome": "waiting",
           "purpose": "reply",
@@ -451,6 +453,7 @@
         },
         {
           "first_token": "0.64 s",
+          "id": "18",
           "model": "talker-small",
           "outcome": "shown",
           "purpose": "reply",
@@ -462,6 +465,7 @@
         },
         {
           "first_token": "2.95 s",
+          "id": "17",
           "model": "talker-large",
           "outcome": "fallback model",
           "purpose": "reply",
@@ -473,6 +477,7 @@
         },
         {
           "first_token": "0.70 s",
+          "id": "16",
           "model": "talker-small",
           "outcome": "not shown",
           "purpose": "reply",
@@ -482,6 +487,7 @@
           "total": "1.30 s"
         },
         {
+          "id": "15",
           "model": "talker-small",
           "outcome": "timed out",
           "purpose": "reply",
@@ -492,6 +498,7 @@
         },
         {
           "first_token": "0.90 s",
+          "id": "14",
           "model": "talker-small",
           "outcome": "answered",
           "purpose": "profile draft",
@@ -500,6 +507,7 @@
           "total": "3.40 s"
         },
         {
+          "id": "13",
           "model": "talker-small",
           "outcome": "failed",
           "purpose": "reply",
@@ -510,6 +518,7 @@
         },
         {
           "first_token": "0.61 s",
+          "id": "12",
           "model": "talker-small",
           "outcome": "shown",
           "purpose": "reply",
@@ -563,10 +572,12 @@
           "label": "Outcome"
         },
         {
+          "drawer": true,
           "id": "why",
           "label": "Why"
         },
         {
+          "drawer": true,
           "id": "text",
           "label": "Text shown"
         }
@@ -574,7 +585,7 @@
       "rows": [
         {
           "at_ms": 3905000,
-          "id": 19,
+          "id": "19",
           "outcome": "waiting",
           "provider_model": "talker-small on openrouter",
           "purpose": "reply",
@@ -586,7 +597,7 @@
           "at_ms": 3655000,
           "first_token": "0.64 s",
           "first_token_ms": 640,
-          "id": 18,
+          "id": "18",
           "outcome": "shown",
           "provider_model": "talker-small on openrouter",
           "purpose": "reply",
@@ -602,7 +613,7 @@
           "at_ms": 3642000,
           "first_token": "2.95 s",
           "first_token_ms": 2950,
-          "id": 17,
+          "id": "17",
           "outcome": "fallback model",
           "provider_model": "talker-large on openrouter",
           "purpose": "reply",
@@ -619,7 +630,7 @@
           "at_ms": 3610000,
           "first_token": "0.70 s",
           "first_token_ms": 700,
-          "id": 16,
+          "id": "16",
           "outcome": "not shown",
           "provider_model": "talker-small on openrouter",
           "purpose": "reply",
@@ -632,7 +643,7 @@
         },
         {
           "at_ms": 3590000,
-          "id": 15,
+          "id": "15",
           "outcome": "timed out",
           "provider_model": "talker-small on openrouter",
           "purpose": "reply",
@@ -647,7 +658,7 @@
           "at_ms": 3560000,
           "first_token": "0.90 s",
           "first_token_ms": 900,
-          "id": 14,
+          "id": "14",
           "outcome": "answered",
           "provider_model": "talker-small on openrouter",
           "purpose": "profile draft",
@@ -659,7 +670,7 @@
         },
         {
           "at_ms": 3500000,
-          "id": 13,
+          "id": "13",
           "outcome": "failed",
           "provider_model": "talker-small on openrouter",
           "purpose": "reply",
@@ -674,7 +685,7 @@
           "at_ms": 3480000,
           "first_token": "0.61 s",
           "first_token_ms": 610,
-          "id": 12,
+          "id": "12",
           "outcome": "shown",
           "provider_model": "talker-small on openrouter",
           "purpose": "reply",
@@ -1362,46 +1373,55 @@
   },
   "logs": [
     {
+      "level": "info",
       "line": "boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev",
       "seq": 1,
       "time": "0:00:00"
     },
     {
+      "level": "info",
       "line": "gate result=passed ms=11",
       "seq": 2,
       "time": "0:00:00"
     },
     {
+      "level": "info",
       "line": "init state=settings",
       "seq": 3,
       "time": "0:00:00"
     },
     {
+      "level": "info",
       "line": "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.12",
       "seq": 4,
       "time": "0:00:01"
     },
     {
+      "level": "info",
       "line": "init state=ready",
       "seq": 5,
       "time": "0:00:06"
     },
     {
+      "level": "info",
       "line": "change what=phase to=title",
       "seq": 6,
       "time": "0:00:06"
     },
     {
+      "level": "info",
       "line": "change what=phase to=in_world",
       "seq": 7,
       "time": "0:01:01"
     },
     {
+      "level": "warning",
       "line": "tripped group=camera",
       "seq": 8,
       "time": "0:20:00"
     },
     {
+      "level": "info",
       "line": "change what=badge to=up",
       "seq": 9,
       "time": "0:21:40"

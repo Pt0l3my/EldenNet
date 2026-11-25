@@ -10,14 +10,14 @@ C; WHY§364) adds EldenNet's own surfaces on GraceUI 0.2.20's ABI 1.5 (§31, §3
 box, the hint and the toasts. Later increments add the call-out box (v0.6) and the rest of its pages.
 
 It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 832b8d9, GraceUI
-0.2.52, ABI 1.8, protocol 1.17, whose uploads and on_present it does not use; its floor, 0.2.44, for Docs' document
-block and Bug report's prose field and preview, which an older GraceUI refuses, with the profile editor's families, slow
-commands, editor block and chosen row, on 0.2.17's wait handle; 0.2.36's italic face where GraceUI's folder has it, and
-0.2.38's word for what pressed a hotkey behind its cap): its look for GraceUI and `GraceUI_RequestApi(1)`
-(`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size (`graceui_sys.hpp`), and the headless Dear
-ImGui helper (`graceui_imgui.hpp`). It links no hook library and no Dear ImGui backend and hooks nothing (R12, GraceUI's
-invariant 16); it never links en-core or en-gal, so it can never reach the game's memory (ARCH §2.3, checked by
-`en_link_rule`); and nothing in it waits but the look, on T1 (R6).
+0.2.52, ABI 1.8, protocol 1.17, whose uploads and on_present it does not use; its floor, 0.2.50, for Logs' filter bar on
+its stream, which an older GraceUI refuses, with 0.2.49's header switch, Docs' document block and Bug report's prose
+field and preview, the profile editor's families, slow commands, editor block and chosen row, on 0.2.17's wait handle;
+0.2.36's italic face where GraceUI's folder has it, and 0.2.38's word for what pressed a hotkey behind its cap): its
+look for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's
+size (`graceui_sys.hpp`), and the headless Dear ImGui helper (`graceui_imgui.hpp`). It links no hook library and no Dear
+ImGui backend and hooks nothing (R12, GraceUI's invariant 16); it never links en-core or en-gal, so it can never reach
+the game's memory (ARCH §2.3, checked by `en_link_rule`); and nothing in it waits but the look, on T1 (R6).
 
 ## Two parts
 
@@ -44,7 +44,7 @@ On T1, after WaitWindow (ARCH §3.2's Connect, and ConnectB on the banner path):
    GraceUI loaded before EldenNet is found by its name, and GraceUI installed in the game's folder but not yet loaded is
    loaded by EldenNet (and found by its name if a loader loads it later).
 2. **`Overlay::connect`** as `eldennet` (its id and its space's), display name `EldenNet`, its version, its GraceUI floor
-   (0.2.44, `en/proto/graceui_pin.hpp`) and the caps it uses: `notices world-state hotkeys`, and with the view
+   (0.2.50, `en/proto/graceui_pin.hpp`) and the caps it uses: `notices world-state hotkeys`, and with the view
    `panels textures`. The answers: `connected`; `notices_only` (inactive for the anti-cheat, with a handle: the banner
    through `notice` alone, D88); or a failed connect, `absent`, `too_old`, `duplicate_id`, `inactive` (the overlay
    could not start or turned itself off), `refused` or `not_yet`, which leave EldenNet headless (ARCH §10.3's "Overlay
@@ -181,11 +181,12 @@ game's own text entry is not read in v0.1.
   when asked for, GraceUI), the read groups' self-tests
   (`columns`, `rows`) and the Compatibility tab's versions and how EldenNet started (`compatibility`, the member its
   block reads, GraceUI D185's `props.field`); `logs` the log's own lines (500
-  held, from T1's first, scrubbed again of a SteamID64's shape, PV5). The AI pages' (`SpaceFacts::ai`, en-overlay's
-  own `AiFacts`, which the DLL maps from en-llm): `ai.status` the cause every AI page leads with (PAGES §4.4:
-  inactive, a refused providers file, no provider, no key or a refused one, no healthy model for Conversation, the
-  gate, or v0.1's observing; at L3 and L4 "Conversation is ready: NPCs answer when you speak to them."; at L1 the
-  banner's own words, O95); `providers` the providers' table (the base URL here
+  held, from T1's first, scrubbed again of a SteamID64's shape, PV5), each row `{seq, time, line, level}`, its level the
+  logger's own (`error`, `warning`, `info`, `debug`; `trace` for a later logger's), never read from its text. The AI
+  pages' (`SpaceFacts::ai`, en-overlay's own `AiFacts`, which the DLL maps from en-llm): `ai.status` the cause every AI
+  page leads with (PAGES §4.4: inactive, a refused providers file, no provider, no key or a refused one, no healthy
+  model for Conversation, the gate, or v0.1's observing; at L3 and L4 "Conversation is ready: NPCs answer when you speak
+  to them."; at L1 the banner's own words, O95); `providers` the providers' table (the base URL here
   alone, PV2; the key column is the row's secret, D194 and D197, its cells "set", "refused" (its last call refused
   for its key, or for want of one), "none" (no key's place and none asked for, or http:// on another computer) or "",
   never a key; a Remove on each row, D192) and the model list's checks, in words; `health` each provider's state (a
@@ -203,8 +204,10 @@ game's own text entry is not read in v0.1.
   `ai.choices.providers` every provider picker's, the providers but one whose key was refused. Never a key or the model's text. `space.state`, GraceUI's framework topic (GraceUI 0.2.7, D188): Home and the AI pages greyed at L1 with
   the banner's own words (PAGES §4.4, O95's one form), nothing greyed otherwise (at L2 every page stays usable, led by
   `ai.status`). Blocks whose topic can publish nothing for them carry `props.empty` words (D186): Home's Problems "No
-  problems.", System's read groups before the first reading, the AI pages'; Logs' tail is newest first in the browser
-  (`props.newest_first`, D187).
+  problems.", System's read groups before the first reading, the AI pages'; Logs' tail is newest first
+  (`props.newest_first`, D187), in game too since GraceUI 0.2.50 (D257: the newest 200 rows, from the same frames as
+  the browser's, so scrubbed alike), with its filter bar (D257): Level, a filter on each row's `level`, and Find in the
+  log, a search in its lines, in both views over the rows each holds, in place of PAGES' level tiles; no sort.
 - **One command path** (GraceUI's invariant 3): `settings.set` (the key known, not locked, the value of its type and in
   its bounds or choices) and `settings.reset` (a key at once; a page or every setting only with `confirm: true`,
   D173), each refusal by its code, with words in `detail` where the code says too little; nothing while the settings
@@ -348,8 +351,8 @@ save until 0.6, after EldenNet's scan. Two sections:
 
 ## AI › Requests, Home's Model calls card and Pause AI (`ai.requests`, `home`; PAGES §4.6.1, §4.6.2; S11.4.a)
 
-On GraceUI 0.2.46's quick switches and live pages (D252, protocol 1.13, which an older GraceUI reads past, so the floor
-stays 0.2.44) and 0.2.43's filter bar (D250), from the model calls' record the DLL keeps (`SpaceFacts::calls`,
+On GraceUI 0.2.46's quick switches and live pages (D252, protocol 1.13), 0.2.49's row drawer and header switch (D256,
+protocol 1.15) and 0.2.43's filter bar (D250), from the model calls' record the DLL keeps (`SpaceFacts::calls`,
 en-proto's `CallsView`, `ai_calls()`) and Pause AI as the core holds it (`SpaceFacts::ai_paused`, `ai_paused()`):
 
 - **AI › Requests** (`ai.requests`, increment 0.2, live): Now (`ai.status`); This session, `stat_tiles` on `usage`
@@ -360,18 +363,23 @@ en-proto's `CallsView`, `ai_calls()`) and Pause AI as the core holds it (`SpaceF
   player label), Purpose and Outcome (PAGES' words, en-proto's), Speaker as shown, Provider and model ("model on
   provider"; a model id shaped like a path left out, PV5), First token, Total, Tokens (in and out, a number), then Why
   (the error class in words) and Text shown (a reply's displayed text once a page of it reached the screen, and nothing
-  else, PV4): GraceUI has no row drawer yet, so these two are the table's last columns. Its filter bar (D250): Job,
+  else, PV4), the row's drawer (GraceUI 0.2.49's D256: columns marked `drawer`, left off the row and shown under it,
+  label above words, when the row is opened; an older GraceUI shows them on the row). Its filter bar (D250): Job,
   Purpose and Outcome; sorted by Time (newest first), First token, Total or Tokens (most first) on each row's hidden
   keys `at_ms`, `first_token_ms`, `total_ms` and `tokens`, a key the call has no value for left out so that it sorts
-  last; no search (PV4). Each row carries its `id`.
+  last; no search (PV4). Each row carries its `id`, the record's, as words, which the drawer follows.
 - **Home** (live): the Status card's last line, Pause AI "Off" or "On, for this session", and the lead's reason "AI is
   paused for this session." at L2 when not dormant (en-proto's kAiPausedStatus); and Model calls, a table on `calls`'
-  `home` member, the newest 20 in Requests' words (Time, Job, Purpose, Speaker, Model, First token, Total, Outcome,
-  Text shown), with the hour's line under it.
+  `home` member, the newest 20 in Requests' words (Time, Job, Purpose, Speaker, Model, First token, Total, Outcome),
+  Text shown in each row's drawer and each row with its call's `id`, with the hour's line under it. Its header has
+  Pause AI's switch (GraceUI 0.2.49's D256, PAGES §4.6.1's chip): the quick switch's command and state, `{ id = "pause",
+  label = "Pause AI", command = "ai.pause", tone = "secondary", state = { topic = "status", field = "ai_paused" } }`,
+  sent by GraceUI as `{"on": ...}` flipped from `status.ai_paused`, "Not known yet" until it comes.
 - **The body's size**: `calls` stays within GraceUI's frame to a page (kCallsBodyMax, 240 KiB, below its 256 KiB):
   past it, Requests' oldest rows give up their text, then go; Home's card is the newest 20 whatever happens. `calls` is
   published at most twice a second, `usage` once a second.
-- **Pause AI for this session** (D15): the space's quick switch (`[[space.quick]]`, GraceUI §78's form), `ai.pause`
+- **Pause AI for this session** (D15): the space's quick switch (`[[space.quick]]`, GraceUI §78's form) and Home's
+  header switch (§82's), `ai.pause`
   `{"on": bool}`, its state `status.ai_paused` (published from the first body, starting or not), living on Home. The
   command is answered at once and handed to the DLL as an `AiRequest` of kind Pause (`ai_pause()`, which the core takes
   in the same wake); an argument that is not a boolean `on` is `invalid_value`; its note's key says on or off. It is

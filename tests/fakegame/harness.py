@@ -1701,15 +1701,17 @@ def check_graceui_events(r):
 # EldenNet's pages (S11.4.a; GraceUI D169, D171), at the title screen (in the world the fake game's player reads as in
 # danger, which keeps GraceUI's menu shut, invariant 9): F5 opens GraceUI's menu on EldenNet's Home; Page Down past AI's
 # four pages and Characters › Named NPCs (S7.2.b) to System › Status, then Performance and Traces (PAGES §4.6.7), and
-# once more to Logs, where Log detail's shortcut row has the focus; Enter on it opens its home, Settings › Developer,
-# with the row focused; → there changes it
-# (a command to EldenNet, answered); Page Up to Tools › Bug report (PAGES §4.6.8), the category before Settings; then
-# Page Down three times, back to Settings › Developer and on to Docs and Content packs at the rail's foot (PAGES
-# §4.6.9); F5 closes the menu. While it runs, a browser of the tests' own (tests/pages/browser.py) joins GraceUI's
-# server on loopback, at the port the fake game's report gives, reads EldenNet's topics (Content packs', Docs' and Bug
-# report's among them), sends commands, and gives Bug report words of the case's own, which reach no other topic, no log
-# line, no recording and no file. The overrides folder holds a disable.toml of our own, which turns the test persona
-# off, and a folder nested past the four levels the DLL reads, which it leaves out.
+# once more to Logs, drawn in game since GraceUI 0.2.50 (D257: its rows, as the browser's are, and its filter bar),
+# where Log detail's shortcut row has the focus (the tail's filter bar comes with its rows, after the page opened, and
+# focus does not jump to it, D256); Enter on it opens its home, Settings › Developer, with the row focused; → there
+# changes it (a command to EldenNet, answered); Page Up to Tools › Bug report (PAGES §4.6.8), the category before
+# Settings; then Page Down three times, back to Settings › Developer and on to Docs and Content packs at the rail's foot
+# (PAGES §4.6.9); F5 closes the menu. While it runs, a browser of the tests' own (tests/pages/browser.py) joins
+# GraceUI's server on loopback, at the port the fake game's report gives, reads EldenNet's topics (Content packs', Docs'
+# and Bug report's among them; the logs stream let go once read, so that the menu meets Logs with no rows held), sends
+# commands, and gives Bug report words of the case's own, which reach no other topic, no log line, no recording and no
+# file. The overrides folder holds a disable.toml of our own, which turns the test persona off, and a folder nested past
+# the four levels the DLL reads, which it leaves out.
 PAGES_KEYS = ("600:f5,720:next,765:next,810:next,855:next,900:next,930:next,990:next,1050:next,1140:next,1260:return,"
               "1380:right,1500:prior,1620:next,1680:next,1800:next,1920:f5")
 PAGES_REPORTS = "360,660,960,1020,1080,1200,1320,1440,1560,1650,1740,1860,1980"
@@ -1720,6 +1722,9 @@ PAGES_TYPED = ("The lamplighter's line stopped halfway, after I asked about the 
 PAGES_TYPED_BIT = "teal kettle"
 PAGES_DISABLE = 'personas = ["lantern_keeper"]\n'
 PAGES_DEEP = "drafts/old/a/b/c"  # the fifth level of folders, which the DLL does not read
+# What the menu draws on Logs in game (GraceUI 0.2.6's MenuShows): a row the DLL writes at every start, and the search
+# of the tail's filter bar (D257).
+PAGES_SHOWS = "init state=ready|Find in the log"
 
 
 def install_pages(paths):
@@ -1762,6 +1767,11 @@ def browse_eldennet(paths, out):
                       "docs/troubleshooting", "report"):
             view.sub("eldennet", topic)
             out[topic] = view.state("eldennet", topic, timeout=10)
+            if topic == "logs":
+                # Let go at once: GraceUI keeps a stream's rows for the menu while any view watches it (D257), and with
+                # them held the tail's filter bar could take Logs' first focus; so the menu meets Logs with none, as a
+                # player does, whatever the browser's timing, its focus on the shortcut row (D256).
+                view.unsub("eldennet", topic)
         # Bug report (PAGES §4.6.8; GraceUI D251): the player's words, the log's part left out, an always part refused.
         out["report_typed"] = view.command("eldennet", "report.build", {"what": PAGES_TYPED})
         out["report_after"] = view.wait("eldennet", "report", lambda b: any(
@@ -1820,6 +1830,11 @@ def check_graceui_pages(r):
     need(logs.get("t") == "rows" and logs.get("from_seq") == 1 and any(l.startswith("boot ") for l in lines) and
          any(l.startswith("connect ok=1") for l in lines), "the logs stream: %s" % lines[:3], failures)
     need(not any("\\" in l or "Users" in l for l in lines), "a log row holds a path", failures)
+    # Each row's level, the logger's own, in GraceUI D257's words: what Logs' Level filter offers in both views.
+    levels = {row.get("level") for row in logs.get("rows", [])}
+    need(bool(levels) and levels <= {"error", "warning", "info", "debug", "trace"} and "info" in levels and
+         all(row.get("level") == "info" for row in logs.get("rows", []) if row.get("line", "").startswith("boot ")),
+         "the logs stream's levels: %s" % sorted(map(str, levels)), failures)
     settings = body("settings")
     need(settings.get("values", {}).get("debug.panel") is True and settings.get("schema", {}).get("number") == 2,
          "the settings topic: %s" % settings.get("values"), failures)
@@ -1904,12 +1919,15 @@ def check_graceui_pages(r):
         need(not held, "files hold the words: %s" % held, failures)
     # In game: F5's menu on EldenNet's Home; System › Status and Logs; Log detail's shortcut to its home on Settings ›
     # Developer, where → sends EldenNet a command it answers; F5 closes. The menu watched the settings while open.
+    # Logs in game (D257): a row's line as the browser has it, scrubbed alike (PV5: the same frames), and the filter
+    # bar's search; neither on Home.
     failures += (want_grace(r, 360, eldennet=1, server=1, spaces=1, menu_open=0) +
-                 want_grace(r, 660, menu_open=1, menu_page="home") +
+                 want_grace(r, 660, menu_open=1, menu_page="home", shows="00") +
                  want_grace(r, 960, menu_open=1, menu_page="system.status") +
                  want_grace(r, 1020, menu_open=1, menu_page="system.performance") +
                  want_grace(r, 1080, menu_open=1, menu_page="system.traces") +
-                 want_grace(r, 1200, menu_open=1, menu_page="system.logs", menu_focused="shortcut:debug.log_level") +
+                 want_grace(r, 1200, menu_open=1, menu_page="system.logs", menu_focused="shortcut:debug.log_level",
+                            shows="11") +
                  want_grace(r, 1320, menu_open=1, menu_page="settings.developer",
                             menu_focused="setting:debug.log_level") +
                  want_grace(r, 1440, menu_open=1, menu_page="settings.developer", menu_refusals=0) +
@@ -1953,7 +1971,8 @@ def check_graceui_pages(r):
 case("launcher-eldennet-graceui-pages", LGAME + ["--dll", "{eldennetdll}", "--console"] +
      game("--d3d12", "--stay-title", "--press-keys", PAGES_KEYS, "--grace-report", PAGES_REPORTS,
           frames=PAGES_FRAMES),
-     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=GRACE_ENV, timeout=240,
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),
+     env=dict(GRACE_ENV, FAKEGAME_SHOWS=PAGES_SHOWS), timeout=240,
      prepare=install_eldennet(EN_PANEL, then=install_pages), during=browse_eldennet,
      check=check_graceui_pages,
      what="EldenNet's pages through GraceUI: register_pages at the connect; F5's menu on EldenNet's Home, then System › "
@@ -2242,8 +2261,8 @@ def check_graceui_ai(r):
     need(cards == [(slot, title, slot, "ai.jobs", slot) for slot, title in (
         ("dialogue", "Conversation"), ("bark_live", "Quick lines"), ("bark_pool", "Prepared lines"),
         ("memory", "Memory"), ("selftest", "Self-test"))], "the Models page's cards: %s" % cards, failures)
-    # The page data's minor: protocol 1.13's since the quick switches and live pages (GraceUI D252).
-    need(body("pages").get("minor") == 13 and [s.get("id") for s in models.get("sections", [])][:2] == ["now", "preset"]
+    # The page data's minor: protocol 1.16's since Logs' filter bar on its stream (GraceUI D257).
+    need(body("pages").get("minor") == 16 and [s.get("id") for s in models.get("sections", [])][:2] == ["now", "preset"]
          and len(models.get("sections", [])) == 7, "the Models page's sections: %s (minor %s)" %
          ([s.get("id") for s in models.get("sections", [])], body("pages").get("minor")), failures)
     need(body("first_status").get("sentence", "").startswith("No provider yet"),
@@ -2625,7 +2644,9 @@ case("launcher-eldennet-graceui-talk-paused", LGAME + ["--dll", "{eldennetdll}",
 # live pages, sends the switch's command, ai.pause {"on": true}, as GraceUI's quick switches do, and sees
 # status.ai_paused flip and Home's Status card say so; the self-test and the model list are refused in en-proto's words,
 # and the model server is asked nothing. Then ai.pause {"on": false}: the state flips back, and a model list, once the
-# gate allows network, reaches the server and joins the calls' record as a model list's row.
+# gate allows network, reaches the server and joins the calls' record as a model list's row. Last, Home's header switch
+# (GraceUI D256), read from the page data: its command sent as GraceUI sends it, {"on": ...} flipped from what
+# status.ai_paused says, on and then off, and status.ai_paused follows each time.
 PAUSE_REPORTS = "300,600,900,1200,1800"
 PAUSE_FRAMES = 2400
 PAUSE_RUNS = {}
@@ -2686,6 +2707,15 @@ def browse_pause(paths, out):
             r.get("purpose") == "model list" and r.get("outcome") != "waiting"
             for r in b.get("requests", {}).get("rows", [])), timeout=30)
         out["asked_after"] = server.snapshot()
+        # Home's header switch: its command and state from the page data, its press as GraceUI makes it.
+        home = next((pg for pg in out["pages"].get("pages", []) if pg.get("id") == "home"), {})
+        switch = next((a for a in home.get("actions", []) if a.get("state")), {})
+        out["header"] = switch
+        topic, field = switch["state"]["topic"], switch["state"]["field"]
+        for step in ("header_on", "header_off"):
+            now = (view.latest.get((E, topic)) or {}).get(field)
+            out[step] = view.command(E, switch["command"], {"on": not now})
+            out[step + "_state"] = view.wait(E, topic, lambda b, want=not now: b.get(field) is want, timeout=15)
     except (browser.BrowserError, OSError, ValueError, KeyError) as e:
         out["error"] = repr(e)
     finally:
@@ -2733,6 +2763,15 @@ def check_graceui_pause(r):
          (d.get("list_after"), d.get("list_tries")), failures)
     need((d.get("asked_after") or {}).get("open_models", 0) >= 1, "the model server after: %s" % d.get("asked_after"),
          failures)
+    # Home's header switch (GraceUI D256, eldennet-changes §82): Pause AI, the quick switch's command and state; on by
+    # its press, then off, status.ai_paused following.
+    need(d.get("header") == {"id": "pause", "label": "Pause AI", "command": "ai.pause", "tone": "secondary",
+                             "state": {"topic": "status", "field": "ai_paused"}}, "Home's header switch: %s" %
+         d.get("header"), failures)
+    for step, want in (("header_on", True), ("header_off", False)):
+        need((d.get(step) or {}).get("ok") is True and (d.get(step + "_state") or {}).get("ai_paused") is want,
+             "the header switch's %s: %s, then %s" % (step, d.get(step), (d.get(step + "_state") or {}).get(
+                 "ai_paused")), failures)
     rows = (d.get("calls_after") or {}).get("requests", {}).get("rows", [])
     need(any(x.get("purpose") == "model list" and x.get("provider_model") == "lantern-box" and
              x.get("outcome") == "answered" for x in rows), "the calls after: %s" % rows, failures)
@@ -2748,6 +2787,10 @@ def check_graceui_pause(r):
     failures += any_line_kv(r, "ELDENNET", "page", {"what": "command", "name": "selftest.run", "result": "not_now"})
     failures += any_line(r, "ELDENNET", "ai_pause", on=1, changed=1)
     failures += any_line(r, "ELDENNET", "ai_pause", on=0, changed=1)
+    # Both switches' commands, two of each word: the quick switch's and the header switch's.
+    for word in ("on", "off"):
+        sent = [e for e in r.events("ELDENNET", "page") if e.get("name") == "ai.pause" and e.get("key") == word]
+        need(len(sent) == 2 and all(e.get("result") == "ok" for e in sent), "ai.pause %s: %s" % (word, sent), failures)
     failures += check_lines(("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main"}),
                             ("LAUNCHER", "end", {"kind": "clean"}))(r)
     return failures + en_log_is_clean(r)
@@ -2760,7 +2803,7 @@ case("launcher-eldennet-graceui-pause", LGAME + ["--dll", "{eldennetdll}", "--co
      what="Pause AI for this session from a browser, by the quick switch's command (GraceUI D252): status.ai_paused "
           "and Home's Status card flip, the self-test and the model list are refused in en-proto's words and the "
           "local model server is asked nothing; resumed, the state flips back and a model list reaches the server "
-          "and the calls' record")
+          "and the calls' record; then on and off by Home's header switch (D256), status.ai_paused following")
 
 
 # AI › Requests after a conversation's reply (PAGES §4.6.2; S11.4.a): the first conversation's run (above), with a

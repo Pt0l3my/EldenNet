@@ -265,6 +265,18 @@ en::overlay::Reading reading_of(en::gal::TaskState t) noexcept {
   return R::None;
 }
 
+// A line's level, as the logger kept it, for its row in System › Logs (its Level filter, GraceUI D257).
+en::overlay::LogLevel log_level_of(en::shell::LogLevel l) noexcept {
+  using L = en::overlay::LogLevel;
+  switch (l) {
+    case en::shell::LogLevel::Error: return L::Error;
+    case en::shell::LogLevel::Warn: return L::Warning;
+    case en::shell::LogLevel::Info: return L::Info;
+    case en::shell::LogLevel::Debug: return L::Debug;
+  }
+  return L::Info;
+}
+
 // What the space shows, from the core, the task, the block and the shell; `banner` keeps the banner's words alive.
 void fill_space(const Shell& s, const en::core::Core& core, const en::proto::WorldSnapshot* latest,
                 std::uint64_t tripped, std::uint32_t graceui, std::string& banner, en::overlay::SpaceFacts& f) {
@@ -502,7 +514,9 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
   en::proto::ffi_guard(en::proto::Component::DllMain, [&] {
     space = &space_state(s);
     en::shell::LogEntry e;
-    while (take_log_tail(e)) space->space.log_line(std::string_view(e.text.data(), e.len), e.at_ms);
+    while (take_log_tail(e)) {
+      space->space.log_line(std::string_view(e.text.data(), e.len), e.at_ms, log_level_of(e.level));
+    }
   });
   OverlayLink* link = s.overlay.load(std::memory_order_acquire);
   if (link == nullptr || link->lost) return;
