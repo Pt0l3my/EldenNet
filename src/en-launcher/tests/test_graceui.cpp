@@ -91,11 +91,11 @@ TEST_CASE("GraceUI's pre-flight: every listed file matches, the ABI and the floo
   f.put("graceui.dll", kDll);
   f.put("fonts/NotoSans-Regular.ttf", kFont);
   f.put("user/settings.toml", "not listed: GraceUI's own, at run time (D84)");
-  f.manifest("0.2.44", "[1, 7]",
+  f.manifest("0.2.50", "[1, 7]",
              Folder::entry("graceui.dll", kDll) + Folder::entry("fonts/NotoSans-Regular.ttf", kFont));
   const GraceReport r = check_graceui(f.grace);
   CHECK(r.result == GraceCheck::Ok);
-  CHECK(r.version == std::array<std::uint16_t, 3>{0, 2, 44});
+  CHECK(r.version == std::array<std::uint16_t, 3>{0, 2, 50});
   CHECK(r.abi_major == 1);
   CHECK(r.files == 2);
   CHECK(r.checked == 2);
@@ -119,7 +119,7 @@ TEST_CASE("GraceUI's pre-flight: each way it fails, named without a path") {
   SUBCASE("a file missing, of another size, or another hash") {
     Folder f;
     f.put("graceui.dll", kDll);
-    f.manifest("0.2.44", "[1, 7]",
+    f.manifest("0.2.50", "[1, 7]",
                Folder::entry("graceui.dll", kDll) + Folder::entry("fonts/NotoSans-Regular.ttf", kFont));
     GraceReport r = check_graceui(f.grace);
     CHECK(r.result == GraceCheck::FileMissing);
@@ -144,10 +144,10 @@ TEST_CASE("GraceUI's pre-flight: each way it fails, named without a path") {
     GraceReport r = check_graceui(f.grace);
     CHECK(r.result == GraceCheck::AbiMajor);
     CHECK(graceui_problem(r) == "this GraceUI speaks ABI 2, and EldenNet needs ABI 1");
-    f.manifest("0.2.43", "[1, 7]", Folder::entry("graceui.dll", kDll));
+    f.manifest("0.2.49", "[1, 7]", Folder::entry("graceui.dll", kDll));
     r = check_graceui(f.grace);
     CHECK(r.result == GraceCheck::TooOld);
-    CHECK(graceui_problem(r) == "this GraceUI is version 0.2.43, and EldenNet needs 0.2.44 or newer");
+    CHECK(graceui_problem(r) == "this GraceUI is version 0.2.49, and EldenNet needs 0.2.50 or newer");
   }
 }
 
@@ -185,8 +185,8 @@ TEST_CASE("graceui.toml: what it must hold, each refusal in fixed words") {
 }
 
 // graceui-manifest.toml (beside this file, compiled in by CMakeLists.txt) is what GraceUI's own writer,
-// tools/release/manifest.py at GraceUI fe7d9db (D165), wrote for an invented GraceUI folder of these three files:
-//   python3 -I tools/release/manifest.py write FOLDER --released 2026-11-24
+// tools/release/manifest.py at GraceUI 7fa3042 (D165), wrote for an invented GraceUI folder of these three files:
+//   python3 -I tools/release/manifest.py write FOLDER --released 2026-11-25
 // Its form is the one every GraceUI build now lays out (`GraceUI/` beside `bin/`): a comment, `graceui`, `abi`,
 // `protocol`, `caps` (empty), `released`, a blank line, then `[files]` in the order of their names.
 namespace {
@@ -211,9 +211,9 @@ TEST_CASE("GraceUI's pre-flight: a graceui.toml written by GraceUI's own manifes
   REQUIRE(text.find("released = \"") != std::string::npos);
   auto m = read_graceui_toml(text);
   REQUIRE(m);
-  CHECK(m->version == std::array<std::uint16_t, 3>{0, 2, 46});  // GraceUI fe7d9db's manifest.py, above EldenNet's floor
+  CHECK(m->version == std::array<std::uint16_t, 3>{0, 2, 53});  // GraceUI 7fa3042's manifest.py, above EldenNet's floor
   CHECK(m->abi_major == 1);
-  CHECK(m->abi_minor == 7);
+  CHECK(m->abi_minor == 8);
   REQUIRE(m->files.size() == 3);
   CHECK(m->files[0].name == "LICENSE.txt");
   CHECK(m->files[1].name == "NOTICE.txt");

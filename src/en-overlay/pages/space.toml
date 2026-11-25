@@ -27,6 +27,9 @@
 # System › Performance and System › Traces (S11.4.a), on the same: EldenNet's own steps' times this session against
 # C3's limits, and what this version keeps; and how long each line took to reach the screen against C5's targets. Both
 # live, and both with EldenNet's own figures alone.
+# On GraceUI 0.2.49 and 0.2.50 (D256, D257; protocol 1.15 and 1.16): Requests' and Home's card's Why and Text shown in
+# each row's drawer, Pause AI as Home's header switch beside its quick switch, and Logs' filter bar on its log tail (a
+# level filter and a search in the scrubbed tail, in place of PAGES' level tiles), which an older GraceUI refuses.
 # The rail holds every category of PAGES §4.2.1 in its order; a category with no page yet holds none,
 # and GraceUI shows no category that is empty (D173). Every word a player reads here is a draft for the owner's review
 # (the slice's notes list them). Names of the game's places and characters never appear here (PAGES §4.1 item 6, SP3).
@@ -611,10 +614,20 @@ help.purpose = "See at a glance whether EldenNet is working, what to do when som
 help.steps = [
   "Read the Status card: its first line says how EldenNet stands, the next one why.",
   "Look at Problems: each says what went wrong and what to do about it.",
-  "Read Model calls for the last calls to a model: what each was for and how it ended. AI › Requests has them all.",
-  "Pause AI for this session from the quick switches: no model is called until you turn it off.",
+  "Read Model calls for the last calls to a model; open a row for the text that reached the screen.",
+  "Pause AI for this session with its switch at the top or in the quick switches: no model is called until it is off.",
   "Open System for the details: the start, EldenNet's parts and its log.",
 ]
+
+# Pause AI for this session (PAGES §4.6.1's chip; GraceUI D256's header switch): the quick switch's command, with the
+# space's state shown ("Not known yet" until it comes) and sent flipped; not destructive, not confirmed. The quick
+# switch stays.
+[[page.actions]]
+id = "pause"
+label = "Pause AI"
+command = "ai.pause"
+tone = "secondary"
+state = { topic = "status", field = "ai_paused" }
 
 [[page.sections]]
 id = "status"
@@ -627,7 +640,7 @@ title = "Problems"
 blocks = [{ kind = "component", component = "check_list", topic = "errors", props = { empty = "No problems." } }]
 
 # Home's Model calls card (PAGES §4.6.1): the last 20, in AI › Requests' words, and the hour's own-initiative calls
-# against the bound. GraceUI has no row drawer yet, so the text shown is the table's last column.
+# against the bound; the text shown is each row's drawer (GraceUI D256), AI › Requests has every call.
 [[page.sections]]
 id = "calls"
 title = "Model calls"
@@ -735,7 +748,7 @@ increment = "0.2"
 related = ["ai.requests", "ai.selftest", "settings.developer"]
 help.purpose = "See how quickly each line reached the screen this session, against EldenNet's targets."
 help.steps = [
-  "Read the tiles: the first page's median, its 95th percentile from 20 lines on, the first token's and the lines.",
+  "Read the tiles: the first page's median, its 90th percentile from 10 lines on, the first token's and the lines.",
   "The sentence under them holds the first pages against the targets for where your Conversation model runs.",
   "Read Lines: each line's wait to be sent, its first token, its first page on screen, its total and its verdict.",
   "Quick is a first page within 1.6 s, acceptable within 3.0 s, slow beyond. AI › Requests says how each call ended.",
@@ -774,12 +787,29 @@ description = "EldenNet's own log of this session, with nothing personal in it."
 increment = "0.1"
 related = ["system.status", "settings.developer"]
 help.purpose = "Read what EldenNet has written to its log this session. It holds EldenNet's own words and numbers only."
-help.steps = ["Read the newest lines at the top of the log.", "Change how much it writes with Log detail; the change applies at once.", "Keep the page open while you play: new lines join the log as they are written."]
+help.steps = [
+  "Read the newest lines at the top of the log.",
+  "Narrow it to one level, or find a word in it.",
+  "Change how much it writes with Log detail; the change applies at once.",
+  "Keep the page open while you play: new lines join the log as they are written.",
+]
 
+# The scrubbed tail, newest first, with its filter bar (GraceUI D257; PAGES §4.6.7's level tiles and search): a filter
+# on each row's level, the logger's own, and a search in its lines; both views filter what they hold. No sort: the rows
+# come in time's order.
 [[page.sections]]
 id = "log"
 title = "Log"
-blocks = [{ kind = "component", component = "log_tail", topic = "logs", props = { newest_first = true } }]
+
+[[page.sections.blocks]]
+kind = "component"
+component = "log_tail"
+topic = "logs"
+props = { newest_first = true }
+
+[page.sections.blocks.filter_bar]
+filters = [{ column = "level", label = "Level" }]
+search = { columns = ["line"], label = "Find in the log" }
 
 [[page.sections]]
 id = "detail"
@@ -960,8 +990,8 @@ blocks = [{ kind = "component", component = "table", topic = "selftest", props =
 
 # AI › Requests (PAGES §4.6.2): the session's usage as tiles, cost only where a provider reported one (D18), and the
 # hour's line; every call kept as a table with its filter bar (GraceUI D250: by job, purpose and outcome, sorted on the
-# rows' hidden keys, no search, by PV4). GraceUI has no row drawer yet, so why a call failed and the text shown are the
-# table's last two columns; no prompt, unshown text or base URL is ever in a row (invariant 1).
+# rows' hidden keys, no search, by PV4). Why a call failed and the text shown are each row's drawer (GraceUI D256),
+# which holds only what the row holds; no prompt, unshown text or base URL is ever in a row (invariant 1).
 [[page]]
 id = "ai.requests"
 live = true  # its topics move by themselves: Live updates holds them (GraceUI D252)
@@ -974,7 +1004,7 @@ help.purpose = "See every call EldenNet made to a model this session: what it wa
 help.steps = [
   "Read the tiles: this session's calls, the tokens they used, the failures, and the last hour's own-initiative calls.",
   "Narrow the table to one job, purpose or outcome, and sort it by time, first token, total or tokens.",
-  "Read Why for what went wrong, in words. Text shown holds a reply's text once it reached the screen, nothing else.",
+  "Open a row for Why, what went wrong, and Text shown: a reply's text once it reached the screen, and nothing else.",
   "With Developer views on (Settings › Developer), the next start keeps the last 200 calls rather than 20.",
 ]
 

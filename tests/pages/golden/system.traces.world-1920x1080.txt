@@ -32,68 +32,108 @@ text    ink.body     1641,  15  118x25   glyphs 13 "Quick switches"
 fill    ground.well  1471,  10  140x35   r3
 text    ink.body     1486,  15  110x25   glyphs 12 "Updates: Live"
 line    rule          300,  55 1620x1   
-text    ink.hi        340,  -5  119x45   clip1 glyphs 6 "Traces"
-text    ink.mute      340,  45  472x25   clip1 glyphs 46 "How long each line took, from its request to the screen."
-line    rule.strong   340,  85 1540x1    clip1
-diamond gold.deep     340,  80   11x11   w1 clip1
-fill    ground.2      340, 110 1540x235  r5 clip1
-stroke  rule          340, 110 1540x235  r5 w1 clip1
-text    gold          365, 130  115x20   clip1 glyphs 11 "This session"
-text    ink.faint    1842, 130    8x25   clip1 glyphs 1 "-"
-fill    ground.3      365, 173  361x90   r3 clip1
-text    ink.mute      380, 183  152x25   clip1 glyphs 16 "First page, median"
-text    ink.hi        380, 208   86x35   clip1 glyphs 5 "1.24 s"
-fill    ground.3      741, 173  361x90   r3 clip1
-text    ink.mute      756, 183  228x25   clip1 glyphs 24 "First page, 95th percentile"
-text    ink.hi        756, 208   86x35   clip1 glyphs 5 "3.18 s"
-fill    ground.3     1117, 173  361x90   r3 clip1
-text    ink.mute     1132, 183  160x25   clip1 glyphs 17 "First token, median"
-text    ink.hi       1132, 208   86x35   clip1 glyphs 5 "0.66 s"
-fill    ground.3     1493, 173  361x90   r3 clip1
-text    ink.mute     1508, 183  152x25   clip1 glyphs 16 "Lines this session"
-text    ink.hi       1508, 208  200x35   clip1 glyphs 11 "21 of 24 shown"
-text    ink.body      365, 285  970x25   clip1 glyphs 93 "Against the targets for a cloud model, the median first page is within 1.6 s and the 95th percentile is over 3.0 s."
-fill    ground.2      340, 365 1540x515  r5 clip1
-stroke  rule          340, 365 1540x515  r5 w1 clip1
-text    gold          365, 385   48x20   clip1 glyphs 5 "Lines"
-text    ink.faint    1842, 385    8x25   clip1 glyphs 1 "-"
-text    ink.mute      365, 410  835x25   clip1 glyphs 81 "Newest first, each time from the line's request; Queue is its wait to leave. No text is ever shown."
-line    rule          365, 445 1490x1    clip1
-text    ink.hi        365, 461   66x28   clip1 glyphs 7 "1:05:05"
-text    ink.mute      862, 463  186x25   clip1 glyphs 18 "reply  ·  Conversation"
-line    rule          365, 505 1490x1    clip1
-text    ink.hi        365, 521   66x28   clip1 glyphs 7 "1:00:55"
-text    ink.mute      862, 523  641x25   clip1 glyphs 48 "reply  ·  Conversation  ·  0.04 s  ·  0.64 s  ·  1.18 s  ·  1.72 s  ·  quick"
-line    rule          365, 565 1490x1    clip1
-text    ink.hi        365, 581   66x28   clip1 glyphs 7 "1:00:42"
-text    ink.mute      862, 583  633x25   clip1 glyphs 47 "reply  ·  Conversation  ·  0.04 s  ·  2.95 s  ·  3.42 s  ·  4.10 s  ·  slow"
-line    rule          365, 625 1490x1    clip1
-text    ink.hi        365, 641   66x28   clip1 glyphs 7 "1:00:10"
-text    ink.mute      862, 643  641x25   clip1 glyphs 48 "reply  ·  Conversation  ·  0.03 s  ·  0.70 s  ·  1.45 s  ·  1.30 s  ·  quick"
-line    rule          365, 685 1490x1    clip1
-text    ink.hi        365, 701   66x28   clip1 glyphs 7 "0:59:50"
-text    ink.mute      862, 703  371x25   clip1 glyphs 30 "reply  ·  Conversation  ·  0.03 s  ·  6.00 s"
-line    rule          365, 745 1490x1    clip1
-text    ink.hi        365, 761   66x28   clip1 glyphs 7 "0:58:20"
-text    ink.mute      862, 763  371x25   clip1 glyphs 30 "reply  ·  Conversation  ·  0.02 s  ·  2.20 s"
-line    rule          365, 805 1490x1    clip1
-text    ink.hi        365, 821   66x28   clip1 glyphs 7 "0:58:00"
-text    ink.mute      862, 823  641x25   clip1 glyphs 48 "reply  ·  Conversation  ·  0.03 s  ·  0.61 s  ·  1.09 s  ·  1.54 s  ·  quick"
-fill    ground.2      340, 900 1540x230  r5 clip1
-stroke  rule          340, 900 1540x230  r5 w1 clip1
-text    gold          365, 920   67x20   clip1 glyphs 7 "Related"
-line    rule          365, 950 1490x1    clip1
-text    ink.hi        380, 964   75x28   clip1 glyphs 8 "Requests"
-text    ink.mute      862, 965  692x25   clip1 glyphs 69 "Every model call this session and what it cost, without the prompts EldenNet sent."
-text    gold         1820, 964    9x28   clip1 glyphs 1 "→"
-line    rule          365,1005 1490x1    clip1
-text    ink.hi        380,1019   84x28   clip1 glyphs 9 "Self-test"
-text    ink.mute      862,1020  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
-text    gold         1820,1019    9x28   clip1 glyphs 1 "→"
-line    rule          365,1060 1490x1    clip1
-text    ink.hi        380,1074   84x28   clip1 glyphs 9 "Developer"
-text    ink.mute      862,1075  472x25   clip1 glyphs 49 "Options for testing EldenNet and reporting its problems."
-text    gold         1820,1074    9x28   clip1 glyphs 1 "→"
+text    ink.hi        340,  86  119x45   clip1 glyphs 6 "Traces"
+text    ink.mute      340, 136  472x25   clip1 glyphs 46 "How long each line took, from its request to the screen."
+line    rule.strong   340, 176 1540x1    clip1
+diamond gold.deep     340, 171   11x11   w1 clip1
+fill    ground.2      340, 201 1540x235  r5 clip1
+stroke  rule          340, 201 1540x235  r5 w1 clip1
+text    gold          365, 221  115x20   clip1 glyphs 11 "This session"
+text    ink.faint    1842, 221    8x25   clip1 glyphs 1 "-"
+fill    ground.3      365, 264  361x90   r3 clip1
+text    ink.mute      380, 274  152x25   clip1 glyphs 16 "First page, median"
+text    ink.hi        380, 299   86x35   clip1 glyphs 5 "1.24 s"
+fill    ground.3      741, 264  361x90   r3 clip1
+text    ink.mute      756, 274  228x25   clip1 glyphs 24 "First page, 90th percentile"
+text    ink.hi        756, 299   86x35   clip1 glyphs 5 "3.18 s"
+fill    ground.3     1117, 264  361x90   r3 clip1
+text    ink.mute     1132, 274  160x25   clip1 glyphs 17 "First token, median"
+text    ink.hi       1132, 299   86x35   clip1 glyphs 5 "0.66 s"
+fill    ground.3     1493, 264  361x90   r3 clip1
+text    ink.mute     1508, 274  152x25   clip1 glyphs 16 "Lines this session"
+text    ink.hi       1508, 299   29x35   clip1 glyphs 2 "21"
+text    ink.mute     1544, 306   93x25   clip1 glyphs 9 "of 24 shown"
+text    ink.body      365, 376  970x25   clip1 glyphs 93 "Against the targets for a cloud model, the median first page is within 1.6 s and the 90th percentile is over 3.0 s."
+fill    ground.2      340, 456 1540x553  r5 clip1
+stroke  rule          340, 456 1540x553  r5 w1 clip1
+text    gold          365, 476   48x20   clip1 glyphs 5 "Lines"
+text    ink.faint    1842, 476    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, 501  835x25   clip1 glyphs 81 "Newest first, each time from the line's request; Queue is its wait to leave. No text is ever shown."
+text    ink.mute      365, 544   34x25   clip1 glyphs 4 "Time"
+text    ink.mute      862, 544   34x25   clip1 glyphs 4 "Kind"
+text    ink.mute     1003, 544   25x25   clip1 glyphs 3 "Job"
+text    ink.mute     1227, 544   42x25   clip1 glyphs 5 "Queue"
+text    ink.mute     1318, 544   93x25   clip1 glyphs 10 "First token"
+text    ink.mute     1426, 544  118x25   clip1 glyphs 12 "First page shown"
+text    ink.mute     1650, 544   42x25   clip1 glyphs 5 "Total"
+text    ink.mute     1708, 544   59x25   clip1 glyphs 7 "Verdict"
+line    rule          365, 574 1490x1    clip1
+text    ink.hi        365, 590   66x28   clip1 glyphs 7 "1:05:05"
+text    ink.body      862, 592   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1003, 592  101x25   clip1 glyphs 12 "Conversation"
+line    rule          365, 634 1490x1    clip1
+text    ink.hi        365, 650   66x28   clip1 glyphs 7 "1:00:55"
+text    ink.body      862, 652   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1003, 652  101x25   clip1 glyphs 12 "Conversation"
+text    ink.body     1219, 652   51x25   clip1 glyphs 5 "0.04 s"
+text    ink.body     1360, 652   51x25   clip1 glyphs 5 "0.64 s"
+text    ink.body     1501, 652   51x25   clip1 glyphs 5 "1.18 s"
+text    ink.body     1642, 652   51x25   clip1 glyphs 5 "1.72 s"
+text    ink.body     1708, 652   42x25   clip1 glyphs 5 "quick"
+line    rule          365, 694 1490x1    clip1
+text    ink.hi        365, 710   66x28   clip1 glyphs 7 "1:00:42"
+text    ink.body      862, 712   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1003, 712  101x25   clip1 glyphs 12 "Conversation"
+text    ink.body     1219, 712   51x25   clip1 glyphs 5 "0.04 s"
+text    ink.body     1360, 712   51x25   clip1 glyphs 5 "2.95 s"
+text    ink.body     1501, 712   51x25   clip1 glyphs 5 "3.42 s"
+text    ink.body     1642, 712   51x25   clip1 glyphs 5 "4.10 s"
+text    ink.body     1708, 712   34x25   clip1 glyphs 4 "slow"
+line    rule          365, 754 1490x1    clip1
+text    ink.hi        365, 770   66x28   clip1 glyphs 7 "1:00:10"
+text    ink.body      862, 772   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1003, 772  101x25   clip1 glyphs 12 "Conversation"
+text    ink.body     1219, 772   51x25   clip1 glyphs 5 "0.03 s"
+text    ink.body     1360, 772   51x25   clip1 glyphs 5 "0.70 s"
+text    ink.body     1501, 772   51x25   clip1 glyphs 5 "1.45 s"
+text    ink.body     1642, 772   51x25   clip1 glyphs 5 "1.30 s"
+text    ink.body     1708, 772   42x25   clip1 glyphs 5 "quick"
+line    rule          365, 814 1490x1    clip1
+text    ink.hi        365, 830   66x28   clip1 glyphs 7 "0:59:50"
+text    ink.body      862, 832   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1003, 832  101x25   clip1 glyphs 12 "Conversation"
+text    ink.body     1219, 832   51x25   clip1 glyphs 5 "0.03 s"
+text    ink.body     1642, 832   51x25   clip1 glyphs 5 "6.00 s"
+line    rule          365, 874 1490x1    clip1
+text    ink.hi        365, 890   66x28   clip1 glyphs 7 "0:58:20"
+text    ink.body      862, 892   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1003, 892  101x25   clip1 glyphs 12 "Conversation"
+text    ink.body     1219, 892   51x25   clip1 glyphs 5 "0.02 s"
+text    ink.body     1642, 892   51x25   clip1 glyphs 5 "2.20 s"
+line    rule          365, 934 1490x1    clip1
+text    ink.hi        365, 950   66x28   clip1 glyphs 7 "0:58:00"
+text    ink.body      862, 952   42x25   clip1 glyphs 5 "reply"
+text    ink.body     1003, 952  101x25   clip1 glyphs 12 "Conversation"
+text    ink.body     1219, 952   51x25   clip1 glyphs 5 "0.03 s"
+text    ink.body     1360, 952   51x25   clip1 glyphs 5 "0.61 s"
+text    ink.body     1501, 952   51x25   clip1 glyphs 5 "1.09 s"
+text    ink.body     1642, 952   51x25   clip1 glyphs 5 "1.54 s"
+text    ink.body     1708, 952   42x25   clip1 glyphs 5 "quick"
+fill    ground.2      340,1029 1540x230  r5 clip1
+stroke  rule          340,1029 1540x230  r5 w1 clip1
+text    gold          365,1049   67x20   clip1 glyphs 7 "Related"
+line    rule          365,1079 1490x1    clip1
+text    ink.hi        380,1093   75x28   clip1 glyphs 8 "Requests"
+text    ink.mute      862,1094  692x25   clip1 glyphs 69 "Every model call this session and what it cost, without the prompts EldenNet sent."
+text    gold         1820,1093    9x28   clip1 glyphs 1 "→"
+line    rule          365,1134 1490x1    clip1
+text    ink.hi        380,1148   84x28   clip1 glyphs 9 "Self-test"
+text    ink.mute      862,1149  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
+text    gold         1820,1148    9x28   clip1 glyphs 1 "→"
+line    rule          365,1189 1490x1    clip1
+text    ink.hi        380,1203   84x28   clip1 glyphs 9 "Developer"
+text    ink.mute      862,1204  472x25   clip1 glyphs 49 "Options for testing EldenNet and reporting its problems."
+text    gold         1820,1203    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 fill    ground.well   340,1044   60x28   r3
 stroke  edge          340,1044   60x28   r3 w1
@@ -103,5 +143,5 @@ fill    ground.well   466,1044   42x28   r3
 stroke  edge          466,1044   42x28   r3 w1
 text    ink.body      474,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     515,1045   34x25   glyphs 4 "Back"
-stroke  gold.hi       362, 947 1496x61   r5 w3 clip1
-# 105 items, 4800 vertices, 9168 indices, 4 commands; check_draw_list: passes
+stroke  gold.hi       362, 218 1496x26   r5 w3 clip1
+# 132 items, 4048 vertices, 8040 indices, 4 commands; check_draw_list: passes

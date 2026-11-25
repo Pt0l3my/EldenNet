@@ -870,17 +870,18 @@ std::string calls_counted(std::uint64_t n, std::string_view what) {
 
 // One call's cells in a table, Requests' or Home's card's (PAGES' columns): the time, the job, the purpose, the speaker
 // as shown, the provider and the model (Home: the model), the first token, the total, the tokens, the outcome, why in
-// words and the text shown (Home: no tokens and no why); and Requests' hidden sort keys and id, each key left out when
-// the call has no value for it (GraceUI D250: such a row sorts last).
+// words and the text shown (Home: no tokens and no why), the last two the row's drawer (GraceUI D256); the row's id,
+// the record's, as words (a drawer follows its row by it); and Requests' hidden sort keys, each key left out when the
+// call has no value for it (GraceUI D250: such a row sorts last).
 enum class CallTable : std::uint8_t { Requests, Home };
 
 json call_row(const proto::CallRow& r, CallTable table) {
   const bool requests = table == CallTable::Requests;
-  json row{{"time", clock_of(r.at_ms)}, {"purpose", proto::words(r.purpose)}, {"outcome", proto::words(r.outcome)}};
-  if (requests) {
-    row["id"] = r.id;
-    row["at_ms"] = r.at_ms;
-  }
+  json row{{"id", std::to_string(r.id)},
+           {"time", clock_of(r.at_ms)},
+           {"purpose", proto::words(r.purpose)},
+           {"outcome", proto::words(r.outcome)}};
+  if (requests) row["at_ms"] = r.at_ms;
   if (const char* job = slot_words(r.slot); *job != '\0') row["slot"] = job;
   if (!r.speaker.empty()) row["speaker"] = r.speaker;
   const std::string model = proto::shown_model(r.model) ? r.model : std::string();  // PV5, as the record has it
@@ -908,6 +909,14 @@ json call_row(const proto::CallRow& r, CallTable table) {
 json column(std::string_view id, std::string_view label, bool numeric = false) {
   json c{{"id", id}, {"label", label}};
   if (numeric) c["numeric"] = true;
+  return c;
+}
+
+// A column shown in its row's drawer, not on the row (GraceUI D256): its label above its words, which hold only what
+// the row holds (PV4: the text shown is a shown reply's).
+json drawer_column(std::string_view id, std::string_view label) {
+  json c = column(id, label);
+  c["drawer"] = true;
   return c;
 }
 
@@ -941,11 +950,11 @@ json calls_body(const SpaceFacts& f) {
                                        column("speaker", "Speaker"), column("provider_model", "Provider and model"),
                                        column("first_token", "First token", true), column("total", "Total", true),
                                        column("tokens", "Tokens", true), column("outcome", "Outcome"),
-                                       column("why", "Why"), column("text", "Text shown")});
+                                       drawer_column("why", "Why"), drawer_column("text", "Text shown")});
   json home_columns = json::array({column("time", "Time"), column("slot", "Job"), column("purpose", "Purpose"),
                                    column("speaker", "Speaker"), column("model", "Model"),
                                    column("first_token", "First token", true), column("total", "Total", true),
-                                   column("outcome", "Outcome"), column("text", "Text shown")});
+                                   column("outcome", "Outcome"), drawer_column("text", "Text shown")});
   json body = json::object();
   body["requests"] = json{{"columns", std::move(requests_columns)}, {"rows", std::move(requests)}};
   body["home"] = json{{"columns", std::move(home_columns)}, {"rows", std::move(home)}};
@@ -1066,13 +1075,13 @@ std::string traces_words(const proto::TraceSummary& s, bool local) {
     return std::string(ms <= target ? "is within " : "is over ") + target_of(target);
   };
   const char* model = local ? " for a local model" : " for a cloud model";
-  if (s.first_page_p95_ms < 0) {
+  if (s.first_page_p90_ms < 0) {
     return std::string("Against the target") + model + ", the median first page " +
            against(s.first_page_median_ms, t.median_ms) + ".";
   }
   return std::string("Against the targets") + model + ", the median first page " +
-         against(s.first_page_median_ms, t.median_ms) + " and the 95th percentile " +
-         against(s.first_page_p95_ms, t.p95_ms) + ".";
+         against(s.first_page_median_ms, t.median_ms) + " and the 90th percentile " +
+         against(s.first_page_p90_ms, t.p90_ms) + ".";
 }
 
 json traces_body(const SpaceFacts& f) {
@@ -1080,7 +1089,7 @@ json traces_body(const SpaceFacts& f) {
   const proto::TraceSummary& s = f.traces->summary;
   json tiles = json::array();
   if (s.first_page_median_ms >= 0) tiles.push_back(item("First page, median", seconds_of(s.first_page_median_ms)));
-  if (s.first_page_p95_ms >= 0) tiles.push_back(item("First page, 95th percentile", seconds_of(s.first_page_p95_ms)));
+  if (s.first_page_p90_ms >= 0) tiles.push_back(item("First page, 90th percentile", seconds_of(s.first_page_p90_ms)));
   if (s.first_token_median_ms >= 0) tiles.push_back(item("First token, median", seconds_of(s.first_token_median_ms)));
   // The lines shown, of the calls for one when some were not (still waiting, or ended with no page).
   json lines = item("Lines this session", grouped(s.lines));
@@ -1560,6 +1569,23 @@ std::string frame_topic(std::string_view frame) {
   const json f = json::parse(frame, nullptr, false);
   if (f.is_discarded() || !f.is_object() || !f.contains("topic") || !f["topic"].is_string()) return {};
   return f["topic"].get<std::string>();
+}
+
+// A log row's `level`, in GraceUI D257's words: what System › Logs' Level filter offers, its rows' own values.
+const char* level_word(LogLevel level) noexcept {
+  switch (level) {
+    case LogLevel::Error:
+      return "error";
+    case LogLevel::Warning:
+      return "warning";
+    case LogLevel::Info:
+      return "info";
+    case LogLevel::Debug:
+      return "debug";
+    case LogLevel::Trace:
+      return "trace";
+  }
+  return "info";
 }
 
 }  // namespace
@@ -2319,8 +2345,8 @@ std::vector<SpaceNote> Space::take_notes() {
   return out;
 }
 
-void Space::log_line(std::string_view text, std::uint64_t t_ms) {
-  rows_.push_back(Row{next_seq_++, clock_of(t_ms), scrubbed(text)});
+void Space::log_line(std::string_view text, std::uint64_t t_ms, LogLevel level) {
+  rows_.push_back(Row{next_seq_++, clock_of(t_ms), scrubbed(text), level});
   while (rows_.size() > 500) rows_.pop_front();  // the topic's ring (pages/space.toml)
 }
 
@@ -2343,9 +2369,13 @@ json Space::settings_body() const {
               {"changed", std::move(changed)}};
 }
 
+json Space::log_row(const Row& r) {
+  return json{{"seq", r.seq}, {"time", r.time}, {"line", r.line}, {"level", level_word(r.level)}};
+}
+
 json Space::log_rows() const {
   json rows = json::array();
-  for (const Row& r : rows_) rows.push_back(json{{"seq", r.seq}, {"time", r.time}, {"line", r.line}});
+  for (const Row& r : rows_) rows.push_back(log_row(r));
   return rows;
 }
 
@@ -2573,7 +2603,7 @@ void Space::collect(const SpaceFacts& facts, std::uint64_t now_ms, std::vector<s
         json rows = json::array();
         const std::uint64_t from = rows_[at].seq;
         for (std::size_t n = 0; n < 100 && at < rows_.size(); ++n, ++at) {
-          rows.push_back(json{{"seq", rows_[at].seq}, {"time", rows_[at].time}, {"line", rows_[at].line}});
+          rows.push_back(log_row(rows_[at]));
         }
         const std::uint64_t dropped = first && from > expected ? from - expected : 0;
         first = false;

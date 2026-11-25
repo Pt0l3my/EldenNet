@@ -1,7 +1,7 @@
 {
   "space": "eldennet",
   "name": "EldenNet",
-  "minor": 13,
+  "minor": 16,
   "categories": [
     {
       "id": "home",
@@ -100,8 +100,8 @@
         "steps": [
           "Read the Status card: its first line says how EldenNet stands, the next one why.",
           "Look at Problems: each says what went wrong and what to do about it.",
-          "Read Model calls for the last calls to a model: what each was for and how it ended. AI › Requests has them all.",
-          "Pause AI for this session from the quick switches: no model is called until you turn it off.",
+          "Read Model calls for the last calls to a model; open a row for the text that reached the screen.",
+          "Pause AI for this session with its switch at the top or in the quick switches: no model is called until it is off.",
           "Open System for the details: the start, EldenNet's parts and its log."
         ]
       },
@@ -111,6 +111,18 @@
         "system.logs"
       ],
       "increment": "0.1",
+      "actions": [
+        {
+          "id": "pause",
+          "label": "Pause AI",
+          "command": "ai.pause",
+          "tone": "secondary",
+          "state": {
+            "topic": "status",
+            "field": "ai_paused"
+          }
+        }
+      ],
       "sections": [
         {
           "id": "status",
@@ -336,7 +348,7 @@
       "help": {
         "purpose": "See how quickly each line reached the screen this session, against EldenNet's targets.",
         "steps": [
-          "Read the tiles: the first page's median, its 95th percentile from 20 lines on, the first token's and the lines.",
+          "Read the tiles: the first page's median, its 90th percentile from 10 lines on, the first token's and the lines.",
           "The sentence under them holds the first pages against the targets for where your Conversation model runs.",
           "Read Lines: each line's wait to be sent, its first token, its first page on screen, its total and its verdict.",
           "Quick is a first page within 1.6 s, acceptable within 3.0 s, slow beyond. AI › Requests says how each call ended."
@@ -392,6 +404,7 @@
         "purpose": "Read what EldenNet has written to its log this session. It holds EldenNet's own words and numbers only.",
         "steps": [
           "Read the newest lines at the top of the log.",
+          "Narrow it to one level, or find a word in it.",
           "Change how much it writes with Log detail; the change applies at once.",
           "Keep the page open while you play: new lines join the log as they are written."
         ]
@@ -412,6 +425,20 @@
               "topic": "logs",
               "props": {
                 "newest_first": true
+              },
+              "filter_bar": {
+                "filters": [
+                  {
+                    "column": "level",
+                    "label": "Level"
+                  }
+                ],
+                "search": {
+                  "columns": [
+                    "line"
+                  ],
+                  "label": "Find in the log"
+                }
               }
             }
           ]
@@ -897,7 +924,7 @@
         "steps": [
           "Read the tiles: this session's calls, the tokens they used, the failures, and the last hour's own-initiative calls.",
           "Narrow the table to one job, purpose or outcome, and sort it by time, first token, total or tokens.",
-          "Read Why for what went wrong, in words. Text shown holds a reply's text once it reached the screen, nothing else.",
+          "Open a row for Why, what went wrong, and Text shown: a reply's text once it reached the screen, and nothing else.",
           "With Developer views on (Settings › Developer), the next start keeps the last 200 calls rather than 20."
         ]
       },

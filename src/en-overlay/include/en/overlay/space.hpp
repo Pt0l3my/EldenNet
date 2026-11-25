@@ -65,6 +65,10 @@ enum class Stop : std::uint8_t {  // en-core's BannerReason, or none
 enum class Where : std::uint8_t { Starting, Title, Loading, World, Stopped };  // en-core's phase, as the player meets it
 enum class Unclean : std::uint8_t { None, Gap, SessionFailed, AntiCheat, NotSolo, Lobby, Loading };  // the gate's why
 enum class Reading : std::uint8_t { None, Registered, PhaseA, Running, Inert };  // en-gal's task, or none yet
+// A line's level as the logger gave it (the DLL maps its own into these): the logs stream's `level` on each row, which
+// System › Logs' Level filter reads (GraceUI D257), never parsed from the line's text. Trace is the stream's word for
+// the most detailed lines; v0.2's logger writes none.
+enum class LogLevel : std::uint8_t { Error, Warning, Info, Debug, Trace };
 
 // ---- AI (PAGES §4.6.2): en-llm's configuration, health and runs as the DLL knows them, in en-overlay's own types (it
 // links no en-llm, ARCH §2.3; the DLL maps them). Ids are the configuration's (providers.toml's provider ids, its model
@@ -248,12 +252,14 @@ struct SpaceFacts {
 // ---- AI › Requests and Home's Model calls card (PAGES §4.6.1, §4.6.2): the topic `calls`, a member per table (GraceUI
 // D185's props.field), {columns, rows}: `requests`, every row kept (20, or 200 with Developer views), each with its
 // hidden sort keys (at_ms, first_token_ms, total_ms, tokens; a key it has no value for left out, so that it sorts last,
-// GraceUI D250) and its id; `home`, the newest 20. A row's text is the displayed text of a reply whose pages reached
-// the screen, and nothing else of the model's or the player's (PV4): never a prompt, an unshown answer, a key, a base
-// URL or a server's message; a failure is its error class in words. The topic `usage`: Requests' tiles and the hour's
-// line, own-initiative calls and every request sent against the bound, which Home's card shows too; cost only where a
-// provider reported one (D18). The body stays within GraceUI's frame to a page (256 KiB): past kCallsBodyMax, the
-// oldest rows of `requests` give up their text, then go (a session's rows as they come are far below it).
+// GraceUI D250); `home`, the newest 20. Every row has its call's id as words, which its drawer follows (GraceUI D256:
+// Why and Text shown are drawer columns, shown under an opened row). A row's text is the displayed text of a reply
+// whose pages reached the screen, and nothing else of the model's or the player's (PV4): never a prompt, an unshown
+// answer, a key, a base URL or a server's message; a failure is its error class in words. The topic `usage`: Requests'
+// tiles and the hour's line, own-initiative calls and every request sent against the bound, which Home's card shows
+// too; cost only where a provider reported one (D18). The body stays within GraceUI's frame to a page (256 KiB): past
+// kCallsBodyMax, the oldest rows of `requests` give up their text, then go (a session's rows as they come are far below
+// it).
 inline constexpr std::string_view kCallsTopic = "calls";
 inline constexpr std::string_view kUsageTopic = "usage";
 inline constexpr std::size_t kCallsHomeRows = 20;          // Home's card: the last 20 (PAGES §4.6.1)
@@ -267,7 +273,7 @@ inline constexpr std::size_t kCallsBodyMax = 240 * 1024;  // bytes of the body, 
 //   keeps (no database; the conversations' log in memory, its entries and those that gave way). Only what EldenNet
 //   measured of its own work: no frame cost (it has no callback on GraceUI's frame in this version) and no memory (it
 //   counts none), and a row whose kind of step has not run yet is left out. No path, no SteamID.
-// - `traces`: tiles of the session's first pages (the median, and the 95th percentile from kTraceP95Lines lines on),
+// - `traces`: tiles of the session's first pages (the median, and the 90th percentile from kTraceP90Lines lines on),
 //   the first tokens' median and the lines shown; a sentence that holds them against C5's targets for where the
 //   Conversation job's model runs (a cloud provider's, or a local one's), with the lines' verdicts counted; and the
 //   table, a row per line's call kept (time, kind, job, queue, first token, first page shown, total, verdict), newest
@@ -386,8 +392,8 @@ class Space {
   [[nodiscard]] std::vector<std::pair<std::uint64_t, std::string>> take_answers() { return characters_.take_answers(); }
 
   // ---- The logs stream: one of the log's lines (its text, `<event> key=value ...`, EldenNet's own), `t_ms` since T1's
-  // start. The ring holds the newest 500, whether or not anyone watches.
-  void log_line(std::string_view text, std::uint64_t t_ms);
+  // start, and its level, the logger's. The ring holds the newest 500, whether or not anyone watches.
+  void log_line(std::string_view text, std::uint64_t t_ms, LogLevel level);
 
   // ---- Each wake: the frames to publish now, in order. A topic nobody watches gets none (D169); a watched state
   // topic gets its body when it first is watched and whenever it changes, no oftener than its rate (GraceUI DESIGN
@@ -422,7 +428,10 @@ class Space {
     std::uint64_t seq = 0;
     std::string time;
     std::string line;
+    LogLevel level = LogLevel::Info;
   };
+  // A row as the logs stream sends it: its seq, time, scrubbed line and level (GraceUI D257).
+  [[nodiscard]] static nlohmann::json log_row(const Row& r);
   // Docs' documents (docs.hpp): `docs.list` and each watched `docs/<id>`, published when watched and, for About, when
   // its slots' values change.
   void collect_docs(const SpaceFacts& facts, std::uint64_t now_ms, std::vector<std::string>& frames);

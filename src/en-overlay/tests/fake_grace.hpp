@@ -1,7 +1,8 @@
 #pragma once
-// A fake GraceUI of our own for en-overlay's tests (the Windows builds): ABI 1.7's table, as graceui.h declares it at
-// GraceUI fe7d9db, with the calls en-overlay makes answered as GraceUI 0.2.46 answers them (eldennet-changes §14 to
-// §50; not 1.6's uploaded files, D226, since EldenNet's space has no file command) and checked as GraceUI checks them:
+// A fake GraceUI of our own for en-overlay's tests (the Windows builds): ABI 1.8's table, as graceui.h declares it at
+// GraceUI 7fa3042, with the calls en-overlay makes answered as GraceUI 0.2.53 answers them (eldennet-changes §14 to
+// §50; not 1.6's uploaded files, D226, since EldenNet's space has no file command, nor 1.8's on_present, D259, which
+// EldenNet does not opt in to: set_on_present is counted and refused) and checked as GraceUI checks them:
 // connect's answers, notices under keys (replaced in place, withdrawn by an empty text, at most four), textures in the
 // registration window, faces before warm-up and the glyph tables after it, panels hidden until shown, hotkeys (a
 // default another mod took registers unbound, GRACEUI_UNBOUND with its id, D164; a pad chord, D204; describe_hotkey and
@@ -47,10 +48,10 @@ struct Grace {
   // How it answers.
   GraceUiStatus connect_status = GRACEUI_OK;
   std::uint32_t connect_reason = 0;
-  std::uint32_t version = GRACEUI_VERSION_PACK(0, 2, 46);
+  std::uint32_t version = GRACEUI_VERSION_PACK(0, 2, 53);
   std::vector<std::string> caps = {"notices", "panels",        "textures", "faces",      "input",           "world-state",
                                    "hotkeys", "pages",         "holder-events", "display", "pad-chords",
-                                   "hotkey-bindings", "wake", "hotkey-by"};
+                                   "hotkey-bindings", "wake", "hotkey-by", "on-present"};
   std::uint32_t table_size = sizeof(GraceUiApi1);  // a shorter table: an older GraceUI (D74)
   bool refuse_textures = false;
   GraceUiStatus poll_status = GRACEUI_OK;  // GRACEUI_NOT_CONNECTED: the mod was disconnected
@@ -89,6 +90,7 @@ struct Grace {
   std::uint32_t carets_ignored = 0;
   void* wake = nullptr;              // the wait handle's event, once asked for
   std::uint32_t wakes_asked = 0;
+  std::uint32_t present_sets = 0;    // set_on_present calls (ABI 1.8, D259): EldenNet makes none
   std::deque<GraceUiEvent> events;
   std::uint64_t submits = 0;
   std::uint64_t refused_lists = 0;

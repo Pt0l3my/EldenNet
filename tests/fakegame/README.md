@@ -211,21 +211,24 @@ at most the list's ten, none before F11 or after it again), and the DLL's log gi
 every 10 s, how many there have been. `launcher-eldennet-graceui-pages` (S11.4.a): EldenNet's space registered at the
 connect (`pages=0`) and served, at the title screen (in the world the fake player reads as in danger, which keeps
 GraceUI's menu shut): `--press-keys` opens F5's menu on EldenNet's Home, goes to System › Status, Performance, Traces
-and Logs, follows Log
+and Logs, drawn in game since GraceUI 0.2.50 (D257: the menu shows a row the DLL writes at every start and the search
+of the tail's filter bar, GraceUI's `MenuShows`, none of it on Home), follows Log
 detail's shortcut row to its home on Settings › Developer and changes it there (a command EldenNet answers, applied at
 once), goes back a page to Tools › Bug report, then on to Settings › Developer, Docs and Content packs at the rail's
 foot, and closes the menu; the report gives the page and the focus at each step. Meanwhile the case's `during` hook, a
 browser of the tests' own (`tests/pages/browser.py`) on Linux, joins GraceUI's server at the port the report names (a
 page load's cookie, a ticket, a WebSocket), reads each of EldenNet's topics (the lamp and Home's card, Problems,
-System's Health, parts and read groups, Compatibility, the logs stream from its first line, the settings; Content
-packs': the shipped cast, an overrides folder of the case's own by relative paths, its disable.toml loaded and turning
-the test persona off and a folder nested too deep left out, and the start's load; Docs' list of ten documents, About
-with the versions and the build's label filled in, and Troubleshooting whole; and Bug report's preview) and sends
-commands: one accepted, one value refused, a page's reset refused without its confirmation; Bug report's words of the
-case's own, which then lead its preview and are in no other topic's frame, no log or report line, no recording and no
-file of the run; and the log's part switched off, an always part's switch refused. settings.toml then holds both
-changes, written once by T11. The banner path's case also checks that EldenNet's space is registered for the game's view
-alone there, so GraceUI's server does not start for it.
+System's Health, parts and read groups, Compatibility, the logs stream from its first line, each row with its level in
+GraceUI D257's words, let go once read so that the menu meets Logs with no rows held (GraceUI keeps a stream's rows
+while any view watches, and the tail's filter bar, which comes with them, could then take the first focus, whatever the
+browser's timing), the settings; Content packs': the shipped cast, an overrides folder of the case's own by relative
+paths, its disable.toml loaded and turning the test persona off and a folder nested too deep left out, and the start's
+load; Docs' list of ten documents, About with the versions and the build's label filled in, and Troubleshooting whole;
+and Bug report's preview) and sends commands: one accepted, one value refused, a page's reset refused without its
+confirmation; Bug report's words of the case's own, which then lead its preview and are in no other topic's frame, no
+log or report line, no recording and no file of the run; and the log's part switched off, an always part's switch
+refused. settings.toml then holds both changes, written once by T11. The banner path's case also checks that EldenNet's
+space is registered for the game's view alone there, so GraceUI's server does not start for it.
 
 v0.1's coexistence check (S10.3.d) and the chat box's last parts against GraceUI's test build (S11.4.c) have four
 cases. `launcher-eldennet-graceui-second-copy` and `-second-copy-first`: a second copy of the same test build in
@@ -260,7 +263,9 @@ browser reads the page data's one quick switch and the live pages, sends the swi
 as GraceUI's quick switches do, sees `status.ai_paused` and Home's Status card flip, is refused the self-test and the
 model list in en-proto's words while the server is asked nothing and the calls' record gains no row; then `{"on":
 false}`, the state back, and a model list, once the gate allows network, reaching the server and the record as a model
-list's row; no frame of `calls` or `usage` holding the server's address. `launcher-eldennet-graceui-talk-calls`: the
+list's row; no frame of `calls` or `usage` holding the server's address. Then Home's header switch (GraceUI 0.2.49's
+D256), read from the page data as §82 gives it: its command sent as GraceUI sends it, `{"on": ...}` flipped from
+`status.ai_paused`, on and then off, `status.ai_paused` following each time. `launcher-eldennet-graceui-talk-calls`: the
 first conversation's run with a browser reading AI › Requests' topics once the reply is shown: the reply's row in
 PAGES' words (Conversation, reply, the persona as shown, the model on its provider, its first token and total, the 36
 tokens the server reported, shown) with the page shown as its text, Home's card's row the same, and no frame of
@@ -268,7 +273,7 @@ tokens the server reported, shown) with the page shown as its text, Home's card'
 case and the editor case take one more Page Down past AI › Requests on their way to System › Status and Named NPCs.
 `launcher-eldennet-graceui-talk-traces` (PAGES §4.6.7): the same run with a browser reading System › Traces' and
 Performance's topics once the reply is shown: the reply's line (a reply, Conversation, its queue, first token, first
-page shown and total in seconds, a verdict), the tiles (the first page's median, one line, no 95th percentile yet) and
+page shown and total in seconds, a verdict), the tiles (the first page's median, one line, no 90th percentile yet) and
 the sentence against the targets for a local model; EldenNet's own steps (the core's and the reader's p99 as tiles,
 C3's two limits for the reader beside its figures, the three kinds of step) and the conversation's entries in the log
 kept in memory; and no frame of `traces` or `system.performance` holding the line typed, the reply's or the prompt's

@@ -196,6 +196,7 @@
           "label": "Outcome"
         },
         {
+          "drawer": true,
           "id": "text",
           "label": "Text shown"
         }
@@ -244,10 +245,12 @@
           "label": "Outcome"
         },
         {
+          "drawer": true,
           "id": "why",
           "label": "Why"
         },
         {
+          "drawer": true,
           "id": "text",
           "label": "Text shown"
         }
@@ -909,26 +912,31 @@
   },
   "logs": [
     {
+      "level": "info",
       "line": "boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev",
       "seq": 1,
       "time": "0:00:00"
     },
     {
+      "level": "info",
       "line": "gate result=unknown_build ms=11",
       "seq": 2,
       "time": "0:00:00"
     },
     {
+      "level": "info",
       "line": "init state=settings",
       "seq": 3,
       "time": "0:00:00"
     },
     {
+      "level": "warning",
       "line": "settings_problem where=debug.log_level",
       "seq": 4,
       "time": "0:00:00"
     },
     {
+      "level": "warning",
       "line": "banner reason=unknown_build detail=unknown_build",
       "seq": 5,
       "time": "0:00:01"

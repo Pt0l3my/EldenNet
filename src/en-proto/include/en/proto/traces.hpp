@@ -35,20 +35,20 @@ inline constexpr std::int64_t kQuickCallOutMs = 1500;
 inline constexpr std::int64_t kAcceptableCallOutMs = 2500;
 
 // C5's targets for the session's first pages, by where the Conversation job's model runs: on a cloud provider, the
-// median within 1.6 s and the second figure within 3.0 s; on a local one (C5's 12 GB local preset), 2.5 s and DESIGN
-// §1.4's 4.5 s. C5 and §1.4 give the second target for the 90th percentile; PAGES' tile is the 95th, which is held to
-// it (the stricter reading; the notes ask which is meant).
+// median within 1.6 s and the 90th percentile within 3.0 s; on a local one (C5's 12 GB local preset), 2.5 s and DESIGN
+// §1.4's 4.5 s. The tile is the 90th, as C5 and §1.4 give it (the owner's O128 (a)).
 struct PageTargets {
   std::int64_t median_ms = 0;
-  std::int64_t p95_ms = 0;
+  std::int64_t p90_ms = 0;
 };
 inline constexpr PageTargets kCloudTargets{1600, 3000};
 inline constexpr PageTargets kLocalTargets{2500, 4500};
 
 // The tiles count from the session's newest first pages and first tokens, this many of each (a session's lines are far
-// fewer); the 95th percentile is given only from kTraceP95Lines first pages on, below which it would be the slowest.
+// fewer); the 90th percentile is given only from kTraceP90Lines first pages on, below which it would be the slowest
+// (its rank, ceil(0.9 n), is n for every n below 10).
 inline constexpr std::size_t kTraceSamples = 4096;
-inline constexpr std::size_t kTraceP95Lines = 20;
+inline constexpr std::size_t kTraceP90Lines = 10;
 
 // One line's call. Every time is from at_ms; -1 while it is not known, or never came.
 struct TraceRow {
@@ -71,7 +71,7 @@ struct TraceSummary {
   std::uint64_t lines = 0;    // of them, those whose first page reached the screen
   std::uint64_t unshown = 0;  // those that ended with no page shown (a page after the end moves one to `lines`)
   std::int64_t first_page_median_ms = -1;   // of the newest kTraceSamples first pages; -1 with none
-  std::int64_t first_page_p95_ms = -1;      // likewise, from kTraceP95Lines first pages on; -1 below
+  std::int64_t first_page_p90_ms = -1;      // likewise, from kTraceP90Lines first pages on; -1 below
   std::int64_t first_token_median_ms = -1;  // of the newest kTraceSamples first tokens of lines; -1 with none
 
   friend bool operator==(const TraceSummary&, const TraceSummary&) = default;
@@ -90,7 +90,7 @@ struct TracesView {
 [[nodiscard]] std::optional<LineKind> line_of(CallPurpose p) noexcept;
 // A line's verdict by its first page (-1: none showed, so none).
 [[nodiscard]] LineVerdict verdict_of(LineKind kind, std::int64_t first_page_ms) noexcept;
-// The nearest-rank percentile of `samples` (`permille`: 500 for the median, 950 for the 95th): the value at rank
+// The nearest-rank percentile of `samples` (`permille`: 500 for the median, 900 for the 90th): the value at rank
 // ceil(n × permille ÷ 1000), at least the first; -1 with none.
 [[nodiscard]] std::int64_t percentile(std::vector<std::uint32_t> samples, std::uint32_t permille);
 

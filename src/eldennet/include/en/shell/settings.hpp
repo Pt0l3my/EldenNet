@@ -14,10 +14,10 @@
 
 #include "en/core/behaviour.hpp"
 #include "en/proto/snapshot.hpp"
+#include "en/shell/logline.hpp"
 
 namespace en::shell {
 
-enum class LogLevel : std::uint8_t { Error, Warn, Info, Debug };
 enum class CopyMode : std::uint8_t { Seh, Rpm };
 // Which round a probe build runs. None: the normal start, with the probe's fault injection if asked. Read (Lodestar's
 // step L5; proposal 0005 §6.2): the read-only round, which names the managers by their instances, tries the reader on

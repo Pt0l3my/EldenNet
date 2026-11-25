@@ -75,5 +75,5 @@ fill    ground.well   466,1044   42x28   r3
 stroke  edge          466,1044   42x28   r3 w1
 text    ink.body      474,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     515,1045   34x25   glyphs 4 "Back"
-stroke  gold.hi       362, 678 1496x61   r5 w3 clip1
+stroke  gold.hi       362, 218 1496x26   r5 w3 clip1
 # 77 items, 2976 vertices, 6234 indices, 4 commands; check_draw_list: passes

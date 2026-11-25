@@ -380,7 +380,7 @@ the conversation part B's (above); the core holds both.
   one that never left; `first_page_ms` is from the send to the commit of its first page (`shown`, now with the step's
   time), whatever the page said, so a deflection's counts too; the verdict is en-proto's rule by that page. The summary
   counts the session's calls for a line, those whose first page showed and those that ended with none (a page after the
-  end moves one back), and the median and 95th percentile of the newest 4,096 first pages (the 95th from 20 on) and
+  end moves one back), and the median and 90th percentile of the newest 4,096 first pages (the 90th from 10 on) and
   the median of their first tokens, each sample taken once. A trace holds no text.
 - **Pause AI** (`CoreInput::Pause`, `State::ai_paused`): a session flag, off in every new core and never stored. On,
   the ladder stands at L2 (the reason "AI paused", en-proto's `kAiPausedReason`): speech is off, so the box closes as
