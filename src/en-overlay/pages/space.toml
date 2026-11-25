@@ -796,7 +796,9 @@ help.steps = [
 
 # The scrubbed tail, newest first, with its filter bar (GraceUI D257; PAGES §4.6.7's level tiles and search): a filter
 # on each row's level, the logger's own, and a search in its lines; both views filter what they hold. No sort: the rows
-# come in time's order.
+# come in time's order. The Level filter's own choices (GraceUI 0.2.55's D262, protocol 1.18) word the levels in the
+# owner's words (O133), in their order; no trace, which v0.2 never logs (a row whose value is not listed shows under All
+# alone).
 [[page.sections]]
 id = "log"
 title = "Log"
@@ -808,7 +810,9 @@ topic = "logs"
 props = { newest_first = true }
 
 [page.sections.blocks.filter_bar]
-filters = [{ column = "level", label = "Level" }]
+filters = [{ column = "level", label = "Level", choices = [
+  { value = "error", label = "Errors" }, { value = "warning", label = "Warnings" },
+  { value = "info", label = "Information" }, { value = "debug", label = "Details" }] }]
 search = { columns = ["line"], label = "Find in the log" }
 
 [[page.sections]]

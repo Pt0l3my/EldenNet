@@ -44,7 +44,7 @@ T1 then runs, each state logged and written to the watch block for the launcher'
 8. **Connect** (`overlay.cpp`, en-overlay): GraceUI found by graceui-sys's look (its module name, an export scan, then
    `GraceUI\graceui.dll` in the game's folder, which it loads), again every 250 ms for at most 30 s, but at once when no
    copy is installed there and none is loaded (graceui-sys's own rule, `GRACEUI_SYS_STOP_IF_ABSENT`, GraceUI D164); then
-   `connect` as `eldennet`, with its floor (GraceUI 0.2.50) and the caps it uses, and, connected, the F11 view, the
+   `connect` as `eldennet`, with its floor (GraceUI 0.2.55) and the caps it uses, and, connected, the F11 view, the
    Mark's hotkey and, on the main path, the conversation's surfaces with GraceUI's own fonts read from its folder
    (below; `surfaces state=… faces=… talk=… chord=… wake=…`). One log line, `connect ok=… outcome=… how=… looks=… installed=… graceui=… view=… mark=…
    mark_bound=… world=…` (`view=unbound` when F11 was taken first, with a line `view hotkey=unbound` beside it); a

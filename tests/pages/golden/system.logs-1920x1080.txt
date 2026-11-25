@@ -34,36 +34,55 @@ text    ink.hi        340,  86   80x45   clip1 glyphs 4 "Logs"
 text    ink.mute      340, 136  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
 line    rule.strong   340, 176 1540x1    clip1
 diamond gold.deep     340, 171   11x11   w1 clip1
-fill    ground.2      340, 201 1540x130  r5 clip1
-stroke  rule          340, 201 1540x130  r5 w1 clip1
+fill    ground.2      340, 201 1540x316  r5 clip1
+stroke  rule          340, 201 1540x316  r5 w1 clip1
 text    gold          365, 221   29x20   clip1 glyphs 3 "Log"
 text    ink.faint    1842, 221    8x25   clip1 glyphs 1 "-"
-text    ink.mute      365, 271  135x25   clip1 glyphs 14 "Nothing to show."
-fill    ground.2      340, 351 1540x155  r5 clip1
-stroke  rule          340, 351 1540x155  r5 w1 clip1
-text    gold          365, 371   96x20   clip1 glyphs 9 "Log detail"
-text    ink.faint    1842, 371    8x25   clip1 glyphs 1 "-"
-line    rule          365, 406 1490x1    clip1
-text    ink.hi        365, 422   94x28   clip1 glyphs 9 "Log detail"
-text    ink.mute      365, 456 1114x25   clip1 glyphs 111 "How much EldenNet writes to its log. Detailed helps with a bug report; Normal is enough otherwise. Changes at once. Default: Normal."
-text    gold         1323, 424  152x25   clip1 glyphs 16 "Lives in Developer"
-stroke  edge         1505, 417  350x38   r3 w1 clip1
-text    ink.mute     1510, 424   76x25   clip1 glyphs 8 "Errors only"
-text    ink.mute     1603, 424   68x25   clip1 glyphs 8 "Warnings"
-fill    ground.3     1681, 418   86x36   r3 clip1
-text    gold.hi      1699, 424   51x25   clip1 glyphs 6 "Normal"
-text    ink.mute     1778, 424   68x25   clip1 glyphs 8 "Detailed"
-fill    ground.2      340, 526 1540x175  r5 clip1
-stroke  rule          340, 526 1540x175  r5 w1 clip1
-text    gold          365, 546   67x20   clip1 glyphs 7 "Related"
-line    rule          365, 576 1490x1    clip1
-text    ink.hi        380, 590   56x28   clip1 glyphs 6 "Status"
-text    ink.mute      862, 591  599x25   clip1 glyphs 58 "Whether EldenNet is healthy on this PC and game build, and if not, why."
-text    gold         1820, 590    9x28   clip1 glyphs 1 "→"
-line    rule          365, 631 1490x1    clip1
-text    ink.hi        380, 645   84x28   clip1 glyphs 9 "Developer"
-text    ink.mute      862, 646  472x25   clip1 glyphs 49 "Options for testing EldenNet and reporting its problems."
-text    gold         1820, 645    9x28   clip1 glyphs 1 "→"
+text    ink.mute      365, 266   42x25   clip1 glyphs 5 "Level"
+fill    ground.well   417, 261  120x35   r3 clip1
+stroke  edge          417, 261  120x35   r3 w1 clip1
+text    ink.faint     427, 266    8x25   clip1 glyphs 1 "‹"
+text    ink.hi        445, 266   25x25   clip1 glyphs 3 "All"
+text    ink.faint     517, 266    8x25   clip1 glyphs 1 "›"
+fill    ground.well   557, 261  275x35   r3 clip1
+stroke  edge          557, 261  275x35   r3 w1 clip1
+text    ink.faint     570, 266  127x25   clip1 glyphs 12 "Find in the log"
+text    ink.faint     365, 314   59x25   clip1 glyphs 7 "0:00:06"
+text    ink.body      485, 314  219x25   clip1 glyphs 24 "change what=phase to=title"
+text    ink.faint     365, 344   59x25   clip1 glyphs 7 "0:00:06"
+text    ink.body      485, 344  135x25   clip1 glyphs 15 "init state=ready"
+text    ink.faint     365, 374   59x25   clip1 glyphs 7 "0:00:01"
+text    ink.body      485, 374  709x25   clip1 glyphs 77 "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.12"
+text    ink.faint     365, 404   59x25   clip1 glyphs 7 "0:00:00"
+text    ink.body      485, 404  160x25   clip1 glyphs 18 "init state=settings"
+text    ink.faint     365, 434   59x25   clip1 glyphs 7 "0:00:00"
+text    ink.body      485, 434  202x25   clip1 glyphs 22 "gate result=passed ms=11"
+text    ink.faint     365, 464   59x25   clip1 glyphs 7 "0:00:00"
+text    ink.body      485, 464  608x25   clip1 glyphs 67 "boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev"
+fill    ground.2      340, 537 1540x130  r5 clip1
+stroke  rule          340, 537 1540x130  r5 w1 clip1
+text    gold          365, 557   96x20   clip1 glyphs 9 "Log detail"
+text    ink.faint    1842, 557    8x25   clip1 glyphs 1 "-"
+line    rule          365, 592 1490x1    clip1
+text    ink.hi        365, 608   94x28   clip1 glyphs 9 "Log detail"
+text    gold         1323, 610  152x25   clip1 glyphs 16 "Lives in Developer"
+stroke  edge         1505, 603  350x38   r3 w1 clip1
+text    ink.mute     1510, 610   76x25   clip1 glyphs 8 "Errors only"
+text    ink.mute     1603, 610   68x25   clip1 glyphs 8 "Warnings"
+fill    ground.3     1681, 604   86x36   r3 clip1
+text    gold.hi      1699, 610   51x25   clip1 glyphs 6 "Normal"
+text    ink.mute     1778, 610   68x25   clip1 glyphs 8 "Detailed"
+fill    ground.2      340, 687 1540x175  r5 clip1
+stroke  rule          340, 687 1540x175  r5 w1 clip1
+text    gold          365, 707   67x20   clip1 glyphs 7 "Related"
+line    rule          365, 737 1490x1    clip1
+text    ink.hi        380, 751   56x28   clip1 glyphs 6 "Status"
+text    ink.mute      862, 752  599x25   clip1 glyphs 58 "Whether EldenNet is healthy on this PC and game build, and if not, why."
+text    gold         1820, 751    9x28   clip1 glyphs 1 "→"
+line    rule          365, 792 1490x1    clip1
+text    ink.hi        380, 806   84x28   clip1 glyphs 9 "Developer"
+text    ink.mute      862, 807  472x25   clip1 glyphs 49 "Options for testing EldenNet and reporting its problems."
+text    gold         1820, 806    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 fill    ground.well   340,1044   55x28   r3
 stroke  edge          340,1044   55x28   r3 w1
@@ -72,13 +91,9 @@ tri     ink.body      348,1051    7x14   <
 fill    ink.body      372,1057    9x2   
 tri     ink.body      380,1051    7x14   >
 text    ink.faint     402,1045   51x25   glyphs 6 "Change"
-fill    ground.well   477,1044   60x28   r3
-stroke  edge          477,1044   60x28   r3 w1
-text    ink.body      485,1046   44x25   glyphs 5 "Enter"
-text    ink.faint     544,1045  118x25   glyphs 11 "Go to its page"
-fill    ground.well   687,1044   42x28   r3
-stroke  edge          687,1044   42x28   r3 w1
-text    ink.body      695,1046   26x25   glyphs 3 "Esc"
-text    ink.faint     736,1045   34x25   glyphs 4 "Back"
-stroke  gold.hi      1502, 414  356x44   r5 w3 clip1
-# 82 items, 2892 vertices, 6420 indices, 4 commands; check_draw_list: passes
+fill    ground.well   477,1044   42x28   r3
+stroke  edge          477,1044   42x28   r3 w1
+text    ink.body      485,1046   26x25   glyphs 3 "Esc"
+text    ink.faint     527,1045   34x25   glyphs 4 "Back"
+stroke  gold.hi       414, 258  126x41   r5 w3 clip1
+# 97 items, 3548 vertices, 7614 indices, 4 commands; check_draw_list: passes

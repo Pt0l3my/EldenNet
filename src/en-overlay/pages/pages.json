@@ -1,7 +1,7 @@
 {
   "space": "eldennet",
   "name": "EldenNet",
-  "minor": 16,
+  "minor": 18,
   "categories": [
     {
       "id": "home",
@@ -430,7 +430,25 @@
                 "filters": [
                   {
                     "column": "level",
-                    "label": "Level"
+                    "label": "Level",
+                    "choices": [
+                      {
+                        "value": "error",
+                        "label": "Errors"
+                      },
+                      {
+                        "value": "warning",
+                        "label": "Warnings"
+                      },
+                      {
+                        "value": "info",
+                        "label": "Information"
+                      },
+                      {
+                        "value": "debug",
+                        "label": "Details"
+                      }
+                    ]
                   }
                 ],
                 "search": {

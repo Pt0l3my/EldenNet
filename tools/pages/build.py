@@ -33,7 +33,9 @@ PAGES_JSON = ROOT / "src" / "en-overlay" / "pages" / "pages.json"
 SETTINGS_JSON = ROOT / "src" / "en-overlay" / "pages" / "settings.json"
 SPACE_CPP = ROOT / "src" / "en-overlay" / "src" / "space_data.cpp"
 
-PROTOCOL_MINOR = 16  # a stream's filter bar is protocol 1.16's (GraceUI D257), on 1.15's header switch (D256), 1.13's
+PROTOCOL_MINOR = 18  # a filter's own choices on a bar GraceUI filters itself is protocol 1.18's (GraceUI D262), on
+#                     1.17's page in the browser alone, shown with a setting, gated and ribboned (D258), 1.16's
+#                     stream's filter bar (D257), 1.15's header switch (D256), 1.13's
 #                     quick switches and live pages (D252), 1.12's document block, prose field and report preview's
 #                     command (D251), 1.11's filter bar (D250), 1.10's foot (D248), 1.8's sensitive commands and
 #                     settings (D221), 1.7's editor block (D217), 1.6's slow commands (D216), 1.5's topic families and

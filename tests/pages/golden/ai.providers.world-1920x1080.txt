@@ -43,115 +43,124 @@ stroke  rule          340, 201 1540x130  r5 w1 clip1
 text    gold          365, 221   29x20   clip1 glyphs 3 "Now"
 text    ink.faint    1842, 221    8x25   clip1 glyphs 1 "-"
 text    ink.body      365, 271  987x25   clip1 glyphs 95 "AI is paused for this session, so EldenNet calls no model. Turn Pause AI off in the quick switches to call one again."
-fill    ground.2      340, 351 1540x313  r5 clip1
-stroke  rule          340, 351 1540x313  r5 w1 clip1
+fill    ground.2      340, 351 1540x363  r5 clip1
+stroke  rule          340, 351 1540x363  r5 w1 clip1
 text    gold          365, 371   86x20   clip1 glyphs 9 "Providers"
 text    ink.faint    1842, 371    8x25   clip1 glyphs 1 "-"
 text    ink.mute      365, 396  498x25   clip1 glyphs 48 "Each key is written to this PC only, and never shown again."
 text    ink.mute      365, 439   68x25   clip1 glyphs 8 "Provider"
 text    ink.mute      862, 439   34x25   clip1 glyphs 4 "Kind"
-text    ink.mute      959, 439   76x25   clip1 glyphs 8 "Server type"
-text    ink.mute     1056, 439   59x25   clip1 glyphs 7 "Address"
-text    ink.mute     1153, 439   25x25   clip1 glyphs 3 "Key"
-text    ink.mute     1250, 439   76x25   clip1 glyphs 9 "Requests at once"
-text    ink.mute     1347, 439   76x25   clip1 glyphs 8 "JSON answers"
+text    ink.mute      919, 439   93x25   clip1 glyphs 10 "Server type"
+text    ink.mute     1031, 439   59x25   clip1 glyphs 7 "Address"
+text    ink.mute     1143, 439   25x25   clip1 glyphs 3 "Key"
+text    ink.mute     1217, 439   93x25   clip1 glyphs 10 "Requests at once"
+text    ink.mute     1329, 439   93x25   clip1 glyphs 10 "JSON answers"
 line    rule          365, 469 1490x1    clip1
 text    ink.hi        365, 485   94x28   clip1 glyphs 10 "openrouter"
 fill    rot.fill     1774, 482   81x35   r3 clip1
 text    ink.hi       1789, 487   51x25   clip1 glyphs 6 "Remove"
 stroke  edge         1704, 482   55x35   r3 w1 clip1
 text    ink.hi       1719, 487   25x25   clip1 glyphs 3 "Set"
-text    ink.body      862, 487   42x25   clip1 glyphs 5 "Cloud"
-text    ink.body      959, 487   76x25   clip1 glyphs 9 "OpenAI-compatible"
-text    ink.body     1056, 487   76x25   clip1 glyphs 9 "https://router.example.invalid/api/v1"
-text    ink.body     1153, 487   25x25   clip1 glyphs 3 "Set"
-text    ink.body     1323, 487    8x25   clip1 glyphs 1 "2"
-text    ink.body     1347, 487   76x25   clip1 glyphs 8 "JSON schema"
+text    ink.body      862, 487   34x25   clip1 glyphs 4 "Cloud"
+text    ink.body      919, 487   93x25   clip1 glyphs 11 "OpenAI-compatible"
+text    ink.body     1031, 487   93x25   clip1 glyphs 11 "https://router.example.invalid/api/v1"
+text    ink.body     1143, 487   25x25   clip1 glyphs 3 "Set"
+text    ink.body     1305, 487    8x25   clip1 glyphs 1 "2"
+text    ink.body     1329, 487   93x25   clip1 glyphs 10 "JSON schema"
 line    rule          365, 529 1490x1    clip1
 text    ink.hi        365, 545  103x28   clip1 glyphs 11 "spare-cloud"
 fill    rot.fill     1774, 542   81x35   r3 clip1
 text    ink.hi       1789, 547   51x25   clip1 glyphs 6 "Remove"
 stroke  edge         1704, 542   55x35   r3 w1 clip1
 text    ink.hi       1719, 547   25x25   clip1 glyphs 3 "Set"
-text    ink.body      862, 547   42x25   clip1 glyphs 5 "Cloud"
-text    ink.body      959, 547   76x25   clip1 glyphs 9 "OpenAI-compatible"
-text    ink.body     1056, 547   76x25   clip1 glyphs 9 "https://spare.example.invalid/v1"
-text    ink.body     1153, 547   59x25   clip1 glyphs 7 "Refused"
-text    ink.body     1323, 547    8x25   clip1 glyphs 1 "2"
-text    ink.body     1347, 547   76x25   clip1 glyphs 8 "JSON schema"
+text    ink.body      862, 547   34x25   clip1 glyphs 4 "Cloud"
+text    ink.body      919, 547   93x25   clip1 glyphs 11 "OpenAI-compatible"
+text    ink.body     1031, 547   93x25   clip1 glyphs 11 "https://spare.example.invalid/v1"
+text    ink.body     1143, 547   51x25   clip1 glyphs 6 "Refused"
+text    ink.body     1305, 547    8x25   clip1 glyphs 1 "2"
+text    ink.body     1329, 547   93x25   clip1 glyphs 10 "JSON schema"
 line    rule          365, 589 1490x1    clip1
 text    ink.hi        365, 605   56x28   clip1 glyphs 6 "Preset"
+text    ink.mute      365, 639 1468x25   clip1 glyphs 145 "Which models do the jobs. Cloud budget, on OpenRouter, suits most players; Custom keeps what your providers file says. A new preset adds its provider to Providers, where its "
+text    ink.mute      365, 664  397x25   clip1 glyphs 41 "key goes. Default: Cloud budget, on OpenRouter."
 text    gold         1348, 607  127x25   clip1 glyphs 13 "Lives in Models"
 stroke  edge         1505, 600  350x38   r3 w1 clip1
 fill    ground.3     1506, 601  115x36   r3 clip1
 text    gold.hi      1510, 607  101x25   clip1 glyphs 11 "Cloud budget, on OpenRouter"
 text    ink.mute     1627, 607  101x25   clip1 glyphs 10 "Cloud, on NanoGPT"
 text    ink.mute     1771, 607   51x25   clip1 glyphs 6 "Custom"
-fill    ground.2      340, 684 1540x305  r5 clip1
-stroke  rule          340, 684 1540x305  r5 w1 clip1
-text    gold          365, 704  163x20   clip1 glyphs 15 "Your own provider"
-text    ink.faint    1842, 704    8x25   clip1 glyphs 1 "-"
-text    ink.mute      365, 729 1485x25   clip1 glyphs 142 "A server that speaks the OpenAI API: a cloud service at an https:// address, a server on this PC, or one on another PC of your home network by its private address, which takes "
-text    ink.mute      365, 754   59x25   clip1 glyphs 6 "no key."
-line    rule          365, 789 1490x1    clip1
-text    ink.hi        365, 805   38x28   clip1 glyphs 4 "Name"
-fill    ground.well  1155, 802  700x35   r3 clip1
-stroke  edge         1155, 802  700x35   r3 w1 clip1
-line    rule          365, 849 1490x1    clip1
-text    ink.hi        365, 865   75x28   clip1 glyphs 7 "Base URL"
-fill    ground.well  1155, 862  700x35   r3 clip1
-stroke  edge         1155, 862  700x35   r3 w1 clip1
-fill    gold         1787, 922   68x40   r3 clip1
-text    on.gold      1807, 928   28x28   clip1 glyphs 3 "Add"
-fill    ground.2      340,1009 1540x190  r5 clip1
-stroke  rule          340,1009 1540x190  r5 w1 clip1
-text    gold          365,1029  125x20   clip1 glyphs 12 "Models listed"
-text    ink.faint    1842,1029    8x25   clip1 glyphs 1 "-"
-line    rule          365,1064 1490x1    clip1
-text    moss          365,1082   51x25   clip1 glyphs 6 "Passed"
-text    ink.body      503,1080   94x28   clip1 glyphs 10 "openrouter"
-text    ink.mute      617,1082  397x25   clip1 glyphs 40 "Lists 214 models, every job's model among them."
-line    rule          365,1124 1490x1    clip1
-text    rot           365,1142   51x25   clip1 glyphs 6 "Failed"
-text    ink.body      503,1140  103x28   clip1 glyphs 11 "spare-cloud"
-text    ink.mute      626,1142  135x25   clip1 glyphs 14 "Refused the key."
-fill    ground.2      340,1219 1540x228  r5 clip1
-stroke  rule          340,1219 1540x228  r5 w1 clip1
-text    gold          365,1239   58x20   clip1 glyphs 6 "Health"
-text    ink.faint    1842,1239    8x25   clip1 glyphs 1 "-"
-text    ink.mute      365,1282   68x25   clip1 glyphs 8 "Provider"
-text    ink.mute      862,1282   42x25   clip1 glyphs 5 "State"
-text    ink.mute     1193,1282  110x25   clip1 glyphs 12 "Last answered"
-text    ink.mute     1524,1282   34x25   clip1 glyphs 4 "Jobs"
-line    rule          365,1312 1490x1    clip1
-text    ink.hi        365,1328   94x28   clip1 glyphs 10 "openrouter"
-text    ink.body      862,1330  194x25   clip1 glyphs 19 "Cooling down, 42 s left"
-text    ink.body     1193,1330   59x25   clip1 glyphs 7 "0:11:40"
-text    ink.body     1524,1330  312x25   clip1 glyphs 33 "Conversation, Quick lines, Prepared lines, Memory, Self-test"
-line    rule          365,1372 1490x1    clip1
-text    ink.hi        365,1388  103x28   clip1 glyphs 11 "spare-cloud"
-text    ink.body      862,1390  228x25   clip1 glyphs 23 "Failing: it refused its key"
-text    ink.body     1193,1390  135x25   clip1 glyphs 14 "Not this session"
-text    ink.body     1524,1390   34x25   clip1 glyphs 4 "None"
-fill    ground.2      340,1467 1540x175  r5 clip1
-stroke  rule          340,1467 1540x175  r5 w1 clip1
-text    gold          365,1487   67x20   clip1 glyphs 7 "Related"
-line    rule          365,1517 1490x1    clip1
-text    ink.hi        380,1531   56x28   clip1 glyphs 6 "Models"
-text    ink.mute      862,1532  515x25   clip1 glyphs 50 "Which model does each job, and the preset that sets them all."
-text    gold         1820,1531    9x28   clip1 glyphs 1 "→"
-line    rule          365,1572 1490x1    clip1
-text    ink.hi        380,1586   84x28   clip1 glyphs 9 "Self-test"
-text    ink.mute      862,1587  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
-text    gold         1820,1586    9x28   clip1 glyphs 1 "→"
+fill    ground.2      340, 734 1540x305  r5 clip1
+stroke  rule          340, 734 1540x305  r5 w1 clip1
+text    gold          365, 754  163x20   clip1 glyphs 15 "Your own provider"
+text    ink.faint    1842, 754    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, 779 1485x25   clip1 glyphs 142 "A server that speaks the OpenAI API: a cloud service at an https:// address, a server on this PC, or one on another PC of your home network by its private address, which takes "
+text    ink.mute      365, 804   59x25   clip1 glyphs 6 "no key."
+line    rule          365, 839 1490x1    clip1
+text    ink.hi        365, 855   38x28   clip1 glyphs 4 "Name"
+fill    ground.well  1155, 852  700x35   r3 clip1
+stroke  edge         1155, 852  700x35   r3 w1 clip1
+line    rule          365, 899 1490x1    clip1
+text    ink.hi        365, 915   75x28   clip1 glyphs 7 "Base URL"
+fill    ground.well  1155, 912  700x35   r3 clip1
+stroke  edge         1155, 912  700x35   r3 w1 clip1
+fill    gold         1787, 972   68x40   r3 clip1
+text    on.gold      1807, 978   28x28   clip1 glyphs 3 "Add"
+fill    ground.2      340,1059 1540x190  r5 clip1
+stroke  rule          340,1059 1540x190  r5 w1 clip1
+text    gold          365,1079  125x20   clip1 glyphs 12 "Models listed"
+text    ink.faint    1842,1079    8x25   clip1 glyphs 1 "-"
+line    rule          365,1114 1490x1    clip1
+text    moss          365,1132   51x25   clip1 glyphs 6 "Passed"
+text    ink.body      503,1130   94x28   clip1 glyphs 10 "openrouter"
+text    ink.mute      617,1132  397x25   clip1 glyphs 40 "Lists 214 models, every job's model among them."
+line    rule          365,1174 1490x1    clip1
+text    rot           365,1192   51x25   clip1 glyphs 6 "Failed"
+text    ink.body      503,1190  103x28   clip1 glyphs 11 "spare-cloud"
+text    ink.mute      626,1192  135x25   clip1 glyphs 14 "Refused the key."
+fill    ground.2      340,1269 1540x228  r5 clip1
+stroke  rule          340,1269 1540x228  r5 w1 clip1
+text    gold          365,1289   58x20   clip1 glyphs 6 "Health"
+text    ink.faint    1842,1289    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365,1332   68x25   clip1 glyphs 8 "Provider"
+text    ink.mute      862,1332   42x25   clip1 glyphs 5 "State"
+text    ink.mute     1131,1332  110x25   clip1 glyphs 12 "Last answered"
+text    ink.mute     1307,1332   34x25   clip1 glyphs 4 "Jobs"
+line    rule          365,1362 1490x1    clip1
+text    ink.hi        365,1378   94x28   clip1 glyphs 10 "openrouter"
+text    ink.body      862,1380  194x25   clip1 glyphs 19 "Cooling down, 42 s left"
+text    ink.body     1131,1380   59x25   clip1 glyphs 7 "0:11:40"
+text    ink.body     1307,1380  506x25   clip1 glyphs 54 "Conversation, Quick lines, Prepared lines, Memory, Self-test"
+line    rule          365,1422 1490x1    clip1
+text    ink.hi        365,1438  103x28   clip1 glyphs 11 "spare-cloud"
+text    ink.body      862,1440  228x25   clip1 glyphs 23 "Failing: it refused its key"
+text    ink.body     1131,1440  135x25   clip1 glyphs 14 "Not this session"
+text    ink.body     1307,1440   34x25   clip1 glyphs 4 "None"
+fill    ground.2      340,1517 1540x175  r5 clip1
+stroke  rule          340,1517 1540x175  r5 w1 clip1
+text    gold          365,1537   67x20   clip1 glyphs 7 "Related"
+line    rule          365,1567 1490x1    clip1
+text    ink.hi        380,1581   56x28   clip1 glyphs 6 "Models"
+text    ink.mute      862,1582  515x25   clip1 glyphs 50 "Which model does each job, and the preset that sets them all."
+text    gold         1820,1581    9x28   clip1 glyphs 1 "→"
+line    rule          365,1622 1490x1    clip1
+text    ink.hi        380,1636   84x28   clip1 glyphs 9 "Self-test"
+text    ink.mute      862,1637  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
+text    gold         1820,1636    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
-fill    ground.well   340,1044   60x28   r3
-stroke  edge          340,1044   60x28   r3 w1
-text    ink.body      348,1046   44x25   glyphs 5 "Enter"
-text    ink.faint     407,1045   34x25   glyphs 4 "Open"
-fill    ground.well   466,1044   42x28   r3
-stroke  edge          466,1044   42x28   r3 w1
-text    ink.body      474,1046   26x25   glyphs 3 "Esc"
-text    ink.faint     515,1045   34x25   glyphs 4 "Back"
-stroke  gold.hi      1444,  86  280x46   r5 w3 clip1
-# 118 items, 4356 vertices, 9780 indices, 4 commands; check_draw_list: passes
+fill    ground.well   340,1044   55x28   r3
+stroke  edge          340,1044   55x28   r3 w1
+fill    ink.body      354,1057    9x2   
+tri     ink.body      348,1051    7x14   <
+fill    ink.body      372,1057    9x2   
+tri     ink.body      380,1051    7x14   >
+text    ink.faint     402,1045   51x25   glyphs 6 "Change"
+fill    ground.well   477,1044   60x28   r3
+stroke  edge          477,1044   60x28   r3 w1
+text    ink.body      485,1046   44x25   glyphs 5 "Enter"
+text    ink.faint     544,1045  118x25   glyphs 11 "Go to its page"
+fill    ground.well   687,1044   42x28   r3
+stroke  edge          687,1044   42x28   r3 w1
+text    ink.body      695,1046   26x25   glyphs 3 "Esc"
+text    ink.faint     736,1045   34x25   glyphs 4 "Back"
+stroke  gold.hi      1502, 597  356x44   r5 w3 clip1
+# 123 items, 5152 vertices, 10926 indices, 4 commands; check_draw_list: passes

@@ -1702,8 +1702,9 @@ def check_graceui_events(r):
 # danger, which keeps GraceUI's menu shut, invariant 9): F5 opens GraceUI's menu on EldenNet's Home; Page Down past AI's
 # four pages and Characters › Named NPCs (S7.2.b) to System › Status, then Performance and Traces (PAGES §4.6.7), and
 # once more to Logs, drawn in game since GraceUI 0.2.50 (D257: its rows, as the browser's are, and its filter bar),
-# where Log detail's shortcut row has the focus (the tail's filter bar comes with its rows, after the page opened, and
-# focus does not jump to it, D256); Enter on it opens its home, Settings › Developer, with the row focused; → there
+# where the tail's Level filter has the first focus (since GraceUI 0.2.55, D262: a stream's bar comes before its rows,
+# and the first focus is the body's first control), and three ↓ (the bar's search, Log detail's section) reach Log
+# detail's shortcut row; Enter on it opens its home, Settings › Developer, with the row focused; → there
 # changes it (a command to EldenNet, answered); Page Up to Tools › Bug report (PAGES §4.6.8), the category before
 # Settings; then Page Down three times, back to Settings › Developer and on to Docs and Content packs at the rail's foot
 # (PAGES §4.6.9); F5 closes the menu. While it runs, a browser of the tests' own (tests/pages/browser.py) joins
@@ -1712,9 +1713,9 @@ def check_graceui_events(r):
 # commands, and gives Bug report words of the case's own, which reach no other topic, no log line, no recording and no
 # file. The overrides folder holds a disable.toml of our own, which turns the test persona off, and a folder nested past
 # the four levels the DLL reads, which it leaves out.
-PAGES_KEYS = ("600:f5,720:next,765:next,810:next,855:next,900:next,930:next,990:next,1050:next,1140:next,1260:return,"
-              "1380:right,1500:prior,1620:next,1680:next,1800:next,1920:f5")
-PAGES_REPORTS = "360,660,960,1020,1080,1200,1320,1440,1560,1650,1740,1860,1980"
+PAGES_KEYS = ("600:f5,720:next,765:next,810:next,855:next,900:next,930:next,990:next,1050:next,1140:next,1160:down,"
+              "1180:down,1200:down,1260:return,1380:right,1500:prior,1620:next,1680:next,1800:next,1920:f5")
+PAGES_REPORTS = "360,660,960,1020,1080,1230,1320,1440,1560,1650,1740,1860,1980"
 PAGES_FRAMES = 2100
 # What happened, in words of the case's own (invented), with a line break and a fragment no page shows.
 PAGES_TYPED = ("The lamplighter's line stopped halfway, after I asked about the teal kettle.\n"
@@ -1926,7 +1927,7 @@ def check_graceui_pages(r):
                  want_grace(r, 960, menu_open=1, menu_page="system.status") +
                  want_grace(r, 1020, menu_open=1, menu_page="system.performance") +
                  want_grace(r, 1080, menu_open=1, menu_page="system.traces") +
-                 want_grace(r, 1200, menu_open=1, menu_page="system.logs", menu_focused="shortcut:debug.log_level",
+                 want_grace(r, 1230, menu_open=1, menu_page="system.logs", menu_focused="shortcut:debug.log_level",
                             shows="11") +
                  want_grace(r, 1320, menu_open=1, menu_page="settings.developer",
                             menu_focused="setting:debug.log_level") +
@@ -1994,19 +1995,20 @@ case("launcher-eldennet-graceui-pages", LGAME + ["--dll", "{eldennetdll}", "--co
 # waits for a model of its list, which it picks (D193), refused first for one not listed; sees the changed mark on that
 # job's rows alone (D198); and is refused Remove on a row unconfirmed (GraceUI's server) and on providers jobs use
 # (EldenNet's words). Then GraceUI's menu opens AI › Providers (F5, Page Down), which draws Set and Not needed, tries
-# Remove on the server of its own (Down to it, Enter twice: D192), refused, opens Models, steps Memory's provider picker
+# Remove on the server of its own (Up to it, Enter twice: D192), refused, opens Models, steps Memory's provider picker
 # on to that server (Down to it, →) and its model picker on to the first of its models (Down, →), whose help ends with
 # the default in words, and runs the self-test from Self-test's header action (Enter). Then the browser sees both jobs'
 # rows changed, resets each job (one by its model row, one by its provider row), sees no row changed, removes the server
 # of its own, chooses the NanoGPT preset, whose provider joins, and removes the unused one with its key, confirmed. Both
 # keys' values must then be nowhere: no topic, log line, recording, report or file.
-# On Providers, Down six times from Add to the server of its own's Remove: since GraceUI 0.2.18 (D214) the form's
-# field is typed in game, one stop more than at 0.2.12.
+# On Providers, Up once from the preset's shortcut, the page's first focus since GraceUI 0.2.55 (D262: its body's first
+# control, never a header action; Add was it before), to the server of its own's Remove, the row's stop before it.
 # On Models, Down 17 times from the preset to Memory's provider: each card's head and its four rows (GraceUI D202).
-AI_KEYS = ("3120:f5,3240:next,3360:down,3390:down,3420:down,3450:down,3480:down,3510:down,3600:return,3660:return,"
+# On Self-test, Up once from its first section's label (its first focus since D262) to its header action, Run.
+AI_KEYS = ("3120:f5,3240:next,3360:up,3600:return,3660:return,"
            "3780:next,"
            + ",".join("%d:down" % (3900 + 30 * i) for i in range(17)) + ",4500:right,4620:down,4680:left,4800:next,"
-           "4920:return,5400:f5")
+           "4830:up,4920:return,5400:f5")
 # The early reports name GraceUI's server to the browser (grace_port), so that its first part ends long before the menu's
 # presses need the provider it adds.
 AI_REPORTS = "600,900,1200,1500,1800,2460,3060,3180,3300,3540,3720,3840,4440,4560,4740,4860,5340,5460"
@@ -2261,8 +2263,8 @@ def check_graceui_ai(r):
     need(cards == [(slot, title, slot, "ai.jobs", slot) for slot, title in (
         ("dialogue", "Conversation"), ("bark_live", "Quick lines"), ("bark_pool", "Prepared lines"),
         ("memory", "Memory"), ("selftest", "Self-test"))], "the Models page's cards: %s" % cards, failures)
-    # The page data's minor: protocol 1.16's since Logs' filter bar on its stream (GraceUI D257).
-    need(body("pages").get("minor") == 16 and [s.get("id") for s in models.get("sections", [])][:2] == ["now", "preset"]
+    # The page data's minor: protocol 1.18's since Logs' Level filter's own choices (GraceUI D262).
+    need(body("pages").get("minor") == 18 and [s.get("id") for s in models.get("sections", [])][:2] == ["now", "preset"]
          and len(models.get("sections", [])) == 7, "the Models page's sections: %s (minor %s)" %
          ([s.get("id") for s in models.get("sections", [])], body("pages").get("minor")), failures)
     need(body("first_status").get("sentence", "").startswith("No provider yet"),
@@ -2411,13 +2413,13 @@ def check_graceui_ai(r):
     need(counts["refused"] == 1 and counts["unknown"] == 0 and counts["models"] >= 3 and counts["chats"] >= 2 and
          counts["json"] >= 1 and counts["open_models"] >= 2 and counts["open_chats"] >= 1,
          "the fake server answered %s" % counts, failures)
-    # In game: F5's menu on Home; AI › Providers, which draws a row's key as Not needed, never a key's fragment; Down to
+    # In game: F5's menu on Home; AI › Providers, which draws a row's key as Not needed, never a key's fragment; Up to
     # the server of the case's own's Remove, Enter twice, refused (a job uses it); Models, Down past each card's head and
     # rows to Memory's provider picker, →, Down to its model picker, ←, the cards drawing a chip and a live status
     # (D202); Self-test's Run self-test. The menu watched the pages' topics.
     failures += (want_grace(r, 3060, eldennet=1, server=1, spaces=1, menu_open=0) +
                  want_grace(r, 3180, menu_open=1, menu_page="home") +
-                 want_grace(r, 3300, menu_open=1, menu_page="ai.providers", menu_focused="action:add",
+                 want_grace(r, 3300, menu_open=1, menu_page="ai.providers", menu_focused="shortcut:ai.preset",
                             shows="0100") +
                  want_grace(r, 3540, menu_open=1, menu_page="ai.providers",
                             menu_focused="row:providers/%s/remove" % AI_OWN) +
@@ -3177,7 +3179,7 @@ case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--conso
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),
      env=dict(GRACE_ENV, FAKEGAME_SHOWS="{text_ai_shows}"), timeout=300,
      prepare=install_eldennet(AI_SETTINGS, then=install_ai), during=browse_ai, check=check_graceui_ai,
-     what="EldenNet's AI pages through GraceUI 0.2.53 against a fake model server on loopback: AI › Models as one "
+     what="EldenNet's AI pages through GraceUI 0.2.55 against a fake model server on loopback: AI › Models as one "
           "card per job with its chip and live status, a provider added from its preset (No key yet), a wrong key on "
           "its row refused (Refused; the cards Failing) and the right one set (Ready), a server of the case's own "
           "on this PC from the form (Not needed, no key), the self-test and the model lists, a job given that server "
@@ -3186,7 +3188,7 @@ case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--conso
           "the self-test; then the picks reset (a fallback by its picker's Default), no row changed, a new preset, and "
           "the unused providers removed; either key in no topic, log line, recording, report or file, and drawn "
           "nowhere in the menu")
-# The profile editor (S7.2.b) and the sensitive marks (S11.4.e), through GraceUI 0.2.53 with its listener at home on
+# The profile editor (S7.2.b) and the sensitive marks (S11.4.e), through GraceUI 0.2.55 with its listener at home on
 # 127.0.0.2 alone (the fake game's --grace-lan, GraceUI loaded first with the launcher's --also, Other devices on in its
 # own settings). A browser of the tests' own on this PC reads Characters › Named NPCs (the shipped pilot's row, its
 # general profile and the editor's document at revision 0), checks notes holding a banned word (a warning), saves them
@@ -3198,18 +3200,19 @@ case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--conso
 # opens GraceUI's Browser view page and pairs a device; that device, on 127.0.0.2, is refused EldenNet's sensitive
 # commands and settings ("Only on the PC the game runs on.") but may read the pages and check a profile. No player's
 # text, notes or draft in the log.
-# The menu's presses, by the stops GraceUI 0.2.53 gives: F5 on Home; Page Down past AI's four pages to Named NPCs, its
+# The menu's presses, by the stops GraceUI 0.2.55 gives: F5 on Home; Page Down past AI's four pages to Named NPCs, its
 # list's row (the pilot's) chosen; → into the detail, on the Profile tab; nine ↓ past the General profile and Your notes
 # sections and the editor's Save, Check, Restore, Reset, notes and Draft to the notes' field; Enter edits it, the typing
 # goes in at its end, Enter ends it; six ↑ back to Save, Enter saves. Then Page Down to System › Status, ← into the rail,
 # eight ↓ (Performance, Traces, Logs, Tools, Settings, Docs, Content packs) to GraceUI's own pages at its foot (WHY§600:
-# a ↓ a row of the rail), Enter, two Page Down to Browser view, → into the page, five ↓ to Pair a device, Enter: the
-# sheet shows the code.
+# a ↓ a row of the rail), Enter, two Page Down to Browser view, → into the page, on its first control (Browser view's
+# switch, since GraceUI 0.2.55's D262, never its header action), three ↓ to Pair a device, Enter: the sheet shows the
+# code.
 EDITOR_KEYS = ("600:f5,720:next,765:next,810:next,855:next,900:next,1020:right,1080:down,1110:down,1140:down,"
                "1170:down,1200:down,1230:down,1260:down,1290:down,1320:down,1440:return,1800:return,1920:up,1950:up,"
                "1980:up,2010:up,2040:up,2070:up,2160:return,2340:next,2460:left,2520:down,2550:down,2580:down,"
                "2610:down,2640:down,2670:down,2700:down,2730:down,2760:return,"
-               "2880:next,2940:next,3060:right,3120:down,3150:down,3180:down,3210:down,3240:down,3300:return")
+               "2880:next,2940:next,3060:right,3120:down,3150:down,3180:down,3300:return")
 EDITOR_REPORTS = "660,960,1050,1380,1500,1860,2130,2280,2400,2490,2640,2820,3000,3290,3360,3660,3960,4260,4560"
 EDITOR_FRAMES = 4620
 EDITOR_SETTINGS = 'schema = 2\ndebug = { panel = false, record_sessions = false, log_level = "debug" }\n'
@@ -3407,7 +3410,7 @@ case("launcher-eldennet-graceui-editor", LGAME + ["--also", "{gracedll}", "--dll
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),
      env=dict(GRACE_ENV, FAKEGAME_SHOWS="{text_editor_shows}"), timeout=300,
      prepare=install_eldennet(EDITOR_SETTINGS, then=install_editor), during=browse_editor, check=check_graceui_editor,
-     what="EldenNet's profile editor through GraceUI 0.2.53: Characters › Named NPCs read and the pilot's notes "
+     what="EldenNet's profile editor through GraceUI 0.2.55: Characters › Named NPCs read and the pilot's notes "
           "checked, saved as a layer of the player's own, a stale save and an out-of-range length refused, and a draft "
           "from a local model server; in game, the notes typed and saved from F5's menu; a device paired at home "
           "refused EldenNet's sensitive commands and settings")

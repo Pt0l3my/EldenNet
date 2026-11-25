@@ -9,9 +9,10 @@ moved it to GraceUI 0.2.5's ABI 1.2 (§19, §23, §24, §26 to §29, §33, §34 
 C; WHY§364) adds EldenNet's own surfaces on GraceUI 0.2.20's ABI 1.5 (§31, §33, §47 to §50): the lower third, the chat
 box, the hint and the toasts. Later increments add the call-out box (v0.6) and the rest of its pages.
 
-It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 7fa3042, GraceUI
-0.2.53, ABI 1.8, protocol 1.17, whose uploads and on_present it does not use; its floor, 0.2.50, for Logs' filter bar on
-its stream, which an older GraceUI refuses, with 0.2.49's header switch, Docs' document block and Bug report's prose
+It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 3623304, GraceUI
+0.2.55, ABI 1.8, protocol 1.18, whose uploads and on_present it does not use; its floor, 0.2.55, for Logs' Level filter
+with its own choices (D262), which an older GraceUI refuses, with 0.2.51's browser-only Workshop (D258), 0.2.50's filter
+bar on Logs' stream, 0.2.49's header switch, Docs' document block and Bug report's prose
 field and preview, the profile editor's families, slow commands, editor block and chosen row, on 0.2.17's wait handle;
 0.2.36's italic face where GraceUI's folder has it, and 0.2.38's word for what pressed a hotkey behind its cap): its
 look for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's
@@ -44,7 +45,7 @@ On T1, after WaitWindow (ARCH §3.2's Connect, and ConnectB on the banner path):
    GraceUI loaded before EldenNet is found by its name, and GraceUI installed in the game's folder but not yet loaded is
    loaded by EldenNet (and found by its name if a loader loads it later).
 2. **`Overlay::connect`** as `eldennet` (its id and its space's), display name `EldenNet`, its version, its GraceUI floor
-   (0.2.50, `en/proto/graceui_pin.hpp`) and the caps it uses: `notices world-state hotkeys`, and with the view
+   (0.2.55, `en/proto/graceui_pin.hpp`) and the caps it uses: `notices world-state hotkeys`, and with the view
    `panels textures`. The answers: `connected`; `notices_only` (inactive for the anti-cheat, with a handle: the banner
    through `notice` alone, D88); or a failed connect, `absent`, `too_old`, `duplicate_id`, `inactive` (the overlay
    could not start or turned itself off), `refused` or `not_yet`, which leave EldenNet headless (ARCH §10.3's "Overlay
@@ -207,7 +208,9 @@ game's own text entry is not read in v0.1.
   problems.", System's read groups before the first reading, the AI pages'; Logs' tail is newest first
   (`props.newest_first`, D187), in game too since GraceUI 0.2.50 (D257: the newest 200 rows, from the same frames as
   the browser's, so scrubbed alike), with its filter bar (D257): Level, a filter on each row's `level`, and Find in the
-  log, a search in its lines, in both views over the rows each holds, in place of PAGES' level tiles; no sort.
+  log, a search in its lines, in both views over the rows each holds, in place of PAGES' level tiles; no sort. Since
+  GraceUI 0.2.55 (D262) the Level filter names its own choices in the owner's words (O133): Errors, Warnings,
+  Information and Details (`error`, `warning`, `info`, `debug`; no trace, which v0.2 never logs).
 - **One command path** (GraceUI's invariant 3): `settings.set` (the key known, not locked, the value of its type and in
   its bounds or choices) and `settings.reset` (a key at once; a page or every setting only with `confirm: true`,
   D173), each refusal by its code, with words in `detail` where the code says too little; nothing while the settings
@@ -449,7 +452,7 @@ table in PAGES' columns, a time not known left out; nothing published without fa
 path or SteamID in any frame of either), and in the Linux builds the five fixture states'
 `tests/pages/<state>/topics.json` (EN_UPDATE_FIXTURES=1 writes them anew). In the
 Windows builds, under Wine, the connection against a fake GraceUI of our own (`tests/fake_grace.hpp`; graceui-sys has no
-C mock): ABI 1.8's table, answering as GraceUI 0.2.53 answers and checking as it checks (connect's answers, notices
+C mock): ABI 1.8's table, answering as GraceUI 0.2.55 answers and checking as it checks (connect's answers, notices
 under keys, the registration window, hidden panels, hotkeys, poll's events by the event's size, the space's slots, and
 submit's draw-list checks: counts, bounds, ranges, indices, clip rectangles inside the panel, known textures, the
 stride). The cases: the space registered once for its views, or not without the cap or beside anti-cheat; watched

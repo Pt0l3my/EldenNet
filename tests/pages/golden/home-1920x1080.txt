@@ -76,47 +76,42 @@ text    ink.mute      365, 906  818x25   clip1 glyphs 79 "The last 20 calls to a
 text    ink.mute      390, 949   34x25   clip1 glyphs 4 "Time"
 text    ink.mute      862, 949   25x25   clip1 glyphs 3 "Job"
 text    ink.mute     1003, 949   59x25   clip1 glyphs 7 "Purpose"
-text    ink.mute     1144, 949   59x25   clip1 glyphs 7 "Speaker"
-text    ink.mute     1285, 949   42x25   clip1 glyphs 5 "Model"
-text    ink.mute     1459, 949   93x25   clip1 glyphs 10 "First token"
-text    ink.mute     1650, 949   42x25   clip1 glyphs 5 "Total"
-text    ink.mute     1708, 949   59x25   clip1 glyphs 7 "Outcome"
+text    ink.mute     1153, 949   59x25   clip1 glyphs 7 "Speaker"
+text    ink.mute     1278, 949   42x25   clip1 glyphs 5 "Model"
+text    ink.mute     1495, 949   93x25   clip1 glyphs 10 "First token"
+text    ink.mute     1661, 949   42x25   clip1 glyphs 5 "Total"
+text    ink.mute     1719, 949   59x25   clip1 glyphs 7 "Outcome"
 line    rule          365, 979 1490x1    clip1
-tri     ink.mute      365,1003   13x13   clip1 >
 text    ink.hi        390, 995   66x28   clip1 glyphs 7 "0:11:45"
 text    ink.body     1003, 997   84x25   clip1 glyphs 9 "model list"
-text    ink.body     1642, 997   51x25   clip1 glyphs 5 "0.14 s"
-text    ink.body     1708, 997   68x25   clip1 glyphs 8 "answered"
+text    ink.body     1653, 997   51x25   clip1 glyphs 5 "0.14 s"
+text    ink.body     1719, 997   68x25   clip1 glyphs 8 "answered"
 line    rule          365,1039 1490x1    clip1
-tri     ink.mute      365,1063   13x13   clip1 >
 text    ink.hi        390,1055   66x28   clip1 glyphs 7 "0:11:45"
 text    ink.body     1003,1057   84x25   clip1 glyphs 9 "model list"
-text    ink.body     1642,1057   51x25   clip1 glyphs 5 "0.61 s"
-text    ink.body     1708,1057   68x25   clip1 glyphs 8 "answered"
+text    ink.body     1653,1057   51x25   clip1 glyphs 5 "0.61 s"
+text    ink.body     1719,1057   68x25   clip1 glyphs 8 "answered"
 line    rule          365,1099 1490x1    clip1
-tri     ink.mute      365,1123   13x13   clip1 >
 text    ink.hi        390,1115   66x28   clip1 glyphs 7 "0:11:30"
 text    ink.body      862,1117   76x25   clip1 glyphs 9 "Self-test"
 text    ink.body     1003,1117   76x25   clip1 glyphs 9 "self-test"
-text    ink.body     1285,1117  101x25   clip1 glyphs 12 "talker-small"
-text    ink.body     1501,1117   51x25   clip1 glyphs 5 "0.38 s"
-text    ink.body     1642,1117   51x25   clip1 glyphs 5 "1.02 s"
-text    ink.body     1708,1117   68x25   clip1 glyphs 8 "answered"
+text    ink.body     1278,1117  101x25   clip1 glyphs 12 "talker-small"
+text    ink.body     1537,1117   51x25   clip1 glyphs 5 "0.38 s"
+text    ink.body     1653,1117   51x25   clip1 glyphs 5 "1.02 s"
+text    ink.body     1719,1117   68x25   clip1 glyphs 8 "answered"
 line    rule          365,1159 1490x1    clip1
-tri     ink.mute      365,1183   13x13   clip1 >
 text    ink.hi        390,1175   66x28   clip1 glyphs 7 "0:11:30"
 text    ink.body      862,1177   76x25   clip1 glyphs 9 "Self-test"
 text    ink.body     1003,1177   76x25   clip1 glyphs 9 "self-test"
-text    ink.body     1285,1177  101x25   clip1 glyphs 12 "talker-small"
-text    ink.body     1501,1177   51x25   clip1 glyphs 5 "0.42 s"
-text    ink.body     1642,1177   51x25   clip1 glyphs 5 "0.59 s"
-text    ink.body     1708,1177   68x25   clip1 glyphs 8 "answered"
+text    ink.body     1278,1177  101x25   clip1 glyphs 12 "talker-small"
+text    ink.body     1537,1177   51x25   clip1 glyphs 5 "0.42 s"
+text    ink.body     1653,1177   51x25   clip1 glyphs 5 "0.59 s"
+text    ink.body     1719,1177   68x25   clip1 glyphs 8 "answered"
 line    rule          365,1219 1490x1    clip1
-tri     ink.mute      365,1243   13x13   clip1 >
 text    ink.hi        390,1235   66x28   clip1 glyphs 7 "0:11:30"
 text    ink.body     1003,1237   76x25   clip1 glyphs 9 "self-test"
-text    ink.body     1642,1237   51x25   clip1 glyphs 5 "0.30 s"
-text    ink.body     1708,1237   68x25   clip1 glyphs 8 "answered"
+text    ink.body     1653,1237   51x25   clip1 glyphs 5 "0.30 s"
+text    ink.body     1719,1237   68x25   clip1 glyphs 8 "answered"
 text    ink.body      365,1294  827x25   clip1 glyphs 80 "In the last hour: no own-initiative calls, and 6 of the 600 requests EldenNet may send in an hour."
 fill    ground.2      340,1374 1540x230  r5 clip1
 stroke  rule          340,1374 1540x230  r5 w1 clip1
@@ -142,5 +137,5 @@ fill    ground.well   466,1044   42x28   r3
 stroke  edge          466,1044   42x28   r3 w1
 text    ink.body      474,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     515,1045   34x25   glyphs 4 "Back"
-stroke  gold.hi      1697,  86  186x46   r5 w3 clip1
-# 98 items, 3150 vertices, 7269 indices, 4 commands; check_draw_list: passes
+stroke  gold.hi       362, 218 1496x26   r5 w3 clip1
+# 97 items, 3144 vertices, 7248 indices, 4 commands; check_draw_list: passes

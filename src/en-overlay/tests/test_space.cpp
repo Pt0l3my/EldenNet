@@ -405,10 +405,10 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
                                           "providers.add", "providers.remove", "providers.key", "profile.check",
                                           "profile.save", "profile.reset", "profile.restore", "profile.draft",
                                           "report.build", "report.part", "ai.pause"}));
-  // A stream's filter bar: protocol 1.16's (GraceUI D257), on 1.15's header switch (D256), 1.13's quick switches and
-  // live pages (D252), 1.12's document block, prose field and preview (D251), 1.11's filter bar (D250), 1.10's foot
-  // (D248) and 1.8's sensitive marks (D221).
-  CHECK(pages["minor"] == 16);
+  // Logs' Level filter's own choices: protocol 1.18's (GraceUI D262), on 1.16's stream's filter bar (D257), 1.15's
+  // header switch (D256), 1.13's quick switches and live pages (D252), 1.12's document block, prose field and preview
+  // (D251), 1.11's filter bar (D250), 1.10's foot (D248) and 1.8's sensitive marks (D221).
+  CHECK(pages["minor"] == 18);
   // Pause AI for this session, the one quick switch (GraceUI §78's form), and not sensitive: a paired device may pause.
   CHECK(pages["quick"] == json::array({{{"id", "pause"}, {"label", "Pause AI for this session"},
                                         {"command", "ai.pause"},
@@ -1824,7 +1824,8 @@ TEST_CASE("space: each log row's level is the logger's, in GraceUI D257's words,
     CHECK(row["level"] == levels[i]);
   }
   // And the page data: Logs' log tail has the bar GraceUI D257 gives, a level filter and a search in the lines, and no
-  // sort (the rows come in time's order).
+  // sort (the rows come in time's order). The filter's own choices (GraceUI D262) word the four levels v0.2 logs in the
+  // owner's words (O133), in their order; a trace row, never written in v0.2, would show under All alone.
   const json pages = json::parse(space_pages());
   json tail;
   for (const json& page : pages["pages"]) {
@@ -1837,7 +1838,12 @@ TEST_CASE("space: each log row's level is the logger's, in GraceUI D257's words,
   }
   CHECK(tail["topic"] == "logs");
   CHECK(tail["props"]["newest_first"] == true);
-  CHECK(tail["filter_bar"] == json{{"filters", json::array({{{"column", "level"}, {"label", "Level"}}})},
+  const json choices = json::array({{{"value", "error"}, {"label", "Errors"}},
+                                     {{"value", "warning"}, {"label", "Warnings"}},
+                                     {{"value", "info"}, {"label", "Information"}},
+                                     {{"value", "debug"}, {"label", "Details"}}});
+  CHECK(tail["filter_bar"] == json{{"filters", json::array({{{"column", "level"}, {"label", "Level"},
+                                                             {"choices", choices}}})},
                                    {"search", {{"columns", json::array({"line"})}, {"label", "Find in the log"}}}});
 }
 

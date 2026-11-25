@@ -80,10 +80,13 @@ text    ink.hi        380,1200   56x28   clip1 glyphs 6 "Traces"
 text    ink.mute      862,1201  472x25   clip1 glyphs 46 "How long each line took, from its request to the screen."
 text    gold         1820,1200    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
-text    ink.faint     340,1045  143x25   glyphs 15 "Not available now"
-fill    ground.well   508,1044   42x28   r3
-stroke  edge          508,1044   42x28   r3 w1
-text    ink.body      516,1046   26x25   glyphs 3 "Esc"
-text    ink.faint     558,1045   34x25   glyphs 4 "Back"
-stroke  gold.hi      1715,  86  168x46   r5 w3 clip1
-# 74 items, 2908 vertices, 6768 indices, 4 commands; check_draw_list: passes
+fill    ground.well   340,1044   60x28   r3
+stroke  edge          340,1044   60x28   r3 w1
+text    ink.body      348,1046   44x25   glyphs 5 "Enter"
+text    ink.faint     407,1045   34x25   glyphs 4 "Open"
+fill    ground.well   466,1044   42x28   r3
+stroke  edge          466,1044   42x28   r3 w1
+text    ink.body      474,1046   26x25   glyphs 3 "Esc"
+text    ink.faint     515,1045   34x25   glyphs 4 "Back"
+stroke  gold.hi       362, 293 1496x26   r5 w3 clip1
+# 77 items, 2956 vertices, 7050 indices, 4 commands; check_draw_list: passes
