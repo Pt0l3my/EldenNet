@@ -645,6 +645,7 @@ void ai_pump(Shell& s, bool allowed, std::vector<en::proto::LlmEvent>& conversat
         continue;
       }
       s.calls.event(e, at);
+      workshop_llm(s, e);  // Tools › Workshop's newest exchange (workshop.cpp), while Developer views are on
       // The profile editor's drafts (their ids from kDraftRequests, below the conversation's): to its glue.
       if (e.id >= kDraftRequests && e.id < en::core::kConversationRequests) {
         if (e.kind == en::proto::EventKind::Ended) st->live.erase(e.id);
@@ -692,6 +693,13 @@ bool ai_submit(Shell& s, en::proto::LlmRequest request) noexcept {
                                            en::proto::CallPurpose::ProfileDraft, std::string()},
                    at);
     }
+    // Tools › Workshop's newest exchange (workshop.cpp), while Developer views are on: the request as it is sent.
+    if (const auto* chat = std::get_if<en::proto::ChatRequest>(&request.body); chat != nullptr) {
+      const bool draft = id >= kDraftRequests && id < en::core::kConversationRequests;
+      workshop_sent(s, request, draft ? en::proto::CallPurpose::ProfileDraft
+                                : chat->purpose == en::proto::Purpose::OwnInitiative ? en::proto::CallPurpose::OwnInitiative
+                                                                                     : en::proto::CallPurpose::Reply);
+    }
     AiState* st = state(s);
     if (st == nullptr || !st->config || !ensure_service(s, *st)) {
       s.calls.not_sent(id, llm::ErrorClass::NoHealthyProvider, at);
@@ -709,6 +717,26 @@ bool ai_submit(Shell& s, en::proto::LlmRequest request) noexcept {
     log(Line("llm").word("what", "submit").word("result", llm::to_string(r)).num("id", id),
         r == llm::SubmitResult::Accepted ? LogLevel::Debug : LogLevel::Warn);
     return r == llm::SubmitResult::Accepted;
+  });
+}
+
+std::string ai_redact(Shell& s, std::string_view text) noexcept {
+  return en::proto::ffi_guard(en::proto::Component::DllMain, std::string("redacted"), [&] {
+    std::string out(text);
+    const auto replace = [&out](const std::string& value) {
+      if (value.size() < 4) return;  // too short to be a key, and would match ordinary words
+      for (std::size_t at = out.find(value); at != std::string::npos; at = out.find(value, at)) {
+        out.replace(at, value.size(), "redacted");
+        at += 8;
+      }
+    };
+    if (const AiState* st = state(s); st != nullptr && st->config) {
+      for (const llm::ProviderConfig& p : st->config->providers) {
+        if (p.key) replace(p.key->reveal());
+        for (const auto& [name, value] : p.secret_headers) replace(value.reveal());
+      }
+    }
+    return llm::redact_credentials(out);
   });
 }
 
