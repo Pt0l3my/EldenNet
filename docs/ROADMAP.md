@@ -1953,6 +1953,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     §92): every integer, number and duration setting may be typed (a full stop or comma for the decimal point, the unit
     ignored, snapped to the step within the bounds; a refusal in words under the row), with no change to the protocol,
     the page data or the ABI. EldenNet's settings hold no numbers yet; a dump with a slider focused gains "Enter  Type".
+    Taken at EldenNet's pin of GraceUI 0.2.62 on 2026-11-27 (engine b37e90b), with no golden changed.
 - bt Plain text in game: the menu's serif and display roles in Noto Sans when GraceUI's Plain text is on (GraceUI 0.2.60) [done]
   - refs: GraceUI:D180, PAGES§4.6
   - gives: GraceUI's D267, built on 2026-11-27 (GraceUI feat/foundations 111119f; GraceUI's docs/eldennet-changes.md
@@ -1961,12 +1962,14 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     F11) keep their faces until GraceUI publishes the setting to mods and the owner decides they follow it (O134).
     Decided on 2026-11-27 (O134): the subtitles and the chat box follow it from the next launch, in Noto Sans of their
     own; for EldenNet's pin of GraceUI 0.2.61 (D268, ABI 1.9), which publishes the value to mods.
+    Taken at EldenNet's pin of GraceUI 0.2.62 on 2026-11-27 (engine b37e90b), with grace-dev's serif dumps unchanged.
 - bu Plain text for mods: plain_text at connect and with the display event, a mod's own Noto Sans faces from GraceUI's fonts folder (GraceUI 0.2.61, ABI 1.9) [done]
   - refs: GraceUI:D180, GraceUI:D241, O134
   - gives: GraceUI's D268, built on 2026-11-27 (GraceUI feat/foundations bdc260b; GraceUI's docs/eldennet-changes.md
     §94): `plain_text` (1 or 0) in GraceUiConnectAnswer (56 bytes) and in GRACEUI_EVENT_DISPLAY (168 bytes), set with
     ui.scale and its default at once, after warm-up and on each change; has_cap("plain-text") for older hosts; the
     faces registered from GraceUI's fonts folder in a mod's registration window. For O134's build at the next pin.
+    Taken at EldenNet's pin of GraceUI 0.2.62 on 2026-11-27 (engine b37e90b; S11.4.g; WHY§681 to §683).
 - bv The Workshop build's five points: the space check whole through a pipe and waiting for every topic, a page's presence in game by id, device search and shown_with pinned by tests (GraceUI 0.2.62) [done]
   - refs: GraceUI:D265, WHY§663, WHY§668
   - gives: GraceUI's D269, built on 2026-11-27 (GraceUI feat/foundations fc2205a; GraceUI's docs/eldennet-changes.md
@@ -1974,6 +1977,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     EldenNet's browser golden can hold Home's and AI's text again; `GraceUI_Test_MenuPage(space, page)` answers a
     page's presence in game by id; a device's search and a shown_with page before the settings come are pinned by
     GraceUI's DOM tests. No change to the protocol, the page data or the ABI.
+    Taken at EldenNet's pin of GraceUI 0.2.62 on 2026-11-27 (engine b37e90b; WHY§684, WHY§685): the browser golden
+    from stdout with Home's and AI's text, and Workshop's absence in game by GraceUI_Test_MenuPage.
 - bw A held d-pad or stick repeats in the menu, and in both views a repeat only moves along or steps a number (GraceUI 0.2.63) [done]
   - refs: GraceUI:D269, PAGES§4.6
   - gives: GraceUI's D270, built on 2026-11-27 (GraceUI main 01d6e94; GraceUI's docs/eldennet-changes.md §96): the
@@ -2309,11 +2314,17 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     build X yet. Look for an update of EldenNet."; the row "X, recognised, not readable yet" until the game is read.
     Built the same day (engine d37d35a): the banner by the stop's detail, the Home and System › Status rows by whether
     the reader runs (the Status check waiting while the start is under way, failing once it stopped).
-- g EldenNet's subtitles and chat box follow GraceUI's Plain text from the next launch (O134) [next]
+- g EldenNet's subtitles and chat box follow GraceUI's Plain text from the next launch (O134) [done]
   - needs: S11.2.bu
-  - refs: O134
+  - refs: O134, WHY§681, WHY§682, WHY§683
   - gives: with Plain text on at launch, the subtitles and the chat box in Noto Sans of their own, F11 keeping its
     faces; at EldenNet's pin of GraceUI 0.2.61 (GraceUI's D268), where the engine pins 0.2.58.
+    Built on 2026-11-27 with GraceUI pinned at 0.2.62 (fc2205a), taking 0.2.59 to 0.2.62 together (engine wip/pinH,
+    merged at b37e90b; WHY§681 to §687). The type is chosen at connect behind the plain-text cap, and only its files
+    are read. With Plain text on, Noto Sans Regular takes the text and the ui, and Noto Sans SemiBold the name line;
+    the Tarnished's lines keep their colour. A change in the session is logged for the next launch. EldenNet's floor
+    stays 0.2.57. The browser golden holds Home's and AI's text again, and Workshop's absence in game is checked by
+    id. The fake game's suite under Wine: 150 of 150.
 
 ### S11.5 v0.2's exit checks
 

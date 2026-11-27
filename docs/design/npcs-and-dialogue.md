@@ -2831,6 +2831,14 @@ GraceUI allows more faces); EldenNet ships no font file. With no italic face the
 only, and the box's 4 px radius is not drawn. The fades step at T6's pace, at most ten submits a second (120 ms in, a
 120 ms cross-fade, 350 ms out). The hint stands at (0.50 W, 0.68 H) until a render feed places the marker.
 
+*Since 2026-11-27 (O134; WHY§681 to §683; built at the pin of GraceUI 0.2.62, S11.4.g):* the type is chosen once, at
+connect. With GraceUI's Plain text off, or a GraceUI older than 0.2.61, the table's faces stand, the Tarnished's
+history lines in EB Garamond Italic where GraceUI's folder has it. With Plain text on as the game starts, the name line
+is Noto Sans SemiBold 20 px, the page's text, the history and the input are Noto Sans Regular, and the Tarnished's
+lines keep their colour with no italic (GraceUI ships no sans italic). The header and the hint stay Noto Sans 18 px. A
+change of Plain text in the session takes effect at the next launch; F11 keeps its own face. Every face is GraceUI's,
+read from its folder.
+
 ### 10.2 Visibility rules
 
 | State | Pages | Chat / call-out box | Labels, feed, hint, marker | Toasts | Banner, badge |

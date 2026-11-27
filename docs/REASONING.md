@@ -703,6 +703,13 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 678 | 2026-11-27 | The test questions are each asked at a first meeting | METHOD | #eval #x1 |
 | 679 | 2026-11-27 | The positive-wording arm compares the shipped wording with the design's former wording | METHOD | #eval #x1 |
 | 680 | 2026-11-27 | Jobrunner's validator is mirrored, not run | DECIDED | #engine #x1 |
+| 681 | 2026-11-27 | graceui-sys zeroes the answer and the event, so an older GraceUI leaves plain_text 0 | FACT | #graceui #overlay |
+| 682 | 2026-11-27 | The faces are chosen at connect, and the DLL reads only the chosen type's files | DECIDED | #overlay #graceui |
+| 683 | 2026-11-27 | Plain text's roles: SemiBold for the name line alone, the Tarnished's lines by colour | DECIDED | #overlay #design |
+| 684 | 2026-11-27 | The space check reads stdout again, and Home's and AI's text holds at 0.2.62 | FACT | #graceui #tests #pages |
+| 685 | 2026-11-27 | MenuPage answers by id from the last layout; 2 until the menu is laid out | METHOD | #tests #graceui |
+| 686 | 2026-11-27 | Plain text changed in the session reaches mods while the menu is closed; the test export's menu flag does not | FACT | #graceui #tests |
+| 687 | 2026-11-27 | read-graceui's check rests on the state search, so it takes read-state's margins | METHOD | #tests #lodestar |
 
 ## Entries
 
@@ -9881,3 +9888,100 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   every exported jobpack and tests itself on eight faulty files.
 - Jobrunner's own code was not imported or run. Importing it runs its module code, and CLAUDE.md never runs an
   outside copy.
+
+### 681. graceui-sys zeroes the answer and the event, so an older GraceUI leaves plain_text 0
+
+`2026-11-27` · FACT · `#graceui` `#overlay` · refs: GraceUI D268, engine b37e90b (wip/pinH af5a016, 89f01be)
+
+- graceui-sys's `Api::connect` sets `answer = GraceUiConnectAnswer{}`, and both `poll`s set `event = GraceUiEvent{}`,
+  before every call (unchanged since beca859). An older GraceUI writes only the fields it knows, so before 0.2.61
+  `plain_text` stays 0 in both.
+- EldenNet reads it only behind `has_cap("plain-text")` all the same: Plain text needs the cap and a 1
+  (surfaces.hpp's `type_at_connect`).
+- EldenNet asks for the cap among its own, so GraceUI's Installed mods page names "Plain text".
+- So the floor stays 0.2.57: an older GraceUI gets the serif faces.
+
+### 682. The faces are chosen at connect, and the DLL reads only the chosen type's files
+
+`2026-11-27` · DECIDED · `#overlay` `#graceui` · refs: O134, GraceUI D267, D268, engine b37e90b (wip/pinH 89f01be)
+
+- connect answers `plain_text` after the point where the DLL used to read its three font files. So the DLL now hands
+  en-overlay a reader (`Surfaces::Fonts`: a file's bytes, by its name in GraceUI's folder), and `Surfaces::make` asks
+  it only for the files of the type chosen. Plain text's Noto Sans Regular is read once for its two roles.
+- Serif: EB Garamond Regular 30 px for the text, Noto Sans Regular 18 px for the ui, EB Garamond Italic 30 px for the
+  Tarnished's lines.
+- Plain text: Noto Sans Regular 30 px for the text, Noto Sans Regular 18 px for the ui (unchanged), Noto Sans SemiBold
+  20 px for the page's name line.
+- Three faces either way, of EldenNet's eight (D139), so nobody bakes both sets; F11 keeps its own face.
+- A display event's change of Plain text is counted and logged (`plain_text on=… faces=… effect=next_launch`), and
+  nothing is read or registered for it (GraceUI's invariant 11). At connect the DLL logs one `faces` line naming the
+  files chosen, with no path.
+
+### 683. Plain text's roles: SemiBold for the name line alone, the Tarnished's lines by colour
+
+`2026-11-27` · DECIDED · `#overlay` `#design` · refs: O134, GraceUI D267, NPC§10.1, engine b37e90b (wip/pinH 89f01be)
+
+- GraceUI's menu takes Noto Sans SemiBold for its display and title roles (Cinzel's, and weight 600 and up) and
+  Regular for prose (D267). O134 says "Noto Sans" and leaves the weights' roles open.
+- The surfaces' one title-like role is the page's name line (the speaker, upper case, tracked, gold). So SemiBold
+  takes it, at its own 20 px.
+- The page's text, the history and the input take Regular at 30 px, as EB Garamond Regular did. The header and the
+  hint were Noto Sans Regular 18 px before and stay so.
+- GraceUI ships no sans italic. SemiBold for the Tarnished's lines would make the player's muted voice the louder one,
+  so they take the text's face and keep their colour, as NPC §10.1 has it with no italic.
+- Each face is baked only at a size it draws: SemiBold at 20 px, Regular at 30 px as EB Garamond was. D267 notes that
+  the shared atlas grows with Plain text on.
+- No word tells the player that a change waits for the next launch: O134 chose the next launch knowingly, and the
+  change is in the log.
+
+### 684. The space check reads stdout again, and Home's and AI's text holds at 0.2.62
+
+`2026-11-27` · FACT · `#graceui` `#tests` `#pages` · refs: GraceUI D269, WHY§668, engine b37e90b (wip/pinH 1409631)
+
+- At GraceUI 0.2.62, `check:space` exits only once its streams have handed on what was written. It also waits until
+  a page has sent nothing for 1.2 s before its 400 ms of stillness.
+- tests/pages/browser_check.py reads the dump from stdout again. The goldens hold Home's and the four AI pages' text
+  whole: 400 lines more in each of the six views.
+- Three runs in a row passed unchanged, about 331 s each, where WHY§668's runs differed on Home and AI.
+- A classification script compared the goldens written anew with the base, accepting only changes D266 to D269
+  explain: 6 changes, 0 unexplained. The in-game goldens did not change: EldenNet has no number slider, and grace-dev
+  keeps the serif faces.
+
+### 685. MenuPage answers by id from the last layout; 2 until the menu is laid out
+
+`2026-11-27` · METHOD · `#tests` `#graceui` · refs: GraceUI D269, WHY§663, engine b37e90b (wip/pinH 1409631)
+
+- The fake game's GraceUI report gives `pages=` for FAKEGAME_PAGES: "space/page" items, '|' between, at most four.
+- GraceUI records every space's pages at each layout of the menu. Before the menu's first opening the answer is 2 (no
+  such page). After F5 closes the menu, its last layout's answer stands.
+- The Workshop case wants "011" (Workshop absent; Bug report and Settings › Developer present) from its first report
+  with the menu open, beside WHY§663's word match.
+
+### 686. Plain text changed in the session reaches mods while the menu is closed; the test export's menu flag does not
+
+`2026-11-27` · FACT · `#graceui` `#tests` · refs: GraceUI D268, engine b37e90b (wip/pinH 89f01be)
+
+- A browser's change of a GraceUI setting reaches mods at the spaces' service's next wake (`publish_ui_scale`, with
+  Plain text since D268), whether the menu is open or not. EldenNet's `plain_text on=0` came 8.6 s into the Plain text
+  case, with the menu never opened.
+- GraceUiTestMenu's `plain_text` is the menu's own reading. It is -1 until the menu first takes its settings, which it
+  does only while it holds input, and is answered as 0. So the case read `menu_plain=0` at every report though Plain
+  text was on.
+- `menu_plain_baked=1` (the bake at warm-up) and GraceUI's settings topic are what show it, and the case reads those.
+  Put to Grace, with nothing for EldenNet to change.
+- GraceUI rewrote its `user\settings.json` with no values after the change.
+
+### 687. read-graceui's check rests on the state search, so it takes read-state's margins
+
+`2026-11-27` · METHOD · `#tests` `#lodestar` · refs: WHY§614, engine b37e90b (wip/pinH c63d608; Lodestar 0ce2889)
+
+- launcher-eldennet-read-graceui ran the fake game with read-state's old states: title 720 frames, back to the title
+  at 15 s for 16 s, 3,900 frames.
+- It wants `state_done title_clean=1 overrun=0` and the tasks' Marks by time (tasks 3 and 7), so its check rests on
+  the state search's four looks.
+- It now has read-state's states as Lodestar's 0ce2889 set them: 840 frames, 16 s, 18 s, 4,020 frames, two seconds or
+  more either side of each look.
+- It passed with the old ones too, in this container's full run before the merge (70.1 s), with the same thin margin
+  at the first look that Lodestar found.
+- The fake-game suite over feat/engine 2c333c9 and the pin together: 150 of 150 (3,123 s), read-state and read-clock
+  among them.
