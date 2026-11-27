@@ -92,6 +92,16 @@ J payload_json(const EventKind& kind, const HandleNamer& name) {
                      {"witnesses", w}};
           },
           [&](const CritLanded& e) { return J{{"victim", actor_text(e.victim, name)}}; },
+          [&](const PersonaSeen& e) { return J{{"persona", e.persona.index}}; },
+          [&](const PersonaApproached& e) { return J{{"persona", e.persona.index}}; },
+          [&](const PersonaAttacked& e) { return J{{"persona", e.persona.index}, {"via", to_string(e.via)}}; },
+          [&](const PersonaDied& e) { return J{{"persona", e.persona.index}, {"by_player", e.by_player}}; },
+          [&](const FoughtBeside& e) { return J{{"persona", e.persona.index}, {"boss", e.boss}}; },
+          [&](const KilledNear& e) {
+            J w = J::array();
+            for (const PersonaId p : e.witnesses) w.push_back(p.index);
+            return J{{"victim_card", e.victim_card.index}, {"witnesses", w}};
+          },
           [&](const PlaythroughReady& e) { return J{{"slot", e.key.slot}, {"ordinal", e.key.ordinal}}; },
           [&](const JourneyChanged& e) { return J{{"ng_lvl", e.ng_lvl}}; },
           [&](const GateChanged& e) { return J{{"active", e.active}}; },
@@ -203,6 +213,11 @@ constexpr FieldInfo kEngaged[] = {{"subject", "actor"}, {"opponent", "actor"}, {
 constexpr FieldInfo kDisengaged[] = {{"subject", "actor"}, {"opponent", "actor"}, {"fled", "bool"}, {"why", "word"}};
 constexpr FieldInfo kAllyDied[] = {{"victim", "actor"}, {"side", "word"}, {"witnesses", "handles"}};
 constexpr FieldInfo kCrit[] = {{"victim", "actor"}};
+constexpr FieldInfo kPersona[] = {{"persona", "persona"}};
+constexpr FieldInfo kPersonaAttacked[] = {{"persona", "persona"}, {"via", "word"}};
+constexpr FieldInfo kPersonaDied[] = {{"persona", "persona"}, {"by_player", "bool"}};
+constexpr FieldInfo kFoughtBeside[] = {{"persona", "persona"}, {"boss", "int"}};
+constexpr FieldInfo kKilledNear[] = {{"victim_card", "u32"}, {"witnesses", "personas"}};
 constexpr FieldInfo kPlaythrough[] = {{"slot", "u32"}, {"ordinal", "u32"}};
 constexpr FieldInfo kJourney[] = {{"ng_lvl", "u32"}};
 constexpr FieldInfo kGate[] = {{"active", "bool"}};
@@ -217,7 +232,9 @@ constexpr KindFields kKindFields[] = {
     {"Healed", kFrac},            {"Engaged", kEngaged},            {"Disengaged", kDisengaged},
     {"AllyDied", kAllyDied},      {"CritLanded", kCrit},            {"PlaythroughReady", kPlaythrough},
     {"JourneyChanged", kJourney}, {"GateChanged", kGate},           {"GroupTripped", kGroup},
-    {"LadderChanged", kLadder},
+    {"LadderChanged", kLadder},   {"PersonaSeen", kPersona},        {"PersonaApproached", kPersona},
+    {"PersonaAttacked", kPersonaAttacked}, {"PersonaDied", kPersonaDied}, {"FoughtBeside", kFoughtBeside},
+    {"KilledNear", kKilledNear},
 };
 
 }  // namespace

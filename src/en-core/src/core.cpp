@@ -174,15 +174,41 @@ std::string banner_text(BannerReason r, std::string_view build, std::string_view
 // ---- Augur's side (ARCH §8; part 11) ----
 
 augur::Subject AugurView::classify(const proto::Chr& chr) const {
-  // Every subject is Mute or Player until personas exist (v0.2) and cards (v0.4).
+  // The Tarnished; a persona by its binding (NpcParam row, then entity id: identity.hpp), at its active stage; every
+  // other character is Mute until cards and character profiles exist (v0.4).
   augur::Subject s;
-  s.kind = player && chr.handle == *player ? augur::Subject::Kind::Player : augur::Subject::Kind::Mute;
+  if (player && chr.handle == *player) {
+    s.kind = augur::Subject::Kind::Player;
+    return s;
+  }
+  if (directory == nullptr) return s;
+  const auto bound = directory->index().resolve(chr);
+  if (!bound || bound->persona >= directory->size()) return s;
+  const Persona& p = directory->persona(bound->persona);
+  const std::size_t stage = active_stage(bound->persona);
+  s.kind = augur::Subject::Kind::Persona;
+  s.persona.index = static_cast<std::uint32_t>(bound->persona);
+  s.stage_muted = p.chat_at(stage) == ChatMode::Mute;
+  s.chat = p.chat_at(stage) == ChatMode::Allowed;
   return s;
 }
 
 bool AugurView::eval(augur::PredicateId pred, const augur::EvalScope&) const { return predicates_.eval(pred, facts); }
 
-bool AugurView::persona_may_perceive(augur::PersonaId) const { return false; }  // no persona yet
+// MEM §1.2's candidates, but alive (Augur reads the dead bit): a persona of the loaded content, conscious at its active
+// stage (asleep or senseless leave audiences; unknown holds back only own-initiative lines) and not at a mute stage.
+// speech.toml's `perceivable` and `may_remember` come with cards (v0.4): every persona remembers until then.
+bool AugurView::persona_may_perceive(augur::PersonaId id) const {
+  if (directory == nullptr || id.index >= directory->size()) return false;
+  const Persona& p = directory->persona(id.index);
+  const std::size_t stage = active_stage(id.index);
+  const Conscious c = p.state_at(stage);
+  return c != Conscious::Asleep && c != Conscious::Senseless && p.chat_at(stage) != ChatMode::Mute;
+}
+
+std::size_t AugurView::active_stage(std::size_t persona) const noexcept {
+  return known != nullptr && persona < known->personas.size() ? known->personas[persona].stage : 0;
+}
 
 std::uint64_t AugurView::rng(augur::EventId ev, std::uint32_t salt) const {
   std::uint64_t z = seed_root ^ (ev.step * 0x9E3779B97F4A7C15ull) ^ (std::uint64_t{ev.index} << 32) ^ salt;
@@ -250,6 +276,8 @@ void Core::init() {
   for (const BuiltinFile& f : builtin_rule_files()) files.push_back(augur::RuleFile{std::string(f.name), std::string(f.text)});
   rule_errors_ = load_rules(files);
   hostile_teams_ = world_facts().hostile_teams;
+  view_.directory = &directory_;  // empty until a load: every character is Mute until then
+  view_.known = &known_;
 }
 
 Core::~Core() = default;
@@ -483,6 +511,7 @@ void Core::run_conversation(Mono at, bool fresh, const proto::UiEvent* ui, const
   w.self_awareness = behaviour_.features.self_awareness;
   ConversationOutput co = conversation_.step(in);
   for (const Commit& c : co.commits) log_.apply(c);  // in the same step (NPC §8.7 item 5; the store, v0.3)
+  speech_events(co.commits, at, out);
   out.ui = std::move(co.ui);
   out.requests = std::move(co.requests);
   out.calls = std::move(co.calls);
@@ -495,6 +524,102 @@ void Core::run_conversation(Mono at, bool fresh, const proto::UiEvent* ui, const
     out.requests.clear();
     std::erase_if(out.calls, [](const CallNote& n) { return n.what == CallNote::What::Sent; });
   }
+}
+
+namespace {
+
+augur::EndReason augur_reason(EndReason r) noexcept {
+  switch (r) {
+    case EndReason::Travel:
+      return augur::EndReason::Travel;
+    case EndReason::Death:
+      return augur::EndReason::Death;
+    case EndReason::Dormant:
+      return augur::EndReason::Dormant;
+    case EndReason::Idle:
+      return augur::EndReason::Timeout;
+    default:
+      return augur::EndReason::Player;
+  }
+}
+
+}  // namespace
+
+// MEM §1.1, §1.2: each commit's event, its audience resolved and frozen by Augur as it stands (speech 16 m from the
+// speaker: direct for the one spoken to, overheard by others; a conversation's end the persona only), and dispatched
+// after Augur's own. A later page grows its NpcSaid, whose audience was frozen with its first.
+void Core::speech_events(const std::vector<Commit>& commits, Mono at, Outputs& out) {
+  if (commits.empty()) return;
+  augur::EventBatch batch;
+  const proto::Player* pl = last_ && last_->player ? &*last_->player : nullptr;
+  for (const Commit& c : commits) {
+    if (c.kind == Commit::Kind::NpcPage || c.kind == Commit::Kind::CutOff) continue;
+    const auto idx = directory_.find(c.persona);
+    if (!idx) continue;
+    // The partner as Augur tracks it, when present (its position is the speech's origin); else by id alone.
+    augur::ActorRef partner{augur::ActorRef::Kind::Persona, {}, static_cast<std::uint32_t>(*idx), 0};
+    for (const augur::Tracker& t : augur_.world().trackers()) {
+      if (t.present && t.subject.kind == augur::Subject::Kind::Persona && t.subject.persona.index == *idx) {
+        partner = augur::ActorRef::of(t.subject, t.handle);
+        break;
+      }
+    }
+    augur::Event ev;
+    ev.id = augur_.next_id();
+    ev.t_mono_ms = at;
+    ev.t_play_ms = pl != nullptr ? pl->play_time_ms : 0;
+    ev.journey = pl != nullptr ? pl->ng_lvl : 0;
+    if (pl != nullptr) ev.place.block = pl->block;
+    if (last_ && last_->place) {
+      ev.place.place_id = last_->place->place_id;
+      ev.place.region = last_->place->region;
+    }
+    ev.source = augur::SourceId::Pipeline;
+    const augur::PersonaId persona{static_cast<std::uint32_t>(*idx)};
+    const auto conv = static_cast<augur::ConvId>(c.conv);
+    switch (c.kind) {
+      case Commit::Kind::Started:
+        ev.kind = augur::ConversationStarted{persona, conv, augur::Opener{}};
+        ev.event_class = augur::Class::T;
+        ev.subject = partner;
+        ev.radius = augur::Radius::None;
+        break;
+      case Commit::Kind::PlayerSaid:
+        ev.kind = augur::PlayerSaid{partner, std::make_shared<const std::string>(c.text), conv,
+                                    augur::InputSource::Typed};
+        ev.event_class = augur::Class::P;
+        ev.subject = augur::ActorRef::player();
+        ev.object = partner;
+        ev.radius = augur::Radius::Speech;
+        break;
+      case Commit::Kind::NpcSaid: {
+        augur::NpcSaid e;
+        e.speaker = partner;
+        e.to = augur::ActorRef::player();
+        e.text = std::make_shared<const std::string>(c.text);
+        e.conv = conv;
+        e.pages = 1;
+        ev.kind = std::move(e);
+        ev.event_class = augur::Class::P;
+        ev.subject = partner;
+        ev.object = augur::ActorRef::player();
+        ev.radius = augur::Radius::Speech;
+        break;
+      }
+      case Commit::Kind::Ended:
+        ev.kind = augur::ConversationEnded{persona, conv, augur_reason(c.reason), c.player_lines, c.committed, {}};
+        ev.event_class = augur::Class::P;
+        ev.subject = partner;
+        ev.radius = augur::Radius::Subject;
+        break;
+      case Commit::Kind::NpcPage:
+      case Commit::Kind::CutOff:
+        continue;
+    }
+    augur_.resolve_audience(ev, view_);
+    batch.push_back(std::move(ev));
+  }
+  if (!batch.empty()) bus_.run(std::move(batch), at, augur_, view_, out.events);
 }
 
 void Core::enter(Phase to, Mono at, Outputs& out) {

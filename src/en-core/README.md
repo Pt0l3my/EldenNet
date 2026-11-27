@@ -52,13 +52,18 @@ memory and the store come later.
 - **Augur** (part 11; en-augur, ARCH §8). The core links en-augur and runs it on every step, before anything that
   consumes events: the slice judges the input first, and the step's lifecycle changes (DataReady, PlaythroughReady,
   loading started and ended, the title, the gate, the ladder, and each read group's trip, once per group) are Augur's
-  Lifecycle facts on the same step. `AugurView` is what en-core supplies Augur at v0.1: every character classifies as
-  Mute and the Tarnished as Player until personas exist (v0.2); no persona perceives; `rng` is splitmix64's finaliser
-  over the seed root (0 until the store). `world_facts()` gives the game's meanings (teams.toml's hostile set
-  {6, 7, 27, 29}, the victory banners 1 to 4 and 22, the throw states 3 and 4 of a critical hit, the open world's areas
-  60 and 61), each to verify in its spike. The shipped rule files, `content/eldenring/augur/*.toml`, are built in at
-  configure time (`builtin_rule_files()`: v0.1 has no content loader); `load_rules` replaces them, keeping the old set
-  on any error. `Outputs::events` holds the step's events in dispatch order (no subsystem subscribes yet).
+  Lifecycle facts on the same step. `AugurView` is what en-core supplies Augur: the Tarnished classifies as Player, a
+  character bound to a loaded persona (identity.hpp) as that persona at the stage the knowledge's view gives it, and
+  every other character as Mute until cards (v0.4); a persona perceives while it is conscious at its stage and the stage
+  does not mute it (v0.3; MEM §1.2), Augur checking it is alive; `rng` is splitmix64's finaliser over the seed root (0
+  until the store). Since v0.3 the conversation's commits are events too (`speech_events`): ConversationStarted (T),
+  PlayerSaid and NpcSaid (P, at a reply's first page; later pages grow it), ConversationEnded (P, the persona only),
+  each with its audience resolved and frozen by Augur and dispatched after Augur's own (`Outputs::events`).
+  `world_facts()` gives the game's meanings (teams.toml's hostile set {6, 7, 27, 29}, the victory banners 1 to 4 and
+  22, the throw states 3 and 4 of a critical hit, the open world's areas 60 and 61), each to verify in its spike. The
+  shipped rule files, `content/eldenring/augur/*.toml`, are built in at configure time (`builtin_rule_files()`: v0.1
+  has no content loader); `load_rules` replaces them, keeping the old set on any error. `Outputs::events` holds the
+  step's events in dispatch order (no subsystem subscribes yet).
 - **Predicates** (`predicates.hpp`, DESIGN §10.4): the DSL as v0.1 evaluates it for Augur's `requires`: `true`,
   `false`, `!`, `&&`, `||`, parentheses and comparisons of `runes_held` (the runes held) and `journey` (ng_lvl);
   `world()` and `knows()` refused in Augur, and `flag()`, `boss()`, `stage()` and `region()`, which v0.1's predicates

@@ -21,6 +21,7 @@ dynamic initialiser or an exit-time destructor), and it depends on en-proto alon
 | `kstore.hpp` | §8.4, §8.10 | The K store (merge, TTL, cap 512, "just now"), the dedup table, the cooldown table |
 | `sources.hpp` | §8.2 | `EventSource`, `Observations`, `AugurInput`; SnapshotDiff, Lifecycle and Timer built, FlagWatch and Pipeline the seams, H1 to H3 compiled out (`EN_HOOKS` stops the build) |
 | `augur.hpp` | §8.1, §8.9 | `AugurCtx`, `Augur::step` (§8.9's steps 1 to 4), `resolve_audience` |
+| `audience.hpp` | §8.8; MEM §1.3 | `visible_to` (RAM or stored events), `Visible`, `stored_audience` |
 | `bus.hpp` | §8.9 | The bus (step 5), the step FIFO and its drops, the exception policy, `PersistQueue` (the store requests' policy) |
 | `golden.hpp` | §8.12 | An event in the golden files' form, handles renamed h1, h2, ...; and each kind's payload schema as that form writes it (`kind_fields`, `fields_text`: Tools › Workshop's, held to `event_json` kind by kind) |
 | `words.hpp` | §8.12, DESIGN §14 | Augur's words, one closed vocabulary for the golden files and the F11 view (classes, sources, radii, actors, the payloads' enums, the kinds' names, the detectors' as the rule files write them), and `reason`, an event's one telling fact at a glance: a word and, where the payload's telling field is one, a number (a place's id, a count, a slot), never an HP fraction, a distance or a handle |
@@ -33,11 +34,37 @@ debounce (in the detector), `requires`, the cooldown, class handling (P dedup by
 dispatched), confidence (step 3); then the ids are given in dispatch order and the audiences resolved and frozen (step
 4). en-core then runs the bus (step 5).
 
-## The v0.1 catalogue
+## The v0.1 catalogue, and v0.3's personas
 
-The shipped rules are `content/eldenring/augur/{world,combat,lifecycle}.toml`, our own, written from the design's
-specs; en-core builds them in (v0.1 has no content loader). Every subject classifies as Mute or Player until personas
-exist (v0.2): no audience has a row yet, and every rule that needs a persona or a card waits.
+The shipped rules are `content/eldenring/augur/{world,combat,lifecycle,persona}.toml`, our own, written from the
+design's specs; en-core builds them in. en-core classifies a character bound to a loaded persona as that persona, and
+lets it perceive while it is conscious and its stage does not mute it (core.hpp's `AugurView`); every other character
+is Mute until cards exist (v0.4).
+
+**v0.3's persona rules** (`persona.toml`; MEM §1.1, DESIGN §6.5), each an event that feeds memory, with its audience:
+
+- `PersonaSeen`: within 10 m for 2 s, re-armed beyond 30 m or after loading; P, the persona only.
+- `PersonaApproached`: within 6 m for 1 s, re-armed beyond 10 m (the memory bundle's prefetch); T, no audience.
+- `PersonaAttacked`: the Tarnished's hit takes its HP down (`hit_by_player` rising), 0.95; P, witness 20 m, the
+  victim direct.
+- `PersonaDied{by_player}`: the dead bit rising; P, death 30 m.
+- `FoughtBeside{boss}`: a boss fight's Victory with the persona alive, not hostile and within 40 m, 0.9; P, the
+  persona only.
+- `NativeTalkStarted` and `Ended` with a persona: `talking_with`, the nearest persona within 3 m while a talk signal or
+  the pop-up menu is up, its start dedup'd for 5 min, 0.6; P, the persona only.
+- `KilledNear{witnesses}`: the Tarnished kills a character that is no persona with personas within 20 m; K, 120 s,
+  witness 20 m.
+
+- The audience radius `subject` is MEM §1.1's "the persona only": the subject persona, direct, when it may perceive.
+  Every audience leaves out a dead persona (MEM §1.2).
+- The world's own `NativeTalkStarted` and `Ended` (world.toml) stay T, with no persona, for the scheduler's lock.
+- en-core gives the conversation's commits (`ConversationStarted`, `PlayerSaid`, `NpcSaid` at its first page,
+  `ConversationEnded`) as events with audiences resolved here: speech 16 m from the speaker, direct for the one spoken
+  to and overheard by the rest; an end the persona only.
+- **Left for v0.4 (O147):** the pacing core and NPCs' own lines are v0.4's, so `CameNear` and `AutonomyTick`, which
+  only arm greetings, quest business and autonomy, are not built, and a rule file naming them is refused. The hostility
+  bits' path of `PersonaAttacked` waits for S7's `team_turned`; whether a persona beside a victory came as a summon,
+  for S7 too. `StageChanged` is the knowledge subscriber's, in code (slice 2).
 
 | Event | v0.1 | From |
 |---|---|---|
@@ -52,10 +79,11 @@ exist (v0.2): no audience has a row yet, and every rule that needs a persona or 
 | `CritLanded` | emitted | the Tarnished's throw 3 while the character's is 4 |
 | `DataReady`, `PlaythroughReady`, `LoadingStarted`, `LoadingEnded`, `TitleReached`, `JourneyChanged`, `GateChanged`, `GroupTripped`, `LadderChanged` | emitted | en-core's lifecycle slice (as facts), and `ng_lvl` for `JourneyChanged` |
 | `GraceRested`, `RestEnded`, `GraceLit`, `FlagChanged` | waits (v0.2) | flag edges: the flag catalogue and FlagWatch, with the world view |
-| `PersonaSeen`, `PersonaApproached`, `PersonaAttacked`, `PersonaDied`, `FoughtBeside`, `StageChanged` | waits (v0.2) | personas |
-| `KilledNear` | waits (v0.2, v0.4) | persona witnesses and the victim's card |
+| `PersonaSeen`, `PersonaApproached`, `PersonaAttacked`, `PersonaDied`, `FoughtBeside` | v0.3 | above |
+| `StageChanged` | waits (v0.3, slice 2) | the knowledge subscriber, in code |
+| `KilledNear` | emitted (v0.3) | persona witnesses; the victim's card from v0.4 |
 | `IdleNear` | waits (v0.4) | cards with ambient lines |
-| `CameNear`, `AutonomyTick` | waits (v0.2 to v0.4) | speakers to greet, profiled NPCs and cards with autonomy: a Mute character never speaks |
+| `CameNear`, `AutonomyTick` | waits (v0.4; O147) | the pacing core: greetings and autonomy |
 | `FoeKilled` | waits (v0.4) | S7's check of `last_hit_by` for NPC attackers |
 | `StatusStarted`, `StatusEnded`, `StatusBurst` | waits (v0.4) | S8's statuses |
 | `PlayerSaid`, `NpcSaid`, `Callout*`, `Conversation*` | waits (v0.2 on) | the Pipeline source: the chat, the call-out |
@@ -171,6 +199,11 @@ a recording of the owner's game becomes a route the same way once a redacted rec
 - the world model: each start condition, the raise across 0.6, the ends (Distance with fled, Timeout with its re-arm,
   death), squads, the combat state, stance, trackers dropped after 2 s and the cap of 256;
 - the bus: dispatch order, emitted events at the tail, the FIFO's drops, the exception policy, a stalled store;
+- the persona rules and audiences (`test_personas.cpp`): seen once and re-armed beyond 30 m, approached, an attack
+  direct for the victim and witnessed within 20 m only, a death witnessed and never by the dead, a persona that may not
+  perceive in no audience, a kill witnessed by personas or no event, FoughtBeside at a victory by the persona only, a
+  native talk's persona the nearer of two within 3 m; `visible_to` over stored and RAM events (the journey, the row,
+  the reserved kinds) and `stored_audience`; CTest's `en_augur_audience_grep` (MEM §1.3's two greps);
 - the words: each enum's, `?` outside it, the golden form writing the same, each kind's reason, and every kind's reason
   a word of ours;
 - seeded properties (fixed seeds; a failure prints its seed): hysteresis (detectors, and LowHp through Augur), debounce,

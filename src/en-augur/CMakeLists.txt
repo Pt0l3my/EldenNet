@@ -23,6 +23,13 @@ if(EN_BUILD_TESTS)
   target_include_directories(en_augur_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests)
   target_link_libraries(en_augur_tests PRIVATE en_augur en_augur_shipped en_doctest)
   add_test(NAME en_augur_tests COMMAND en_augur_tests)
+  # MEM §1.3's greps: nothing outside en-augur reads an event's audience, and no SQL outside en-store's events file
+  # names event_audience.
+  find_package(Python3 COMPONENTS Interpreter)
+  if(Python3_Interpreter_FOUND)
+    add_test(NAME en_augur_audience_grep
+      COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tests/audience_grep.py --root ${PROJECT_SOURCE_DIR})
+  endif()
 
   # The microbenchmark of Augur::step on a busy synthetic step (ARCH §8.10): built with the tests, run by hand.
   add_executable(en_augur_bench ${CMAKE_CURRENT_SOURCE_DIR}/tests/bench.cpp)

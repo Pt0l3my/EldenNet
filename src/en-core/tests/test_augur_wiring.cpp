@@ -1,5 +1,6 @@
 // Augur in en-core's step (core.hpp; ARCH §8 opening, part 11): the built-in rule set loads, Augur sees the slice's
-// lifecycle changes on the same step, every character is Mute until personas exist, and v0.1's predicates.
+// lifecycle changes on the same step, every character is Mute while no content is loaded (personas: test_audiences),
+// and v0.1's predicates.
 #include <doctest.h>
 
 #include <algorithm>
@@ -34,12 +35,12 @@ proto::Chr soldier(std::uint64_t h, float dist, std::uint32_t hp = 400) {
   return c;
 }
 
-TEST_CASE("the built-in rule set loads, and v0.1's rule files are all of it") {
+TEST_CASE("the built-in rule set loads: v0.1's rule files and v0.3's persona rules are all of it") {
   Core core;
   CHECK(core.rule_errors().empty());
   REQUIRE(core.augur().rules());
   CHECK(core.augur().rules()->rules().size() >= 20);
-  CHECK(builtin_rule_files().size() == 3);
+  CHECK(builtin_rule_files().size() == 4);
 }
 
 TEST_CASE("Augur reads the slice's lifecycle changes of the same step") {
@@ -65,7 +66,7 @@ TEST_CASE("Augur reads the slice's lifecycle changes of the same step") {
   CHECK(has(kinds(l), "GateChanged"));
 }
 
-TEST_CASE("every character is Mute and the Tarnished is Player until personas exist") {
+TEST_CASE("with no content loaded every character is Mute and the Tarnished is Player") {
   Core core;
   (void)core.step(in(test::data_ready()), 0);
   (void)core.step(in(test::playthrough_ready()), 0);
@@ -85,7 +86,7 @@ TEST_CASE("every character is Mute and the Tarnished is Player until personas ex
     if (e.subject && e.subject->kind != augur::ActorRef::Kind::Player) {
       CHECK(e.subject->kind == augur::ActorRef::Kind::Mute);
     }
-    CHECK(e.audience.empty());  // no persona perceives yet
+    CHECK(e.audience.empty());  // no persona is loaded, so none perceives
     if (const auto* g = std::get_if<augur::Engaged>(&e.kind)) {
       engaged = true;
       CHECK(g->via == augur::EngageVia::Near);  // within 8 m before the hit
