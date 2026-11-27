@@ -46,8 +46,9 @@ class Db {
   [[nodiscard]] bool is_open() const noexcept { return db_ != nullptr; }
   [[nodiscard]] sqlite3* raw() const noexcept { return db_; }
   void close() noexcept;
-  // Rows changed by the last statement.
+  // Rows changed by the last statement, and the rowid the last INSERT gave.
   [[nodiscard]] std::int64_t changes() const noexcept;
+  [[nodiscard]] std::int64_t last_insert_rowid() const noexcept;
 
  private:
   sqlite3* db_ = nullptr;

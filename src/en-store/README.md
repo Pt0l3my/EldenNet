@@ -43,6 +43,22 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHY�
   slot's other live files are archived, never deleted. The store reads no name: the key carries its hash
   (`identity_of`, `soft_match`). File names' times are UTC, made without a clock or a locale (`utc_stamp`). Paths
   never leave en-store; `backups_of` answers the count and times alone, for the Memories page.
+- **The requests on one file** (`playthrough.hpp`; MEM §8.6, §8.7). A `Playthrough` is an open file with meta's
+  counters (`next_event_id`, `next_conv_id`: assigned by the core, persisted with each insert, never going back, even
+  after a trim) and its current journey and epoch. Each request runs inside the caller's transaction:
+  - `append` stores a P event with its frozen audience rows and the facts its fold changed; a JourneyChanged into a
+    later journey first starts that journey's epoch (MEM §9.4), and its event belongs to it. An NpcSaid's first page
+    goes into its payload's `pages` (`end`, `pt`), and `append_page` adds each later one, the text joined by a space;
+  - `conv_open` and `conv_close` (ids the core's); `upsert_job` (ids the store's); `commit_journal` writes a version,
+    its watermark (`memory_progress`, which moves only so), the job done and its `verified:*` facts; `commit_lived`;
+    `put_facts` replaces the journey's facts with the core's refold and clears `facts_stale` (WHY§689);
+  - the queries: `bundle` (the newest journal and lived versions, the facts, the last six direct lines of the most
+    recent ended conversation, block 6a, and how many events above the watermark the persona perceived);
+    `job_input` (the persona's own evidence in (watermark, upto], with the conversations its lines belong to, for their
+    `shown_context`); `lived_input`; `fold_events` (every event of the journey with every audience row, for a refold);
+    `open_jobs`.
+  - The event log's SQL is `events.cpp`'s alone, the one file whose SQL names `event_audience` (MEM §1.3; CTest's
+    `en_augur_audience_grep`). A persona's query joins on its own rows, so it never reads who else perceived an event.
 - **`0001_init.sql`**: MEM §8.7's schema as written, with the reserved recall tables (`memories`, `memory_actors`,
   `memories_fts` on FTS5, `embeddings`) and the seams (`npc_intents`, `decisions`). Ours on top of it: `meta` also
   holds `next_conv_id` (conversations' ids, the core's, never reused) and `facts_stale` (set by a trim until the core's
@@ -61,6 +77,12 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHY�
   comma (the C++ global locale always; a C locale when the system has one), a batch with an apostrophe in a comment, a
   semicolon in a string and a trigger, a transaction dropped or committed, a constraint, the fault classes, and a
   backup that never overwrites;
+- the requests (`test_playthrough.cpp`): an event with its audience, each persona reading its own row alone and
+  nothing of another journey, a lower id that never takes the counter back; an NpcSaid's pages with their ends and pts;
+  the schema's caps (text, payload, JSON, a kind); a JourneyChanged's epoch; conversations with ids past 2^53; a job's
+  life and a journal version's commit with its watermark, job and facts, a duplicate version refused; the bundle's
+  six-line tail and pending count, direct lines only; a job's evidence; lived versions, a refold replacing every fact,
+  and the fold's every row;
 - the files (`test_files.cpp`): names and UTC stamps, the soft match's rules, a key's live file, a new file with the
   slot's other character archived and restored when that character comes back, another slot untouched, a renamed
   file with no WAL left, three rotating backups with the newest in `.1`, a migration's last two, and a corrupt file

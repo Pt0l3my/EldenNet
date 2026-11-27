@@ -1,15 +1,17 @@
 #pragma once
 // en-store's tests: a folder of the test's own under the system's temporary folder, removed afterwards, and small
 // helpers over SQLite's C API. Every row and file the tests make is invented.
+#include <sqlite3.h>
+
 #include <atomic>
 #include <filesystem>
 #include <fstream>
 #include <random>
 #include <string>
 
-#include <sqlite3.h>
-
 #include "en/store/db.hpp"
+#include "en/store/migrate.hpp"
+#include "en/store/playthrough.hpp"
 
 namespace en::store::test {
 
@@ -53,6 +55,36 @@ inline std::int64_t count(const Db& db, const std::string& table) {
   if (!s) return -1;
   auto r = s->step();
   return r && *r ? s->i64(0) : -1;
+}
+
+// A playthrough file of the test's own at `path`, migrated, with its first epoch (journey 1, from pt 0) and counters
+// that start at realistic ids: past 2^33 for events, as MEM §10 asks of fixtures.
+inline constexpr std::int64_t kFirstEvent = (std::int64_t{1} << 33) + 1;
+inline Playthrough make_playthrough(const std::filesystem::path& path) {
+  Playthrough pt;
+  auto db = Db::open(path, FileKind::Playthrough, true);
+  if (!db) return pt;
+  pt.db = std::move(*db);
+  (void)migrate(pt.db, playthrough_migrations(), {});
+  (void)meta_set(pt.db, "next_event_id", number_text(kFirstEvent));
+  (void)meta_set(pt.db, "next_conv_id", "1");
+  pt.next_event_id = kFirstEvent;
+  pt.wall = 1764201600;
+  (void)new_epoch(pt, 1, 0, "open");
+  return pt;
+}
+
+// An event of the tests' own: a kind, its play time and its audience; every other field left as the core leaves it.
+inline proto::StoredEvent event(std::int64_t id, std::string kind, proto::Pt t,
+                                std::vector<proto::AudienceRow> aud = {}, std::uint16_t journey = 1) {
+  proto::StoredEvent e;
+  e.id = id;
+  e.journey = journey;
+  e.kind = std::move(kind);
+  e.t_play_ms = t;
+  e.source = "snapshot_diff";
+  e.audience = std::move(aud);
+  return e;
 }
 
 }  // namespace en::store::test

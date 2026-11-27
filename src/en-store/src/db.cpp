@@ -89,6 +89,7 @@ void Db::close() noexcept {
 }
 
 std::int64_t Db::changes() const noexcept { return db_ != nullptr ? sqlite3_changes64(db_) : 0; }
+std::int64_t Db::last_insert_rowid() const noexcept { return db_ != nullptr ? sqlite3_last_insert_rowid(db_) : 0; }
 
 Result<Db> Db::open(const std::filesystem::path& path, FileKind kind, bool create) {
   (void)kind;  // one kind in v0.3; pools and diag come later (WHY§689)
