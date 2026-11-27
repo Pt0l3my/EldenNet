@@ -1974,6 +1974,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     EldenNet's browser golden can hold Home's and AI's text again; `GraceUI_Test_MenuPage(space, page)` answers a
     page's presence in game by id; a device's search and a shown_with page before the settings come are pinned by
     GraceUI's DOM tests. No change to the protocol, the page data or the ABI.
+- bw A held d-pad or stick repeats in the menu, and in both views a repeat only moves along or steps a number (GraceUI 0.2.63) [done]
+  - refs: GraceUI:D269, PAGES§4.6
+  - gives: GraceUI's D270, built on 2026-11-27 (GraceUI main 01d6e94; GraceUI's docs/eldennet-changes.md §96): the
+    first repeat after 400 ms, then every 80 ms; a repeat never turns a switch, follows a link or acts; a held Enter
+    no longer closes the field it opened. Nothing for EldenNet to change; its own panels still time their own repeats.
 
 ### S11.3 EldenNet v0.2
 
