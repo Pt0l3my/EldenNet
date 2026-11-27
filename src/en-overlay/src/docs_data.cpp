@@ -781,7 +781,7 @@ constexpr BundledDoc kDocs[] = {
         R"docs("3.11.3","what_it_does_in_eldennet":"Reads and writes JSON"},{"licence":"MIT","part":"toml++","v)docs"
         R"docs(ersion":"3.4.0","what_it_does_in_eldennet":"Reads EldenNet's files and yours"},{"licence":"MIT",)docs"
         R"docs("part":"Dear ImGui (its core alone)","version":"1.93.0","what_it_does_in_eldennet":"Draws the de)docs"
-        R"docs(veloper view"},{"licence":"MIT","part":"GraceUI's connection files","version":"GraceUI 0.2.57",")docs"
+        R"docs(veloper view"},{"licence":"MIT","part":"GraceUI's connection files","version":"GraceUI 0.2.58",")docs"
         R"docs(what_it_does_in_eldennet":"Connect EldenNet to GraceUI"}]}},{"paragraph":[{"text":"Each Windows )docs"
         R"docs(program of EldenNet also contains Microsoft's C runtime, under Microsoft's terms for its redistr)docs"
         R"docs(ibution. EldenNet uses Windows's own HTTP library for its requests, and ships no copy of it. Its)docs"

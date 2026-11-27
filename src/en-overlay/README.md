@@ -9,8 +9,8 @@ moved it to GraceUI 0.2.5's ABI 1.2 (§19, §23, §24, §26 to §29, §33, §34 
 C; WHY§364) adds EldenNet's own surfaces on GraceUI 0.2.20's ABI 1.5 (§31, §33, §47 to §50): the lower third, the chat
 box, the hint and the toasts. Later increments add the call-out box (v0.6) and the rest of its pages.
 
-It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at b4e10f8, GraceUI
-0.2.57, ABI 1.8, protocol 1.20, whose uploads and on_present it does not use; its floor, 0.2.57, for Workshop's pc_only
+It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 0c8d0fa, GraceUI
+0.2.58, ABI 1.8, protocol 1.20, whose uploads and on_present it does not use; its floor, 0.2.57, for Workshop's pc_only
 marks (D264), which an older GraceUI does not read, with 0.2.56's Copy (D263), 0.2.55's Logs' Level filter with its own
 choices (D262), 0.2.51's browser-only Workshop (D258), 0.2.50's filter bar on Logs' stream, 0.2.49's header switch, Docs' document block and Bug report's prose
 field and preview, the profile editor's families, slow commands, editor block and chosen row, on 0.2.17's wait handle;
@@ -511,7 +511,7 @@ table in PAGES' columns, a time not known left out; nothing published without fa
 path or SteamID in any frame of either), and in the Linux builds the five fixture states'
 `tests/pages/<state>/topics.json` (EN_UPDATE_FIXTURES=1 writes them anew). In the
 Windows builds, under Wine, the connection against a fake GraceUI of our own (`tests/fake_grace.hpp`; graceui-sys has no
-C mock): ABI 1.8's table, answering as GraceUI 0.2.57 answers and checking as it checks (connect's answers, notices
+C mock): ABI 1.8's table, answering as GraceUI 0.2.58 answers and checking as it checks (connect's answers, notices
 under keys, the registration window, hidden panels, hotkeys, poll's events by the event's size, the space's slots, and
 submit's draw-list checks: counts, bounds, ranges, indices, clip rectangles inside the panel, known textures, the
 stride). The cases: the space registered once for its views, or not without the cap or beside anti-cheat; watched
@@ -532,7 +532,12 @@ GraceUI checkout whose files match the pin, `EN_GRACEUI_SOURCE`) and, in a Linux
 `en_pages_preview`: grace-dev serves each fixture state, a browser of our own (`tests/pages/browser.py`) reads every
 topic back and sends commands, and each page's in-game structure (`--dump`) matches `tests/pages/golden/`
 (EN_UPDATE_GOLDENS=1 writes them anew), but Tools › Workshop's, whose dump is refused in every state (it is in the
-browser alone). Workshop's own cases (`test_workshop.cpp`): its four page fields in the owner's words and its place,
+browser alone). With `EN_GRACEUI_SOURCE` and its `web/` built, `en_pages_browser` runs GraceUI's space check (D265) on
+two folders of the world state, Developer views off and on, in GraceUI's real browser view: no console error, CSP
+violation, off-origin request or text under 4.5:1, and each view's rail, each page's presence and Tools › Workshop's
+and Settings › Developer's text as `tests/pages/browser/` holds them (Workshop behind its gate in the owner's words, under
+its ribbon, absent with Developer views off and on a paired device); skipped while `web/` is not built. Workshop's own
+cases (`test_workshop.cpp`): its four page fields in the owner's words and its place,
 every `workshop.*` topic drawn there alone and no setting homed there, nothing published, kept or taken while
 Developer views are off, `{}` and the stream cleared the moment they go off and the bodies back when they come on, the
 stream's ring and batches, the bodies from invented facts with the prompt's paths, addresses and a SteamID's shape

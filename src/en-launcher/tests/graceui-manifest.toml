@@ -1,5 +1,5 @@
 # GraceUI's version file (DESIGN §2.7, D52): written by tools/release/manifest.py; do not edit.
-graceui = "0.2.57"
+graceui = "0.2.58"
 abi = [1, 8]
 protocol = [1, 20]
 caps = []

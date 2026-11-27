@@ -91,13 +91,22 @@ if(EN_BUILD_TESTS)
     # what the drafts build; its tests feed it invented drafts, each outside the format in its own way.
     add_test(NAME en_docs_build COMMAND ${Python3_EXECUTABLE} -I ${PROJECT_SOURCE_DIR}/tools/docs/build.py --check)
     add_test(NAME en_docs_tests COMMAND ${Python3_EXECUTABLE} -I ${PROJECT_SOURCE_DIR}/tools/docs/test_build.py)
-    set(EN_GRACEUI_SOURCE "" CACHE PATH "A GraceUI checkout at the pinned commit (b4e10f8), for its page lint")
-    set(EN_GRACE_DEV "" CACHE FILEPATH "grace-dev from a Linux build of GraceUI at the pinned commit (b4e10f8)")
+    set(EN_GRACEUI_SOURCE "" CACHE PATH "A GraceUI checkout at the pinned commit (0c8d0fa), for its page lint and space check")
+    set(EN_GRACE_DEV "" CACHE FILEPATH "grace-dev from a Linux build of GraceUI at the pinned commit (0c8d0fa)")
     if(EN_GRACEUI_SOURCE)
       add_test(NAME en_pages_lint COMMAND ${Python3_EXECUTABLE} -I ${PROJECT_SOURCE_DIR}/tests/pages/lint.py
         --graceui ${EN_GRACEUI_SOURCE} ${CMAKE_CURRENT_SOURCE_DIR}/pages/space.toml)
+      # GraceUI's space check (D265): the same checkout's built browser view (web/: npm ci --ignore-scripts, then npm
+      # run build) in Chromium over its fake host, for two space folders of the world state; skipped (77) while web/
+      # is not built (tests/pages/browser_check.py, its goldens in tests/pages/browser/).
+      if(NOT CMAKE_CROSSCOMPILING)
+        add_test(NAME en_pages_browser COMMAND ${Python3_EXECUTABLE} -I ${PROJECT_SOURCE_DIR}/tests/pages/browser_check.py
+          --web ${EN_GRACEUI_SOURCE}/web --pages ${CMAKE_CURRENT_SOURCE_DIR}/pages --fixtures ${PROJECT_SOURCE_DIR}/tests/pages
+          --work ${CMAKE_CURRENT_BINARY_DIR}/pages-browser)
+        set_tests_properties(en_pages_browser PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 900)
+      endif()
     else()
-      message(STATUS "en_pages_lint is left out: EN_GRACEUI_SOURCE names no GraceUI checkout")
+      message(STATUS "en_pages_lint and en_pages_browser are left out: EN_GRACEUI_SOURCE names no GraceUI checkout")
     endif()
     if(EN_GRACE_DEV AND NOT CMAKE_CROSSCOMPILING)
       add_test(NAME en_pages_preview COMMAND ${Python3_EXECUTABLE} -I ${PROJECT_SOURCE_DIR}/tests/pages/preview.py
