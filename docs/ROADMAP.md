@@ -1952,6 +1952,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     §94): `plain_text` (1 or 0) in GraceUiConnectAnswer (56 bytes) and in GRACEUI_EVENT_DISPLAY (168 bytes), set with
     ui.scale and its default at once, after warm-up and on each change; has_cap("plain-text") for older hosts; the
     faces registered from GraceUI's fonts folder in a mod's registration window. For O134's build at the next pin.
+- bv The Workshop build's five points: the space check whole through a pipe and waiting for every topic, a page's presence in game by id, device search and shown_with pinned by tests (GraceUI 0.2.62) [done]
+  - refs: GraceUI:D265, WHY§663, WHY§668
+  - gives: GraceUI's D269, built on 2026-11-27 (GraceUI feat/foundations fc2205a; GraceUI's docs/eldennet-changes.md
+    §95): the space check exits once its output is handed on and waits for every topic before its stillness, so
+    EldenNet's browser golden can hold Home's and AI's text again; `GraceUI_Test_MenuPage(space, page)` answers a
+    page's presence in game by id; a device's search and a shown_with page before the settings come are pinned by
+    GraceUI's DOM tests. No change to the protocol, the page data or the ABI.
 
 ### S11.3 EldenNet v0.2
 
