@@ -698,7 +698,8 @@ struct SurveyCheck {
     kBlock = 3,       // the number at `a` is shaped as a block's id
     kBitsEqual = 4,   // the bits `a` and `b` (the byte times 8, plus the bit) read the same
     kChanged = 5,     // the number at `a` is not what it was at the character's sighting before
-    kKinds = 6,
+    kBitAtZero = 6,   // the bit `a` is set, counted over the sightings in which the health read nothing
+    kKinds = 7,
   };
   std::uint32_t kind = kIs;
   std::uint32_t a = 0;
@@ -743,6 +744,12 @@ struct SurveyFound {
   std::uint32_t screen_total = 0;
   std::vector<SurveyFlip> screen_bits;  // at most 32, the most flips first
   std::vector<SurveyCheck> checks;      // the round's own checks, in the order given (32 at most)
+  // Whether a character of the world has a sheet as the main player has (O124), where the round gives the sheet's
+  // place in a character: sightings of the others whose word there leads to an object of the class of the main
+  // player's sheet, to an object of another class, or to nothing.
+  std::uint32_t sheet_same = 0;
+  std::uint32_t sheet_other = 0;
+  std::uint32_t sheet_none = 0;
 };
 
 // The sheet scan (in game; the twentieth round, the owner's O121 and O122): the save data's object and the main
@@ -763,6 +770,15 @@ struct SheetText {
   std::uint32_t offset = 0;   // where a run that reads as text begins
   std::uint32_t fields = 0;   // how many 32-bit fields it touches
 };
+// A field that rose by exactly one between two passes, once, and never changed otherwise: told for every field,
+// whatever it holds (a text and an address included), since only its behaviour is told and never a value. A count
+// that stands beside a larger number is taken for text and not told as a number (the twentieth round lost the
+// count of deaths so); it is found here.
+struct SheetRise {
+  std::uint32_t offset = 0;
+  std::uint32_t phases = 0;      // bit n: the rise fell in the tester's phase n
+  bool from_nothing = false;     // it read nothing before (a flag set, more likely than a count)
+};
 struct SheetObject {
   std::uint32_t which = 0;           // 0: the save data's object; 1: the sheet
   bool there = false;                // it was read at least once
@@ -776,6 +792,18 @@ struct SheetObject {
   std::vector<SheetField> fields;    // by offset, 2,048 at most
   bool cut = false;                  // the round wrote fewer of them than it had, for the report's size
   std::vector<SheetText> texts;      // by offset, 32 at most
+  std::uint32_t rises_total = 0;     // fields that rose by one once and never changed otherwise
+  std::vector<SheetRise> rises;      // by offset, 256 at most
+};
+// A field of the main player's part of health that reads the same as a number of its sheet (the owner's wish of
+// 2026-11-27: the focus and the stamina, which the sheet names and a character's part must hold too). Counted over
+// the passes; no value is told. A field that follows its number through a change is the one.
+struct SheetMatch {
+  std::uint32_t anchor = 0;    // the number's place in the sheet (one the round gives)
+  std::uint32_t offset = 0;    // the field's place in the part
+  std::uint32_t equal = 0;     // passes in which the two read the same
+  std::uint32_t of = 0;        // passes in which both were read
+  std::uint32_t together = 0;  // of the equal ones, passes in which both had changed since the pass before
 };
 struct SheetFound {
   std::uint32_t passes = 0;
@@ -786,6 +814,8 @@ struct SheetFound {
   bool sheet_is_first = false;       // the sheet is the object the save data's first given word leads to
   bool sheet_is_second = false;      // or its second
   std::vector<SheetObject> objects;
+  std::uint32_t part_passes = 0;     // passes that read the main player's part of health beside the sheet
+  std::vector<SheetMatch> matches;   // by anchor, the fields that followed it best first; 8 an anchor at most
 };
 
 // EldenNet's own reader on the world's leads (in game; ErBackend::world_alone, the seventeenth round): the game's
@@ -873,6 +903,13 @@ struct WorldRead {
   std::uint64_t play_frames = 0;           // frames with a play time
   std::uint64_t play_rose = 0;             // of them: above the frame's before
   std::uint64_t play_fell = 0;             //   below it
+  // The main player's sheet through the layout (the twenty-first round). Neither the level nor the name's length is
+  // written here: only that they were there and whether they changed.
+  std::uint64_t sheet_frames = 0;          // frames with the sheet's object
+  std::uint64_t level_frames = 0;          // of them: a level in the layout's range
+  std::uint64_t level_changes = 0;         //   another than in the frame before
+  std::uint64_t name_frames = 0;           // a name of one to sixteen letters
+  std::uint64_t name_changes = 0;          //   of another length than in the frame before
 };
 
 struct PairHit {

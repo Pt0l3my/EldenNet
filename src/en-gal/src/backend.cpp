@@ -505,7 +505,6 @@ bool ErBackend::read_player(const GameThread& gt, proto::WorldSnapshot& out) {
   }
   proto::Player pl;
   pl.handle = proto::ChrHandle{p->u64(b_.field(Fld::ChrHandle)).value_or(0)};
-  pl.dead = p->bit(b_.field(Fld::ChrDead)).value_or(false);
   pl.block = proto::BlockId{static_cast<std::uint32_t>(p->integer(b_.field(Fld::ChrBlock)).value_or(0))};
   if (book_.live(Group::Combat)) {
     if (const auto h = p->u64(b_.field(Fld::PlayerLockedOn)); h && *h != 0) pl.locked_on = proto::ChrHandle{*h};
@@ -519,6 +518,10 @@ bool ErBackend::read_player(const GameThread& gt, proto::WorldSnapshot& out) {
     fault(Group::Player);
     return false;
   }
+  // The main player's death is its health at nothing while its object is there (WHY§657). The bit that marks a dead
+  // character of the world does not mark it: in the twentieth round the health read nothing for eleven seconds with
+  // that bit clear in every frame (WHY§655). No field is confirmed for the player's own death yet.
+  pl.dead = pl.hp.cur == 0;
   const auto save = item_object(gt, Group::Player, Item::SaveData);
   const auto game = item_object(gt, Group::Player, Item::GameState);
   if (!save || !game) {
@@ -1001,6 +1004,8 @@ ErBackend::WorldAlone ErBackend::world_alone(const GameThread& gt, bool fields) 
   const bool has_clock = d_.address(Item::WorldClock).has_value() && b_.field(Fld::Hour) != nullptr &&
                          b_.field(Fld::Minute) != nullptr;
   const bool has_play = d_.address(Item::SaveData).has_value() && b_.field(Fld::PlayTime) != nullptr;
+  const bool has_sheet = d_.address(Item::SaveData).has_value() && b_.field(Fld::SavePlayerData) != nullptr &&
+                         b_.size_of(Cls::PlayerData) != 0 && b_.field(Fld::Level) != nullptr;
   if (b_.size_of(Cls::Character) != 0) {
     done.fields_bound = (handle_field != nullptr ? WorldAlone::kHandle : 0u) |
                         (param_field != nullptr ? WorldAlone::kParam : 0u) |
@@ -1016,8 +1021,8 @@ ErBackend::WorldAlone ErBackend::world_alone(const GameThread& gt, bool fields) 
   done.lacks = (has_slot ? 0u : WorldAlone::kSlot) | (has_player ? 0u : WorldAlone::kPlayer) |
                (has_parts ? 0u : WorldAlone::kParts) | (has_near ? 0u : WorldAlone::kNear) |
                (done.fields_bound != 0 ? 0u : WorldAlone::kFields) | (has_clock ? 0u : WorldAlone::kClock) |
-               (has_play ? 0u : WorldAlone::kPlay);
-  if (inert_ || (!has_slot && !has_player && !has_near && !has_clock && !has_play)) return done;
+               (has_play ? 0u : WorldAlone::kPlay) | (has_sheet ? 0u : WorldAlone::kSheet);
+  if (inert_ || (!has_slot && !has_player && !has_near && !has_clock && !has_play && !has_sheet)) return done;
   reader_.begin_tick();
   book_.begin_tick();
   tick_.fill(kUnread);
@@ -1045,10 +1050,31 @@ ErBackend::WorldAlone ErBackend::world_alone(const GameThread& gt, bool fields) 
       }
     }
   }
-  if (has_play) {
+  if (has_play || has_sheet) {
     if (const auto save = item_object(gt, Group::Player, Item::SaveData, false)) {
-      if (const auto play = save->integer(b_.field(Fld::PlayTime)); play && *play >= 0) {
+      if (const auto play = save->integer(b_.field(Fld::PlayTime)); has_play && play && *play >= 0) {
         done.play_time = static_cast<std::uint64_t>(*play);
+      }
+      // The sheet, by the save data's own word; read before anything else is copied (the save data's copy is the
+      // items' own, and stays).
+      const std::uint64_t sheet_at = has_sheet ? save->ptr(b_.field(Fld::SavePlayerData)).value_or(0) : 0;
+      if (sheet_at != 0 && sheet_at % 8 == 0) {
+        if (const auto sheet = object(gt, Group::Player, Cls::PlayerData, sheet_at, kPlayerData, nullptr, false)) {
+          done.sheet = true;
+          const FieldLayout* const level_field = b_.field(Fld::Level);
+          if (const auto level = sheet->integer(level_field);
+              level && *level >= 0 && *level <= 0xFFFF && ObjView::in_range(level_field, *level)) {
+            done.level = static_cast<std::uint32_t>(*level);
+          }
+          std::array<char16_t, 64> units{};
+          if (const auto len = sheet->utf16(b_.field(Fld::Name), units);
+              len && *len >= 1 && *len <= 16 &&
+              std::all_of(units.begin(), units.begin() + static_cast<std::ptrdiff_t>(*len),
+                          [](char16_t c) { return c >= 0x20 && c != 0x7F && (c < 0xD800 || c > 0xDFFF); })) {
+            done.name_units = static_cast<std::uint32_t>(*len);
+          }
+          units.fill(u'\0');  // nothing of the letters stays on this thread's stack
+        }
       }
     }
   }

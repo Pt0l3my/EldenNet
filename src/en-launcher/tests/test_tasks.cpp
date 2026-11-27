@@ -215,6 +215,30 @@ TEST_CASE("tasks: the sheet's list (plan 2): a stand, a ride or a run, the teste
   CHECK(tasks[6].detail.find("send the files") != std::string::npos);
 }
 
+TEST_CASE("tasks: the stay's list (plan 3): a stand, the tester's own death, four minutes in the world; four marks") {
+  const std::vector<Task> tasks = read_tasks(3);
+  REQUIRE(tasks.size() == 6);
+  CHECK(tasks[0].kind == TaskKind::Round);
+  CHECK(tasks[1].kind == TaskKind::Do);
+  CHECK(tasks[2].kind == TaskKind::Wait);
+  CHECK(tasks[3].kind == TaskKind::Do);    // the death, confirmed once the tester is back
+  CHECK(tasks[4].kind == TaskKind::Wait);  // the stay
+  CHECK(tasks[5].kind == TaskKind::End);
+  std::size_t marks = 0, seconds = 0;
+  for (const Task& t : tasks) {
+    CHECK_FALSE(t.title.empty());
+    CHECK_FALSE(t.detail.empty());
+    CHECK(t.title.size() <= 40);
+    CHECK(t.detail.size() <= 180);
+    marks += t.mark ? 1 : 0;
+    seconds += t.seconds;
+    if (t.kind == TaskKind::Do) CHECK_FALSE(t.button.empty());
+  }
+  CHECK(marks == 4);
+  CHECK(seconds == 260);
+  CHECK(tasks[4].seconds == 240);  // a clock's minutes go round in some 156 seconds: long enough for one round and more
+}
+
 TEST_CASE("tasks: a done task says what the round gathered, and the run's own line comes once all are judged") {
   namespace w = en::proto::watch;
   TaskList list(read_tasks(2));

@@ -204,11 +204,40 @@ std::vector<Task> sheet_tasks() {
   };
 }
 
+// The stay's plan (the twenty-first read-only round): one character, somewhere quiet. A short stand; the tester's
+// own death (the count of deaths by its rise, and how the game marks the main player's death); then four minutes in
+// the world as the tester likes, for the watch to see the clock go round beside EldenNet's own reader. Four marks.
+std::vector<Task> stay_tasks() {
+  using K = TaskKind;
+  return {
+      {K::Round, "Wait at the title screen",
+       "EldenNet is reading the game. Do not load a save yet: this row turns grey when it is time.", 0, false, ""},
+      {K::Do, "Load your usual character",
+       "Go somewhere quiet, with no enemy near, and get off your horse. When you stand there, press Pause, and "
+       "let go of the controls.",
+       0, true, "I stand somewhere quiet"},
+      {K::Wait, "Stand still", "On foot. Hands off the keyboard and the mouse until the time is up.", 20, true, ""},
+      {K::Do, "Let an enemy kill you, once",
+       "Find any enemy and let it kill you. Wait until you are back in the world and can move, then press Pause. "
+       "If you died sooner than you meant to, that counts too: carry on.",
+       0, true, "I died and I am back"},
+      {K::Wait, "Stay in the world",
+       "Play as you like, but stay in the world: no quitting, no long stop at a grace. Now and then sprint or "
+       "roll, and use a spell or a skill: the round looks for focus and stamina.",
+       240, true, ""},
+      {K::End, "Quit the game",
+       "Quit as you usually do. Whatever happened on the way, send the files: the round's own line below says "
+       "what it gathered.",
+       0, false, ""},
+  };
+}
+
 }  // namespace
 
 std::vector<Task> read_tasks(std::uint32_t plan) {
   if (plan == 1) return survey_tasks();
   if (plan == 2) return sheet_tasks();
+  if (plan == 3) return stay_tasks();
   // The fourteenth read-only round. First the save's slot, by the two numbers it must read: the last character of
   // the tester's list is loaded, then the usual one (the owner agreed, 2026-11-23, and the owner's save file gave
   // their slots). Then, with the usual character, the parts watch's phases: standing, walking, standing, one hit,
