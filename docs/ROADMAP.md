@@ -2008,6 +2008,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Plain text, Reduce motion) at its first wake and at every change, open or not, so GraceUI_Test_GetMenu's
     plain_text reads 1 before the menu first opens and follows a browser's change at once. Nothing a mod hears
     changes; EldenNet's Plain text case may read the field again at the next pin.
+- ca An action's confirmation that waits, for Forget, and private topics as a lint guard (GraceUI 0.2.67, protocol 1.21) [done]
+  - refs: GraceUI:D274, PAGES§4.6.5, WHY§690
+  - gives: GraceUI's D274, built on 2026-11-27 (GraceUI main; GraceUI's docs/eldennet-changes.md §100), as EldenNet
+    asked (WHY§690): `confirm_after_ms` (1 to 3000) on an action that asks first, its second press counting only after
+    the wait, greyed until then in both views, so Forget declares 1000; and `private = true` on a topic, which the lint
+    keeps out of any status, header switch, filter or setting choices, scope or quick switch. Page data using either
+    names minor 21. For v0.3's pages (S12.2.a), at the pin that takes it.
 
 ### S11.3 EldenNet v0.2
 
