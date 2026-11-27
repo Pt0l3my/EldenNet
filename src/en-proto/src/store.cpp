@@ -80,6 +80,24 @@ const char* db::to_string(Fault f) noexcept {
   return "?";
 }
 
+const char* db::to_string(RollbackItem::Kind k) noexcept {
+  switch (k) {
+    case RollbackItem::Kind::Turn:
+      return "turn";
+    case RollbackItem::Kind::Addressed:
+      return "addressed";
+    case RollbackItem::Kind::Witnessed:
+      return "witnessed";
+    case RollbackItem::Kind::Memory:
+      return "memory";
+    case RollbackItem::Kind::Stage:
+      return "stage";
+    case RollbackItem::Kind::Journey:
+      return "journey";
+  }
+  return "?";
+}
+
 bool DbRequest::speech() const noexcept {
   if (std::holds_alternative<db::AppendPage>(op)) return true;
   if (const auto* a = std::get_if<db::Append>(&op)) return a->event.kind == "PlayerSaid" || a->event.kind == "NpcSaid";

@@ -3,6 +3,7 @@
 // back only as the asking persona's own row, or whole for the refold.
 #include <algorithm>
 #include <map>
+#include <tuple>
 
 #include "en/store/playthrough.hpp"
 
@@ -206,6 +207,125 @@ Result<std::vector<StoredEvent>> all_of(const Db& db, std::uint16_t journey) {
         proto::AudienceRow{a->text(1), proto::how_from(a->text(2)).value_or(proto::How::Witnessed)});
   }
   return out;
+}
+
+namespace {
+
+// "persona:kale" → "kale"; anything else → "".
+std::string persona_of(const std::string& actor) {
+  constexpr std::string_view kPrefix = "persona:";
+  return actor.rfind(kPrefix, 0) == 0 ? actor.substr(kPrefix.size()) : std::string();
+}
+
+}  // namespace
+
+Result<void> summarise_cut(const Db& db, const CutPlan& plan, proto::db::RollbackSummary& out) {
+  using Item = proto::db::RollbackItem;
+  const std::string where = plan.removes("e.t_play_ms", "e");
+  // Each removed event's kind: a turn, a line addressed to the Tarnished, a witnessed event, a stage change. An event
+  // with none of these (no audience: no one who keeps memories perceived it) is no item.
+  auto s = Stmt::prepare(db,
+                         "SELECT e.kind, e.subject, e.object, e.conv_id, e.place_id, e.t_play_ms, "
+                         "(SELECT a.persona FROM event_audience a WHERE a.event_id = e.id ORDER BY a.persona LIMIT 1), "
+                         "json_extract(e.payload, '$.from'), json_extract(e.payload, '$.to') "
+                         "FROM events e WHERE " +
+                             where + " ORDER BY e.t_play_ms DESC, e.id DESC");
+  if (!s) return Unexpected{s.error()};
+  for (;;) {
+    auto r = s->step();
+    if (!r) return Unexpected{r.error()};
+    if (!*r) break;
+    const std::string kind = s->text(0);
+    const std::string subject = s->text(1), object = s->text(2);
+    const bool conv = !s->null(3);
+    const std::string heard_by = s->text(6);
+    Item item;
+    item.place_id = s->opt_i64(4);
+    item.pt = s->i64(5);
+    if (kind == "StageChanged") {
+      ++out.stages;
+      item.kind = Item::Kind::Stage;
+      item.who = persona_of(subject);
+      if (out.stages_undone.size() < proto::db::kSummaryStages) {
+        out.stages_undone.push_back(proto::db::StageUndone{item.who, s->text(7), s->text(8), item.pt});
+      }
+    } else if ((kind == "PlayerSaid" || kind == "NpcSaid") && conv) {
+      ++out.turns;
+      item.kind = Item::Kind::Turn;
+      item.who = kind == "PlayerSaid" ? persona_of(object) : persona_of(subject);
+    } else if (kind == "NpcSaid" && object == "player") {
+      ++out.addressed;
+      item.kind = Item::Kind::Addressed;
+      item.who = persona_of(subject);
+    } else if (!heard_by.empty()) {
+      ++out.witnessed;
+      item.kind = Item::Kind::Witnessed;
+      item.who = persona_of(subject).empty() ? heard_by : persona_of(subject);
+    } else {
+      continue;
+    }
+    if (out.last.size() < proto::db::kSummaryItems) out.last.push_back(std::move(item));
+  }
+  return {};
+}
+
+Result<std::uint64_t> cut_events(const Db& db, const CutPlan& plan) {
+  std::uint64_t rows = 0;
+  // An NpcSaid shown across the cut keeps the pages shown at or before it: its text to the last kept page's end.
+  if (plan.partial) {
+    auto s = Stmt::prepare(db,
+                           "SELECT e.id, (SELECT max(json_extract(p.value, '$.end')) FROM json_each(e.payload, "
+                           "'$.pages') p WHERE json_extract(p.value, '$.pt') <= ?2), (SELECT max(json_extract(p.value, "
+                           "'$.pt')) FROM json_each(e.payload, '$.pages') p WHERE json_extract(p.value, '$.pt') <= ?2) "
+                           "FROM events e WHERE e.epoch = ?1 AND e.kind = 'NpcSaid' AND e.t_play_ms <= ?2 "
+                           "AND e.t_play_end_ms > ?2");
+    if (!s) return Unexpected{s.error()};
+    s->bind(1, *plan.partial).bind(2, plan.cut);
+    std::vector<std::tuple<std::int64_t, std::int64_t, std::int64_t>> keep;
+    for (;;) {
+      auto r = s->step();
+      if (!r) return Unexpected{r.error()};
+      if (!*r) break;
+      if (s->null(1)) continue;  // no page within the cut: the event itself goes below (its pt is past it) or stays
+      keep.emplace_back(s->i64(0), s->i64(1), s->i64(2));
+    }
+    auto u =
+        Stmt::prepare(db,
+                      "UPDATE events SET text = substr(text, 1, ?2), t_play_end_ms = ?3, payload = json_set(payload, "
+                      "'$.pages', json((SELECT json_group_array(json(p.value)) FROM json_each(payload, '$.pages') p "
+                      "WHERE json_extract(p.value, '$.pt') <= ?3))) WHERE id = ?1");
+    if (!u) return Unexpected{u.error()};
+    for (const auto& [id, end, last_pt] : keep) {
+      u->reset();
+      u->bind(1, id).bind(2, end).bind(3, last_pt);
+      if (auto r = u->run(); !r) return Unexpected{r.error()};
+      ++rows;
+    }
+  }
+  auto d = Stmt::prepare(db, "DELETE FROM events WHERE " + plan.removes("t_play_ms"));
+  if (!d) return Unexpected{d.error()};
+  if (auto r = d->run(); !r) return Unexpected{r.error()};
+  rows += static_cast<std::uint64_t>(db.changes());
+  return rows;
+}
+
+Result<std::uint64_t> forget_persona(const Db& db, std::uint16_t journey, const std::string& persona) {
+  std::uint64_t rows = 0;
+  auto a = Stmt::prepare(db, "DELETE FROM event_audience WHERE persona = ?1 AND journey = ?2");
+  if (!a) return Unexpected{a.error()};
+  a->bind(1, std::string_view(persona)).bind(2, std::int64_t{journey});
+  if (auto r = a->run(); !r) return Unexpected{r.error()};
+  rows += static_cast<std::uint64_t>(db.changes());
+  // What no one else perceived: speech, and the persona's own events (for those who did, it still happened).
+  auto e =
+      Stmt::prepare(db,
+                    "DELETE FROM events WHERE journey = ?2 AND (kind IN ('PlayerSaid', 'NpcSaid') OR subject = ?1) "
+                    "AND NOT EXISTS (SELECT 1 FROM event_audience a WHERE a.event_id = events.id)");
+  if (!e) return Unexpected{e.error()};
+  e->bind(1, std::string_view("persona:" + persona)).bind(2, std::int64_t{journey});
+  if (auto r = e->run(); !r) return Unexpected{r.error()};
+  rows += static_cast<std::uint64_t>(db.changes());
+  return rows;
 }
 
 }  // namespace en::store::events

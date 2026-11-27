@@ -97,7 +97,8 @@ a dynamic initialiser or an exit-time destructor (ARCH §3.1, §1.7).
   `EventsForFold`) and `DbResult` (the same number and one of `Done`, `Opened`, `Resolved`, `JobSaved`, `Failed`,
   `Tripped` and the queries' rows), with the rows they carry: `StoredEvent` with its frozen `AudienceRow`s, `FactRow`,
   `ConversationRow`, `JournalVersion`, `LivedVersion`, `MemoryJob` and `PlaythroughKey` (the fingerprint and the
-  name's hash, never the name). `How` is here, and Augur's is this one. Ids are 64-bit (`EventId`, `RowId`) and play
+  name's hash, never the name); `Opened` with its `Rollback` (Clean, Trimmed or Choice) and, for the choice's panel
+  (O144), `RollbackSummary`: ids and numbers only (counts per kind, the newest items, the stages undone). `How` is here, and Augur's is this one. Ids are 64-bit (`EventId`, `RowId`) and play
   time is `Pt`, in milliseconds. These messages carry chat and model text, so unlike the others they have **no JSON
   form**: they go from T6 to T9 and back, and are never logged, recorded or reported (PV rules).
 - **The JSON caps** (`json.hpp`, ARCH §10.2): `parse_json(text)` parses a JSON text only once it is at most 256 KB

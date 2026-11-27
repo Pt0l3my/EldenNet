@@ -59,6 +59,37 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHY�
     `open_jobs`.
   - The event log's SQL is `events.cpp`'s alone, the one file whose SQL names `event_audience` (MEM §1.3; CTest's
     `en_augur_audience_grep`). A persona's query joins on its own rows, so it never reads who else perceived an event.
+- **The store's core** (`store.hpp`; MEM §8.3, §9, §3.8; O144). `StoreCore::handle(DbRequest)` answers one
+  `DbResult` of the same sequence number, synchronously: the tests and the eval call it so, and T9 runs it behind C8.
+  Each write is one `BEGIN IMMEDIATE` transaction; a query reads the persona's own rows. **Open**:
+  1. finds or makes the key's file (`locate`); a corrupt one is set aside and the newest backup takes its place;
+  2. refuses a newer file before touching it;
+  3. takes the start backup, migrates (with the pre-migration copy) and fills a new file's meta and first epoch;
+  4. starts a journey's epoch the file has not seen (NG+ while EldenNet was not running);
+  5. checks the timeline. H is the newest play time of the current epoch: an event, a reply's last page or a
+     conversation's start. Δ = H − the save's play time. Δ ≤ 0 is Clean, and 0 < Δ ≤ 5 min a silent trim.
+     Beyond 5 min, or a save from an earlier journey (cut at the later journey's start at the latest), the player
+     is asked only if, after the cut, the file holds something that matters (O144): a conversation's turn, a line
+     addressed to the Tarnished, a P event whose frozen audience holds anyone, a journal or lived version, a
+     StageChanged, or a later journey's epoch. Otherwise the trim is silent too;
+  6. closes open conversations as crashed and queues running jobs again (MEM §3.8 steps 1, 2 and 4), once the
+     timeline is resolved.
+  The choice's summary (`RollbackSummary`) holds ids and numbers only: the save's play time and journey against the
+  file's, a count per kind (claims among the journal versions), the newest eight items with who, where and when, and
+  the stages that would be undone. While the choice waits, nothing but Resolve and Close is answered. **Resolve**
+  Forget trims; Keep starts a `keep` epoch at the save's play time (MEM §9.3); a new character archives the file and
+  makes a new one. **Forget** (MEM §9.5) takes a backup first (the undo), removes one NPC's rows in the journey
+  (another's overheard rows stay) or the whole journey's (its epochs stay), records the act without content, and
+  empties the WAL (a TRUNCATE checkpoint) so the forgotten rows do not linger in it.
+- **The trim** (`rollback.cpp`, MEM §9.2), in one transaction:
+  - every epoch started after the cut goes whole, and the first at or before it is cut into;
+  - a reply shown across the cut keeps its pages shown at or before it;
+  - conversations started after the cut go, and one across it ends `trimmed` at its last kept line, its counts redone;
+  - journal and lived versions, decisions, recall memories and intents after the cut go;
+  - a journal job's range comes down to its last kept event, or the job goes; a lived job of a removed version goes,
+    and a running job is queued again;
+  - the watermark is the current version's;
+  - `facts_stale` is set for the core's refold, and the event counter stays, so no id is reused.
 - **`0001_init.sql`**: MEM §8.7's schema as written, with the reserved recall tables (`memories`, `memory_actors`,
   `memories_fts` on FTS5, `embeddings`) and the seams (`npc_intents`, `decisions`). Ours on top of it: `meta` also
   holds `next_conv_id` (conversations' ids, the core's, never reused) and `facts_stale` (set by a trim until the core's
@@ -77,6 +108,13 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHY�
   comma (the C++ global locale always; a C locale when the system has one), a batch with an apostrophe in a comment, a
   semicolon in a string and a trigger, a transaction dropped or committed, a constraint, the fault classes, and a
   backup that never overwrites;
+- the store's core (`test_store.cpp`): a new file and its start backup; refusal with nothing open; a silent trim
+  within 5 min with the counter kept; O144's two sides (an hour holding only unwitnessed events trimmed silently, one
+  witnessed event asking, with its summary); the summary's every kind and the stages undone; Keep, and a later crash
+  trim touching only its epoch; a new character archived; crash recovery; a reply's pages and a conversation across a
+  cut; journal, lived, jobs and the watermark after a trim; forgetting an NPC and a journey; NG+ and a save from the
+  earlier journey; a newer file refused before its backups are touched; a corrupt file restored from its backup; and 12
+  seeded random cuts (no row past the cut, no orphaned audience, the counter as it was, both checks clean);
 - the requests (`test_playthrough.cpp`): an event with its audience, each persona reading its own row alone and
   nothing of another journey, a lower id that never takes the counter back; an NpcSaid's pages with their ends and pts;
   the schema's caps (text, payload, JSON, a kind); a JourneyChanged's epoch; conversations with ids past 2^53; a job's

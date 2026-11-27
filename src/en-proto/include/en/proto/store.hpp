@@ -249,11 +249,11 @@ struct EventsForFold {  // MEM §9.2: every event of the journey, with every aud
 }  // namespace db
 
 struct DbRequest {
+  using Op = std::variant<db::Open, db::Resolve, db::Close, db::Append, db::AppendPage, db::ConvOpen, db::ConvClose,
+                          db::UpsertJob, db::CommitJournal, db::CommitLived, db::PutFacts, db::Forget, db::Checkpoint,
+                          db::Bundle, db::JobInput, db::LivedInput, db::EventsForFold>;
   std::uint64_t seq = 0;
-  std::variant<db::Open, db::Resolve, db::Close, db::Append, db::AppendPage, db::ConvOpen, db::ConvClose,
-               db::UpsertJob, db::CommitJournal, db::CommitLived, db::PutFacts, db::Forget, db::Checkpoint,
-               db::Bundle, db::JobInput, db::LivedInput, db::EventsForFold>
-      op;
+  Op op;
   // Speech (a PlayerSaid, or an NpcSaid page) takes the speech reserve of the spill ring (MEM §8.6).
   [[nodiscard]] bool speech() const noexcept;
 };
@@ -277,19 +277,65 @@ enum class Fault : std::uint8_t {
 };
 [[nodiscard]] const char* to_string(Fault f) noexcept;
 
-// The timeline's check at open (MEM §9.1).
+// What a rollback would undo, for the choice's panel (O144; MEM §9.1's note of 2026-11-27): ids and numbers only,
+// never chat text. An item is one of the things that matter after the cut.
+struct RollbackItem {
+  enum class Kind : std::uint8_t {
+    Turn,       // a conversation's line (PlayerSaid, or NpcSaid in a conversation)
+    Addressed,  // an NpcSaid addressed to the Tarnished outside a conversation
+    Witnessed,  // a P event whose frozen audience holds a character that keeps memories
+    Memory,     // a journal or lived version, or a recall memory, the memory job wrote
+    Stage,      // a StageChanged
+    Journey,    // a later journey's epoch
+  };
+  Kind kind = Kind::Witnessed;
+  std::string who;                  // a profile id, or empty
+  std::optional<std::int64_t> place_id;
+  Pt pt = 0;
+  friend bool operator==(const RollbackItem&, const RollbackItem&) = default;
+};
+[[nodiscard]] const char* to_string(RollbackItem::Kind k) noexcept;  // "turn", "addressed", "witnessed", ...
+
+struct StageUndone {
+  std::string persona;   // a profile id
+  std::string from, to;  // stage ids: `to` is the stage the rollback undoes
+  Pt pt = 0;
+  friend bool operator==(const StageUndone&, const StageUndone&) = default;
+};
+
+struct RollbackSummary {
+  Pt save_pt = 0, file_pt = 0;  // the save's play time, and the newest the file holds (H)
+  std::uint16_t save_journey = 1, file_journey = 1;
+  // Per kind, a count of what would be undone.
+  std::uint32_t turns = 0, addressed = 0, witnessed = 0, memories = 0, claims = 0, stages = 0, journeys = 0;
+  std::vector<RollbackItem> last;          // the newest few (at most kSummaryItems), newest first
+  std::vector<StageUndone> stages_undone;  // at most kSummaryStages, newest first
+  // Whether anything here matters, so that the player is asked (O144): every count but `claims`, which counts the
+  // claims among the journal versions already counted in `memories`.
+  [[nodiscard]] bool matters() const noexcept {
+    return turns + addressed + witnessed + memories + stages + journeys > 0;
+  }
+  friend bool operator==(const RollbackSummary&, const RollbackSummary&) = default;
+};
+inline constexpr std::size_t kSummaryItems = 8;
+inline constexpr std::size_t kSummaryStages = 16;
+
+// The timeline's check at open (MEM §9.1, as O144 narrowed it).
 struct Rollback {
   enum class Kind : std::uint8_t { Clean, Trimmed, Choice };
   Kind kind = Kind::Clean;
-  Pt delta_ms = 0;            // H − pt_now
-  Pt cut = 0;                 // Trimmed: the cut
-  bool lower_journey = false;  // Choice: the save is from an earlier journey than the file's
-  std::uint64_t rows = 0;     // Trimmed: rows removed
+  Pt delta_ms = 0;             // H − pt_now
+  Pt cut = 0;                  // Trimmed and Choice: the cut
+  bool lower_journey = false;  // the save is from an earlier journey than the file's
+  std::uint64_t rows = 0;      // Trimmed: rows removed
+  RollbackSummary summary;     // what the cut undoes: Choice's panel; for a silent trim, what it removed (nothing
+                               // that matters)
 };
 
 struct Opened {
   Rollback rollback;
-  EventId next_event_id = 1;
+  EventId next_event_id = 1;  // the core assigns event ids from here (MEM §8.6)
+  RowId next_conv_id = 1;     // and conversations' ids
   std::uint16_t journey = 1;  // the file's current journey after the check
   std::int64_t epoch = 0;
   bool created = false;           // a new file
