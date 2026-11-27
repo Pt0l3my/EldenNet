@@ -2867,7 +2867,7 @@ Lodestar session, 2026-11-27).
 
 ## O144
 
-**When the rollback choice is needed, and how it is shown** · *2026-11-27 · Open*
+**When the rollback choice is needed, and how it is shown** · *2026-11-27 · Decided by the owner*
 
 **Question.** MEM §9.1 asks the player what EldenNet's memories should do when a save loads that is older than what
 EldenNet remembers for that character: "Forget what came after" (focused), "Keep everything" or "This is a new
@@ -2895,12 +2895,31 @@ put back by hand or by a tool.
 - (b) A short notice in game, and the three answers on a Home card and in History › Memories.
 - (c) The design's panel as written: one sentence and three buttons.
 
+**Decision.** (a), narrowed by the owner the same day: the choice is asked only when what would be forgotten matters
+for context and coherence. A save more than 5 minutes behind, or from an earlier journey, asks only if after the
+save's point there is at least one of:
+- a conversation, or a line an NPC addressed to the Tarnished;
+- an event witnessed by a character that keeps memories (its frozen audience, MEM §1.3; cards remember nothing,
+  MEM §2.7);
+- a memory, journal entry, lived-layer update or claim the memory job wrote;
+- a quest or world stage change;
+- the start of a later journey (NG+).
+Anything else (an enemy killed with no such witness, runes or items picked up, travel) is forgotten silently,
+whatever the gap. A save 5 minutes behind or less is trimmed silently as before (a crash before the last autosave).
+The centred panel lists exactly the things that matter, colour-coded, with the save's play time and journey against
+EldenNet's, and the three answers about EldenNet's memories at the bottom.
+
 **Owner's words.** "A notice UI pop up in the centre of screen which shows details of loaded save in neat bulletpoints
 and color coded text (so the user can see recent few events, latest quest progression, etc. Then at the bottom to
 confirm to load this save or not. However we need to discuss this further since Elden Ring only has auto save and one
 save slot for each character so we need to discuss when this confirmation pop up would be needed in the first place,
 since EldenNet will keep separate save file for each chatacter/playthrough (including NG+)." (question dialog,
-2026-11-27).
+2026-11-27). Then, after the Engine session explained when the choice comes: "That's a good idea about when the
+load save being out of sync pop up come up for player to confirm, we only want things being confirmed that matted by
+context and coherence. If the player killed a random enemy that wasn't witnessed by anyone, or picked up a golden rune
+(it's just somw currency to spend), these things aren't really importent to matter. I doubt it needs to be as strict
+SkyrimNet's that needs to handle limitless older saves per character that can be loaded, and even asks this pop up
+when any trivial event happens." (2026-11-27).
 
 **Follows from.** MEM §8.1, §9.1, §9.2; GraceUI D6; PAGES §4.10.
 

@@ -1373,6 +1373,16 @@ stateDiagram-v2
 - P events are buffered in the RAM ring (§8.6), dropping the oldest non-speech events if it fills;
 - there is never an automatic answer, and if the game closes first, the next session asks again.
 
+*Since 2026-11-27 (O144):* the choice is asked only when what would be forgotten matters for context and coherence.
+`Δ > 300 000 ms`, or a lower journey, leads to the choice only if, after the cut, the file holds at least one of: a
+conversation's turn or an `NpcSaid` addressed to the Tarnished; a P event whose frozen audience holds a character that
+keeps memories (§1.3; cards remember nothing, §2.7); a memory, journal entry, lived update or claim the memory job
+wrote; a `StageChanged`; or a later journey's epoch. Otherwise the trim is silent, whatever Δ is (`Checking →
+Trimming`), as it already is for `0 < Δ ≤ 5 min`. F10 has folded into F5's menu (GraceUI D6): the choice is a panel in
+the centre of the screen, listing in colour-coded bullet points the save's play time and journey against the file's,
+the things that matter after the cut (who, where, when) and the quest stages that would be undone, with the three
+answers at the bottom; its other rules above stand.
+
 ### 9.2 The trim procedure (one transaction)
 
 ```text

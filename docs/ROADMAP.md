@@ -2359,8 +2359,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: DESIGN§10, MEM§8, MEM§9, WHY§688, WHY§689, O144, O146
   - gives: planned on 2026-11-27 (engine wip/v03): v0.3's offline parts in 21 commits and three slices, built back to
     back as the owner chose: the store and personas' audiences in Augur; memory in the core; speaking up, the DLL and
-    the pages' data. Personas first get an audience (WHY§688). SQLite 3.54.1 is pinned (O146); the rollback choice's
-    form waits on O144, and the speaking-up settings on O145.
+    the pages' data. Personas first get an audience (WHY§688). SQLite 3.54.1 is pinned (O146). The rollback choice
+    is asked only when what would be forgotten matters, in a centred panel (O144). The speaking-up settings wait on
+    O145.
 - b What each persona has seen of the world, the since-line, and reaction cues
   - refs: MEM§12.13, O28
 - c The pacing core and the autonomous class; the pilot's own-initiative lines, once S3 and S6 allow them
