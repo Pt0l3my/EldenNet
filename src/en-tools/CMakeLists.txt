@@ -3,7 +3,7 @@
 file(GLOB EN_TOOLS_LIB_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/lib/*.cpp)
 add_library(en_tools_scn STATIC ${EN_TOOLS_LIB_SOURCES})
 target_include_directories(en_tools_scn PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/lib)
-target_link_libraries(en_tools_scn PUBLIC en_core en_shell en_gal)
+target_link_libraries(en_tools_scn PUBLIC en_core en_shell en_gal en_llm)  # en_llm: X1's messages and sampling
 file(GLOB EN_TOOLS_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 add_executable(eldennet-engine ${EN_TOOLS_SOURCES})
 target_link_libraries(eldennet-engine PRIVATE en_prompt en_llm en_gal en_shell en_tools_scn)  # en_shell: the lint's recording vocabulary
@@ -25,12 +25,12 @@ if(EN_BUILD_TESTS AND NOT WIN32)
   # A: test_dialogue_prompt.cpp), which en-core's own tests leave to invented ones; and the eval (part B: test_eval.cpp).
   add_executable(en_tools_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/main.cpp ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_scn.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_eval.cpp ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_dialogue_prompt.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_tap.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_tap.cpp ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_x1.cpp)
   target_link_libraries(en_tools_tests PRIVATE en_tools_scn en_doctest)
   target_compile_definitions(en_tools_tests PRIVATE EN_TOOLS_SCENARIOS="${PROJECT_SOURCE_DIR}/tests/scenarios"
     EN_TOOLS_GOLDEN="${PROJECT_SOURCE_DIR}/tests/golden" EN_TOOLS_WORK="${CMAKE_CURRENT_BINARY_DIR}/scn"
     EN_TOOLS_CONTENT="${PROJECT_SOURCE_DIR}/content/eldenring"
-    EN_TOOLS_PROMPT_FIXTURES="${PROJECT_SOURCE_DIR}/tests/fixtures/prompt")
+    EN_TOOLS_PROMPT_FIXTURES="${PROJECT_SOURCE_DIR}/tests/fixtures/prompt" EN_TOOLS_X1="${PROJECT_SOURCE_DIR}/tests/x1")
   add_test(NAME en_tools_tests COMMAND en_tools_tests)
   file(GLOB _en_routes CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/tests/scenarios/*.scn)
   foreach(_en_route IN LISTS _en_routes)
@@ -79,5 +79,11 @@ if(EN_BUILD_TESTS AND NOT WIN32)
       COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tests/speech_cli_test.py
         --engine $<TARGET_FILE:eldennet-engine> --content ${PROJECT_SOURCE_DIR}/content/eldenring
         --fixtures ${PROJECT_SOURCE_DIR}/tests/fixtures/prompt --work ${CMAKE_CURRENT_BINARY_DIR}/speech_cli)
+    # X1 outside the game (NPC 12.2; O139 to O142): the set's jobpacks against Jobrunner's own rules, mirrored, and the
+    # import of our invented sample of its results.
+    add_test(NAME en_tools_x1
+      COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tests/x1_cli_test.py
+        --engine $<TARGET_FILE:eldennet-engine> --set ${PROJECT_SOURCE_DIR}/tests/x1/x1.toml
+        --sample ${PROJECT_SOURCE_DIR}/tests/x1/sample-results.jsonl --work ${CMAKE_CURRENT_BINARY_DIR}/x1_cli)
   endif()
 endif()

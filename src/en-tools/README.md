@@ -401,6 +401,49 @@ en-llm's error class to end with once en-llm's own retries and fallback are spen
 `repeat_last = false`; a cancelled request ends with Cancelled at once. ARCH §12.3's `mockllm` as a local SSE server
 (for en-llm's live path) is not built: the eval and the tests need only the scripted model.
 
+## eval --set: X1 outside the game, through LLM Jobrunner (NPC §12.2; O139 to O142)
+
+```sh
+eldennet-engine eval --set tests/x1/x1.toml --jobpack <folder>
+eldennet-engine eval --set tests/x1/x1.toml --jobrunner-results <results.jsonl> [--jobrunner-results ...]
+                     [--report FILE] [--summary FILE] [--questions FILE]
+```
+
+X1 runs on the owner's own model servers through LLM Jobrunner, which runs a jobpack's items one by one and cannot
+chain turns (O140). So every turn of X1's set (`tests/x1/x1.toml`, `lib/eval_x1.hpp` has its schema) is an item of its
+own, whose messages are the prompt the core renders for that line when the conversation before it went as we wrote it.
+- **The history is ours.** Each scenario runs once through the real core with its scripted model, whose replies are
+  our own lines in the persona's voice; each line's first request is captured as en-llm would send it to a server that
+  takes no cache marks, with the dialogue slot's sampling (140 tokens, temperature 0.8, the two stop sequences,
+  thinking off). A scripted reply that does not show whole, as written (a regeneration, a deflection, a failure, a
+  cut-off, the lint or the pager's caps), refuses the export, since the turns after it would not hold our history.
+- **The set**: five voice sets of fifty turns in ten conversations of five (Kalé, the Lantern-Keeper and X1's three
+  register fixtures, `x1_regal`, `x1_broken` and `x1_chant`, bound in `tests/scenarios/talk/pilot-overrides/`), each
+  in two arms, the prompts as they ship and the positive-wording arm's former wording (`tests/x1/arms/former/`: world
+  frame, contract and the promise reminder, NPC §12.2); and both personas' test questions, six each, at three fixture
+  states, each after a `restart`, run three times on every server. 512 items in three jobpacks (`x1-voice-1`,
+  `x1-voice-2`, `x1-questions`), each within Jobrunner's caps (2 MB, 2,000 items, 5,000 runs for 8 servers up), with
+  `server: "*"` and ids `<arm>-<persona>-<code>-t<NN>` (`-x3` for a repeat).
+- **The import** reads each results.jsonl (unzipped from Jobrunner's Download zip) as untrusted data: at most 64 MB, a
+  line at most 1 MB, each line's keys, types and sizes Jobrunner's own, its id one of the set's, its run within the
+  item's repeat, its messages (when Jobrunner kept them) the item's to the byte, no run read twice; a line that fails
+  is refused by its number and a fixed reason, never quoted. A server's name outside Jobrunner's form, and a model's
+  name beyond its file name or with anything like an address in it, are written as `server-N` or `model-N`. Each
+  reply then runs through the sanitizer, lint and pager on its own (`run_speech`), with its turn's recorded context.
+- **What it writes**, each only where its flag says: `--report`, the local report (`x1-local`, model text: every
+  result with what would show and its counts); `--summary`, numbers and labels only (`x1-summary`: per server and
+  model, the time to first token and tokens per second from Jobrunner's timings, then per persona, arm and kind the
+  share within the word cap, the pager's cuts, hard hits and what they would do, the promise rate, archaic lines and
+  sentences, openers stripped, tics past their cap, contract breaks caught by kind and shown, the "Name:" prefixes by
+  class; C10 on the non-archaic personas' shipped wording, whether the set was whole, the archaic-regal share against
+  25 to 60%, and the arms side by side); `--questions`, the test questions' replies with the prompts they answered
+  (`x1-questions`, model text) for the Engine session's scoring (O142). What it prints is counts and the bounded names.
+
+`en_tools_x1` (`tests/x1_cli_test.py`) exports the set, checks each jobpack against Jobrunner 1.4's own rules for a
+jobpack/1 file, mirrored in our own code from its `llm_jobrunner.py` (Jobrunner is never imported or run), checks that
+a second export gives the same bytes, and imports our invented sample of Jobrunner's results
+(`tests/x1/sample-results.jsonl`, written by us, never from a real run).
+
 CTest runs each scenario's `eval --llm mock`, and `--llm recorded` where it has a recording, as `en_eval.<name>.<llm>`
 with the label `eval`, on demand only (`ctest -C eval -L eval`, BUILD.md), its reports in the build tree's
 `src/en-tools/eval-reports/`; `en_tools_tests` runs every scenario through the runner, mock and recorded, in every
