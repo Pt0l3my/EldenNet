@@ -136,6 +136,41 @@ const GraceUiGlyph* Face::find(char32_t cp) const noexcept {
   return at(U'?');
 }
 
+// ---- The type ----
+
+Type type_at_connect(bool plain_text_cap, std::uint32_t plain_text) noexcept {
+  // Without the cap the field is as EldenNet zeroed it (graceui-sys's connect zeroes the whole answer): the serif.
+  return plain_text_cap && plain_text == 1 ? Type::Plain : Type::Serif;
+}
+
+const char* to_string(Type t) noexcept { return t == Type::Plain ? "plain" : "serif"; }
+
+namespace {
+
+constexpr std::array<FaceFile, 3> kSerifFaces = {{
+    {Role::Text, "fonts\\EBGaramond-Regular.ttf", kTextFacePx},
+    {Role::Ui, "fonts\\NotoSans-Regular.ttf", kUiFacePx},
+    {Role::Italic, "fonts\\EBGaramond-Italic.ttf", kTextFacePx},
+}};
+constexpr std::array<FaceFile, 3> kPlainFaces = {{
+    {Role::Text, "fonts\\NotoSans-Regular.ttf", kTextFacePx},
+    {Role::Ui, "fonts\\NotoSans-Regular.ttf", kUiFacePx},
+    {Role::Name, "fonts\\NotoSans-SemiBold.ttf", kNameFacePx},
+}};
+
+}  // namespace
+
+std::span<const FaceFile> faces_of(Type t) noexcept {
+  return t == Type::Plain ? std::span<const FaceFile>(kPlainFaces) : std::span<const FaceFile>(kSerifFaces);
+}
+
+std::string_view face_name(std::string_view file) noexcept {
+  const std::size_t slash = file.find_last_of("\\/");
+  if (slash != std::string_view::npos) file.remove_prefix(slash + 1);
+  const std::size_t dot = file.rfind('.');
+  return dot == std::string_view::npos ? file : file.substr(0, dot);
+}
+
 // ---- Text ----
 
 std::u32string decode(std::string_view s) {
@@ -495,7 +530,7 @@ void paint_page(Painter& p, const Faces& f, const Display& d, const proto::PageV
   const std::u32string name = u32(upper(page.speaker));
   std::vector<std::u32string> lines;
   if (page.kind == proto::PageKind::Speech) {
-    lines = wrap(f.serif, kPagePx * s, u32(page.text), block, 3);
+    lines = wrap(f.text, kPagePx * s, u32(page.text), block, 3);
   } else {
     lines.emplace_back(1, kEllipsis);  // the card, and the "…" page after no answer
   }
@@ -508,10 +543,10 @@ void paint_page(Painter& p, const Faces& f, const Display& d, const proto::PageV
     p.text(face, px, x + shadow, y + shadow, t, faded(kShadow, alpha), tracking);
     p.text(face, px, x, y, t, faded(colour, alpha), tracking);
   };
-  if (!name.empty()) centred(f.serif, kNamePx * s, name, kNameGold, kNameTracking);
+  if (!name.empty()) centred(f.name_line(), kNamePx * s, name, kNameGold, kNameTracking);
   y += lh(kNamePx * s);
   for (const std::u32string& l : lines) {
-    centred(f.serif, kPagePx * s, l, kTextInk, 0);
+    centred(f.text, kPagePx * s, l, kTextInk, 0);
     y += lh(kPagePx * s);
   }
 }
@@ -541,8 +576,8 @@ Caret paint_box(Painter& p, const Faces& f, const Display& d, const proto::ChatB
         append(header, box.heard_by[i]);
       }
     }
-    const std::vector<std::u32string> one = wrap(f.sans, kHeaderPx * s, header, w - 2 * pad, 1);
-    if (!one.empty()) p.text(f.sans, kHeaderPx * s, pad, top, one.front(), kNameGold);
+    const std::vector<std::u32string> one = wrap(f.ui, kHeaderPx * s, header, w - 2 * pad, 1);
+    if (!one.empty()) p.text(f.ui, kHeaderPx * s, pad, top, one.front(), kNameGold);
     top += lh(kHeaderPx * s) + 4.0f * s;
   }
   // The input's field, at the bottom.
@@ -573,7 +608,7 @@ Caret paint_box(Painter& p, const Faces& f, const Display& d, const proto::ChatB
     if (l.waiting) t += U" (waiting)";
     const bool npc = l.who == proto::HistoryLine::Who::Npc;
     const std::uint32_t colour = npc ? kTextInk : kPlayerLine;
-    add(npc ? f.serif : f.tarnished(), t, l.waiting ? faded(colour, 0.6f) : colour);
+    add(npc ? f.text : f.tarnished(), t, l.waiting ? faded(colour, 0.6f) : colour);
   }
   if (strip_page != nullptr && strip_page->surface == proto::Surface::HistoryStrip) {
     std::u32string t;
@@ -584,7 +619,7 @@ Caret paint_box(Painter& p, const Faces& f, const Display& d, const proto::ChatB
     } else {
       t += kEllipsis;
     }
-    add(f.serif, t, faded(kTextInk, strip_alpha));
+    add(f.text, t, faded(kTextInk, strip_alpha));
   }
   const float line = lh(kHistoryPx * s);
   float y = bottom - line;
@@ -608,8 +643,8 @@ Caret paint_box(Painter& p, const Faces& f, const Display& d, const proto::ChatB
   const std::size_t cursor = std::min(edit.cursor, edit.text.size());
   // The caret stands a pixel clear of the glyph before it (the preview shots showed it touching the last letter).
   const float gap = cursor > 0 ? std::max(1.0f, std::round(s)) : 0.0f;
-  const float caret_at = measure(f.serif, px, u32(edit.text.substr(0, cursor))) + gap;
-  const float total = measure(f.serif, px, u32(edit.text)) + (cursor == edit.text.size() ? gap : 0.0f);
+  const float caret_at = measure(f.text, px, u32(edit.text.substr(0, cursor))) + gap;
+  const float total = measure(f.text, px, u32(edit.text)) + (cursor == edit.text.size() ? gap : 0.0f);
   if (caret_at - scroll > room - 2.0f * s) scroll = caret_at - room + 2.0f * s;
   if (caret_at - scroll < 0) scroll = caret_at;
   scroll = std::clamp(scroll, 0.0f, std::max(0.0f, total - room + 2.0f * s));
@@ -619,11 +654,11 @@ Caret paint_box(Painter& p, const Faces& f, const Display& d, const proto::ChatB
   const std::size_t a = std::min({edit.select_start, edit.select_end, edit.text.size()});
   const std::size_t b = std::min(std::max(edit.select_start, edit.select_end), edit.text.size());
   if (b > a) {
-    const float sx0 = tx + measure(f.serif, px, u32(edit.text.substr(0, a)));
-    const float sx1 = tx + measure(f.serif, px, u32(edit.text.substr(0, b)));
+    const float sx0 = tx + measure(f.text, px, u32(edit.text.substr(0, a)));
+    const float sx1 = tx + measure(f.text, px, u32(edit.text.substr(0, b)));
     p.rect(sx0, ty, sx1, ty + lh(px), kSelection);
   }
-  p.text(f.serif, px, tx, ty, u32(edit.text), kTextInk);
+  p.text(f.text, px, tx, ty, u32(edit.text), kTextInk);
   const float cx = std::floor(tx + caret_at);
   p.rect(cx, ty + 1.0f * s, cx + std::max(1.0f, std::round(1.5f * s)), ty + lh(px) - 1.0f * s, kCaret);
   p.clip_all();
@@ -654,16 +689,16 @@ void paint_hint(Painter& p, const Faces& f, const Display& d, const proto::TalkH
     append(words, hint.name);
   }
   const float key_pad = 4.0f * s;
-  const float key_w = boxed.empty() ? 0.0f : measure(f.sans, px, boxed) + 2 * key_pad;
-  const float total = key_w + measure(f.sans, px, words);
+  const float key_w = boxed.empty() ? 0.0f : measure(f.ui, px, boxed) + 2 * key_pad;
+  const float total = key_w + measure(f.ui, px, words);
   float x = std::floor((panel.width - total) / 2.0f);
   if (!boxed.empty()) {
     p.round_edge(x, y - 2.0f * s, x + key_w, y + lh(px) + 1.0f * s, std::round(kControlRadius * s),
                  std::max(1.0f, std::round(s)), kHintInk);
-    p.text(f.sans, px, x + key_pad, y, boxed, kHintInk);
+    p.text(f.ui, px, x + key_pad, y, boxed, kHintInk);
     x += key_w;
   }
-  p.text(f.sans, px, x, y, words, kHintInk);
+  p.text(f.ui, px, x, y, words, kHintInk);
 }
 
 // ---- The lower third over time ----

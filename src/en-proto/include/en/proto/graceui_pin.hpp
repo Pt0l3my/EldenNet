@@ -23,12 +23,13 @@ inline constexpr std::uint32_t kAbiMajor = 1;  // graceui.h's GRACEUI_ABI_MAJOR,
 // editor block (0.2.21, D217) and a save's chosen row (0.2.22, D218), on 0.2.17's wait handle (ABI 1.5, D212), which
 // the chat box's opening within 50 ms needs (NPC §5.1); Docs' search, the filter bar (0.2.43, D250), and the rail's
 // foot (0.2.42, D248); and 0.2.45's quick switches and live pages (D252, protocol 1.13). The headers are GraceUI
-// 0.2.58's (ABI 1.8, protocol 1.20; EldenNet uses neither 1.6's uploads, D226, nor 1.8's on_present, D259), pinned there
-// for its browser space check (D265), which the tests alone use, so the floor stays 0.2.57; what came
-// after 0.2.22 but the pages is used only behind its has_cap, or, for 0.2.36's EB Garamond Italic (D241), where
-// GraceUI's folder holds the file: without it the Tarnished's lines are drawn upright.
+// 0.2.62's (ABI 1.9, protocol 1.20; EldenNet uses neither 1.6's uploads, D226, nor 1.8's on_present, D259), pinned
+// there for 1.9's Plain text (D268), read behind its has_cap, and for the tests' space check (D265, D269) and page
+// presence (D269), so the floor stays 0.2.57; what came after 0.2.22 but the pages is used only behind its has_cap,
+// or, for 0.2.36's EB Garamond Italic (D241), where GraceUI's folder holds the file: without it the Tarnished's lines
+// are drawn upright.
 inline constexpr std::array<std::uint16_t, 3> kFloor = {0, 2, 57};
-inline constexpr std::string_view kCommit = "0c8d0fa";  // GraceUI's main (D169 to D265), GraceUI 0.2.58
+inline constexpr std::string_view kCommit = "fc2205a";  // GraceUI's main (D169 to D269), GraceUI 0.2.62
 
 // Whether a GraceUI version (major, minor, patch) is at least the floor.
 [[nodiscard]] constexpr bool at_least_floor(const std::array<std::uint16_t, 3>& v) noexcept {

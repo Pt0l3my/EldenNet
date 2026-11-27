@@ -16,7 +16,7 @@ under the MIT License. The full text is in the `LICENSE` file.
 | nlohmann/json | 3.11.3 | MIT | Reads and writes JSON |
 | toml++ | 3.4.0 | MIT | Reads EldenNet's files and yours |
 | Dear ImGui (its core alone) | 1.93.0 | MIT | Draws the developer view |
-| GraceUI's connection files | GraceUI 0.2.58 | MIT | Connect EldenNet to GraceUI |
+| GraceUI's connection files | GraceUI 0.2.62 | MIT | Connect EldenNet to GraceUI |
 
 Each Windows program of EldenNet also contains Microsoft's C runtime, under Microsoft's terms for its redistribution.
 EldenNet uses Windows's own HTTP library for its requests, and ships no copy of it. Its checks of saves and of
@@ -27,6 +27,10 @@ before its part was taken in.
 
 GraceUI is a mod of its own, under the MIT License, and EldenNet carries its release. Its folder holds its own licence
 and notice files, which name the libraries and fonts it contains.
+
+EldenNet ships no font file of its own. Its subtitles and chat box are drawn in GraceUI's fonts, read from GraceUI's
+folder while you play: EB Garamond, regular and italic, with Noto Sans; or, when GraceUI's Plain text is on as the game
+starts, Noto Sans, regular and semibold. They are under the SIL Open Font License, credited in GraceUI's notice file.
 
 ## Design credit
 

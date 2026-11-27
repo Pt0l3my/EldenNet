@@ -188,15 +188,33 @@ std::unique_ptr<Surfaces> Surfaces::make(const graceui::Api& api, GraceUiConsume
     report.state = "texture";
     return nullptr;
   }
-  // EldenNet's faces: GraceUI's own fonts, scaled with the display, before warm-up (§33 item 2). After warm-up they
-  // answer too_late, and the surfaces draw GraceUI's notices' face (face 1) instead.
-  const auto face = [&](std::span<const unsigned char> data, float px, std::uint32_t& id) {
-    if (data.empty()) return;
+  // EldenNet's faces: GraceUI's own fonts, scaled with the display, before warm-up (§33 item 2), of the type GraceUI's
+  // Plain text asks for at connect (O134, D268; an older GraceUI, without the cap, leaves plain_text as graceui-sys
+  // zeroed it). Only that type's files are read and registered: a change of Plain text in the session waits for the
+  // next launch. After warm-up they answer too_late, and the surfaces draw GraceUI's notices' face (face 1) instead.
+  s->plain_cap_ = api.has_cap(GRACEUI_CAP_PLAIN_TEXT);
+  s->type_ = surfaces::type_at_connect(s->plain_cap_, answer.plain_text);
+  s->plain_now_ = s->type_ == surfaces::Type::Plain;
+  report.plain_cap = s->plain_cap_;
+  report.type = s->type_;
+  std::string_view last_file;
+  std::string bytes;  // the last file read: Plain text's Noto Sans Regular serves the text and the ui
+  for (const surfaces::FaceFile& f : surfaces::faces_of(s->type_)) {
+    if (f.file != last_file) {
+      bytes = fonts ? fonts(f.file) : std::string();
+      last_file = f.file;
+      if (!bytes.empty()) ++report.files;
+    }
+    std::uint32_t& id = f.role == surfaces::Role::Text     ? s->text_face_
+                        : f.role == surfaces::Role::Ui     ? s->ui_face_
+                        : f.role == surfaces::Role::Italic ? s->italic_face_
+                                                           : s->name_face_;
+    if (bytes.empty()) continue;
     GraceUiFaceDesc d{};
     d.size = sizeof d;
-    d.pixel_height = static_cast<std::uint32_t>(px);
-    d.data = data.data();
-    d.data_length = data.size();
+    d.pixel_height = static_cast<std::uint32_t>(f.px);
+    d.data = bytes.data();
+    d.data_length = bytes.size();
     d.flags = GRACEUI_FACE_SCALED;
     report.face_status = api.register_face(me, d, id);
     if (report.face_status == GRACEUI_OK && id != 0) {
@@ -204,12 +222,20 @@ std::unique_ptr<Surfaces> Surfaces::make(const graceui::Api& api, GraceUiConsume
     } else {
       id = 0;
     }
-  };
-  face(fonts.serif, kSerifDesignPx, s->serif_face_);
-  face(fonts.sans, kSansDesignPx, s->sans_face_);
-  face(fonts.italic, kSerifDesignPx, s->italic_face_);  // the third of EldenNet's eight (D139)
-  static_assert(GRACEUI_FACES_ELDENNET >= 3, "the surfaces' three faces are within what GraceUI gives EldenNet");
+  }
+  static_assert(GRACEUI_FACES_ELDENNET >= 3, "the surfaces' three faces are within what GraceUI gives EldenNet (D139)");
   report.italic = s->italic_face_ != 0;
+  const auto file_of = [&](surfaces::Role role) -> std::string_view {
+    for (const surfaces::FaceFile& f : surfaces::faces_of(s->type_)) {
+      if (f.role == role) return surfaces::face_name(f.file);
+    }
+    return {};
+  };
+  using surfaces::Role;
+  report.text = s->text_face_ != 0 ? file_of(Role::Text) : std::string_view("graceui");
+  report.ui = s->ui_face_ != 0 ? file_of(Role::Ui) : std::string_view("graceui");
+  report.name = s->name_face_ != 0 ? file_of(Role::Name) : report.text;
+  report.tarnished = s->italic_face_ != 0 ? file_of(Role::Italic) : report.text;
   // The hotkeys (§48, §49): stable action ids, players' names; the chord with the talk key where GraceUI has chords.
   const GraceUiApi1* t = api.table();
   GraceUiHotkeyDesc talk{};
@@ -305,6 +331,12 @@ bool Surfaces::take(const GraceUiEvent& e, std::uint64_t now, std::vector<proto:
       display_.height = static_cast<float>(e.display_height);
       display_.content_scale = e.content_scale > 0 ? e.content_scale : 1.0f;
       display_.faces_scale = e.faces_scale;
+      // Plain text as the player has it now (D268): noted for the log, and no face registered or changed for it; the
+      // faces chosen at connect stay until the next launch (O134; GraceUI's invariant 11).
+      if (plain_cap_ && (e.plain_text == 1) != plain_now_) {
+        plain_now_ = e.plain_text == 1;
+        ++plain_changes_;
+      }
       return false;  // the overlay's other parts may read it too
     case GRACEUI_EVENT_KEY:
     case GRACEUI_EVENT_CHARACTER:
@@ -444,14 +476,18 @@ bool Surfaces::faces() {
     return false;
   };
   // Read each show: a table is GraceUI's, valid while its generation is current, and a list names the generation.
-  const bool serif = read(serif_face_, faces_.serif);
-  const bool sans = read(sans_face_, faces_.sans);
-  // The italic has no stand-in: without its own table the Tarnished's lines take the serif's (Faces::tarnished).
-  GraceUiGlyphTable t{};
-  faces_.italic = italic_face_ != 0 && api_.glyph_table(me_, italic_face_, t) == GRACEUI_OK && t.glyph_count != 0
-                      ? surfaces::Face::of(t)
-                      : surfaces::Face{};
-  return serif && sans && faces_.usable();
+  const bool text = read(text_face_, faces_.text);
+  const bool ui = read(ui_face_, faces_.ui);
+  // The italic and the name line's have no stand-in: without its own table each takes the text's (Faces::tarnished,
+  // Faces::name_line).
+  const auto own = [&](std::uint32_t id) {
+    GraceUiGlyphTable t{};
+    return id != 0 && api_.glyph_table(me_, id, t) == GRACEUI_OK && t.glyph_count != 0 ? surfaces::Face::of(t)
+                                                                                       : surfaces::Face{};
+  };
+  faces_.italic = own(italic_face_);
+  faces_.name = own(name_face_);
+  return text && ui && faces_.usable();
 }
 
 void Surfaces::caret(const surfaces::Caret& c) {

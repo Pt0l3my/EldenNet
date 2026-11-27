@@ -85,8 +85,8 @@ struct Options {
   // fails (PAGES §4.4, GraceUI §7.2 item 1).
   std::uint32_t space_views = 0;
   // The conversation's surfaces (chat.hpp; WHY§364, part C): the talk and skip hotkeys, the lower third, the chat box,
-  // the hint and the toasts. `fonts` are GraceUI's own font files, which the DLL reads from GraceUI's folder; empty,
-  // the surfaces draw GraceUI's notices' face.
+  // the hint and the toasts. `fonts` reads GraceUI's own font files from GraceUI's folder, those of the type connect
+  // chooses (chat.hpp); empty, the surfaces draw GraceUI's notices' face.
   bool surfaces = false;
   Surfaces::Fonts fonts;
 };

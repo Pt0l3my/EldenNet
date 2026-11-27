@@ -53,9 +53,9 @@ struct FakeFace {
     table.glyphs = glyphs.data();
   }
   Faces faces() const {
-    Faces f;  // no italic: the Tarnished's lines upright
-    f.serif = Face::of(table);
-    f.sans = Face::of(table);
+    Faces f;  // no italic: the Tarnished's lines upright; no name line's face: the name in the text's
+    f.text = Face::of(table);
+    f.ui = Face::of(table);
     return f;
   }
 };
@@ -238,6 +238,74 @@ TEST_CASE("surfaces: a page's draw list, in GraceUI's form, from the glyph table
   CHECK(blank.empty());
 }
 
+TEST_CASE("surfaces: Plain text's name line in its own face, the text in the text's; the text's without one") {
+  // O134: with Plain text on at launch the speaker's name is Noto Sans SemiBold's (told here by its place on the atlas,
+  // u 0.6), the page's text Noto Sans Regular's; with the serif no name face is registered, and the name is the text's.
+  const FakeFace text;
+  const FakeFace bold(true, 1, 0.6f);
+  const GraceUiPanelDesc panel = page_panel(kHd);
+  const auto quads = [](const Painter& p, float u0) {
+    std::size_t n = 0;
+    for (const GraceUiDrawVert& v : p.vertices()) n += std::abs(v.u - u0) < 1e-6f ? 1 : 0;
+    return n / 2;
+  };
+  const std::size_t name = std::string("LANTERN-KEEPER").size();
+  const std::size_t words = std::string("Hm.Thelampburnslow.").size();
+  Faces plain = text.faces();
+  plain.name = Face::of(bold.table);
+  CHECK(&plain.name_line() == &plain.name);
+  Painter with;
+  with.reset(panel.width, panel.height, kWhite, 0.5f, 0.5f);
+  paint_page(with, plain, kHd, speech(0, "Hm. The lamp burns low."), 1.0f);
+  std::string why;
+  CHECK_MESSAGE(valid(with, panel.width, panel.height, why), why);
+  CHECK(quads(with, 0.6f) == 2 * name);  // each glyph with its shadow
+  CHECK(quads(with, 0.1f) == 2 * words);
+  const Faces serif = text.faces();
+  CHECK(&serif.name_line() == &serif.text);
+  Painter without;
+  without.reset(panel.width, panel.height, kWhite, 0.5f, 0.5f);
+  paint_page(without, serif, kHd, speech(0, "Hm. The lamp burns low."), 1.0f);
+  CHECK(quads(without, 0.6f) == 0);
+  CHECK(quads(without, 0.1f) == 2 * (name + words));
+}
+
+TEST_CASE("surfaces: the type at connect: Plain text only with GraceUI's cap and its 1 (O134, D268)") {
+  CHECK(type_at_connect(true, 1) == Type::Plain);
+  CHECK(type_at_connect(true, 0) == Type::Serif);
+  CHECK(type_at_connect(false, 1) == Type::Serif);  // an older GraceUI: what EldenNet set, whatever it is
+  CHECK(type_at_connect(false, 0) == Type::Serif);
+  CHECK(type_at_connect(true, 2) == Type::Serif);   // nothing GraceUI writes: 1 or 0 alone
+  CHECK(std::string(to_string(Type::Serif)) == "serif");
+  CHECK(std::string(to_string(Type::Plain)) == "plain");
+}
+
+TEST_CASE("surfaces: each type's faces: the serif's files, or Plain text's Noto Sans Regular and SemiBold") {
+  const auto listed = [](Type t) {
+    std::vector<std::string> out;
+    for (const FaceFile& f : faces_of(t)) {
+      out.push_back(std::to_string(static_cast<int>(f.role)) + " " + std::string(f.file) + " " +
+                    std::to_string(static_cast<int>(f.px)));
+    }
+    return out;
+  };
+  // Roles: 0 the text, 1 the ui, 2 the italic, 3 the name line.
+  CHECK(listed(Type::Serif) == std::vector<std::string>{"0 fonts\\EBGaramond-Regular.ttf 30",
+                                                        "1 fonts\\NotoSans-Regular.ttf 18",
+                                                        "2 fonts\\EBGaramond-Italic.ttf 30"});
+  CHECK(listed(Type::Plain) == std::vector<std::string>{"0 fonts\\NotoSans-Regular.ttf 30",
+                                                        "1 fonts\\NotoSans-Regular.ttf 18",
+                                                        "3 fonts\\NotoSans-SemiBold.ttf 20"});
+  // Neither carries the other's faces (O134: nobody bakes both sets), and each stays within EldenNet's eight (D139).
+  for (const FaceFile& f : faces_of(Type::Plain)) CHECK(f.file.find("Garamond") == std::string_view::npos);
+  for (const FaceFile& f : faces_of(Type::Serif)) CHECK(f.file.find("SemiBold") == std::string_view::npos);
+  CHECK(faces_of(Type::Serif).size() <= GRACEUI_FACES_ELDENNET);
+  CHECK(faces_of(Type::Plain).size() <= GRACEUI_FACES_ELDENNET);
+  CHECK(face_name("fonts\\NotoSans-SemiBold.ttf") == "NotoSans-SemiBold");
+  CHECK(face_name("EBGaramond-Italic.ttf") == "EBGaramond-Italic");
+  CHECK(face_name("fonts/NotoSans-Regular") == "NotoSans-Regular");
+}
+
 TEST_CASE("surfaces: the box: header, history, input, selection and the caret, scrolled to show it") {
   const FakeFace ff;
   const Faces faces = ff.faces();
@@ -340,7 +408,7 @@ TEST_CASE("surfaces: the Tarnished's lines in the italic face, the NPCs' upright
   Painter without;
   without.reset(panel.width, panel.height, kWhite, 0.5f, 0.5f);
   const Faces upright = serif.faces();
-  CHECK(&upright.tarnished() == &upright.serif);
+  CHECK(&upright.tarnished() == &upright.text);
   (void)paint_box(without, upright, kHd, box, EditView{}, nullptr, 0, scroll);
   CHECK(quads(without, 0.6f) == 0);
   CHECK(quads(without, 0.1f) == tarnished + npc);
