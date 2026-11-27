@@ -2003,7 +2003,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 ### S11.4 GraceUI 0.2
 
-- S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs [active]
+- S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs [done]
   - needs: S11.2.h
   - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, O99, O104, O119, O120, O125, O127, O128, O129, O130, O131, O132, O133, O135, G34, G36
   - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format. The
@@ -2119,6 +2119,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     check over EldenNet's pages as en_pages_browser. The fake game's suite under Wine: 144 of 147, the pause case fixed
     after, and the read-state and read-clock cases failing alike at the base in this container (for Lodestar). Left for
     v0.2's pages: none; the Bug report's Copy and Save stay 0.6's (S11.2.bp).
+    Done on 2026-11-27: every page this part names is built, and the GraceUI folder ships in EldenNet's packages.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
