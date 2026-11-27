@@ -2927,7 +2927,7 @@ with the design, O31 and O86, and asks again).
 
 ## O146
 
-**Where SQLite's source comes from** · *2026-11-27 · Open*
+**Where SQLite's source comes from** · *2026-11-27 · Decided by the owner*
 
 **Question.** v0.3's store builds SQLite from its amalgamation, pinned at adoption (ARCH's `en-store` row). This
 session's network refuses www.sqlite.org. **Options:**
@@ -2935,9 +2935,14 @@ session's network refuses www.sqlite.org. **Options:**
   domains), and the build fetches the official file and checks its published hash. **Recommended.**
 - (b) The owner downloads the amalgamation zip and attaches it, with the SHA3-256 shown beside it on sqlite.org.
 - (c) The amalgamation is made here from the GitHub mirror's release tag, with Tcl installed.
-Until then, the store is written and tested on Linux against the system's SQLite, for development only.
+**Decision.** (a). The owner added www.sqlite.org to the cloud environment's allowed domains the same day. SQLite is
+pinned at 3.54.1, its amalgamation `2026/sqlite-amalgamation-3540100.zip`, checked by the SHA3-256 that sqlite.org's
+download page publishes (`92281c86e2957f9b9305890f9ac04204caa7b677cc868dc326d942689df28e30`). Its licence, read on
+sqlite.org's copyright page on 2026-11-27: public domain, every contributor's affidavit on file, free for any
+purpose; no clause about AI. No development path on the system's SQLite is needed.
 
 **Owner's words.** "New environment (Recommended)" (question dialog, 2026-11-27); then "Claude didn't let me approve
-that environment." (the approval could not be given from the phone).
+that environment." (the approval could not be given from the phone); then "I've added www.sqlite.org to allowed
+domains, try again." (2026-11-27).
 
 **Follows from.** ARCH §2.3 (`en-store`); CLAUDE.md (a dependency's licence read before adoption).

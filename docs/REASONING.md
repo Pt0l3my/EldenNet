@@ -10027,3 +10027,5 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   a rollback.
 - **Until SQLite's pinned source is here** (O146), the store is written and tested on Linux against the system's
   SQLite, as a development path only; the MinGW, clang-cl and Wine runs wait for the pinned amalgamation.
+- *Later (2026-11-27):* O146 was decided the same day, as recommended: the owner allowed www.sqlite.org, and SQLite
+  3.54.1's amalgamation is pinned by its published SHA3-256. The development path on the system's SQLite is dropped.
