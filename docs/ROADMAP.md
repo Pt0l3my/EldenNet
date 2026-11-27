@@ -1399,6 +1399,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Status on 2026-11-27: active, not waiting. Half of it has passed in the owner's runs, but no package's steps hold
     the T press in the default layout (O94) or the Tab check (WHY§438): the next spikes package adds both, and the
     part waits on the owner again once it has them.
+    Changed the same day: a check through EldenNet cannot show either, as EldenNet binds T and Tab on its main path
+    and GraceUI masks a bound key from the game. Guides to the default keyboard layout disagree about Tab. So the
+    owner is asked to press both in the game without mods, in its default layout, on foot and in its menus.
 - b Spike S3, the talk observer, and the pilot persona's S6, in game [planned]
   - needs: S10.1.m, S10.1.c
   - gives: Status on 2026-11-27: planned, not waiting. There is no package for the owner to run: the build's layout
