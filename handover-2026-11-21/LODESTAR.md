@@ -88,6 +88,16 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    0x53B bit 4 behave alike). In the layout as leads (engine e816200). Open: chr_type (0x68 or 0x40), block_id (0x70,
    0xC or the moving 0x38). The first run lost its fields to empty passes at the quit (mine): a summary recomputed
    every pass must not be replaced by a pass that saw little, and a case must end as a real run ends.
+   **The owner's progress document** (asked of Lodestar by name, 2026-11-27): an artifact of the owner's,
+   private to them, titled "EldenNet Groundwork" (find it with the artifacts tools by that title; its link is
+   not kept in the repository). It explains what a Skyrim mod stands on (SKSE, the Address Library,
+   CommonLibSSE, Papyrus) and what Elden Ring and EldenNet have in their place, and carries two tracks: A, the
+   game's parts and what we know of each; B, every field the reader's catalogue names (97) with its place and
+   status. The page holds its own data as two JSON blocks, one row a line (`needs`, from roles.cpp and the
+   build's layout; `parts`), which a small script in the page renders: to refresh it, read the artifact, change
+   the rows whose status moved and the header's stamp, add a line under "Changes to this page", sweep the page
+   by hand, and publish the edit. Our labels and the layout's own numbers only; nothing of the game, of other
+   projects' code or of the owner's character. Refresh it after every round's review.
    **The twentieth round's third run, reviewed** (package 0.1.0-lodestar.27; the record's "The twentieth round's
    third run"; engine fe04479): the report whole (618 KB), all five tasks gathered. The sheet named from the
    owner's status screen (in chat only): level 0x68, the attributes from 0x3C (bare) and 0x288 (as shown),
