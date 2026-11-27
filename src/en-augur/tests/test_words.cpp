@@ -1,11 +1,13 @@
 // Augur's words (words.hpp): the golden form's vocabulary, and an event's reason at a glance.
 #include <doctest.h>
 
+#include <algorithm>
 #include <cstring>
 #include <string>
 #include <type_traits>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include "en/augur/golden.hpp"
 #include "en/augur/words.hpp"
@@ -127,4 +129,41 @@ TEST_CASE("words: every reason of every kind is a word of ours") {
   [&]<std::size_t... I>(std::index_sequence<I...>) {
     (check_index(std::integral_constant<std::size_t, I>{}), ...);
   }(std::make_index_sequence<kKindCount>{});
+}
+
+TEST_CASE("words: each kind's payload schema is what the golden form writes, kind by kind (Workshop's schemas)") {
+  // Every kind default-made: the payload's keys are kind_fields' names, in their order, and nothing else.
+  const auto check_index = [](auto index) {
+    constexpr std::size_t kIndex = decltype(index)::value;
+    using K = std::variant_alternative_t<kIndex, EventKind>;
+    GoldenNames names;
+    const auto j = event_json(event_of(K{}), [&](ChrHandle h) { return names(h); });
+    std::vector<std::string> keys;
+    for (auto it = j["payload"].begin(); it != j["payload"].end(); ++it) keys.push_back(it.key());
+    std::vector<std::string> listed;
+    for (const FieldInfo& f : kind_fields(kIndex)) {
+      listed.emplace_back(f.name);
+      CHECK_FALSE(f.type.empty());
+    }
+    INFO(kind_name(kIndex));
+    CHECK(keys == listed);
+  };
+  [&]<std::size_t... I>(std::index_sequence<I...>) {
+    (check_index(std::integral_constant<std::size_t, I>{}), ...);
+  }(std::make_index_sequence<kKindCount>{});
+  CHECK(fields_text(EventKind{PlaceEntered{}}.index()) == "place_id (u32), prev (u32 or null)");
+  CHECK(fields_text(EventKind{DecisionMade{}}.index()).empty());
+  CHECK(kind_fields(kKindCount).empty());  // past the catalogue: none
+}
+
+TEST_CASE("words: a detector's word is the rule files' own, one each") {
+  std::vector<std::string> seen;
+  for (int i = 0; i <= static_cast<int>(DetectorKind::Fact); ++i) {
+    const std::string w = to_string(static_cast<DetectorKind>(i));
+    CHECK(w != "?");
+    CHECK(std::find(seen.begin(), seen.end(), w) == seen.end());
+    seen.push_back(w);
+  }
+  CHECK(std::string(to_string(DetectorKind::DropOverWindow)) == "drop_over_window");
+  CHECK(std::string(to_string(DetectorKind::Engagement)) == "engagement");
 }

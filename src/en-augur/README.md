@@ -22,8 +22,8 @@ dynamic initialiser or an exit-time destructor), and it depends on en-proto alon
 | `sources.hpp` | §8.2 | `EventSource`, `Observations`, `AugurInput`; SnapshotDiff, Lifecycle and Timer built, FlagWatch and Pipeline the seams, H1 to H3 compiled out (`EN_HOOKS` stops the build) |
 | `augur.hpp` | §8.1, §8.9 | `AugurCtx`, `Augur::step` (§8.9's steps 1 to 4), `resolve_audience` |
 | `bus.hpp` | §8.9 | The bus (step 5), the step FIFO and its drops, the exception policy, `PersistQueue` (the store requests' policy) |
-| `golden.hpp` | §8.12 | An event in the golden files' form, handles renamed h1, h2, ... |
-| `words.hpp` | §8.12, DESIGN §14 | Augur's words, one closed vocabulary for the golden files and the F11 view (classes, sources, radii, actors, the payloads' enums, the kinds' names), and `reason`, an event's one telling fact at a glance: a word and, where the payload's telling field is one, a number (a place's id, a count, a slot), never an HP fraction, a distance or a handle |
+| `golden.hpp` | §8.12 | An event in the golden files' form, handles renamed h1, h2, ...; and each kind's payload schema as that form writes it (`kind_fields`, `fields_text`: Tools › Workshop's, held to `event_json` kind by kind) |
+| `words.hpp` | §8.12, DESIGN §14 | Augur's words, one closed vocabulary for the golden files and the F11 view (classes, sources, radii, actors, the payloads' enums, the kinds' names, the detectors' as the rule files write them), and `reason`, an event's one telling fact at a glance: a word and, where the payload's telling field is one, a number (a place's id, a count, a slot), never an HP fraction, a distance or a handle |
 
 `Augur::step(AugurInput{snapshot, life}, now, ctx, out)` takes one step of en-core's: a processed snapshot or none, and
 the lifecycle changes en-core's slice made on the same step. The world model takes the snapshot (step 1); the sources

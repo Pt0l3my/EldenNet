@@ -50,6 +50,10 @@ Lines are shown on screen alone: in the chat box and as the character speaks. In
 no log, title, notice history or search holds them. They go to your provider as
 [What a conversation sends](doc:provider#What a conversation sends) says, and nowhere else.
 
+With Developer views on, Tools › Workshop, in the browser, also shows the newest request as it was sent and its reply
+as the model wrote it, with your keys and your character's name left out. It keeps them in memory alone, until the
+next request or until the game closes, and writes them nowhere.
+
 ## Your character's name
 
 EldenNet reads your character's name from the game to tell one journey from another, keeps it in memory while the game

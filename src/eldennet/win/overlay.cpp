@@ -310,7 +310,11 @@ void fill_space(const Shell& s, const en::core::Core& core, const en::proto::Wor
   f.watcher = s.watcher_started.load(std::memory_order_relaxed);
   f.logger = s.logger_started;
   f.log_dropped = log_dropped();
-  f.recording_asked = s.settings.record_sessions;
+  // Asked to write now: by the setting at the start, an S0 session, or Workshop's Record this session (stopped there:
+  // not asked; a file that could not be opened: asked, and not writing).
+  using Why = en::proto::RecordingWhy;
+  f.recording_asked = s.record.why == Why::AtStart || s.record.why == Why::TestRun || s.record.why == Why::StartedHere ||
+                      s.record.why == Why::Failed;
   f.recording = s.recording.load(std::memory_order_relaxed);
   f.recorded = s.recorded.load(std::memory_order_relaxed);
   f.launcher = block::attached();
@@ -609,6 +613,8 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
       facts.traces = &ai_traces(s);
       fill_perf(s, core, perf);
       facts.perf = &perf;
+      // Tools › Workshop (workshop.cpp): null while Developer views are off.
+      facts.workshop = workshop_tick(s, core, latest, space->space, now);
     }
     en::overlay::Overlay::Step step =
         pages ? o.step(view, &space->space, &facts, now) : o.step(view, nullptr, nullptr, now);
@@ -627,6 +633,8 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
       }
       apply_changes(s, *space, now);
       for (en::overlay::AiRequest& r : space->space.take_requests()) ai_request(s, space->space, r);
+      // Workshop's Record this session: for core_main, after this tick (shell.cpp), the newest press winning.
+      for (const en::overlay::RecordingRequest& r : space->space.take_recording_requests()) s.record_asked = r.on;
       // The profile editor's commands (profiles.cpp): a check answered now, a write or a draft once made.
       for (en::overlay::ProfileRequest& r : space->space.take_profile_requests()) {
         profiles_request(s, core, space->space, std::move(r));

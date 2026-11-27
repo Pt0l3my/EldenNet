@@ -1,0 +1,303 @@
+# eldennet: the browser view, by GraceUI's space check (D265)
+== this PC's browser
+rail: Home: home
+rail: AI: ai.providers, ai.models, ai.selftest, ai.requests
+rail: Voice: absent
+rail: Characters: characters.named
+rail: Map: absent
+rail: History: absent
+rail: Behaviour: absent
+rail: System: system.status, system.performance, system.traces, system.logs
+rail: Tools: tools.report
+rail: Settings: settings.developer
+rail: Docs: docs
+rail: Content packs: content
+page home: present
+page ai.providers: present
+page ai.models: present
+page ai.selftest: present
+page ai.requests: present
+page characters.named: present
+page system.status: present
+page system.performance: present
+page system.traces: present
+page system.logs: present
+page tools.report: present
+page tools.workshop: absent
+page settings.developer:
+  Developer
+  Options for testing EldenNet and reporting its problems.
+  DEVELOPER
+  Developer views
+  At the next launch
+  Off
+  Record sessions
+  At the next launch
+  Off
+  Log detail
+  Errors only
+  Warnings
+  Normal
+  Detailed
+  RELATED
+  Logs
+  EldenNet's own log of this session, with nothing personal in it.
+  Status
+  Whether EldenNet is healthy on this PC and game build, and if not, why.
+page docs: present
+page content: present
+== a paired device
+rail: Home: home
+rail: AI: ai.providers, ai.models, ai.selftest, ai.requests
+rail: Voice: absent
+rail: Characters: characters.named
+rail: Map: absent
+rail: History: absent
+rail: Behaviour: absent
+rail: System: system.status, system.performance, system.traces, system.logs
+rail: Tools: tools.report
+rail: Settings: settings.developer
+rail: Docs: docs
+rail: Content packs: content
+page home: present
+page ai.providers: present
+page ai.models: present
+page ai.selftest: present
+page ai.requests: present
+page characters.named: present
+page system.status: present
+page system.performance: present
+page system.traces: present
+page system.logs: present
+page tools.report: present
+page tools.workshop: absent
+page settings.developer:
+  Developer
+  Options for testing EldenNet and reporting its problems.
+  DEVELOPER
+  Developer views
+  At the next launch
+  Off
+  Record sessions
+  At the next launch
+  Off
+  Log detail
+  Errors only
+  Warnings
+  Normal
+  Detailed
+  RELATED
+  Logs
+  EldenNet's own log of this session, with nothing personal in it.
+  Status
+  Whether EldenNet is healthy on this PC and game build, and if not, why.
+page docs: present
+page content: present
+== this PC's browser, debug.panel on
+rail: Home: home
+rail: AI: ai.providers, ai.models, ai.selftest, ai.requests
+rail: Voice: absent
+rail: Characters: characters.named
+rail: Map: absent
+rail: History: absent
+rail: Behaviour: absent
+rail: System: system.status, system.performance, system.traces, system.logs
+rail: Tools: tools.report, tools.workshop
+rail: Settings: settings.developer
+rail: Docs: docs
+rail: Content packs: content
+page home: present
+page ai.providers: present
+page ai.models: present
+page ai.selftest: present
+page ai.requests: present
+page characters.named: present
+page system.status: present
+page system.performance: present
+page system.traces: present
+page system.logs: present
+page tools.report: present
+page tools.workshop: gate: Workshop shows EldenNet's raw workings: the text sent to the model and its replies, every event, and what each character knows. It contains spoilers. Open it for this session? | Open Workshop | Go back
+page tools.workshop:
+  Spoilers
+  Workshop
+  Record this session
+  EldenNet's raw workings, for testers: the last prompt and reply, every event, the world view and more.
+  THE LAST PROMPT AND REPLY
+  The newest call of a conversation or of the profile editor, as sent and as answered. Keys and your character's name are left out.
+  Job
+  dialogue
+  Purpose
+  reply
+  Sent
+  0:20:04
+  Provider
+  lantern-box
+  Model
+  invented-lantern-a
+  Answered by
+  invented-lantern-a-0425
+  Outcome
+  Answered
+  Finish reason
+  stop
+  First words
+  0.14 s
+  Total
+  0.61 s
+  Tokens
+  812 in, 9 out, 640 cached
+  Attempts
+  1
+  Asked for
+  at most 140 tokens; temperature 0.8; 2 stop sequences
+  1. System · a cache mark after it
+  Text
+  You are the lantern keeper of an invented harbour. You speak plainly.
+  2. User
+  Text
+  As things stand now: the harbour's lamps are lit.
+  The Tarnished says: "Are the lamps lit?"
+  Reply
+  Text
+  Every one of them, since dusk.
+  As the model wrote it
+  <think>The keeper is proud of the lamps.</think>Every one of them, since dusk.
+  EVERY EVENT
+  Augur's events as the golden files write them, unfiltered, newest first.
+  Events since Developer views came on
+  3
+  Kept here
+  The newest 500
+  Dropped this session
+  0 transient, 1 keyed
+  Kind
+  All
+  LoadingEnded
+  GroupTripped
+  Struck
+  Class
+  All
+  T
+  K
+  Source
+  All
+  lifecycle
+  snapshot_diff
+  0:20:03
+  {"seq":[9840,1],"t":1203900,"t_play":1143500,"kind":"Struck","class":"K","rule":"struck.player","source":"snapshot_diff","subject":"mute#h1","object":null,"key":"struck:h1","conf":1.0,"audience":[[0,"witnessed"]],"count":1,"merged":false,"interrupts":["ambient"],"payload":{"att":"mute#h1","vic":"player","hard":false,"unseen":false,"count":1,"frac_total":0.12,"dmg_type":0}}
+  0:20:00
+  {"seq":[9811,0],"t":1200400,"t_play":1140000,"kind":"GroupTripped","class":"T","rule":null,"source":"lifecycle","subject":null,"object":null,"key":null,"conf":1.0,"audience":[],"count":1,"merged":false,"interrupts":[],"payload":{"group":"camera"}}
+  0:01:01
+  {"seq":[402,0],"t":61250,"t_play":0,"kind":"LoadingEnded","class":"T","rule":null,"source":"lifecycle","subject":null,"object":null,"key":null,"conf":1.0,"audience":[],"count":1,"merged":false,"interrupts":[],"payload":{}}
+  WORLD VIEW
+  Each world stage and flag as EldenNet reads them now, with their raw bits and verification.
+  Flag frame
+  Read
+  Journey
+  1
+  Watch list
+  version 2, 1 id
+  Region
+  Not known
+  STAGE HOLDS WHEN BOSS SPOILER RANK
+  lamps_lit T boss('lantern') lantern 1 40
+  harbour_dark F !world('lamps_lit') 0 10
+  Reads
+  All
+  T
+  U
+  Verified here
+  All
+  yes
+  no
+  ALIAS ID BLOCK WATCHED BIT EXISTS VERIFIED IN THE FILE VERIFIED HERE READS KIND NG+ SPOILER
+  boss.lantern 4100 yes 1 yes yes yes T outcome unknown 1
+  keeper.met 4700 keeper + 3 no 0 no no no U state reset 0
+  TRACK ACTIVE STEP
+  harbour lit
+  pier none
+  WHAT EACH CHARACTER KNOWS
+  Each character's known set at its active stage, by the path it knows each item, and what its prompt shows.
+  Character
+  All
+  lantern_keeper
+  CHARACTER STAGE ITEM CERTAINTY PATH OWN AFFAIRS BLOCK 5B
+  lantern_keeper base w:lamps_lit fact near yes shown
+  lantern_keeper base q:harbour.lit rumour word no offered
+  UNKNOWN CHARACTERS
+  Characters seen this session that EldenNet has no profile for, with a row of TOML for each.
+  NPCPARAM ROW ENTITY MODEL TYPE TEAM SNAPSHOTS FIRST SEEN LAST SEEN NEAREST
+  12345600 0 2010 1 6 1180 0:01:01 0:20:03 6.5 m
+  7700 1043300800 2010 1 6 40 0:01:01 0:19:50 21.0 m
+  NpcParam 12345600
+  TOML
+  [[persona]]
+  id = "new_12345600"
+  file = "personas/new_12345600.toml"
+  npc_params = [{ param = 12345600, form = "default", verified = false }]
+  enabled = true
+  NpcParam 7700, entity 1043300800
+  TOML
+  [[persona]]
+  id = "new_7700"
+  file = "personas/new_7700.toml"
+  npc_params = [{ param = 7700, form = "default", verified = false }]
+  entity_ids = [{ id = 1043300800, verified = false }]
+  enabled = true
+  Copy
+  RECORDING
+  The recording of this session's numbers, for the developers' replay tools. It holds no text and no names.
+  Recording
+  On: Record sessions was on at the start
+  File this session
+  1
+  Lines
+  4,180
+  This file's size
+  13.1 MB
+  A new file after
+  256.0 MB
+  Where
+  The recordings folder, in EldenNet's data folder
+  Record sessions
+  Lives in Developer
+  Off
+  EVENT KINDS
+  Every kind of event Augur knows, what builds it and its payload's fields, and the rules loaded.
+  KIND BUILT BY WAITS FOR PLACEHOLDERS PAYLOAD RULES
+  Struck Struck subject, attacker, victim att (actor or null), vic (actor), hard (bool), unseen (bool), count (u32), frac_total (number), dmg_type (int) 1
+  NpcSaid the Pipeline source: conversations and the call-out (v0.2 on) 0
+  RULE KIND CLASS SIGNAL DETECTOR RADIUS KEY KEPT (S) COOLDOWN (S) FILE
+  struck.player Struck K hp_frac drop_over_window combat struck:{subject} 8 0 combat.toml:12
+  RELATED
+  Developer
+  Options for testing EldenNet and reporting its problems.
+  Bug report
+  What a bug report would hold: your own words, EldenNet's versions and state, and its recent log.
+  Logs
+  EldenNet's own log of this session, with nothing personal in it.
+page settings.developer:
+  Developer
+  Options for testing EldenNet and reporting its problems.
+  DEVELOPER
+  Developer views
+  At the next launch
+  On
+  Record sessions
+  At the next launch
+  Off
+  Log detail
+  Errors only
+  Warnings
+  Normal
+  Detailed
+  RELATED
+  Logs
+  EldenNet's own log of this session, with nothing personal in it.
+  Status
+  Whether EldenNet is healthy on this PC and game build, and if not, why.
+  Workshop
+  EldenNet's raw workings, for testers: the last prompt and reply, every event, the world view and more.
+page docs: present
+page content: present

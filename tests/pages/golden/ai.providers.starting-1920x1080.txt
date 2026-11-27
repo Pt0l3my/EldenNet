@@ -43,8 +43,8 @@ stroke  rule          340, 201 1540x130  r5 w1 clip1
 text    gold          365, 221   29x20   clip1 glyphs 3 "Now"
 text    ink.faint    1842, 221    8x25   clip1 glyphs 1 "-"
 text    ink.body      365, 271  641x25   clip1 glyphs 63 "No provider yet: on Providers, add the preset's provider or one of your own."
-fill    ground.2      340, 351 1540x215  r5 clip1
-stroke  rule          340, 351 1540x215  r5 w1 clip1
+fill    ground.2      340, 351 1540x265  r5 clip1
+stroke  rule          340, 351 1540x265  r5 w1 clip1
 text    gold          365, 371   86x20   clip1 glyphs 9 "Providers"
 text    ink.faint    1842, 371    8x25   clip1 glyphs 1 "-"
 text    ink.mute      365, 396  498x25   clip1 glyphs 48 "Each key is written to this PC only, and never shown again."
@@ -52,58 +52,67 @@ line    rule          365, 431 1490x1    clip1
 text    ink.mute      365, 446  582x25   clip1 glyphs 57 "No provider yet: add the preset's provider, or one of your own below."
 line    rule          365, 491 1490x1    clip1
 text    ink.hi        365, 507   56x28   clip1 glyphs 6 "Preset"
+text    ink.mute      365, 541 1468x25   clip1 glyphs 145 "Which models do the jobs. Cloud budget, on OpenRouter, suits most players; Custom keeps what your providers file says. A new preset adds its provider to Providers, where its "
+text    ink.mute      365, 566  397x25   clip1 glyphs 41 "key goes. Default: Cloud budget, on OpenRouter."
 text    gold         1348, 509  127x25   clip1 glyphs 13 "Lives in Models"
 stroke  edge         1505, 502  350x38   r3 w1 clip1
 fill    ground.3     1506, 503  115x36   r3 clip1
 text    gold.hi      1510, 509  101x25   clip1 glyphs 11 "Cloud budget, on OpenRouter"
 text    ink.mute     1627, 509  101x25   clip1 glyphs 10 "Cloud, on NanoGPT"
 text    ink.mute     1771, 509   51x25   clip1 glyphs 6 "Custom"
-fill    ground.2      340, 586 1540x305  r5 clip1
-stroke  rule          340, 586 1540x305  r5 w1 clip1
-text    gold          365, 606  163x20   clip1 glyphs 15 "Your own provider"
-text    ink.faint    1842, 606    8x25   clip1 glyphs 1 "-"
-text    ink.mute      365, 631 1485x25   clip1 glyphs 142 "A server that speaks the OpenAI API: a cloud service at an https:// address, a server on this PC, or one on another PC of your home network by its private address, which takes "
-text    ink.mute      365, 656   59x25   clip1 glyphs 6 "no key."
-line    rule          365, 691 1490x1    clip1
-text    ink.hi        365, 707   38x28   clip1 glyphs 4 "Name"
-fill    ground.well  1155, 704  700x35   r3 clip1
-stroke  edge         1155, 704  700x35   r3 w1 clip1
-line    rule          365, 751 1490x1    clip1
-text    ink.hi        365, 767   75x28   clip1 glyphs 7 "Base URL"
-fill    ground.well  1155, 764  700x35   r3 clip1
-stroke  edge         1155, 764  700x35   r3 w1 clip1
-fill    gold         1787, 824   68x40   r3 clip1
-text    on.gold      1807, 830   28x28   clip1 glyphs 3 "Add"
-fill    ground.2      340, 911 1540x130  r5 clip1
-stroke  rule          340, 911 1540x130  r5 w1 clip1
-text    gold          365, 931  125x20   clip1 glyphs 12 "Models listed"
-text    ink.faint    1842, 931    8x25   clip1 glyphs 1 "-"
-text    ink.mute      365, 981  456x25   clip1 glyphs 45 "Press List models to ask each provider for its models."
-fill    ground.2      340,1061 1540x130  r5 clip1
-stroke  rule          340,1061 1540x130  r5 w1 clip1
-text    gold          365,1081   58x20   clip1 glyphs 6 "Health"
-text    ink.faint    1842,1081    8x25   clip1 glyphs 1 "-"
-line    rule          365,1116 1490x1    clip1
-text    ink.mute      365,1131  135x25   clip1 glyphs 14 "No provider yet."
-fill    ground.2      340,1211 1540x175  r5 clip1
-stroke  rule          340,1211 1540x175  r5 w1 clip1
-text    gold          365,1231   67x20   clip1 glyphs 7 "Related"
-line    rule          365,1261 1490x1    clip1
-text    ink.hi        380,1275   56x28   clip1 glyphs 6 "Models"
-text    ink.mute      862,1276  515x25   clip1 glyphs 50 "Which model does each job, and the preset that sets them all."
-text    gold         1820,1275    9x28   clip1 glyphs 1 "→"
-line    rule          365,1316 1490x1    clip1
-text    ink.hi        380,1330   84x28   clip1 glyphs 9 "Self-test"
-text    ink.mute      862,1331  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
-text    gold         1820,1330    9x28   clip1 glyphs 1 "→"
+fill    ground.2      340, 636 1540x305  r5 clip1
+stroke  rule          340, 636 1540x305  r5 w1 clip1
+text    gold          365, 656  163x20   clip1 glyphs 15 "Your own provider"
+text    ink.faint    1842, 656    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, 681 1485x25   clip1 glyphs 142 "A server that speaks the OpenAI API: a cloud service at an https:// address, a server on this PC, or one on another PC of your home network by its private address, which takes "
+text    ink.mute      365, 706   59x25   clip1 glyphs 6 "no key."
+line    rule          365, 741 1490x1    clip1
+text    ink.hi        365, 757   38x28   clip1 glyphs 4 "Name"
+fill    ground.well  1155, 754  700x35   r3 clip1
+stroke  edge         1155, 754  700x35   r3 w1 clip1
+line    rule          365, 801 1490x1    clip1
+text    ink.hi        365, 817   75x28   clip1 glyphs 7 "Base URL"
+fill    ground.well  1155, 814  700x35   r3 clip1
+stroke  edge         1155, 814  700x35   r3 w1 clip1
+fill    gold         1787, 874   68x40   r3 clip1
+text    on.gold      1807, 880   28x28   clip1 glyphs 3 "Add"
+fill    ground.2      340, 961 1540x130  r5 clip1
+stroke  rule          340, 961 1540x130  r5 w1 clip1
+text    gold          365, 981  125x20   clip1 glyphs 12 "Models listed"
+text    ink.faint    1842, 981    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365,1031  456x25   clip1 glyphs 45 "Press List models to ask each provider for its models."
+fill    ground.2      340,1111 1540x130  r5 clip1
+stroke  rule          340,1111 1540x130  r5 w1 clip1
+text    gold          365,1131   58x20   clip1 glyphs 6 "Health"
+text    ink.faint    1842,1131    8x25   clip1 glyphs 1 "-"
+line    rule          365,1166 1490x1    clip1
+text    ink.mute      365,1181  135x25   clip1 glyphs 14 "No provider yet."
+fill    ground.2      340,1261 1540x175  r5 clip1
+stroke  rule          340,1261 1540x175  r5 w1 clip1
+text    gold          365,1281   67x20   clip1 glyphs 7 "Related"
+line    rule          365,1311 1490x1    clip1
+text    ink.hi        380,1325   56x28   clip1 glyphs 6 "Models"
+text    ink.mute      862,1326  515x25   clip1 glyphs 50 "Which model does each job, and the preset that sets them all."
+text    gold         1820,1325    9x28   clip1 glyphs 1 "→"
+line    rule          365,1366 1490x1    clip1
+text    ink.hi        380,1380   84x28   clip1 glyphs 9 "Self-test"
+text    ink.mute      862,1381  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
+text    gold         1820,1380    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
-fill    ground.well   340,1044   60x28   r3
-stroke  edge          340,1044   60x28   r3 w1
-text    ink.body      348,1046   44x25   glyphs 5 "Enter"
-text    ink.faint     407,1045   34x25   glyphs 4 "Open"
-fill    ground.well   466,1044   42x28   r3
-stroke  edge          466,1044   42x28   r3 w1
-text    ink.body      474,1046   26x25   glyphs 3 "Esc"
-text    ink.faint     515,1045   34x25   glyphs 4 "Back"
-stroke  gold.hi      1444,  86  280x46   r5 w3 clip1
-# 90 items, 3848 vertices, 8598 indices, 4 commands; check_draw_list: passes
+fill    ground.well   340,1044   55x28   r3
+stroke  edge          340,1044   55x28   r3 w1
+fill    ink.body      354,1057    9x2   
+tri     ink.body      348,1051    7x14   <
+fill    ink.body      372,1057    9x2   
+tri     ink.body      380,1051    7x14   >
+text    ink.faint     402,1045   51x25   glyphs 6 "Change"
+fill    ground.well   477,1044   60x28   r3
+stroke  edge          477,1044   60x28   r3 w1
+text    ink.body      485,1046   44x25   glyphs 5 "Enter"
+text    ink.faint     544,1045  118x25   glyphs 11 "Go to its page"
+fill    ground.well   687,1044   42x28   r3
+stroke  edge          687,1044   42x28   r3 w1
+text    ink.body      695,1046   26x25   glyphs 3 "Esc"
+text    ink.faint     736,1045   34x25   glyphs 4 "Back"
+stroke  gold.hi      1502, 499  356x44   r5 w3 clip1
+# 99 items, 4736 vertices, 10164 indices, 4 commands; check_draw_list: passes

@@ -34,8 +34,9 @@ does, that came from the model, not from the character's profile. Pressing Esc c
   characters you may not have met, by design.
 - Nothing is counted, greyed or hinted at that you have not reached.
 - Search, page titles and the browser's addresses never carry story or conversation text.
-- The developer view (F11) is off unless you turn on Developer views. It shows EldenNet's own numbers and words, never
-  the story.
+- The developer views are off unless you turn on Developer views. The F11 view shows EldenNet's own numbers and
+  words, never the story. Tools › Workshop, in the browser alone, shows EldenNet's raw workings, spoilers among them,
+  and asks before it opens, each time you load the page.
 - These documents name no person, place or event of the game.
 
 ## No spoiler setting

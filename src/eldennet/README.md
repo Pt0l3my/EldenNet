@@ -44,7 +44,7 @@ T1 then runs, each state logged and written to the watch block for the launcher'
 8. **Connect** (`overlay.cpp`, en-overlay): GraceUI found by graceui-sys's look (its module name, an export scan, then
    `GraceUI\graceui.dll` in the game's folder, which it loads), again every 250 ms for at most 30 s, but at once when no
    copy is installed there and none is loaded (graceui-sys's own rule, `GRACEUI_SYS_STOP_IF_ABSENT`, GraceUI D164); then
-   `connect` as `eldennet`, with its floor (GraceUI 0.2.50) and the caps it uses, and, connected, the F11 view, the
+   `connect` as `eldennet`, with its floor (GraceUI 0.2.57) and the caps it uses, and, connected, the F11 view, the
    Mark's hotkey and, on the main path, the conversation's surfaces with GraceUI's own fonts read from its folder
    (below; `surfaces state=… faces=… talk=… chord=… wake=…`). One log line, `connect ok=… outcome=… how=… looks=… installed=… graceui=… view=… mark=…
    mark_bound=… world=…` (`view=unbound` when F11 was taken first, with a line `view hotkey=unbound` beside it); a
@@ -250,6 +250,17 @@ After each wake, once T1 has published the connection:
   T6 fills around each `Core::step` alone, timed by QPC in µs (`mono_us`), and the core's log in memory (its entries,
   those dropped, its capacity). Nothing of GraceUI's or the game's: the DLL registers no `on_present` callback, so it
   has no frame cost to give, and it counts none of its memory.
+- **Tools › Workshop** (`workshop.cpp`, `ai.cpp`, `shell.cpp`, `overlay.cpp`; PAGES §4.6.8, SP8; S11.4.a): en_shell's
+  `Workshop` (`workshop.hpp`) kept on T6 while the space's own `debug.panel` is on, as it publishes it (the page follows
+  the switch at once, F11 waits for the next start: O130 (a)), and emptied at the wake it goes off, one log line each
+  way (`workshop on=1|0`). `ai_submit` hands it each chat request before it is sent (the conversation's, a reply or an
+  own-initiative line, and the profile editor's drafts; never the self-test's or a model list's), `ai_pump` each of the
+  model client's events for them; the step's every one of Augur's events goes to the space's stream through it, in the
+  golden form with the session's handle names; each new snapshot's characters that bind no persona are kept with their
+  TOML; and while Workshop's world, known or kinds topic is watched, they are built from the core at most once a
+  second. Every text is scrubbed first (`ai_redact`: each configured key's value and each secret header's, then
+  en-llm's `redact_credentials`; then the playthrough's name, matched whole, en_shell's `mask_name`). `SpaceFacts::
+  workshop` is `workshop_tick`'s, null while off. Nothing of it is written, logged or recorded.
 - GraceUI gone (`poll` answers not connected or inactive): `overlay lost=1`, and nothing more is called.
 
 ## The watch block and the crash filter (O71, O90)
@@ -304,6 +315,13 @@ the commands' kinds and the Marks; the rest is counted, not rebuilt. Numbers onl
 SteamID, path, game text or param value can be written. A text look-up's answer keeps its table, id and whether it was
 found; a param row its param, id and field count; PlaythroughReady its slot, class, keepsake, play time and the name's
 length. Keyed hashes and redacted text wait for S10.2.d.
+
+Tools › Workshop's Record this session (the space's `recording.set` {on}, sensitive) starts a recording now, a new file
+of the session's stem with its header first (`recording open=1 file=<n>`, `recording from=workshop`), or flushes and
+closes the one being written (`recording open=0 why=stopped file=<n>`), in the same wake, after the overlay's tick; a
+press for what is already so changes nothing, and settings.toml is not written. Workshop shows why it is on or off
+(`Shell::record`: the setting at the start, an S0 run, started or stopped there, or a file that could not be opened),
+the file's number, lines and size; System › Status's Recording check and the bug report follow it.
 
 ## The read-only round (Lodestar's step L5; a probe build with `probe = { round = "read" }`)
 

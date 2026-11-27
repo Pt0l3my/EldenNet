@@ -37,6 +37,7 @@
 #include "en/proto/llm.hpp"
 #include "en/proto/ui.hpp"
 #include "en/proto/watch.hpp"
+#include "en/proto/workshop.hpp"
 #include "en/shell/logline.hpp"
 #include "en/shell/rings.hpp"
 #include "en/shell/settings.hpp"
@@ -208,6 +209,10 @@ struct Shell {
   std::atomic<bool> watcher_started{false};  // T10, set by T1 once it is made
   std::atomic<bool> recording{false};          // T6's recorder writes (debug.record_sessions)
   std::atomic<std::uint64_t> recorded{0};      // its lines
+  // T6's: the recorder's state for Tools › Workshop (why it is on or off, its file, lines and bytes), kept by core_main
+  // each wake; and Workshop's Record this session (recording.set), asked by the space for core_main's next look.
+  en::proto::WorkshopRecording record;
+  std::optional<bool> record_asked;
   std::atomic<OverlayLink*> overlay{nullptr};  // T1 publishes it once connected; T6 alone uses it after
   std::atomic<AiFilesRead*> ai_files{nullptr};  // T1 publishes it on the main path; T6 alone uses it after
   std::atomic<ContentRead*> content{nullptr};   // T1 publishes it on the main path; T6 takes it once
@@ -257,6 +262,19 @@ void overlay_event(const en::augur::Event& ev) noexcept;
 // T6: how many of Augur's events the view's list has taken, for the status line.
 std::uint64_t overlay_events_seen() noexcept;
 
+// ---- Tools › Workshop (workshop.cpp; PAGES §4.6.8, SP8): T6's keeping while Developer views are on ----
+// T6, from ai_submit: a chat request about to be sent (the conversation's or the profile editor's).
+void workshop_sent(Shell& s, const en::proto::LlmRequest& request, en::proto::CallPurpose purpose) noexcept;
+// T6, from ai_pump: an event of the model client's for one of those requests.
+void workshop_llm(Shell& s, const en::proto::LlmEvent& event) noexcept;
+// T6, after each step of the core: its events, for Workshop's stream.
+void workshop_events(Shell& s, const std::vector<en::augur::Event>& events) noexcept;
+// T6, each wake before the space's step: Workshop's facts, or null while Developer views are off (the keeping emptied
+// the moment they go off); the world view, the known sets and the kinds built while watched, at most once a second.
+const en::proto::WorkshopView* workshop_tick(Shell& s, const en::core::Core& core,
+                                             const en::proto::WorldSnapshot* latest, en::overlay::Space& space,
+                                             std::uint64_t now) noexcept;
+
 // ---- The AI pages (ai.cpp; PAGES §4.6.2) ----
 // T1, on the main path after Safety: providers.toml and secrets.toml from the config folder, models.toml from the
 // DLL's content\eldenring, settings.toml's text (its budget), and the WinHTTP transport, handed to T6.
@@ -283,6 +301,9 @@ void ai_change(Shell& s, en::overlay::Space& space, en::overlay::Space::Change& 
 // is paused the self-test and the model list are refused (logged; the space refuses them first, in en-proto's
 // kAiPausedSelfTest and kAiPausedModelList).
 void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest& request) noexcept;
+// T6: a text for Tools › Workshop with each configured key's value (a provider's key, a secret header's value) and
+// anything shaped like a key (en-llm's redact_credentials) replaced; its spaces and line breaks kept.
+[[nodiscard]] std::string ai_redact(Shell& s, std::string_view text) noexcept;
 
 // ---- Pause AI and the model calls' record (ai.cpp; PAGES §4.6.1, §4.6.2; D15, D18): what the pages bind ----
 // T6: Pause AI for this session, as the space's `ai.pause` with {"on": bool} asks: the core takes it in the same wake

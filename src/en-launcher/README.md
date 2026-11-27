@@ -68,7 +68,7 @@ loads a DLL that is not ours (a stand-in for another mod, such as the tests' `ve
    GraceUI's own `tools/release/manifest.py` writes it in every GraceUI build's folder (D165): `graceui`, `abi`, and
    `[files]` with each file's size and SHA-256 are read; `protocol`, `caps` and `released` are GraceUI's, accepted
    whatever they hold and never a failure. Every listed file must match (in the order of their names; a name outside the
-   folder refuses the file), its ABI major 1 and its version at least EldenNet's floor, 0.2.3 (en-proto's
+   folder refuses the file), its ABI major 1 and its version at least EldenNet's floor, 0.2.57 (en-proto's
    `graceui_pin.hpp`). The log says `preflight graceui=ok|no_folder|no_manifest|unreadable|
    file_missing|size_differs|hash_differs|abi_major|too_old version=… abi=… files=… checked=…`. What fails is told in
    **E12**, in E08's manner (what is missing or damaged, by its name inside GraceUI's folder, never a path, and what to

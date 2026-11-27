@@ -56,7 +56,9 @@ namespace {
 constinit std::atomic<Shell*> g_shell{nullptr};
 
 // The recording (ARCH §7.5; debug.record_sessions): recordings\<date>-<time>-<pid>-<n>.ensnap.jsonl, plain JSON Lines
-// of numbers-only records (record.hpp), rotated past 256 MB. Written by T6 alone.
+// of numbers-only records (record.hpp), rotated past 256 MB. Written by T6 alone. Opened at the core's start when the
+// setting (or an S0 session) asks, and, since Tools › Workshop's Record this session (recording.set), opened or closed
+// in the session too: each opening a new file of the session's stem, its header first.
 class Recorder {
  public:
   explicit Recorder(const Shell& s) : s_(s) {}
@@ -108,9 +110,19 @@ class Recorder {
   void flush() {
     if (f_ != INVALID_HANDLE_VALUE) FlushFileBuffers(f_);
   }
+  // The file being written flushed and closed (Workshop's Record this session, turned off).
+  void close() {
+    if (f_ == INVALID_HANDLE_VALUE) return;
+    FlushFileBuffers(f_);
+    CloseHandle(f_);
+    f_ = INVALID_HANDLE_VALUE;
+    log(Line("recording").flag("open", false).word("why", "stopped").num("file", file_));
+  }
   [[nodiscard]] bool on() const noexcept { return f_ != INVALID_HANDLE_VALUE; }
   [[nodiscard]] std::uint64_t lines() const noexcept { return lines_; }
   [[nodiscard]] std::uint64_t refused() const noexcept { return refused_; }
+  [[nodiscard]] std::uint64_t file() const noexcept { return file_; }
+  [[nodiscard]] std::uint64_t bytes() const noexcept { return bytes_; }
 
  private:
   const Shell& s_;
@@ -153,8 +165,37 @@ DWORD WINAPI core_main(void* param) noexcept {
     auto latest = std::make_unique<en::proto::WorldSnapshot>();
     Recorder rec(s);
     // An S0 session (s0b, s0c, s0d) records whatever settings.toml says: its rules read the recording (spike.cpp).
-    const bool record = s.settings.record_sessions || en::shell::s0_session(block::spike());
-    if (record && !rec.open()) log(Line("recording").flag("open", false), LogLevel::Warn);
+    const bool s0 = en::shell::s0_session(block::spike());
+    const bool record = s.settings.record_sessions || s0;
+    using Why = en::proto::RecordingWhy;
+    s.record.why = Why::Off;
+    if (record) {
+      if (rec.open()) {
+        s.record.why = s.settings.record_sessions ? Why::AtStart : Why::TestRun;
+      } else {
+        s.record.why = Why::Failed;
+        log(Line("recording").flag("open", false), LogLevel::Warn);
+      }
+    }
+    // Workshop's Record this session (recording.set, overlay.cpp): a recording opened now, or the one written closed;
+    // a press that asks for what is already so changes nothing.
+    const auto take_record = [&] {
+      if (!s.record_asked) return;
+      const bool on = *s.record_asked;
+      s.record_asked.reset();
+      if (on && !rec.on()) {
+        if (rec.open()) {
+          s.record.why = Why::StartedHere;
+          log(Line("recording").word("from", "workshop"));
+        } else {
+          s.record.why = Why::Failed;
+          log(Line("recording").flag("open", false).word("from", "workshop"), LogLevel::Warn);
+        }
+      } else if (!on && rec.on()) {
+        rec.close();
+        s.record.why = Why::StoppedHere;
+      }
+    };
     std::deque<en::proto::GameCommand> outbox;
     std::uint64_t last_tick = mono_ms();
     std::uint64_t last_status = 0;
@@ -191,6 +232,7 @@ DWORD WINAPI core_main(void* param) noexcept {
         overlay_change(en::core::to_string(c.what), change_word(c), c.at);  // the F11 view's list
       }
       for (const en::augur::Event& e : out.events) overlay_event(e);  // Augur's events, for the F11 view's list
+      workshop_events(s, out.events);  // and every one of them, unfiltered, for Tools › Workshop while it is on
       conversation_out(s, out);  // its requests to the model client, its cancels, its commits logged as numbers
       ui_model = std::move(out.ui);
     };
@@ -296,6 +338,12 @@ DWORD WINAPI core_main(void* param) noexcept {
       // EldenNet's space (its pages), which reads the recorder's state too.
       s.recording.store(rec.on(), std::memory_order_relaxed);
       s.recorded.store(rec.lines(), std::memory_order_relaxed);
+      s.record.on = rec.on();
+      s.record.file = rec.file();
+      s.record.lines = rec.lines();
+      s.record.refused = rec.refused();
+      s.record.bytes = rec.on() ? rec.bytes() : 0;
+      s.record.rotate_bytes = en::shell::kRecordingRotateBytes;
       ui_in.clear();
       overlay_tick(s, *core, cs.snapshots > 0 ? latest.get() : nullptr, tripped, now, ui_in);
       // The pages' behaviour changes, each on the behaviour the core holds now, from the next step (ARCH §11.6).
@@ -305,6 +353,7 @@ DWORD WINAPI core_main(void* param) noexcept {
       }
       s.behaviour_edits.clear();
       take_pause(now);  // asked by a command of this wake's
+      take_record();    // likewise Workshop's Record this session
       profiles_tick(s, *core);  // the profile editor's writes answered, and the content loaded again after one
       // What the player did goes to the core in the same wake, and the newest model to the surfaces; what they raise
       // (PageShown, Close) goes to the core at once, and the model is drawn again (a few rounds at most).

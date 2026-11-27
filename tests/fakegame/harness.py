@@ -1702,8 +1702,9 @@ def check_graceui_events(r):
 # danger, which keeps GraceUI's menu shut, invariant 9): F5 opens GraceUI's menu on EldenNet's Home; Page Down past AI's
 # four pages and Characters › Named NPCs (S7.2.b) to System › Status, then Performance and Traces (PAGES §4.6.7), and
 # once more to Logs, drawn in game since GraceUI 0.2.50 (D257: its rows, as the browser's are, and its filter bar),
-# where Log detail's shortcut row has the focus (the tail's filter bar comes with its rows, after the page opened, and
-# focus does not jump to it, D256); Enter on it opens its home, Settings › Developer, with the row focused; → there
+# where the tail's Level filter has the first focus (since GraceUI 0.2.55, D262: a stream's bar comes before its rows,
+# and the first focus is the body's first control), and three ↓ (the bar's search, Log detail's section) reach Log
+# detail's shortcut row; Enter on it opens its home, Settings › Developer, with the row focused; → there
 # changes it (a command to EldenNet, answered); Page Up to Tools › Bug report (PAGES §4.6.8), the category before
 # Settings; then Page Down three times, back to Settings › Developer and on to Docs and Content packs at the rail's foot
 # (PAGES §4.6.9); F5 closes the menu. While it runs, a browser of the tests' own (tests/pages/browser.py) joins
@@ -1712,9 +1713,9 @@ def check_graceui_events(r):
 # commands, and gives Bug report words of the case's own, which reach no other topic, no log line, no recording and no
 # file. The overrides folder holds a disable.toml of our own, which turns the test persona off, and a folder nested past
 # the four levels the DLL reads, which it leaves out.
-PAGES_KEYS = ("600:f5,720:next,765:next,810:next,855:next,900:next,930:next,990:next,1050:next,1140:next,1260:return,"
-              "1380:right,1500:prior,1620:next,1680:next,1800:next,1920:f5")
-PAGES_REPORTS = "360,660,960,1020,1080,1200,1320,1440,1560,1650,1740,1860,1980"
+PAGES_KEYS = ("600:f5,720:next,765:next,810:next,855:next,900:next,930:next,990:next,1050:next,1140:next,1160:down,"
+              "1180:down,1200:down,1260:return,1380:right,1500:prior,1620:next,1680:next,1800:next,1920:f5")
+PAGES_REPORTS = "360,660,960,1020,1080,1230,1320,1440,1560,1650,1740,1860,1980"
 PAGES_FRAMES = 2100
 # What happened, in words of the case's own (invented), with a line break and a fragment no page shows.
 PAGES_TYPED = ("The lamplighter's line stopped halfway, after I asked about the teal kettle.\n"
@@ -1926,7 +1927,7 @@ def check_graceui_pages(r):
                  want_grace(r, 960, menu_open=1, menu_page="system.status") +
                  want_grace(r, 1020, menu_open=1, menu_page="system.performance") +
                  want_grace(r, 1080, menu_open=1, menu_page="system.traces") +
-                 want_grace(r, 1200, menu_open=1, menu_page="system.logs", menu_focused="shortcut:debug.log_level",
+                 want_grace(r, 1230, menu_open=1, menu_page="system.logs", menu_focused="shortcut:debug.log_level",
                             shows="11") +
                  want_grace(r, 1320, menu_open=1, menu_page="settings.developer",
                             menu_focused="setting:debug.log_level") +
@@ -1983,6 +1984,192 @@ case("launcher-eldennet-graceui-pages", LGAME + ["--dll", "{eldennetdll}", "--co
           "versions and a document whole; Bug report's parts) and sending commands, each answered; Bug report's words "
           "in its preview alone, never in another topic, a log line, a recording or a file; settings.toml written "
           "after the pages' quiet")
+# Tools › Workshop (PAGES §4.6.8, SP8; S11.4.a; GraceUI D258), at the title screen, with Developer views and Record
+# sessions on from the start (settings.toml). A browser of the tests' own reads the page data, where Workshop is in the
+# browser alone, shown with debug.panel, behind its gate in the owner's words and under the Spoilers ribbon, in Tools
+# after Bug report; then Workshop's topics, which EldenNet fills while the switch is on: the recorder's state, every
+# event of the start in the golden form, the shipped catalogue's flags, the kinds and the rules loaded. Record this
+# session off, then on again: a second recording file of the session, its header first. Meanwhile F5's menu in game:
+# Page Down ten times to Tools › Bug report, where Tools' rail holds no Workshop, once more to Settings › Developer,
+# whose Related leaves it out, F5 closes; Workshop's own words are drawn at no report. Once the menu has closed, the
+# browser turns Developer views off: each watched Workshop state topic is published empty, the events stream cleared
+# by an empty batch past its rows, recording.set is refused, and settings.toml says the switch is off. The page and its
+# topics are pc_only (D264), and the unknown characters' TOML has Copy alone (D263); the editor case's paired device
+# checks that the device sees none of it. The gate drawn before the page and the ribbon at
+# its top are GraceUI's web view's, checked by GraceUI's own DOM case for D258: here, the page data that drives them.
+WORKSHOP_KEYS = "600:f5," + ",".join("%d:next" % (720 + 45 * i) for i in range(10)) + ",1200:next,1320:f5"
+WORKSHOP_REPORTS = "360,660,1160,1260,1380"
+WORKSHOP_FRAMES = 1800
+# What the menu draws, looked for at each report (MenuShows, at most four texts): Workshop's name (in Tools' rail and
+# its own page; Settings › Developer's help names it too), Bug report's, and two of Workshop's own words, its
+# description's and a section's title, which nothing in game may draw.
+WORKSHOP_SHOWS = "Workshop|Bug report|raw workings|Every event"
+WORKSHOP_STATES = ("workshop.exchange", "workshop.world", "workshop.known", "workshop.unknown", "workshop.status",
+                   "workshop.kinds")
+WORKSHOP_GATE = ("Workshop shows EldenNet's raw workings: the text sent to the model and its replies, every event, and "
+                 "what each character knows. It contains spoilers. Open it for this session?")
+
+
+def status_has(paths, needle, deadline):
+    """Whether the fake game's status file came to hold `needle` before `deadline`."""
+    while time.monotonic() < deadline:
+        try:
+            with open(paths["status"], encoding="utf-8", errors="replace") as f:
+                if needle in f.read():
+                    return True
+        except OSError:
+            pass
+        time.sleep(0.25)
+    return False
+
+
+def browse_workshop(paths, out):
+    port = grace_port(paths, time.monotonic() + 120)
+    if port is None:
+        out["error"] = "no report named the server running"
+        return
+    view = None
+    E = "eldennet"
+    recorder = lambda b: {i.get("label"): i.get("value") for i in b.get("recording", {}).get("items", [])}
+    try:
+        view = browser.Browser(port, timeout=10)
+        out["welcome"] = view.welcome
+        for topic in ("pages", "settings") + WORKSHOP_STATES:
+            view.sub(E, topic)
+        out["pages"] = view.wait(E, "pages", lambda b: bool(b.get("pages")), timeout=20)
+        out["settings"] = view.wait(E, "settings", lambda b: "values" in b, timeout=20)
+        for topic in WORKSHOP_STATES:
+            out[topic] = view.wait(E, topic, lambda b: True, timeout=20)
+        out["world"] = view.wait(E, "workshop.world", lambda b: bool(b.get("flags", {}).get("rows")), timeout=20)
+        out["kinds"] = view.wait(E, "workshop.kinds", lambda b: bool(b.get("kinds", {}).get("rows")), timeout=20)
+        view.sub(E, "workshop.events")
+        out["events"] = view.state(E, "workshop.events", timeout=20)
+        # Record this session, off and on again (GraceUI D256's header switch sends {"on": ...} flipped).
+        out["rec_off"] = view.command(E, "recording.set", {"on": False})
+        out["status_off"] = view.wait(E, "workshop.status", lambda b: b.get("recording_on") is False, timeout=10)
+        out["rec_on"] = view.command(E, "recording.set", {"on": True})
+        out["status_on"] = view.wait(E, "workshop.status", lambda b: b.get("recording_on") is True and
+                                     recorder(b).get("Recording") == "On: started here", timeout=10)
+        # Once the menu's walk is over (its last report), Developer views off: Workshop's topics cleared.
+        out["walked"] = status_has(paths, "FAKEGAME grace frame=1380 ", time.monotonic() + 90)
+        out["panel_off"] = view.command(E, "settings.set", {"key": "debug.panel", "value": False})
+        out["cleared"] = view.wait(E, "workshop.status", lambda b: b == {}, timeout=10)
+        for topic in WORKSHOP_STATES:
+            out["cleared." + topic] = view.wait(E, topic, lambda b: b == {}, timeout=10)
+        out["rec_refused"] = view.command(E, "recording.set", {"on": True})
+        out["settings_after"] = view.wait(E, "settings", lambda b: b.get("values", {}).get("debug.panel") is False,
+                                          timeout=10)
+    except (browser.BrowserError, OSError, ValueError, KeyError) as e:
+        out["error"] = repr(e)
+    finally:
+        if view is not None:
+            out["received"] = list(view.received)
+            view.close()
+
+
+def check_workshop(r):
+    d = r.during
+    failures = []
+    if "error" in d:
+        failures.append("the browser: %s" % d["error"])
+    pages = d.get("pages") or {}
+    page = next((p for p in pages.get("pages", []) if p.get("id") == "tools.workshop"), {})
+    need(page.get("browser_only") is True and page.get("pc_only") is True and page.get("shown_with") == "debug.panel"
+         and page.get("gate") == {"words": WORKSHOP_GATE, "confirm": "Open Workshop"}
+         and page.get("ribbon") == "Spoilers" and page.get("increment") == "0.2" and page.get("live") is True,
+         "Workshop's page data: %s" % {k: page.get(k) for k in ("browser_only", "pc_only", "shown_with", "gate",
+                                                                 "ribbon")},
+         failures)
+    tools = next((c for c in pages.get("categories", []) if c.get("id") == "tools"), {})
+    need(tools.get("pages") == ["tools.report", "tools.workshop"] and pages.get("minor") == 20,
+         "Tools' pages: %s (minor %s)" % (tools.get("pages"), pages.get("minor")), failures)
+    action = (page.get("actions") or [{}])[0]
+    need(action.get("command") == "recording.set" and action.get("label") == "Record this session" and
+         action.get("state") == {"topic": "workshop.status", "field": "recording_on"} and
+         "recording.set" in pages.get("sensitive_commands", []), "Workshop's header switch: %s" % action, failures)
+    topics = {x.get("id"): x for x in pages.get("topics", [])}
+    need(all(topics.get(x, {}).get("pc_only") is True for x in WORKSHOP_STATES + ("workshop.events",)),
+         "Workshop's topics on this PC alone: %s" % {x: topics.get(x, {}).get("pc_only") for x in WORKSHOP_STATES},
+         failures)
+    blocks = [b for s in page.get("sections", []) for b in s.get("blocks", []) if "share" in b]
+    need([(b.get("topic"), b.get("share")) for b in blocks] == [("workshop.unknown", {"copy": True})],
+         "Workshop's Copy: %s" % blocks, failures)
+    need((d.get("settings") or {}).get("values", {}).get("debug.panel") is True, "Developer views at the start: %s" %
+         (d.get("settings") or {}).get("values"), failures)
+    # The topics while the switch is on: the recorder from the start, the catalogue's flags unread (the title: no
+    # frame), the kinds and rules loaded, nothing asked of a model yet, and events of the start in the golden form.
+    status = d.get("workshop.status") or {}
+    rec = {i.get("label"): i.get("value") for i in status.get("recording", {}).get("items", [])}
+    need(status.get("recording_on") is True and rec.get("Recording") == "On: Record sessions was on at the start" and
+         rec.get("Where") == "The recordings folder, in EldenNet's data folder", "the recorder's state: %s" % rec,
+         failures)
+    flags = (d.get("world") or {}).get("flags", {}).get("rows", [])
+    need(flags and all(f.get("reads") == "U" and f.get("verified_here") == "no" for f in flags) and
+         any(f.get("alias") == "boss.godrick" for f in flags), "the world view's flags: %s" % flags[:3], failures)
+    kinds = (d.get("kinds") or {}).get("kinds", {}).get("rows", [])
+    rules = (d.get("kinds") or {}).get("rules", {}).get("rows", [])
+    need(len(kinds) == 50 and rules and all(r.get("where", "").count(":") == 1 for r in rules) and
+         any(k.get("name") == "Struck" and "frac_total" in k.get("fields", "") for k in kinds),
+         "the kinds (%d) and rules (%d)" % (len(kinds), len(rules)), failures)
+    need((d.get("workshop.exchange") or {}) == {}, "an exchange with no call: %s" % d.get("workshop.exchange"),
+         failures)
+    rows = (d.get("events") or {}).get("rows", [])
+    need(rows and all(json.loads(x.get("line", "{}")).get("kind") == x.get("kind") for x in rows) and
+         all(re.search(r"#[0-9a-fA-F]{6,}", x.get("line", "")) is None for x in rows),
+         "the events stream: %s" % rows[:2], failures)
+    # Record this session: off, then on, a second file of the session with its header first.
+    need((d.get("rec_off") or {}).get("ok") is True and (d.get("rec_on") or {}).get("ok") is True,
+         "recording.set: %s %s" % (d.get("rec_off"), d.get("rec_on")), failures)
+    failures += any_line(r, "ELDENNET", "recording", open=0, why="stopped", file=1)
+    failures += any_line(r, "ELDENNET", "recording", **{"from": "workshop"})
+    files = en_recordings(r)
+    need(len(files) == 2, "%d recordings, wanted 2: the start's and Workshop's" % len(files), failures)
+    for path in files:
+        with open(path, encoding="utf-8") as f:
+            first = f.readline()
+        need('"k":"header"' in first, "%s's first line: %s" % (os.path.basename(path), first[:80]), failures)
+    # Developer views off: every watched state topic {} once, the stream cleared past a gap, recording.set refused.
+    need(d.get("walked") is True and (d.get("panel_off") or {}).get("ok") is True, "the switch turned off: %s" %
+         d.get("panel_off"), failures)
+    for topic in WORKSHOP_STATES:
+        need(d.get("cleared." + topic) == {}, "%s after the switch: %s" % (topic, d.get("cleared." + topic)), failures)
+    batches = [json.loads(x) for x in d.get("received", []) if '"workshop.events"' in x]
+    batches = [b for b in batches if b.get("t") == "rows"]
+    last_seq = max((row.get("seq", 0) for b in batches for row in b.get("rows", [])), default=0)
+    need(any(b.get("rows") == [] and b.get("from_seq", 0) > last_seq + 1 for b in batches),
+         "no empty batch past the stream's rows: %s" % [(b.get("from_seq"), len(b.get("rows", []))) for b in batches],
+         failures)
+    need((d.get("rec_refused") or {}).get("error") == "not_now", "recording.set while off: %s" % d.get("rec_refused"),
+         failures)
+    failures += any_line(r, "ELDENNET", "workshop", on=1)
+    failures += any_line(r, "ELDENNET", "workshop", on=0)
+    path = os.path.join(r.paths["appdata"], "EldenNet", "config", "settings.toml")
+    try:
+        with open(path, encoding="utf-8") as f:
+            written = f.read()
+    except OSError:
+        written = ""
+    need(re.search(r"panel = false", written), "settings.toml after the switch: %r" % written, failures)
+    # In game: Tools › Bug report and Settings › Developer, never Workshop (in the browser alone, D258).
+    failures += (want_grace(r, 660, menu_open=1, menu_page="home", shows="0000") +
+                 want_grace(r, 1160, menu_open=1, menu_page="tools.report", shows="0100") +
+                 want_grace(r, 1260, menu_open=1, menu_page="settings.developer", shows=lambda s: s[2:] == "00") +
+                 want_grace(r, 1380, menu_open=0))
+    failures += check_lines(("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main", "pages": 0}),
+                            ("LAUNCHER", "end", {"kind": "clean"}))(r)
+    return failures + en_log_is_clean(r)
+
+
+case("launcher-eldennet-graceui-workshop", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--stay-title", "--press-keys", WORKSHOP_KEYS, "--grace-report", WORKSHOP_REPORTS,
+          frames=WORKSHOP_FRAMES),
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),
+     env=dict(GRACE_ENV, FAKEGAME_SHOWS=WORKSHOP_SHOWS), timeout=240,
+     prepare=install_eldennet(EN_PANEL, then=install_graceui), during=browse_workshop, check=check_workshop,
+     what="Tools › Workshop through GraceUI: in the browser alone, shown with Developer views, gated in the owner's "
+          "words, under the Spoilers ribbon; its topics filled while the switch is on (the recorder, every event, the "
+          "flags, the kinds); Record this session off and on, a second file; never drawn in game; and, the switch "
+          "turned off, each topic cleared, the stream emptied, recording.set refused")
 # EldenNet's AI pages (S11.4.a's second to fourth slices; PAGES §4.6.2), at the title screen, against a fake model
 # server of the tests' own on loopback (tests/pages/fake_models.py) with invented models, which the models.toml installed
 # beside the DLL names for the Cloud budget preset's provider. A browser of the tests' own adds the preset's provider and
@@ -1994,19 +2181,20 @@ case("launcher-eldennet-graceui-pages", LGAME + ["--dll", "{eldennetdll}", "--co
 # waits for a model of its list, which it picks (D193), refused first for one not listed; sees the changed mark on that
 # job's rows alone (D198); and is refused Remove on a row unconfirmed (GraceUI's server) and on providers jobs use
 # (EldenNet's words). Then GraceUI's menu opens AI › Providers (F5, Page Down), which draws Set and Not needed, tries
-# Remove on the server of its own (Down to it, Enter twice: D192), refused, opens Models, steps Memory's provider picker
+# Remove on the server of its own (Up to it, Enter twice: D192), refused, opens Models, steps Memory's provider picker
 # on to that server (Down to it, →) and its model picker on to the first of its models (Down, →), whose help ends with
 # the default in words, and runs the self-test from Self-test's header action (Enter). Then the browser sees both jobs'
 # rows changed, resets each job (one by its model row, one by its provider row), sees no row changed, removes the server
 # of its own, chooses the NanoGPT preset, whose provider joins, and removes the unused one with its key, confirmed. Both
 # keys' values must then be nowhere: no topic, log line, recording, report or file.
-# On Providers, Down six times from Add to the server of its own's Remove: since GraceUI 0.2.18 (D214) the form's
-# field is typed in game, one stop more than at 0.2.12.
+# On Providers, Up once from the preset's shortcut, the page's first focus since GraceUI 0.2.55 (D262: its body's first
+# control, never a header action; Add was it before), to the server of its own's Remove, the row's stop before it.
 # On Models, Down 17 times from the preset to Memory's provider: each card's head and its four rows (GraceUI D202).
-AI_KEYS = ("3120:f5,3240:next,3360:down,3390:down,3420:down,3450:down,3480:down,3510:down,3600:return,3660:return,"
+# On Self-test, Up once from its first section's label (its first focus since D262) to its header action, Run.
+AI_KEYS = ("3120:f5,3240:next,3360:up,3600:return,3660:return,"
            "3780:next,"
            + ",".join("%d:down" % (3900 + 30 * i) for i in range(17)) + ",4500:right,4620:down,4680:left,4800:next,"
-           "4920:return,5400:f5")
+           "4830:up,4920:return,5400:f5")
 # The early reports name GraceUI's server to the browser (grace_port), so that its first part ends long before the menu's
 # presses need the provider it adds.
 AI_REPORTS = "600,900,1200,1500,1800,2460,3060,3180,3300,3540,3720,3840,4440,4560,4740,4860,5340,5460"
@@ -2261,8 +2449,8 @@ def check_graceui_ai(r):
     need(cards == [(slot, title, slot, "ai.jobs", slot) for slot, title in (
         ("dialogue", "Conversation"), ("bark_live", "Quick lines"), ("bark_pool", "Prepared lines"),
         ("memory", "Memory"), ("selftest", "Self-test"))], "the Models page's cards: %s" % cards, failures)
-    # The page data's minor: protocol 1.16's since Logs' filter bar on its stream (GraceUI D257).
-    need(body("pages").get("minor") == 16 and [s.get("id") for s in models.get("sections", [])][:2] == ["now", "preset"]
+    # The page data's minor: the floor's, protocol 1.20's (GraceUI D264: Workshop on this PC alone).
+    need(body("pages").get("minor") == 20 and [s.get("id") for s in models.get("sections", [])][:2] == ["now", "preset"]
          and len(models.get("sections", [])) == 7, "the Models page's sections: %s (minor %s)" %
          ([s.get("id") for s in models.get("sections", [])], body("pages").get("minor")), failures)
     need(body("first_status").get("sentence", "").startswith("No provider yet"),
@@ -2411,13 +2599,13 @@ def check_graceui_ai(r):
     need(counts["refused"] == 1 and counts["unknown"] == 0 and counts["models"] >= 3 and counts["chats"] >= 2 and
          counts["json"] >= 1 and counts["open_models"] >= 2 and counts["open_chats"] >= 1,
          "the fake server answered %s" % counts, failures)
-    # In game: F5's menu on Home; AI › Providers, which draws a row's key as Not needed, never a key's fragment; Down to
+    # In game: F5's menu on Home; AI › Providers, which draws a row's key as Not needed, never a key's fragment; Up to
     # the server of the case's own's Remove, Enter twice, refused (a job uses it); Models, Down past each card's head and
     # rows to Memory's provider picker, →, Down to its model picker, ←, the cards drawing a chip and a live status
     # (D202); Self-test's Run self-test. The menu watched the pages' topics.
     failures += (want_grace(r, 3060, eldennet=1, server=1, spaces=1, menu_open=0) +
                  want_grace(r, 3180, menu_open=1, menu_page="home") +
-                 want_grace(r, 3300, menu_open=1, menu_page="ai.providers", menu_focused="action:add",
+                 want_grace(r, 3300, menu_open=1, menu_page="ai.providers", menu_focused="shortcut:ai.preset",
                             shows="0100") +
                  want_grace(r, 3540, menu_open=1, menu_page="ai.providers",
                             menu_focused="row:providers/%s/remove" % AI_OWN) +
@@ -2737,7 +2925,7 @@ def check_graceui_pause(r):
                                  "state": {"topic": "status", "field": "ai_paused"}, "home": "home"}],
          "the quick switches: %s" % pages.get("quick"), failures)
     need([pg.get("id") for pg in pages.get("pages", []) if pg.get("live")] ==
-         ["home", "system.performance", "system.traces", "ai.requests"],
+         ["home", "system.performance", "system.traces", "ai.requests", "tools.workshop"],
          "the live pages: %s" % [pg.get("id") for pg in pages.get("pages", []) if pg.get("live")], failures)
     need("ai.pause" not in pages.get("sensitive_commands", []), "ai.pause is sensitive", failures)
     items = lambda b: {i.get("label"): i.get("value") for i in (b or {}).get("items", [])}
@@ -2882,6 +3070,111 @@ case("launcher-eldennet-graceui-talk-calls", LGAME + ["--dll", "{eldennetdll}", 
           "PAGES' words with the persona as shown, the model on its provider, its times and reported tokens, shown, "
           "its text the page shown alone; no frame of the calls or the usage holds the line typed, the prompt's words "
           "or the server's address")
+
+
+# Tools › Workshop after a conversation's reply (PAGES §4.6.8; S11.4.a): the first conversation's run with Developer
+# views on, the line typed holding the character's name. A browser of the tests' own reads workshop.exchange once the
+# reply has ended: the request as sent (its job, its purpose, its system and user messages, the test persona's
+# personality and the line typed among them, the character's name masked whole) and the reply as the fake server wrote
+# it, with its provider and model; the events stream of the session; and the unknown characters' rows with their TOML.
+# No Workshop frame holds the character's name, the server's address or its path; the prompt's words and the line typed
+# reach no log line.
+WORKSHOP_TYPED = "Good evening from Test Wanderer"  # --type-at's list takes no comma
+WORKSHOP_TALK_SETTINGS = 'schema = 2\ndebug = { panel = true, record_sessions = false, log_level = "debug" }\n'
+
+
+def browse_talk_workshop(paths, out):
+    port = grace_port(paths, time.monotonic() + 120)
+    if port is None:
+        out["error"] = "no report named the server running"
+        return
+    view = None
+    E = "eldennet"
+    items = lambda b: {i.get("label"): i.get("value") for i in b.get("facts", {}).get("items", [])}
+    try:
+        view = browser.Browser(port, timeout=10)
+        for topic in ("workshop.exchange", "workshop.unknown", "workshop.known", "workshop.status"):
+            view.sub(E, topic)
+        view.sub(E, "workshop.events")
+        out["exchange"] = view.wait(E, "workshop.exchange", lambda b: items(b).get("Outcome") == "Answered" and
+                                    items(b).get("Purpose") == "reply", timeout=150)
+        out["unknown"] = view.wait(E, "workshop.unknown", lambda b: True, timeout=15)
+        out["known"] = view.wait(E, "workshop.known", lambda b: True, timeout=15)
+    except (browser.BrowserError, OSError, ValueError, KeyError) as e:
+        out["error"] = repr(e)
+    finally:
+        if view is not None:
+            out["received"] = list(view.received)
+            view.close()
+
+
+def check_talk_workshop(r):
+    server = TALK_RUNS.pop(r.paths["case"], None)
+    counts = server.snapshot() if server is not None else {}
+    if server is not None:
+        server.close()
+    d = r.during
+    failures = []
+    if "error" in d:
+        failures.append("the browser: %s" % d["error"])
+    failures += check_lines(("ELDENNET", "content_load", {"ok": 1, "personas": 1, "bound": 1}),
+                            ("LAUNCHER", "end", {"kind": "clean"}))(r)
+    failures += any_line(r, "ELDENNET", "commit", kind="npc_said", page=0)
+    failures += any_line(r, "ELDENNET", "workshop", on=1)
+    need(counts.get("scripted", 0) == 1, "the model server answered %s" % counts, failures)
+    x = d.get("exchange") or {}
+    facts = {i.get("label"): i.get("value") for i in x.get("facts", {}).get("items", [])}
+    need(facts.get("Job") == "dialogue" and facts.get("Provider") == "lantern-box" and
+         facts.get("Model") == "invented-lantern-a" and facts.get("Outcome") == "Answered" and "Total" in facts,
+         "the exchange's facts: %s" % facts, failures)
+    parts = x.get("parts", {}).get("parts", [])
+    texts = [f.get("value", "") for p in parts for f in p.get("fields", [])]
+    prompt = "\n".join(f.get("value", "") for p in parts if p.get("id") != "reply" for f in p.get("fields", []))
+    need(any(p.get("label", "").endswith("System") or "System ·" in p.get("label", "") for p in parts) and
+         any("User" in p.get("label", "") for p in parts), "the messages' parts: %s" %
+         [p.get("label") for p in parts], failures)
+    need(TALK_PROMPT_BIT in prompt, "the prompt as sent holds the persona's personality (%r)" % TALK_PROMPT_BIT,
+         failures)
+    need("Good evening from [the Tarnished's name]" in prompt, "the line typed, its name masked: %r" %
+         [l for l in prompt.splitlines() if "Good evening" in l], failures)
+    reply = next((p for p in parts if p.get("id") == "reply"), {})
+    shown = "".join(TALK_REPLY).strip()
+    need(reply.get("fields") and reply["fields"][0].get("value", "").strip() == shown and all(f.get("code") for f in
+                                                                                  reply["fields"]),
+         "the reply as written: %s" % reply.get("fields"), failures)
+    for row in (d.get("unknown") or {}).get("rows", {}).get("rows", []):
+        need(isinstance(row.get("param"), int) and "Wanderer" not in json.dumps(row), "an unknown row: %s" % row,
+             failures)
+    for part in (d.get("unknown") or {}).get("toml", {}).get("parts", []):
+        toml = part.get("fields", [{}])[0].get("value", "")
+        need(toml.startswith("[[persona]]\n") and "npc_params" in toml, "an unknown character's TOML: %r" % toml,
+             failures)
+    # No Workshop frame holds the character's name, the server's address or its path.
+    for text in d.get("received", []):
+        if '"workshop.' not in text:
+            continue
+        for bit in ("Wanderer", "127.0.0.1", "/own/"):
+            need(bit not in text, "a Workshop frame holds %r" % bit, failures)
+    need(any('"workshop.events"' in text and '"rows":[{' in text for text in d.get("received", [])),
+         "no event reached Workshop's stream", failures)
+    # The prompt's words and the line typed: on Workshop alone, never in the log.
+    text = "\n".join(l for l in r.lines if l.startswith("ELDENNET "))
+    need(TALK_PROMPT_BIT.split()[0] not in text.split() and "evening" not in text.split(),
+         "the log holds the prompt or the line typed", failures)
+    return failures + en_log_is_clean(r)
+
+
+case("launcher-eldennet-graceui-talk-workshop", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--calm", "--press-keys", TALK_KEYS, "--type-at", "1560:" + WORKSHOP_TYPED,
+          "--grace-report", TALK_CALLS_REPORTS, frames=2700),
+     program="{launcher}", needs=GRACE_NEEDS + ("eldennet_probe",), toolchains=("clang-cl",),
+     env=dict(GRACE_ENV, ELDENNET_TEST_REALM="eval"), timeout=240,
+     prepare=install_eldennet(WORKSHOP_TALK_SETTINGS, probe=True, then=install_talk), during=browse_talk_workshop,
+     check=check_talk_workshop,
+     what="Tools › Workshop after the first conversation's reply, Developer views on: the request as sent, its "
+          "messages with the persona's personality and the line typed, the character's name masked whole; the reply "
+          "as written, with its provider and model; the session's events and unknown characters; no Workshop frame "
+          "holding the name or the server's address, and the prompt's words in no log line")
 
 
 # System › Traces and System › Performance after a conversation's reply (PAGES §4.6.7; S11.4.a): the first
@@ -3177,7 +3470,7 @@ case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--conso
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),
      env=dict(GRACE_ENV, FAKEGAME_SHOWS="{text_ai_shows}"), timeout=300,
      prepare=install_eldennet(AI_SETTINGS, then=install_ai), during=browse_ai, check=check_graceui_ai,
-     what="EldenNet's AI pages through GraceUI 0.2.53 against a fake model server on loopback: AI › Models as one "
+     what="EldenNet's AI pages through GraceUI 0.2.58 against a fake model server on loopback: AI › Models as one "
           "card per job with its chip and live status, a provider added from its preset (No key yet), a wrong key on "
           "its row refused (Refused; the cards Failing) and the right one set (Ready), a server of the case's own "
           "on this PC from the form (Not needed, no key), the self-test and the model lists, a job given that server "
@@ -3186,7 +3479,7 @@ case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--conso
           "the self-test; then the picks reset (a fallback by its picker's Default), no row changed, a new preset, and "
           "the unused providers removed; either key in no topic, log line, recording, report or file, and drawn "
           "nowhere in the menu")
-# The profile editor (S7.2.b) and the sensitive marks (S11.4.e), through GraceUI 0.2.53 with its listener at home on
+# The profile editor (S7.2.b) and the sensitive marks (S11.4.e), through GraceUI 0.2.58 with its listener at home on
 # 127.0.0.2 alone (the fake game's --grace-lan, GraceUI loaded first with the launcher's --also, Other devices on in its
 # own settings). A browser of the tests' own on this PC reads Characters › Named NPCs (the shipped pilot's row, its
 # general profile and the editor's document at revision 0), checks notes holding a banned word (a warning), saves them
@@ -3196,20 +3489,22 @@ case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--conso
 # back; the sentence naming someone the notes do not is left out). In game, F5's menu opens Named NPCs, goes into the
 # editor, types into the notes' field and saves (the document at revision 2, the file holding the typed words), then
 # opens GraceUI's Browser view page and pairs a device; that device, on 127.0.0.2, is refused EldenNet's sensitive
-# commands and settings ("Only on the PC the game runs on.") but may read the pages and check a profile. No player's
-# text, notes or draft in the log.
-# The menu's presses, by the stops GraceUI 0.2.53 gives: F5 on Home; Page Down past AI's four pages to Named NPCs, its
+# commands and settings ("Only on the PC the game runs on.") but may read the pages and check a profile; Tools › Workshop
+# is not in its page data and its watch of a Workshop topic is refused (pc_only, GraceUI 0.2.57's D264), while this PC's
+# page data holds the page. No player's text, notes or draft in the log.
+# The menu's presses, by the stops GraceUI 0.2.58 gives: F5 on Home; Page Down past AI's four pages to Named NPCs, its
 # list's row (the pilot's) chosen; → into the detail, on the Profile tab; nine ↓ past the General profile and Your notes
 # sections and the editor's Save, Check, Restore, Reset, notes and Draft to the notes' field; Enter edits it, the typing
 # goes in at its end, Enter ends it; six ↑ back to Save, Enter saves. Then Page Down to System › Status, ← into the rail,
 # eight ↓ (Performance, Traces, Logs, Tools, Settings, Docs, Content packs) to GraceUI's own pages at its foot (WHY§600:
-# a ↓ a row of the rail), Enter, two Page Down to Browser view, → into the page, five ↓ to Pair a device, Enter: the
-# sheet shows the code.
+# a ↓ a row of the rail), Enter, two Page Down to Browser view, → into the page, on its first control (Browser view's
+# switch, since GraceUI 0.2.55's D262, never its header action), three ↓ to Pair a device, Enter: the sheet shows the
+# code.
 EDITOR_KEYS = ("600:f5,720:next,765:next,810:next,855:next,900:next,1020:right,1080:down,1110:down,1140:down,"
                "1170:down,1200:down,1230:down,1260:down,1290:down,1320:down,1440:return,1800:return,1920:up,1950:up,"
                "1980:up,2010:up,2040:up,2070:up,2160:return,2340:next,2460:left,2520:down,2550:down,2580:down,"
                "2610:down,2640:down,2670:down,2700:down,2730:down,2760:return,"
-               "2880:next,2940:next,3060:right,3120:down,3150:down,3180:down,3210:down,3240:down,3300:return")
+               "2880:next,2940:next,3060:right,3120:down,3150:down,3180:down,3300:return")
 EDITOR_REPORTS = "660,960,1050,1380,1500,1860,2130,2280,2400,2490,2640,2820,3000,3290,3360,3660,3960,4260,4560"
 EDITOR_FRAMES = 4620
 EDITOR_SETTINGS = 'schema = 2\ndebug = { panel = false, record_sessions = false, log_level = "debug" }\n'
@@ -3305,6 +3600,16 @@ def browse_editor(paths, out):
         out["phone_save"] = phone.command("eldennet", "profile.save",
                                           {"target": "persona.kale", "rev": 2, "doc": {"instructions": None}})
         out["phone_reset"] = phone.command("eldennet", "profile.reset", {"target": "persona.kale", "rev": 2})
+        # Tools › Workshop on this PC alone (GraceUI 0.2.57's pc_only, D264; O132): out of the device's page data, and
+        # its watch of a Workshop topic refused; this PC's page data holds it.
+        phone.sub("eldennet", "pages")
+        out["phone_pages"] = phone.wait("eldennet", "pages", lambda b: bool(b.get("pages")), timeout=10)
+        phone.sub("eldennet", "workshop.status")
+        out["phone_workshop"] = phone.next(lambda f: (f.get("t") == "error" and "Only on the PC" in f.get("detail", ""))
+                                           or (f.get("t") in ("state", "rows") and f.get("topic") == "workshop.status"),
+                                           timeout=10)
+        view.sub("eldennet", "pages")
+        out["pc_pages"] = view.wait("eldennet", "pages", lambda b: bool(b.get("pages")), timeout=10)
     except (browser.BrowserError, OSError, ValueError, KeyError) as e:
         out["error"] = repr(e)
     finally:
@@ -3385,6 +3690,19 @@ def check_graceui_editor(r):
     need(d.get("phone_level", {}).get("ok") is True, "an unmarked setting from the device: %s" % d.get("phone_level"),
          failures)
     need(d.get("phone_check", {}).get("ok") is True, "a check from the device: %s" % d.get("phone_check"), failures)
+    # Tools › Workshop on this PC alone (pc_only, D264): not in the device's page data, nor its topics, nor a Related
+    # link to it; its watch of workshop.status refused with GraceUI's words; this PC's page data holds the page.
+    phone_pages = d.get("phone_pages") or {}
+    ids = [p.get("id") for p in phone_pages.get("pages", [])]
+    need(ids and "tools.workshop" not in ids and "tools.report" in ids and
+         not any(str(t.get("id", "")).startswith("workshop.") for t in phone_pages.get("topics", [])) and
+         "tools.workshop" not in json.dumps(phone_pages), "the device's page data: %s" % ids, failures)
+    refused = d.get("phone_workshop") or {}
+    need(refused.get("t") == "error" and refused.get("code") == "not_now" and
+         refused.get("detail", "").endswith("Only on the PC the game runs on."),
+         "the device's watch of workshop.status: %s" % refused, failures)
+    need("tools.workshop" in [p.get("id") for p in (d.get("pc_pages") or {}).get("pages", [])],
+         "this PC's page data: %s" % [p.get("id") for p in (d.get("pc_pages") or {}).get("pages", [])], failures)
     # The log: each command by its target, revision and code, the writes and the loads; never the player's text, notes or
     # the draft. Nothing of the refused commands reached EldenNet.
     for kv in ({"what": "check", "result": "ok"}, {"what": "save", "result": "ok"}, {"what": "save", "result": "conflict"},
@@ -3407,7 +3725,7 @@ case("launcher-eldennet-graceui-editor", LGAME + ["--also", "{gracedll}", "--dll
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),
      env=dict(GRACE_ENV, FAKEGAME_SHOWS="{text_editor_shows}"), timeout=300,
      prepare=install_eldennet(EDITOR_SETTINGS, then=install_editor), during=browse_editor, check=check_graceui_editor,
-     what="EldenNet's profile editor through GraceUI 0.2.53: Characters › Named NPCs read and the pilot's notes "
+     what="EldenNet's profile editor through GraceUI 0.2.58: Characters › Named NPCs read and the pilot's notes "
           "checked, saved as a layer of the player's own, a stale save and an out-of-range length refused, and a draft "
           "from a local model server; in game, the notes typed and saved from F5's menu; a device paired at home "
           "refused EldenNet's sensitive commands and settings")
