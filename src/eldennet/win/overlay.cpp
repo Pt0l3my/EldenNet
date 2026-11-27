@@ -15,7 +15,6 @@
 //   quiet (D14). The space holds the log's lines from T1's first, through T11's tail, whether GraceUI answered or not.
 #include <map>
 #include <optional>
-#include <span>
 #include <string>
 #include <vector>
 
@@ -48,6 +47,7 @@ struct OverlayLink {
   bool lost = false;
   GraceUiStatus refused = GRACEUI_OK;
   GraceUiStatus page_refused = GRACEUI_OK;
+  std::uint32_t plain_changes = 0;  // the surfaces' changes of Plain text logged (D268)
 };
 
 namespace {
@@ -403,33 +403,24 @@ void apply_changes(Shell& s, SpaceState& st, std::uint64_t now) {
 }
 
 // GraceUI's own font files, from the folder its graceui.dll was loaded from (Game\GraceUI\fonts\): the surfaces'
-// faces are GraceUI's (WHY§364 (2)), registered by EldenNet as its scaled faces. Empty where GraceUI ships none: the
-// italic below GraceUI 0.2.36 (D241), when the Tarnished's lines are drawn upright.
-struct GraceFonts {
-  std::string serif;
-  std::string sans;
-  std::string italic;
-};
-GraceFonts grace_fonts() {
-  GraceFonts f;
+// faces are GraceUI's (WHY§364 (2)), registered by EldenNet as its scaled faces, of the type connect chooses (O134:
+// EB Garamond Regular and Italic with Noto Sans Regular, or, with GraceUI's Plain text on, Noto Sans Regular and
+// SemiBold), each read only when that type names it. Empty where GraceUI ships none: the italic below GraceUI 0.2.36
+// (D241), when the Tarnished's lines are drawn upright. No reader without GraceUI's folder.
+en::overlay::Surfaces::Fonts grace_fonts() {
   HMODULE grace = GetModuleHandleW(L"graceui.dll");
-  if (grace == nullptr) return f;
+  if (grace == nullptr) return {};
   wchar_t path[MAX_PATH];
   const DWORD n = GetModuleFileNameW(grace, path, MAX_PATH);
-  if (n == 0 || n >= MAX_PATH) return f;
+  if (n == 0 || n >= MAX_PATH) return {};
   std::wstring folder(path, n);
   const std::size_t at = folder.find_last_of(L"\\/");
-  if (at == std::wstring::npos) return f;
+  if (at == std::wstring::npos) return {};
   folder.resize(at);
-  f.serif = read_text(folder + L"\\fonts\\EBGaramond-Regular.ttf", GRACEUI_FACE_BYTES_MAX).value_or(std::string());
-  f.sans = read_text(folder + L"\\fonts\\NotoSans-Regular.ttf", GRACEUI_FACE_BYTES_MAX).value_or(std::string());
-  f.italic = read_text(folder + L"\\fonts\\EBGaramond-Italic.ttf", GRACEUI_FACE_BYTES_MAX).value_or(std::string());
-  return f;
-}
-
-std::span<const unsigned char> bytes_of(const std::string& s) noexcept {
-  const void* data = s.data();
-  return std::span<const unsigned char>(static_cast<const unsigned char*>(data), s.size());
+  return [folder](std::string_view file) {
+    std::wstring wide(file.begin(), file.end());  // faces_of's names: ASCII, under GraceUI's folder
+    return read_text(folder + L"\\" + wide, GRACEUI_FACE_BYTES_MAX).value_or(std::string());
+  };
 }
 
 const char* close_word(en::proto::CloseReason r) noexcept { return en::proto::to_string(r); }
@@ -471,11 +462,9 @@ void connect_overlay(Shell& s, bool banner_path) noexcept {
     // alone, so that the browser never gets it there (PAGES §4.4, GraceUI §7.2 item 1).
     options.space_views = banner_path ? GRACEUI_VIEW_GAME : GRACEUI_VIEW_GAME | GRACEUI_VIEW_BROWSER;
     // The conversation's surfaces (WHY§364, part C), on the main path alone: at L1 nothing speaks.
-    GraceFonts fonts;
     if (!banner_path && found.api) {
       options.surfaces = true;
-      fonts = grace_fonts();
-      options.fonts = en::overlay::Surfaces::Fonts{bytes_of(fonts.serif), bytes_of(fonts.sans), bytes_of(fonts.italic)};
+      options.fonts = grace_fonts();
     }
     en::overlay::Report r;
     en::overlay::Overlay* o = en::overlay::Overlay::connect(found.api, options, r);
@@ -490,9 +479,16 @@ void connect_overlay(Shell& s, bool banner_path) noexcept {
     if (options.surfaces) {
       const en::overlay::SurfacesReport& sr = r.surfaces;
       log(Line("surfaces").word("state", sr.state).num("faces", sr.faces).num("face_status", sr.face_status)
-              .flag("fonts", !fonts.serif.empty()).flag("italic", sr.italic).word("talk", sr.talk)
+              .flag("fonts", sr.files != 0).flag("italic", sr.italic).word("talk", sr.talk)
               .word("chord", sr.chord).flag("wake", sr.wake),
           std::string_view(sr.state) == "ready" ? LogLevel::Info : LogLevel::Warn);
+      // The faces chosen for the session (O134), by their files' names: the serif's, or Plain text's with GraceUI's
+      // Plain text on at connect; "graceui" where GraceUI's notices' face stands in.
+      if (std::string_view(sr.state) == "ready") {
+        log(Line("faces").word("type", en::overlay::surfaces::to_string(sr.type)).flag("plain_cap", sr.plain_cap)
+                .num("files", sr.files).word("text", sr.text).word("name", sr.name).word("tarnished", sr.tarnished)
+                .word("ui", sr.ui));
+      }
     }
     // F11 taken first (D164): the view is made, but nothing opens it until the player binds its hotkey in GraceUI.
     if (o->view_ready() && !o->view_bound()) log(Line("view").word("hotkey", "unbound"), LogLevel::Warn);
@@ -655,6 +651,16 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
       log(Line("view").word("refused", "submit_or_panel").num("status", step.refused), LogLevel::Warn);
     }
     link->refused = step.refused;
+    // GraceUI's Plain text changed in the session (D268): the faces stay the type chosen at connect until the next
+    // launch (O134), so nothing is registered or uploaded for it (GraceUI's invariant 11).
+    const en::overlay::Surfaces* sf = o.surfaces();
+    if (sf != nullptr && sf->plain_text_changes() != link->plain_changes) {
+      link->plain_changes = sf->plain_text_changes();
+      const bool same = sf->plain_text_now() == (sf->type() == en::overlay::surfaces::Type::Plain);
+      log(Line("plain_text").flag("on", sf->plain_text_now())
+              .word("faces", en::overlay::surfaces::to_string(sf->type()))
+              .word("effect", same ? "none" : "next_launch"));
+    }
     if (step.lost) {
       link->lost = true;
       log(Line("overlay").flag("lost", true), LogLevel::Warn);

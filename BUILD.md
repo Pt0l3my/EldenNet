@@ -150,8 +150,11 @@ cmake --build build-cl
   after one, `-workshop` Tools › Workshop (its page data, its topics while Developer views are on, Record this session
   off and on, never in game by its words and by its id, GraceUI 0.2.62's `GraceUI_Test_MenuPage` through the fake
   game's `FAKEGAME_PAGES`, cleared once the switch is off) and `-talk-workshop` Workshop's request and reply after
-  one: F5's menu and, from Linux, a browser of the tests' own (`tests/pages/browser.py`) on GraceUI's server at the
-  port the fake game's report names. Every
+  one, and `-plain` GraceUI's Plain text kept on in GraceUI's own `user\settings.json` before the launch (the subtitles
+  and the chat box in Noto Sans Regular and SemiBold, O134, named by the DLL's `faces` line; turned off from a browser
+  in the session, noted for the next launch, with no face registered or texture uploaded): F5's menu and, from Linux,
+  a browser of the tests' own (`tests/pages/browser.py`) on GraceUI's server at the port the fake game's report names.
+  Every
   GraceUI case sets `GRACEUI_TEST_PORT=free` (GraceUI 0.2.31's D234) in the game's environment, so the test build serves
   the browser view on a loopback port the system has free, never `dashboard.port`'s default (8642), and two trees can
   run these cases at once; GraceUI's settings file is left as it is.

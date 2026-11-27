@@ -105,17 +105,50 @@ struct Face {
   [[nodiscard]] const GraceUiGlyph* find(char32_t cp) const noexcept;
 };
 
-// The surfaces' faces: the serif's (the page, the history and the input) and the sans's (the box's header, the hint),
-// either of which may be GraceUI's notices' face when EldenNet's own could not be registered; and the serif's italic,
-// for the Tarnished's lines (NPC §10.1), where GraceUI's folder has it (GraceUI 0.2.36, D241): without it they are the
-// serif's, upright.
+// The surfaces' faces, by role: the text's (the page, the history and the input) and the ui's (the box's header, the
+// hint), either of which may be GraceUI's notices' face when EldenNet's own could not be registered; the italic, for
+// the Tarnished's lines (NPC §10.1), where GraceUI's folder has it (GraceUI 0.2.36, D241): without it they are the
+// text's, upright; and the name line's, with Plain text on at launch: without it the name line is the text's.
 struct Faces {
-  Face serif;
-  Face sans;
+  Face text;
+  Face ui;
   Face italic;
-  [[nodiscard]] bool usable() const noexcept { return serif.usable() && sans.usable(); }
-  [[nodiscard]] const Face& tarnished() const noexcept { return italic.usable() ? italic : serif; }
+  Face name;
+  [[nodiscard]] bool usable() const noexcept { return text.usable() && ui.usable(); }
+  [[nodiscard]] const Face& tarnished() const noexcept { return italic.usable() ? italic : text; }
+  [[nodiscard]] const Face& name_line() const noexcept { return name.usable() ? name : text; }
 };
+
+// ---- The type: GraceUI's serif faces, or its Plain text (O134; GraceUI D267, D268) ----
+
+// What the subtitles and the chat box are set in for the session: GraceUI's serif faces, or Plain text's sans faces
+// when the player has GraceUI's Plain text on (GraceUI › Menu) and GraceUI says so at connect (ABI 1.9's plain_text,
+// behind has_cap("plain-text"), GraceUI 0.2.61). Chosen once, at connect: a change in the session takes effect at the
+// next launch, so that no face is registered after warm-up (GraceUI's invariant 11) and nobody carries both sets.
+enum class Type : std::uint8_t { Serif, Plain };
+[[nodiscard]] Type type_at_connect(bool plain_text_cap, std::uint32_t plain_text) noexcept;
+[[nodiscard]] const char* to_string(Type t) noexcept;  // "serif", "plain"
+
+// A face EldenNet registers: its role, its font file in GraceUI's folder, and the size it is baked at (at 1080 lines
+// and the default Menu size; GRACEUI_FACE_SCALED scales it with the display). EldenNet ships no font file.
+enum class Role : std::uint8_t { Text, Ui, Italic, Name };
+struct FaceFile {
+  Role role;
+  std::string_view file;  // relative to GraceUI's folder, as GraceUI names it (eldennet-changes §33, §69, §94)
+  float px;
+};
+inline constexpr float kTextFacePx = 30.0f;  // the text's, the page's size (the history's and the input's scale down)
+inline constexpr float kUiFacePx = 18.0f;    // the ui's: the box's header and the hint
+inline constexpr float kNameFacePx = 20.0f;  // Plain text's name line, at its own size
+// A type's faces, in their order of registration. The serif: EB Garamond Regular for the text, Noto Sans Regular for
+// the ui, EB Garamond Italic for the Tarnished's lines. Plain text, as GraceUI's menu takes it (D267: SemiBold for
+// its display and title roles, Regular for prose): Noto Sans Regular for the text and the ui, and Noto Sans SemiBold
+// for the name line, the speaker's name over the page; the Tarnished's lines stay the text's, told by their colour
+// alone, as with no italic (NPC §10.1), since GraceUI ships no sans italic and a heavier face would make them the
+// louder voice.
+[[nodiscard]] std::span<const FaceFile> faces_of(Type t) noexcept;
+// A font file's name for the log, without its folder or extension ("NotoSans-SemiBold").
+[[nodiscard]] std::string_view face_name(std::string_view file) noexcept;
 
 // ---- Text ----
 

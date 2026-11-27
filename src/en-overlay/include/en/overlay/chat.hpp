@@ -4,24 +4,25 @@
 // GraceUI). surfaces.hpp lays them out; this calls GraceUI. Overlay (overlay.hpp) owns one and hands it its events.
 //
 // - At connect, on T1 (EldenNet's registration window): a small white texture of its own, for the solid shapes; its
-//   faces (GraceUI's own EB Garamond and Noto Sans, and EB Garamond Italic where GraceUI's folder has it, 0.2.36's
-//   D241, from GraceUI's folder, as GRACEUI_FACE_SCALED faces, before warm-up: GraceUI eldennet-changes §33, §69); the
-//   hotkeys talk (T, with the pad chord D-pad Up then View behind has_cap("pad-chords"), §47) and skip (Tab), by their
-//   stable action ids and players' names (§48, §49).
+//   faces, GraceUI's own files from its folder as GRACEUI_FACE_SCALED faces, before warm-up (GraceUI
+//   eldennet-changes §33, §69, §94): EB Garamond and Noto Sans, and EB Garamond Italic where GraceUI's folder has it
+//   (0.2.36's D241), or, with GraceUI's Plain text on at connect (O134; ABI 1.9's plain_text, D268), Noto Sans
+//   Regular and SemiBold (surfaces.hpp's faces_of); the hotkeys talk (T, with the pad chord D-pad Up then View
+//   behind has_cap("pad-chords"), §47) and skip (Tab), by their stable action ids and players' names (§48, §49).
 // - On T6, each event poll gives it: the talk hotkey opens (OpenChat, by the key or the pad chord as GraceUI's
 //   hotkey_by says, D243), Tab skips the page up; while the box holds input, GraceUI's holder events (D176): keys,
 //   characters and the pad to the box's own Dear ImGui context, Enter sends, Esc and the pad's B close, and the
-//   holder's end closes with its reason; the display's event (D180); a hotkey changed (D210), whose words the hint
-//   takes from describe_hotkey.
+//   holder's end closes with its reason; the display's event (D180), whose Plain text is noted and changes no face
+//   until the next launch (D268); a hotkey changed (D210), whose words the hint takes from describe_hotkey.
 // - On T6, after the core's step (`show`): the newest model drawn, each panel submitted at most every 100 ms; the box's
 //   input asked for when the model opens it (request_input with the holder's events, the box's own panel shown first),
 //   refused and not now answered as Close; the box closed by the model answered as Close{Shut} with its draft; the
 //   caret set for the IME while the box holds input; and PageShown on a Speech page's first submitted frame.
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
-#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -42,9 +43,6 @@ inline constexpr std::string_view kNameTalk = "Talk";
 inline constexpr std::string_view kNameSkip = "Skip the page";
 // The chat box's pad chord (NPC §5.6, O11; GraceUI D204): D-pad Up, the anchor, then View (XInput's BACK).
 inline constexpr std::uint32_t kTalkChord = GRACEUI_PAD_CHORD(0x0001u, 0x0020u);
-inline constexpr float kSerifDesignPx = 30.0f;  // EldenNet's serif face, baked for the page's text (the rest scale down)
-                                                // and its italic, at the same size, for the Tarnished's lines
-inline constexpr float kSansDesignPx = 18.0f;   // its sans face: the box's header and the hint
 
 // The box's input line, on its own headless Dear ImGui context (GraceUI §31 item 3): fed one holder event at a time,
 // each followed by a frame, so that every key and character is taken in order. Never drawn: the box draws the line from
@@ -86,6 +84,15 @@ struct SurfacesReport {
   std::uint32_t faces = 0;    // EldenNet's faces registered (0 to 3)
   bool italic = false;        // the italic among them (GraceUI's folder has it from 0.2.36)
   GraceUiStatus face_status = GRACEUI_NOT_YET;  // the last register_face's answer (too_late after GraceUI's warm-up)
+  std::uint32_t files = 0;    // font files read, of those the type names (one file serves two roles in Plain text)
+  bool plain_cap = false;     // GraceUI says Plain text (has_cap("plain-text"), 0.2.61)
+  surfaces::Type type = surfaces::Type::Serif;  // the faces' type for the session (O134)
+  // The face each role draws with, by its file's name (surfaces.hpp's face_name), "graceui" for GraceUI's notices'
+  // face where none of EldenNet's is registered; the name line and the Tarnished's lines fall back to the text's.
+  std::string_view text = "graceui";
+  std::string_view ui = "graceui";
+  std::string_view name = "graceui";
+  std::string_view tarnished = "graceui";
   const char* talk = "off";   // "bound", "unbound"
   const char* chord = "off";  // "asked" (with the key), "no_cap", "refused"
   bool wake = false;          // GraceUI's wait handle (ABI 1.5)
@@ -93,11 +100,9 @@ struct SurfacesReport {
 
 class Surfaces {
  public:
-  struct Fonts {
-    std::span<const unsigned char> serif;  // GraceUI's own EB Garamond Regular, as the DLL read it from GraceUI's folder
-    std::span<const unsigned char> sans;   // GraceUI's own Noto Sans Regular
-    std::span<const unsigned char> italic;  // GraceUI's own EB Garamond Italic (0.2.36, D241); empty below it
-  };
+  // GraceUI's own font files, read by the DLL from GraceUI's folder: a file's bytes by its name there ("fonts\\..."),
+  // empty where the folder has none. Asked only for the files of the type chosen at connect (faces_of).
+  using Fonts = std::function<std::string(std::string_view file)>;
   // On T1 at connect, before any submit: null when the caps it needs are missing or a step fails (`report` says why).
   [[nodiscard]] static std::unique_ptr<Surfaces> make(const graceui::Api& api, GraceUiConsumer me, const Fonts& fonts,
                                                       const GraceUiConnectAnswer& answer, SurfacesReport& report);
@@ -115,6 +120,11 @@ class Surfaces {
   void fault() noexcept;
 
   [[nodiscard]] void* wake() const noexcept { return wake_; }  // GraceUI's wait handle, or null
+  // The faces' type chosen at connect, and GraceUI's Plain text as its display events have said it since, with how
+  // many times it changed: a change is noted, and the faces stay as they are until the next launch (D268, O134).
+  [[nodiscard]] surfaces::Type type() const noexcept { return type_; }
+  [[nodiscard]] bool plain_text_now() const noexcept { return plain_now_; }
+  [[nodiscard]] std::uint32_t plain_text_changes() const noexcept { return plain_changes_; }
   [[nodiscard]] bool holding() const noexcept { return holding_; }
   [[nodiscard]] std::uint32_t talk_hotkey() const noexcept { return talk_; }
   [[nodiscard]] std::uint32_t skip_hotkey() const noexcept { return skip_; }
@@ -157,10 +167,15 @@ class Surfaces {
   graceui::Api api_;
   GraceUiConsumer me_ = 0;
   std::uint64_t white_ = 0;
-  std::uint32_t serif_face_ = 0;
-  std::uint32_t sans_face_ = 0;
-  std::uint32_t italic_face_ = 0;  // 0: none, and the Tarnished's lines are drawn upright
+  std::uint32_t text_face_ = 0;
+  std::uint32_t ui_face_ = 0;
+  std::uint32_t italic_face_ = 0;  // 0: none, and the Tarnished's lines are drawn upright in the text's face
+  std::uint32_t name_face_ = 0;    // 0: none (the serif's type), and the name line is the text's
   surfaces::Faces faces_;
+  surfaces::Type type_ = surfaces::Type::Serif;
+  bool plain_cap_ = false;
+  bool plain_now_ = false;
+  std::uint32_t plain_changes_ = 0;
   std::uint32_t talk_ = 0;
   std::uint32_t skip_ = 0;
   std::uint32_t talk_vk_ = kKeyTalk;

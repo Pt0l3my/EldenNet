@@ -14,7 +14,8 @@ It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendo
 marks (D264), which an older GraceUI does not read, with 0.2.56's Copy (D263), 0.2.55's Logs' Level filter with its own
 choices (D262), 0.2.51's browser-only Workshop (D258), 0.2.50's filter bar on Logs' stream, 0.2.49's header switch, Docs' document block and Bug report's prose
 field and preview, the profile editor's families, slow commands, editor block and chosen row, on 0.2.17's wait handle;
-0.2.36's italic face where GraceUI's folder has it, and 0.2.38's word for what pressed a hotkey behind its cap): its
+0.2.36's italic face where GraceUI's folder has it, 0.2.38's word for what pressed a hotkey and 0.2.61's Plain text
+behind their caps): its
 look for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's
 size (`graceui_sys.hpp`), and the headless Dear ImGui helper (`graceui_imgui.hpp`). It links no hook library and no Dear
 ImGui backend and hooks nothing (R12, GraceUI's invariant 16); it never links en-core or en-gal, so it can never reach
@@ -89,7 +90,7 @@ The view takes no input (D142): F11 shows it and hides it.
   corner and a half-pixel fringe each side fading to nothing, as Dear ImGui's anti-aliased shapes; the sides cover the
   pixels a square rectangle does). The lower third (a name line in gold, upper case, +0.08 em, and two wrapped lines,
   with a shadow; the card's "…"; no ground, as NPC §10.1 has it), the box (its header "Speak to … — heard by: …", the
-  history strip's newest lines, the Tarnished's in EB Garamond Italic where GraceUI has it and upright otherwise, a
+  history strip's newest lines, the Tarnished's in the italic where GraceUI has it and upright otherwise, a
   waiting line greyed, the input with its selection and caret, scrolled so the caret shows, or the strip alone), and
   the hint ("[T] Speak — …", its key boxed in the words describe_hotkey gives, under the
   marker's diamond, at (0.50 W, 0.68 H): no render feed yet). The fades are stepped at T6's pace (120 ms in, a 120 ms
@@ -99,10 +100,16 @@ The view takes no input (D142): F11 shows it and hides it.
   the rest goes to the editor; the holder's end by its reason; the opening key's own character within 100 ms
   swallowed (NPC §5.1).
 - **Through GraceUI, on T6** (`chat.hpp`, Windows): at connect, in the registration window, the white texture and
-  GRACEUI_FACE_SCALED faces, GraceUI's own EB Garamond (30 px) and Noto Sans (18 px) as the DLL reads them from
-  GraceUI's folder (too late after warm-up: then GraceUI's notices' face), and its EB Garamond Italic (30 px) where the
-  folder has it (GraceUI 0.2.36, D241; three of the eight faces EldenNet may register, D139, graceui.h's
-  GRACEUI_FACES_ELDENNET since 0.2.39; none below it, and the Tarnished's lines are drawn upright); the hotkeys `talk`
+  GRACEUI_FACE_SCALED faces of the type GraceUI's Plain text asks for at connect (O134; ABI 1.9's `plain_text` behind
+  `has_cap("plain-text")`, GraceUI 0.2.61's D268, so an older GraceUI gets the serif), the DLL reading from GraceUI's
+  folder only the files that type names (`surfaces.hpp`'s `faces_of`; too late after warm-up: then GraceUI's notices'
+  face): the serif's, GraceUI's own EB Garamond (30 px) and Noto Sans (18 px), and its EB Garamond Italic (30 px)
+  where the folder has it (GraceUI 0.2.36, D241; three of the eight faces EldenNet may register, D139, graceui.h's
+  GRACEUI_FACES_ELDENNET since 0.2.39; none below it, and the Tarnished's lines are drawn upright); or Plain text's,
+  Noto Sans Regular for the text (30 px) and for the header and the hint (18 px), and Noto Sans SemiBold (20 px) for
+  the page's name line, as GraceUI's menu takes SemiBold for its titles (D267), the Tarnished's lines told by their
+  colour alone (no sans italic ships); a change of Plain text in the session is noted, and waits for the next launch
+  (no face registered after warm-up, GraceUI's invariant 11); the F11 view keeps its own face. The hotkeys `talk`
   (T, with the pad chord D-pad Up then View behind `has_cap("pad-chords")`) and `skip-page` (Tab), named "Talk" and
   "Skip the page";
   `wake_event`'s handle behind `has_cap("wake")`. Then, from poll: the talk hotkey opens (OpenChat, by the pad chord
@@ -484,7 +491,9 @@ master, families, editor and marks, the bodies from invented characters, every r
 requests handed over with their reply handles, the answers later, what is published when, and the spoiler golden: no
 string a projection does not publish reaches a body), the surfaces laid out (the panels' places, text decoded, upper-cased
 and wrapped, a page's, a card's, the box's and the hint's lists checked as GraceUI checks them, the caret and its
-scroll, the fades and PageShown, the toasts' keys, the input mapping and the swallowed character), the view's lines (every section, the newest event and the newest change
+scroll, the fades and PageShown, the toasts' keys, the input mapping and the swallowed character, the type at connect
+by Plain text and its cap, each type's faces and the name line in its own face), the view's lines (every section, the
+newest event and the newest change
 first with their ages, each event's columns and its square's source, full lists within the view's lines and its panel,
 nothing but our words and numbers whatever the status holds, a long word cut), the newest ring (the last N, the newest
 last in its copy, every push counted), the world-state claims, and the space:
@@ -521,7 +530,9 @@ failed connect headless; the banner replaced in place and withdrawn, the badge, 
 the world-state claims sent on change, and none without the cap; the view (its atlas before any submit, a hidden panel,
 F11, a list before it shows, lists every step while open, hidden again, an even count of presses leaving it as it
 was); a view that cannot be made; the surfaces (`test_chat.cpp`: what connect registers, faces too late after warm-up,
-older GraceUIs without the chord or the holder's events, the box opened with its input, typing with the swallowed
+Plain text's faces at connect and only their files read, the serif without the cap or with Plain text off, a change of
+Plain text in the session noted and nothing registered, older GraceUIs without the chord or the holder's events, the
+box opened with its input, typing with the swallowed
 character, the caret, Enter, the line's limit and a kept draft, Esc, danger, focus lost and the model's Shut keeping
 the draft, refused and not now, a page's PageShown and its fade at ten frames a second, Tab, toasts, the hint's key
 words and their change, a fault, and the wait handle); the Mark's hotkey and its presses; F11 or Pause taken by another mod, registered

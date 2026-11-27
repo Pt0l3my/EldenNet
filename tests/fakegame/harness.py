@@ -2176,6 +2176,88 @@ case("launcher-eldennet-graceui-workshop", LGAME + ["--dll", "{eldennetdll}", "-
           "words, under the Spoilers ribbon; its topics filled while the switch is on (the recorder, every event, the "
           "flags, the kinds); Record this session off and on, a second file; never drawn in game, by its words and "
           "its id; and, the switch turned off, each topic cleared, the stream emptied, recording.set refused")
+# GraceUI's Plain text (GraceUI › Menu; its D267, D268) on before the launch, in GraceUI's own settings file (user\
+# settings.json in its folder, D179, as GraceUI's harness's settings scenarios keep it): at connect EldenNet's subtitles
+# and chat box take Noto Sans Regular and SemiBold from GraceUI's folder (O134), and its log names them, three faces
+# with no EB Garamond among them; GraceUI bakes its menu's own plain faces too; the F11 view is made with its own. A
+# browser of the tests' own on this PC then turns Plain text off by GraceUI's own settings.set, after the report at
+# 480: EldenNet notes the change for the next launch, and GraceUI's faces, uploads and atlas stay as they were
+# (no face registered, nothing uploaded after warm-up: GraceUI's invariant 11).
+PLAIN_REPORTS = "360,480,1500"
+PLAIN_FRAMES = 1620
+PLAIN_SETTINGS = 'schema = 2\ndebug = { panel = true, record_sessions = false, log_level = "debug" }\n'
+
+
+def install_plain(paths):
+    """GraceUI's folder, with Plain text kept on in its own settings."""
+    install_graceui(paths)
+    user = os.path.join(paths["gamedir"], "GraceUI", "user")
+    os.makedirs(user, exist_ok=True)
+    with open(os.path.join(user, "settings.json"), "w", encoding="utf-8") as f:
+        json.dump({"graceui_settings": 1, "values": {"ui.menu.plain_text": True}}, f)
+
+
+def browse_plain(paths, out):
+    port = grace_port(paths, time.monotonic() + 120)
+    if port is None:
+        out["error"] = "no report named the server running"
+        return
+    view = None
+    G = "graceui"
+    plain = lambda b: b.get("values", {}).get("ui.menu.plain_text")
+    try:
+        view = browser.Browser(port, timeout=10)
+        view.sub(G, "settings")
+        out["before"] = view.wait(G, "settings", lambda b: plain(b) is True, timeout=20)
+        out["reported"] = status_has(paths, "FAKEGAME grace frame=480 ", time.monotonic() + 90)
+        out["off"] = view.command(G, "settings.set", {"key": "ui.menu.plain_text", "value": False})
+        out["after"] = view.wait(G, "settings", lambda b: plain(b) is False, timeout=10)
+    except (browser.BrowserError, OSError, ValueError, KeyError) as e:
+        out["error"] = repr(e)
+    finally:
+        if view is not None:
+            view.close()
+
+
+def check_graceui_plain(r):
+    d = r.during
+    failures = []
+    if "error" in d:
+        failures.append("the browser: %s" % d["error"])
+    version, _ = graceui_version(r)
+    failures += check_lines(("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main",
+                                                     "graceui": version, "view": "ready"}),
+                            ("ELDENNET", "surfaces", {"state": "ready", "faces": 3, "italic": 0, "fonts": 1}),
+                            ("ELDENNET", "faces", {"type": "plain", "plain_cap": 1, "files": 2,
+                                                   "text": "NotoSans-Regular", "name": "NotoSans-SemiBold",
+                                                   "tarnished": "NotoSans-Regular", "ui": "NotoSans-Regular"}),
+                            ("LAUNCHER", "end", {"kind": "clean"}))(r)
+    # GraceUI read the kept setting: its menu's own plain faces baked at warm-up (D267); EldenNet names the cap among
+    # what it uses (the Installed mods page's "Plain text", D268).
+    failures += want_grace(r, 360, eldennet=1, menu_plain_baked=1, faces=(3, 64),
+                           caps=lambda c: "plain-text" in c.split("_"))
+    need(d.get("reported") is True, "no report at 480 before the change", failures)
+    need((d.get("off") or {}).get("ok") is True, "settings.set ui.menu.plain_text: %s" % d.get("off"), failures)
+    need(d.get("after") is not None, "GraceUI's settings after the change: %s" % d.get("after"), failures)
+    # EldenNet heard it in the display event, and keeps its faces until the next launch.
+    failures += any_line(r, "ELDENNET", "plain_text", on=0, faces="plain", effect="next_launch")
+    need(len(r.events("ELDENNET", "faces")) == 1, "more than one faces line: %s" % r.events("ELDENNET", "faces"),
+         failures)
+    # Nothing registered or uploaded for the change: GraceUI's faces, uploads and atlas as before it.
+    before = next((e for e in r.events("FAKEGAME", "grace") if e.get("frame") == "480"), {})
+    for key in ("faces", "faces_baked", "uploads", "atlas", "textures"):
+        failures += want_grace(r, 1500, **{key: lambda v, was=before.get(key): v == was})
+    return failures + en_log_is_clean(r)
+
+
+case("launcher-eldennet-graceui-plain", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--stay-title", "--grace-report", PLAIN_REPORTS, frames=PLAIN_FRAMES),
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=GRACE_ENV, timeout=200,
+     prepare=install_eldennet(PLAIN_SETTINGS, then=install_plain), during=browse_plain, check=check_graceui_plain,
+     what="GraceUI's Plain text on before the launch, in its own settings file: EldenNet's subtitles and chat box in "
+          "Noto Sans Regular and SemiBold from GraceUI's folder, named in its log, the F11 view with its own faces; "
+          "Plain text turned off from a browser in the session: noted for the next launch, no face registered and "
+          "nothing uploaded")
 # EldenNet's AI pages (S11.4.a's second to fourth slices; PAGES §4.6.2), at the title screen, against a fake model
 # server of the tests' own on loopback (tests/pages/fake_models.py) with invented models, which the models.toml installed
 # beside the DLL names for the Cloud budget preset's provider. A browser of the tests' own adds the preset's provider and
@@ -2739,10 +2821,15 @@ def check_talk(r):
     # GraceUI's own faces as EldenNet's: EB Garamond and Noto Sans and, where GraceUI's folder has it (0.2.36, D241),
     # EB Garamond Italic for the Tarnished's lines.
     italic = tuple(int(n) for n in version.split(".")) >= (0, 2, 36)
+    # Plain text off (GraceUI's default): the serif's type (O134), its faces named in the log.
     failures += check_lines(("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main", "graceui": version}),
                             ("ELDENNET", "surfaces", {"state": "ready", "faces": 3 if italic else 2,
                                                       "italic": int(italic), "talk": "bound", "chord": "asked",
                                                       "wake": 1}),
+                            ("ELDENNET", "faces", {"type": "serif", "text": "EBGaramond-Regular",
+                                                   "name": "EBGaramond-Regular", "ui": "NotoSans-Regular",
+                                                   "tarnished": "EBGaramond-Italic" if italic else
+                                                   "EBGaramond-Regular"}),
                             ("ELDENNET", "realm", {"asked": "eval", "accepted": 1}),
                             ("ELDENNET", "content", {"overrides": 1, "files": 1, "realm": "eval"}),
                             ("ELDENNET", "content_load", {"ok": 1, "personas": 1, "bound": 1}),

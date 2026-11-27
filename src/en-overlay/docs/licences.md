@@ -28,6 +28,10 @@ before its part was taken in.
 GraceUI is a mod of its own, under the MIT License, and EldenNet carries its release. Its folder holds its own licence
 and notice files, which name the libraries and fonts it contains.
 
+EldenNet ships no font file of its own. Its subtitles and chat box are drawn in GraceUI's fonts, read from GraceUI's
+folder while you play: EB Garamond, regular and italic, with Noto Sans; or, when GraceUI's Plain text is on as the game
+starts, Noto Sans, regular and semibold. They are under the SIL Open Font License, credited in GraceUI's notice file.
+
 ## Design credit
 
 EldenNet's engine follows the logic and structure of SkyrimNet, whose author, Min, permits EldenNet to build on it.

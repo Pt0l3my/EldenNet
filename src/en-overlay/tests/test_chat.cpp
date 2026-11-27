@@ -22,17 +22,29 @@ namespace proto = en::proto;
 
 namespace {
 
-const std::vector<unsigned char> kSerif(64, 0x5A);  // invented bytes: the fake reads no font
-const std::vector<unsigned char> kSans(48, 0x5B);
-const std::vector<unsigned char> kItalic(56, 0x5C);
+// Invented bytes for GraceUI's font files (the fake reads no font), each of its own length, so that a face registered
+// names its file by its size.
+const std::string kSerif(64, 'Z');
+const std::string kSans(48, '[');
+const std::string kItalic(56, '\\');
+const std::string kSansBold(40, ']');
 
-// GraceUI's fonts as the DLL reads them: from 0.2.36 its folder holds EB Garamond Italic too (D241).
-Options options(bool fonts = true, bool italic = true) {
+// GraceUI's fonts as the DLL reads them from its folder, by name: from 0.2.36 it holds EB Garamond Italic too (D241).
+// `asked` records each file asked for, in order.
+Options options(bool fonts = true, bool italic = true, std::vector<std::string>* asked = nullptr) {
   Options o;
   o.version = {0, 2, 0};
   o.surfaces = true;
-  if (fonts) o.fonts = Surfaces::Fonts{kSerif, kSans, kItalic};
-  if (!italic) o.fonts.italic = {};
+  if (fonts) {
+    o.fonts = [italic, asked](std::string_view file) {
+      if (asked != nullptr) asked->emplace_back(file);
+      if (file == "fonts\\EBGaramond-Regular.ttf") return kSerif;
+      if (file == "fonts\\NotoSans-Regular.ttf") return kSans;
+      if (file == "fonts\\EBGaramond-Italic.ttf" && italic) return kItalic;
+      if (file == "fonts\\NotoSans-SemiBold.ttf") return kSansBold;
+      return std::string();
+    };
+  }
   return o;
 }
 
@@ -102,15 +114,23 @@ TEST_CASE("chat: connect registers the surfaces' texture, faces, hotkeys and wai
   REQUIRE(o != nullptr);
   REQUIRE(o->surfaces() != nullptr);
   CHECK(g.mod_caps == "notices world-state hotkeys panels textures faces input holder-events display pad-chords "
-                      "hotkey-bindings wake hotkey-by");
+                      "hotkey-bindings wake hotkey-by plain-text");
   CHECK(std::string(r.surfaces.state) == "ready");
   CHECK(g.textures.size() == 1);  // the white texture, in the registration window
   CHECK_FALSE(g.window_closed);
   // The three faces, GraceUI's own files as the DLL read them, scaled, before warm-up (eldennet-changes §33, §69): the
-  // serif, the sans and the serif's italic, at the serif's size (the Tarnished's lines scale down from it).
+  // serif, the sans and the serif's italic, at the serif's size (the Tarnished's lines scale down from it). Plain text
+  // is off (the fake's default): the serif's type.
   REQUIRE(g.faces.size() == 3);
   CHECK(r.surfaces.faces == 3);
   CHECK(r.surfaces.italic);
+  CHECK(r.surfaces.type == surfaces::Type::Serif);
+  CHECK(r.surfaces.plain_cap);
+  CHECK(r.surfaces.files == 3);
+  CHECK(r.surfaces.text == "EBGaramond-Regular");
+  CHECK(r.surfaces.name == "EBGaramond-Regular");
+  CHECK(r.surfaces.tarnished == "EBGaramond-Italic");
+  CHECK(r.surfaces.ui == "NotoSans-Regular");
   CHECK(g.faces[0].pixel_height == 30);
   CHECK(g.faces[0].flags == GRACEUI_FACE_SCALED);
   CHECK(g.faces[0].bytes == kSerif.size());
@@ -186,6 +206,122 @@ TEST_CASE("chat: the italic face read for each show where GraceUI's folder has i
   CHECK(g.holding);
   CHECK(g.refused_lists == 0);
   CHECK(g.glyph_tables_of.count(kItalicFace) == 0);
+}
+
+TEST_CASE("chat: Plain text on at connect (O134): Noto Sans Regular and SemiBold, the serif files neither read nor "
+          "registered") {
+  fake::Grace g;
+  g.plain_text = 1;  // the player's kept setting (D268)
+  Report r;
+  std::vector<std::string> asked;
+  auto o = connect(g, options(true, true, &asked), r);
+  REQUIRE(o != nullptr);
+  REQUIRE(o->surfaces() != nullptr);
+  CHECK(std::string(r.surfaces.state) == "ready");
+  CHECK(r.surfaces.type == surfaces::Type::Plain);
+  CHECK(o->surfaces()->type() == surfaces::Type::Plain);
+  CHECK(o->surfaces()->plain_text_now());
+  // Each file once, Noto Sans Regular serving the text and the ui; neither EB Garamond asked for.
+  CHECK(asked == std::vector<std::string>{"fonts\\NotoSans-Regular.ttf", "fonts\\NotoSans-SemiBold.ttf"});
+  CHECK(r.surfaces.files == 2);
+  // Three faces, as many as the serif's: the text at the page's 30 px, the ui at 18, the name line at its 20.
+  REQUIRE(g.faces.size() == 3);
+  CHECK(r.surfaces.faces == 3);
+  CHECK(g.faces[0].pixel_height == 30);
+  CHECK(g.faces[0].bytes == kSans.size());
+  CHECK(g.faces[1].pixel_height == 18);
+  CHECK(g.faces[1].bytes == kSans.size());
+  CHECK(g.faces[2].pixel_height == 20);
+  CHECK(g.faces[2].bytes == kSansBold.size());
+  for (const fake::Face& f : g.faces) CHECK(f.flags == GRACEUI_FACE_SCALED);
+  CHECK_FALSE(r.surfaces.italic);  // no sans italic: the Tarnished's lines are the text's, told by their colour
+  CHECK(r.surfaces.text == "NotoSans-Regular");
+  CHECK(r.surfaces.name == "NotoSans-SemiBold");
+  CHECK(r.surfaces.tarnished == "NotoSans-Regular");
+  CHECK(r.surfaces.ui == "NotoSans-Regular");
+  // A page drawn: the name line's own table read with the text's (the fake's ids: the mod's faces from 16).
+  g.warm_up();
+  (void)o->step(status(), nullptr, nullptr, 10'000);
+  proto::UiModel m;
+  m.page = speech(0);
+  CHECK(find<proto::UiEvent::PageShown>(o->show(m, 10'000)).has_value());
+  CHECK(g.refused_lists == 0);
+  CHECK(g.glyph_tables_of[16] >= 1);
+  CHECK(g.glyph_tables_of[18] >= 1);
+}
+
+TEST_CASE("chat: the serif without the cap or with Plain text off, whatever else the answer holds") {
+  SUBCASE("an older GraceUI (no plain-text cap): its answer's plain_text as graceui-sys zeroed it") {
+    fake::Grace g;
+    g.caps.pop_back();  // "plain-text", 0.2.61's
+    REQUIRE(std::find(g.caps.begin(), g.caps.end(), "plain-text") == g.caps.end());
+    g.plain_text = 1;  // the fake writes it only with the cap, as GraceUI does
+    Report r;
+    std::vector<std::string> asked;
+    auto o = connect(g, options(true, true, &asked), r);
+    REQUIRE(o != nullptr);
+    CHECK_FALSE(r.surfaces.plain_cap);
+    CHECK(r.surfaces.type == surfaces::Type::Serif);
+    CHECK(asked == std::vector<std::string>{"fonts\\EBGaramond-Regular.ttf", "fonts\\NotoSans-Regular.ttf",
+                                            "fonts\\EBGaramond-Italic.ttf"});
+    CHECK(g.faces.size() == 3);
+    // Its display events say nothing of Plain text either: nothing is noted.
+    g.warm_up();
+    g.set_plain_text(false);
+    g.set_plain_text(true);
+    (void)o->step(status(), nullptr, nullptr, 10'000);
+    CHECK(o->surfaces()->plain_text_changes() == 0);
+  }
+  SUBCASE("with the cap, Plain text off") {
+    fake::Grace g;
+    Report r;
+    std::vector<std::string> asked;
+    auto o = connect(g, options(true, true, &asked), r);
+    REQUIRE(o != nullptr);
+    CHECK(r.surfaces.plain_cap);
+    CHECK(r.surfaces.type == surfaces::Type::Serif);
+    CHECK(std::find(asked.begin(), asked.end(), "fonts\\NotoSans-SemiBold.ttf") == asked.end());
+    CHECK(g.faces.size() == 3);
+  }
+}
+
+TEST_CASE("chat: Plain text changed in the session: noted, and no face registered or read until the next launch") {
+  for (const bool at_launch : {false, true}) {
+    CAPTURE(at_launch);
+    fake::Grace g;
+    g.plain_text = at_launch ? 1 : 0;
+    Report r;
+    std::vector<std::string> asked;
+    auto o = connect(g, options(true, true, &asked), r);
+    REQUIRE(o != nullptr);
+    const surfaces::Type type = at_launch ? surfaces::Type::Plain : surfaces::Type::Serif;
+    REQUIRE(r.surfaces.type == type);
+    const std::size_t files = asked.size();
+    g.warm_up();  // its display event holds the same Plain text: no change
+    (void)o->step(status(), nullptr, nullptr, 10'000);
+    const Surfaces& sf = *o->surfaces();
+    CHECK(sf.plain_text_changes() == 0);
+    g.set_plain_text(!at_launch);  // the player turns it over in GraceUI › Menu
+    (void)o->step(status(), nullptr, nullptr, 10'100);
+    CHECK(sf.plain_text_changes() == 1);
+    CHECK(sf.plain_text_now() == !at_launch);
+    CHECK(sf.type() == type);  // the faces chosen at connect stay
+    CHECK(g.faces.size() == 3);
+    CHECK(g.faces_too_late == 0);  // nothing even asked for after warm-up (invariant 11)
+    CHECK(g.textures.size() == 1);
+    CHECK(asked.size() == files);
+    // Drawn as before, from the same faces.
+    proto::UiModel m;
+    m.page = speech(0);
+    CHECK(find<proto::UiEvent::PageShown>(o->show(m, 10'200)).has_value());
+    CHECK(g.refused_lists == 0);
+    CHECK(g.submits >= 1);
+    g.set_plain_text(at_launch);  // and back: one more change, the faces as they were
+    (void)o->step(status(), nullptr, nullptr, 10'300);
+    CHECK(sf.plain_text_changes() == 2);
+    CHECK(sf.plain_text_now() == at_launch);
+    CHECK(g.faces.size() == 3);
+  }
 }
 
 TEST_CASE("chat: older GraceUIs: no chord without the cap, and no surfaces without the holder's events") {
