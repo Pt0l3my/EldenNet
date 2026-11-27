@@ -3103,6 +3103,14 @@ holds model text, so it has no default path, is written only where `--report` sa
 server above waits for a test of en-llm's live path. Also built: `render-prompt --fixture`, `golden` for the prompt
 goldens, and `lexicon fingerprint|check` for the lint's lists (O107).
 
+*2026-11-27 (X1; S11.1.c; O140; WHY§673 to §680):* `eval` takes `--set <file>` (X1's set), `--arm <folder>` (a
+prompt arm), a `restart` step (a fresh first meeting) and a `name_prefixes` expectation; `--jobpack <folder>` writes
+the set's turns as LLM Jobrunner jobpacks (format 1, data only, `server: "*"`), and `--jobrunner-results <file>`, which
+may be given once per zip, reads Jobrunner's `results.jsonl` back as untrusted data. The import writes three
+local-only report kinds: `x1-local` (with model text), `x1-summary` (numbers only) and `x1-questions` (the test
+questions' replies with their prompts, for the Engine session's scoring, O142). The live path, mockllm's local SSE
+server and the cost caps wait for a later need (O140).
+
 ### 12.4 Compatibility matrix (rows from v0.1, the full matrix at v0.6; DESIGN §16.3)
 
 | Axis | Values |

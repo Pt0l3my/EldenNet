@@ -695,6 +695,14 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 670 | 2026-11-27 | A clock's hours are told by when they step: at the readings at which its minutes go round | METHOD | #lodestar #watch |
 | 671 | 2026-11-27 | A fake-game case wants seconds, not tenths, between a look and the state it is to see | METHOD | #lodestar #tests #fakegame |
 | 672 | 2026-11-27 | A search that can come back empty for two reasons needs a case on each path | FACT | #lodestar #l6 |
+| 673 | 2026-11-27 | X1 runs through LLM Jobrunner as independent turns, each the prompt the core renders after our own history | METHOD | #engine #eval #x1 |
+| 674 | 2026-11-27 | Jobrunner's first-token times are an upper bound for the game's on llama.cpp | LIKELY | #engine #eval #x1 |
+| 675 | 2026-11-27 | A scripted history in the persona's voice may flatter a model | SPECULATION | #eval #x1 |
+| 676 | 2026-11-27 | The pager's three-sentence cap cuts the broken register's fragments | FACT | #engine #speech #x1 |
+| 677 | 2026-11-27 | The speech tap counts what the speech did, with en-core unchanged | DECIDED | #engine #eval |
+| 678 | 2026-11-27 | The test questions are each asked at a first meeting | METHOD | #eval #x1 |
+| 679 | 2026-11-27 | The positive-wording arm compares the shipped wording with the design's former wording | METHOD | #eval #x1 |
+| 680 | 2026-11-27 | Jobrunner's validator is mirrored, not run | DECIDED | #engine #x1 |
 
 ## Entries
 
@@ -9776,3 +9784,100 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   the search would have come back empty from the game. Found by reading the steps, not by a test, since the unit case
   used the other path. It is read now before the sheet's first piece whichever way the sheet was found, with a case on
   each path.
+
+### 673. X1 runs through LLM Jobrunner as independent turns, each the prompt the core renders after our own history
+
+`2026-11-27` · METHOD · `#engine` `#eval` `#x1` · refs: NPC§12.2, O139, O140, O142, engine wip/x1 (merged into feat/engine)
+
+- Jobrunner runs a jobpack's items one by one and cannot chain turns. So each scenario of X1's set runs once through
+  the real core with its scripted model, whose replies are our own lines in the persona's voice. Each line's first
+  request is captured with en-llm's `render_messages(…, CacheMarks::None)`, which is what a local server is sent, and
+  becomes one item.
+- Sampling is the dialogue slot's: `default_budget(kDialogue)` gives 140 tokens and temperature 0.8; the stops are
+  en-core's `kDialogueStops`; thinking is off.
+- A scripted reply that does not show whole, as written, refuses the export: a regeneration, a deflection, a failure,
+  a cut-off, or the lint or the pager changing it. Otherwise the later turns would not hold our history.
+- The import runs each reply through `run_speech`: the sanitizer, then the lint with the turn's recorded context
+  (its tally after our history), then the pager, as the conversation's `take()` does on a first try.
+
+### 674. Jobrunner's first-token times are an upper bound for the game's on llama.cpp
+
+`2026-11-27` · LIKELY · `#engine` `#eval` `#x1` · refs: ARCH§11.1, engine wip/x1 (merged into feat/engine)
+
+- Jobrunner sends jobs with `cache_prompt: false`, so that its timings stay honest (llm_jobrunner.py's `body_for`).
+- The game sends `cache_prompt` to a llama.cpp provider (en-llm's default cache marks for that flavour), so the
+  system prefix is reused there: about 900 to 1,200 tokens by NPC §7.1's estimate, of whole prompts of about 1,000
+  to 1,700.
+- X1's time to first token through Jobrunner therefore counts a full prompt fill on every turn. X3, in game,
+  measures the real figure.
+
+### 675. A scripted history in the persona's voice may flatter a model
+
+`2026-11-27` · SPECULATION · `#eval` `#x1` · refs: NPC§12.2, engine wip/x1 (merged into feat/engine)
+
+- In the game, the history a model sees is its own earlier replies; in X1 it is ours, clean and in voice.
+- A model that drifts over a long conversation drifts less here. Conversations are kept to five turns, and the 50
+  turns' first lines carry only the earlier conversations' last six lines.
+- The voice measures are therefore per turn, not of a model's drift over a conversation.
+
+### 676. The pager's three-sentence cap cuts the broken register's fragments
+
+`2026-11-27` · FACT · `#engine` `#speech` `#x1` · refs: NPC§8.5, NPC§3.3, engine wip/x1 (merged into feat/engine)
+
+- The `broken` register asks for "fragments of one to six words", and each fragment ending in a full stop is a
+  sentence. The pager keeps at most three sentences (NPC §8.5), so "Barn. Dry hay. Dogs watch. You sleep." showed as
+  its first three.
+- The scripted history of `x1_broken` hit this twelve times. Those lines were rewritten into three sentences with
+  commas ("Barn. Dry hay. Dogs watch, you sleep.").
+- For models, X1's `cut_by_pager` will run high on `x1_broken`. That is a design question, not a model fault: should
+  the cap count fragments, or the broken register be told three at most?
+
+### 677. The speech tap counts what the speech did, with en-core unchanged
+
+`2026-11-27` · DECIDED · `#engine` `#eval` · refs: WHY§410, NPC§8.2, engine wip/x1 (merged into feat/engine)
+
+- The eval hands the core its own speech parts (`Core(SpeechParts)`), loaded from the same pack and wrapped. Each
+  reply attempt the conversation opens is recorded with its context and counted:
+  - the sanitizer's removals by step;
+  - the "Name:" prefix by class: `name`, `short` (at most two words) or `long` (what a narrower rule would keep);
+  - the lint's soft and hard hits;
+  - the archaic sentences, by a shadow lint with `archaic = false`;
+  - the pager's Full and Over;
+  - a trailer or a run-on, from the stream's flow, since their text counts with no sentence.
+- The scenario `lantern-name-prefix` covers the three classes. WHY§410's data comes from X1's imports.
+
+### 678. The test questions are each asked at a first meeting
+
+`2026-11-27` · METHOD · `#eval` `#x1` · refs: NPC§12.1, MEM§7.8, C9, engine wip/x1 (merged into feat/engine)
+
+- A `restart` step boots a fresh core with the same content and flag state, so no earlier line (a scripted reply of
+  ours) is in a test question's prompt. Each question's prompt is the system block and the question alone.
+- `prompt_lacks` holds the stage's `forbid` topic, which is never rendered.
+- The Lantern-Keeper's prompt is the same at all three states (one stage, no awareness ties); kept for uniformity
+  (E3).
+
+### 679. The positive-wording arm compares the shipped wording with the design's former wording
+
+`2026-11-27` · METHOD · `#eval` `#x1` · refs: NPC§12.2, O36, engine wip/x1 (merged into feat/engine)
+
+- The former wording is the design's before commit 81395d3 (2026-11-07), put into today's three templates:
+  - the world frame's nine items, item 9 pointed at today's heading "As things stand now";
+  - the contract ("No name prefix, quotation marks, …");
+  - the promise reminder ("You can only speak. Offer, give, lead or promise nothing.").
+- The banned and safety reminders did not change.
+- The shipped files were reworded when written, so each arm's sentences differ from the design's in phrasing too. The
+  arm compares what ships with what the design had.
+- §7.4 and §7.5 (barks, v0.4) and MEM §3.4 (memory, v0.3) have no prompt yet, so their arms wait. §3.4's only change
+  was the forbid line, which the test questions replace.
+- The arm's measures are in the summary side by side. The pairwise reading in both orders is the Engine session's,
+  from the local report, whose rows are sorted so that the two arms' replies to a turn sit together.
+
+### 680. Jobrunner's validator is mirrored, not run
+
+`2026-11-27` · DECIDED · `#engine` `#x1` · refs: CLAUDE.md (untrusted copies), src/en-tools/tests/x1_cli_test.py, engine wip/x1 (merged into feat/engine)
+
+- `src/en-tools/tests/x1_cli_test.py` holds our own copy of Jobrunner 1.4's jobpack/1 checks, read from
+  llm_jobrunner.py: `parse_jobpack`, `_items_of`, `_params`, `_text_ok`, ID_RX, the caps and the key sets. It checks
+  every exported jobpack and tests itself on eight faulty files.
+- Jobrunner's own code was not imported or run. Importing it runs its module code, and CLAUDE.md never runs an
+  outside copy.

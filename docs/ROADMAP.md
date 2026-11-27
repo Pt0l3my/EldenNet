@@ -1416,6 +1416,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     owner's own servers through LLM Jobrunner. EldenNet's eval exports X1's turns as Jobrunner jobpacks and imports
     its results; no key here and no cloud call; a $5 cap for any cloud run; the Engine session scores the test
     questions and presents the results. Being built on 2026-11-27 (engine wip/x1).
+    Built the same day (engine 656b17b to cc57a7a, merged into feat/engine; WHY§673 to §680): the three register
+    fixtures, both personas' test questions (six each, asked at a first meeting, three repeats), five voice sets of 50
+    turns, the positive-wording arm on the three built prompts, and the eval's Jobrunner export (three jobpacks, 536
+    runs a server) and import (per server and model: C10, the word cap, the pager's cuts, openers, tics, contract
+    breaks, the archaic share, first token and tokens a second). The package went to the owner the same day. Left:
+    the owner's run, the Engine session's scoring, then models.toml (S11.4.a).
 - d X3, latency in game [planned]
   - needs: S10.1.m, S11.1.c
   - refs: O128
@@ -2059,6 +2065,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     WHY§424 to §426, §431, §477); the eval's CTest label, run on demand. Left: the CI stage, which needs S10.3.c, since
     there is no CI service yet; the live and judged sets, which need a key and the judge's check (O29), work shared
     with X1 (S11.1.c); mockllm as a local SSE server (WHY§425); the "Name:" removal count (WHY§410).
+    On 2026-11-27 the speech tap counts the "Name:" prefixes by class, the other removals, the lint's hits, the pager's
+    cuts and the archaic share (engine 656b17b; WHY§677). The live path and mockllm's SSE server wait (O140).
 - f Target rules 1 and 2: the talk key arming chat on the game's own talk, once spike S3 has checked the talk observer
   - needs: S11.1.b
   - refs: NPC§5.2, WHY§420
