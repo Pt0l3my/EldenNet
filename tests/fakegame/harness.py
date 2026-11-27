@@ -2925,7 +2925,7 @@ def check_graceui_pause(r):
                                  "state": {"topic": "status", "field": "ai_paused"}, "home": "home"}],
          "the quick switches: %s" % pages.get("quick"), failures)
     need([pg.get("id") for pg in pages.get("pages", []) if pg.get("live")] ==
-         ["home", "system.performance", "system.traces", "ai.requests"],
+         ["home", "system.performance", "system.traces", "ai.requests", "tools.workshop"],
          "the live pages: %s" % [pg.get("id") for pg in pages.get("pages", []) if pg.get("live")], failures)
     need("ai.pause" not in pages.get("sensitive_commands", []), "ai.pause is sensitive", failures)
     items = lambda b: {i.get("label"): i.get("value") for i in (b or {}).get("items", [])}
