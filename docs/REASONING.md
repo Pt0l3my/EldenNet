@@ -710,6 +710,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 685 | 2026-11-27 | MenuPage answers by id from the last layout; 2 until the menu is laid out | METHOD | #tests #graceui |
 | 686 | 2026-11-27 | Plain text changed in the session reaches mods while the menu is closed; the test export's menu flag does not | FACT | #graceui #tests |
 | 687 | 2026-11-27 | read-graceui's check rests on the state search, so it takes read-state's margins | METHOD | #tests #lodestar |
+| 688 | 2026-11-27 | v0.2 never gave personas an audience, so every memory item of v0.3 needs Augur's personas first | FACT | #engine #memory #augur |
+| 689 | 2026-11-27 | v0.3's plan: the readings the Engine settles | DECIDED | #engine #memory #eval |
 
 ## Entries
 
@@ -9985,3 +9987,43 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   at the first look that Lodestar found.
 - The fake-game suite over feat/engine 2c333c9 and the pin together: 150 of 150 (3,123 s), read-state and read-clock
   among them.
+
+### 688. v0.2 never gave personas an audience, so every memory item of v0.3 needs Augur's personas first
+
+`2026-11-27` · FACT · `#engine` `#memory` `#augur` · refs: MEM§1.2, MEM§1.3, ARCH§6.8, engine b37e90b
+
+- In en-core at b37e90b, `AugurView::classify` makes every character Mute and `persona_may_perceive` answers false
+  (src/en-core/src/core.cpp, near line 176). No persona perceives anything: no P event has an audience, and speech
+  commits reach `MemoryLog` with none.
+- v0.2 did not need it: its conversations read the world view and `known(P)`, not memories.
+- So v0.3's first core commit gives personas their rules in Augur (PersonaSeen, Approached, Attacked, Died,
+  FoughtBeside, CameNear, KilledNear, NativeTalk with a persona; the AutonomyTick, staggered) and freezes each
+  event's audience as MEM §1.3 has it, before the store or the memory job can mean anything.
+- Found by the v0.3 survey (2026-11-27), which planned 21 commits in three slices: the store, memory in the core, then
+  speaking up, the DLL and the pages.
+
+### 689. v0.3's plan: the readings the Engine settles
+
+`2026-11-27` · DECIDED · `#engine` `#memory` `#eval` · refs: MEM§8.1, MEM§9.2, MEM§12, DESIGN§8.9, DESIGN§16.2, O140
+
+- **Files.** v0.3 creates only the playthrough files. `pools.sqlite` comes with barks in v0.4, and `diag.sqlite` when
+  a page needs history beyond a session; no v0.3 exit check needs either.
+- **"S3 passed"** is a content record per game build, verified as the catalogue's aliases are (`ci:` verifies it in
+  the eval's realm alone), read by the own-line gates. It is not a setting the player can change.
+- **Scenarios** are TOML on the eval runner, under the design's names (`wren_and_kale`, `speak_up`, `star_falls`); a
+  dated note goes into MEM §2.8 and ARCH §12.2.
+- **World topic offers** in block 7 come in v0.3, scored by MEM §5.4's rule with no knowledge-base entries, since the
+  cue's line shares their slot. The knowledge base stays in v0.5, as DESIGN §16.2 has it; en-core's comments that say
+  v0.3 are corrected.
+- **C11's memory probes**: 20 on Kalé after `wren_and_kale`'s journey and a reload, 6 seeds each, exported as
+  Jobrunner jobpacks and run on the owner's servers as X1 is (O140); the judge is checked against hand labels first.
+  C14's since-line, claim and cue probes go the same way.
+- **v0.3 exits with Kalé's own lines dark** (DESIGN §8.9): its own-line checks pass on the test personas offline, and
+  his lines switch on later, as data, once S3 and his S6 pass.
+- **Facts after a trim**: the trim sets `meta.facts_stale` in its one transaction (MEM §9.2); the core refolds and
+  writes the facts back, which clears it, and every open with it set refolds.
+- **One row per decision**: its test lands with the first decision call, in v0.4.
+- **The deflection order per journey** is folded from each deflection's payload into a fact, so that it is right after
+  a rollback.
+- **Until SQLite's pinned source is here** (O146), the store is written and tested on Linux against the system's
+  SQLite, as a development path only; the MinGW, clang-cl and Wine runs wait for the pinned amalgamation.

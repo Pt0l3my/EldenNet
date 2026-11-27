@@ -2864,3 +2864,80 @@ perhaps ask engine and grace what casual things you could read for them, that wo
 Lodestar session, 2026-11-27).
 
 **Follows from.** O100; O101 to O103 (proposal 0005); S10.3; S11.1.
+
+## O144
+
+**When the rollback choice is needed, and how it is shown** · *2026-11-27 · Open*
+
+**Question.** MEM §9.1 asks the player what EldenNet's memories should do when a save loads that is older than what
+EldenNet remembers for that character: "Forget what came after" (focused), "Keep everything" or "This is a new
+character", in a panel that F10 reopened; F10 has since folded into F5's menu (GraceUI D6). When is the choice needed
+at all, and what does it look like?
+
+**When it is needed (the design as it stands).** EldenNet keeps one memory file per character (its save slot and
+character), holding every journey of that playthrough, NG+ cycles included (MEM §8.1). It never writes the game's
+save and cannot refuse a load; the choice is only about what EldenNet's NPCs remember. It compares the play time of
+the save just loaded with the latest play time it remembers for that character (MEM §9.1):
+- the save is not behind: nothing to do;
+- behind by 5 minutes of play or less, the usual crash or forced quit before the game's last autosave: EldenNet
+  silently forgets what came after the save, with no question;
+- behind by more than 5 minutes, or from an earlier journey than the file's (a restored copy of an older save, a
+  backup brought back after corruption, an older copy from cloud sync, or a pre-NG+ backup): the choice is asked.
+Elden Ring autosaves constantly and has one save per character, so the choice comes only when a save file has been
+put back by hand or by a tool.
+
+**Options.**
+- (a) A panel in the centre of the screen, as the owner describes: in bullet points and colour-coded text, the save's
+  play time and journey against what EldenNet remembers, the last few remembered events after the save's point (who,
+  where, when) and the quest stages that would be undone; at the bottom, the three answers about EldenNet's memories,
+  with "Forget what came after" focused and no automatic answer. Chat waits until the player answers; if the game
+  closes first, the next session asks again. **Recommended.**
+- (b) A short notice in game, and the three answers on a Home card and in History › Memories.
+- (c) The design's panel as written: one sentence and three buttons.
+
+**Owner's words.** "A notice UI pop up in the centre of screen which shows details of loaded save in neat bulletpoints
+and color coded text (so the user can see recent few events, latest quest progression, etc. Then at the bottom to
+confirm to load this save or not. However we need to discuss this further since Elden Ring only has auto save and one
+save slot for each character so we need to discuss when this confirmation pop up would be needed in the first place,
+since EldenNet will keep separate save file for each chatacter/playthrough (including NG+)." (question dialog,
+2026-11-27).
+
+**Follows from.** MEM §8.1, §9.1, §9.2; GraceUI D6; PAGES §4.10.
+
+## O145
+
+**Which speaking-up settings v0.3 reads** · *2026-11-27 · Open*
+
+**Question.** Pacing (O31, in the owner's words: time between lines, lines within a time window, and a cooldown per
+event type) is the only limit on how often NPCs start lines themselves; it is separate from spoilers, which the
+playthrough state keeps by grounding (O86). DESIGN §16.2 ships the `pacing` and `reactions` settings in v0.4, but
+GraceUI 0.3's Speaking up page (PAGES §4.6.6) shows some of them for the pilot's own lines in v0.3. **Options:**
+- (a) v0.3 reads the keys its lines use: `pacing.gap_s`, `window_s` and `talk_max`; the reactions `greet_player`,
+  `stage_talk`, `news`, `saw_kill` and `saw_victory`; `autonomy.enabled` and `period_s`. The rest come with v0.4.
+  **Recommended.**
+- (b) Every pacing and reaction key in v0.3.
+- (c) Defaults only in v0.3; the Speaking up page waits for v0.4.
+
+**Owner's words.** "What is the current dssign for this? What are the limitations? As far I as remember I only asked
+for a spoiler filter so that NPCs don't talk about things that haven't happened yet or mention spoilers that could be
+active or current but the player shouldn't know about yet." (question dialog, 2026-11-27; the Engine session answers
+with the design, O31 and O86, and asks again).
+
+**Follows from.** O30; O31; O86; DESIGN §9.4; PAGES §4.6.6.
+
+## O146
+
+**Where SQLite's source comes from** · *2026-11-27 · Open*
+
+**Question.** v0.3's store builds SQLite from its amalgamation, pinned at adoption (ARCH's `en-store` row). This
+session's network refuses www.sqlite.org. **Options:**
+- (a) The owner allows www.sqlite.org in the cloud environment (approved on a computer, or added under Allowed
+  domains), and the build fetches the official file and checks its published hash. **Recommended.**
+- (b) The owner downloads the amalgamation zip and attaches it, with the SHA3-256 shown beside it on sqlite.org.
+- (c) The amalgamation is made here from the GitHub mirror's release tag, with Tcl installed.
+Until then, the store is written and tested on Linux against the system's SQLite, for development only.
+
+**Owner's words.** "New environment (Recommended)" (question dialog, 2026-11-27); then "Claude didn't let me approve
+that environment." (the approval could not be given from the phone).
+
+**Follows from.** ARCH §2.3 (`en-store`); CLAUDE.md (a dependency's licence read before adoption).
