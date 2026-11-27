@@ -2838,3 +2838,29 @@ The replies stay local (the session's scratchpad), never in a commit.
 2026-11-27).
 
 **Follows from.** O29; NPC §12.1; C9.
+
+## O143
+
+**Runs of different risk stay apart; a read round may carry casual read-only measurements for the other sessions** ·
+*2026-11-27 · Decided by the owner*
+
+**Question.** What the runs on the owner's PC cover, and whether the Engine and GraceUI sessions should test in the
+Lodestar session's runs. **Options:** (a) every run tests every part together; (b) each session runs its own runs
+alone; (c) runs of different risk stay apart (a round that only reads; a run that hooks the renderer), so that a
+crash or a stutter has one cause, and a read round carries, at no cost to the owner's time and no new risk, the
+read-only measurements another session asks for, with one stage named at which all parts run together on purpose.
+
+**Decision.** (c), as the Lodestar session recommended. The automated suites stay shared: each runs once per merge,
+in the session that merges. A read round leaves GraceUI unloaded and may add read-only steps or numbers the Engine or
+GraceUI session asks for; any new kind of reading or of number in its report is asked of the owner first. The first
+run with the launcher, the reader, GraceUI and the engine together is the first spikes package after S10.1.m's ready
+start (S11.1.a and b, then X3); S10.3.a's ten hours without a crash is the long soak at v0.1's exit.
+
+**Owner's words.** The question: "What do your tests/runs cover? Id it only your groundwork? I was wondering if it
+would be worth testing things for engine and grace? They develop their own things, but perhaps we could ask at which
+stage you test certain things, could grace and engine also test or at least ? Or would that be waste of tokens? Is it
+better if they test their own runs separately?" The answer, to the Lodestar session's recommendation: "I agree, then
+perhaps ask engine and grace what casual things you could read for them, that would be worth it." (relayed by the
+Lodestar session, 2026-11-27).
+
+**Follows from.** O100; O101 to O103 (proposal 0005); S10.3; S11.1.
