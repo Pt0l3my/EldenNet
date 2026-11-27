@@ -3413,3 +3413,42 @@ TEST_CASE("in game: the sheet scan holds the part of health against the sheet fo
   CHECK(f.matches[1].offset == 0x14C);
   CHECK(f.matches[1].together == 0);
 }
+
+TEST_CASE("in game: the watch takes for a clock's hours only a run that steps as the minutes go round") {
+  // A clock as the fake game packs it: the hours 32 bits up, the minutes 16, a count of seconds lowest. Read at a
+  // pace that drifts slowly through the seconds, the seconds' top bits step by one now and then: as often as the
+  // minutes go round, by chance, and never otherwise. They are no hours: they step at other readings than the
+  // minutes go round at. (The two tied, and the lower run in the word won: the fake game's clock in a Debug build.)
+  FakeWorld w;
+  Round r = round_of(w);
+  const lodestar::Namer namer(r.gated.image, w.sys->image(), r.leads, r.ids);
+  lodestar::Watch watch(w.base, r.gated.image.size_of_image, namer.primary_tables(), nullptr);
+  const auto rva = [&](std::uint64_t va) { return static_cast<std::uint32_t>(va - w.base); };
+  const std::uint64_t clock = w.instance("world_clock");
+  lodestar::Watch::Way way{"world_clock", 1012, rva(w.at("st_world_clock")), 0, false, 0, true};
+  REQUIRE(watch.add(way));
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  std::uint32_t hour = 9, minute = 10, seconds = 3;
+  std::uint64_t now = 5'000'000;
+  for (int reading = 0; reading < 150; ++reading) {
+    w.mem.put<std::uint64_t>(clock + 0x10, (std::uint64_t{hour} << 32) | (std::uint64_t{minute} << 16) | seconds);
+    now += 1'000'000;
+    reader.begin_tick();
+    (void)watch.step(gt, reader, 1, now);
+    minute = (minute + 1) % 60;        // a game minute a reading: round at readings 50 and 110
+    if (minute == 0) hour = (hour + 1) % 24;
+    if (reading == 30 || reading == 85) seconds += 16;  // the seconds' top bits: 0, 1, 2
+  }
+  const lodestar::WatchFound found = watch.found();
+  REQUIRE(found.objects.size() == 1);
+  const lodestar::WatchObject& c = found.objects[0];
+  REQUIRE_FALSE(c.bits.empty());
+  CHECK(c.bits[0].offset == 0x10);
+  CHECK(c.bits[0].bit == 16);
+  CHECK(c.bits[0].wraps == 2);
+  CHECK(c.bits[0].has_hour);
+  CHECK(c.bits[0].hour_bit == 32);
+  CHECK(c.bits[0].hour_steps == 2);
+}
+

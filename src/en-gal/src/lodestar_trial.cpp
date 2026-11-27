@@ -418,6 +418,10 @@ struct Watch::Object {
     std::array<std::uint16_t, kJumpsKept> jump_s{};  // an hour's first jumps: when, from what, to what
     std::array<std::uint8_t, kJumpsKept> jump_from{};
     std::array<std::uint8_t, kJumpsKept> jump_to{};
+    // As hours: the runs of minutes of the same word (a bit each, by the run's lowest bit; the low 32 and the
+    // high) that went round or jumped at every reading at which this run stepped. A clock's hour steps when its
+    // minute goes round, and at no other time.
+    std::array<std::uint32_t, 2> with_minutes{~std::uint32_t{0}, ~std::uint32_t{0}};
   };
   Way way;
   std::uint32_t span = kSpan;  // what is copied: the way's, shortened where the object's memory ends sooner
@@ -560,7 +564,9 @@ void Watch::compare(Object& o, std::span<const std::byte> now, std::uint64_t now
         }
       }
       if (o.runs.empty()) continue;
-      // Every run of 6 bits as a clock's minutes, and of 5 bits as its hours.
+      // Every run of 6 bits as a clock's minutes, and of 5 bits as its hours. The minutes first: which of the
+      // word's runs went round or jumped at this reading is what an hour's step is held against.
+      std::uint64_t round_now = 0;
       for (std::size_t bit = 0; bit < Object::kBits; ++bit) {
         Object::Run& run = o.runs[w * Object::kBits + bit];
         const auto was = static_cast<std::uint32_t>((a >> bit) & 63);
@@ -570,17 +576,28 @@ void Watch::compare(Object& o, std::span<const std::byte> now, std::uint64_t now
           const std::uint32_t d = (is + 60 - was) % 60;
           if (d >= 1 && d <= 5) {
             count(run.ticks);
-            if (is < was) count(run.wraps);
+            if (is < was) {
+              count(run.wraps);
+              round_now |= std::uint64_t{1} << bit;
+            }
           } else {
             count(run.jumps);
+            round_now |= std::uint64_t{1} << bit;
           }
         }
+      }
+      for (std::size_t bit = 0; bit < Object::kBits; ++bit) {
+        Object::Run& run = o.runs[w * Object::kBits + bit];
+        const auto was = static_cast<std::uint32_t>((a >> bit) & 63);
+        const auto is = static_cast<std::uint32_t>((b >> bit) & 63);
         const std::uint32_t hour_was = was & 31, hour_is = is & 31;
         if (hour_is >= 24) run.hour_dead = 1;
         run.hour_seen |= (1u << hour_was) | (1u << hour_is);
         if (run.hour_dead == 0 && hour_was < 24 && hour_is != hour_was) {
           if ((hour_is + 24 - hour_was) % 24 == 1) {
             count(run.hour_steps);
+            run.with_minutes[0] &= static_cast<std::uint32_t>(round_now);
+            run.with_minutes[1] &= static_cast<std::uint32_t>(round_now >> 32);
           } else {
             if (run.hour_jumps < kJumpsKept) {
               run.jump_s[run.hour_jumps] = static_cast<std::uint16_t>(second < 0xFFFFu ? second : 0xFFFFu);
@@ -785,7 +802,10 @@ WatchFound Watch::found() const {
           h.wraps = run.wraps;
           h.jumps = run.jumps;
           // Its hours: a run of 5 bits in the same word or the one beside it that stepped by one, about as often
-          // as the minutes went round, and never otherwise.
+          // as the minutes went round, and never otherwise. In the same word (one copy, one moment) every one of
+          // its steps must have come as these minutes went round or jumped: a run that steps as often by chance
+          // (the top bits of a seconds' count read at a pace that drifts through it) is no hour. Without that the
+          // two tie, and the first in the word won (the fake game's clock in a Debug build, 2026-11-27).
           // (Two other changes are let be: the player may have let time pass. A run that held fewer hours than the
           // minutes' rounds call for is no hour: the minutes' own top bit goes up and down once a round.)
           std::uint32_t best_gap = ~0u;
@@ -794,6 +814,7 @@ WatchFound Watch::found() const {
             for (std::size_t b = 0; b < Object::kBits; ++b) {
               const Object::Run& hour = o.runs[v * Object::kBits + b];
               if (hour.hour_dead != 0 || hour.hour_steps == 0 || hour.hour_jumps > 2) continue;
+              if (v == w && ((hour.with_minutes[bit / 32] >> (bit % 32)) & 1u) == 0) continue;
               std::uint32_t held = 0;
               for (std::uint32_t seen = hour.hour_seen; seen != 0; seen &= seen - 1) ++held;
               if (held < std::min<std::uint32_t>(run.wraps + 1u, 3u)) continue;

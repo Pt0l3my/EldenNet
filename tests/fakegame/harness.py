@@ -4571,7 +4571,9 @@ def check_read_chars(result):
     moved, frames = world["pos_moved_by"], world["pos_frames_by"]
     need(len(moved) == 9 and moved[4] >= 3 and moved[3] == 0 and moved[5] == 0 and frames[3] >= 5 and frames[5] >= 5,
          "the position moved in the walk alone: moved %s of frames %s" % (moved, frames), failures)
-    need(world.get("near_read", 0) >= 20 and world.get("near_chr") == world.get("near_read") and
+    # (One frame's list may be read while the fake world is taken down: see the survey's case.)
+    need(world.get("near_read", 0) >= 20 and
+         world.get("near_read", 0) - 6 <= world.get("near_chr", 0) <= world.get("near_read", 0) and
          world.get("near_distance") == world.get("near_read"),
          "the near list, element by element: %s" % {k: v for k, v in world.items() if k.startswith("near")}, failures)
     failures += check_lines(("ELDENNET", "init", {"state": "ready"}), ("LAUNCHER", "end", {"kind": "clean"}))(result)
@@ -4580,9 +4582,15 @@ def check_read_chars(result):
 
 case("launcher-eldennet-read-state", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
                                               "--read", "--read-pace-s", "8"] +
-     game("--field-mirror", "--slot-by-state", "--slot-copy", "--first-slot", "6", "--title-frames", "720",
-          "--retitle-at-s", "15", "--retitle-for-s", "16", frames=3900),
+     game("--field-mirror", "--slot-by-state", "--slot-copy", "--first-slot", "6", "--title-frames", "840",
+          "--retitle-at-s", "16", "--retitle-for-s", "18", frames=4020),
      program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     # The state search's four looks against the fake game's states, in the launcher's seconds (the round is ready
+     # some 10.5 s in, a little later in a Debug build): the first look, at the title, comes 2 s after that, and
+     # the fake game leaves its title at 14.9 (it left at 12.9, 0.2 s after the look in a Release build and before
+     # it in a Debug one: the pair search then found nothing, 2026-11-27). The second look, about 28.5, is in the
+     # first world (14.9 to 30.9); the third, about 44.5, in the title again (to 48.9); the fourth, about 60.5, in
+     # the second world. Two seconds or more either side of each.
      prepare=install_eldennet(None, probe=True, gal_change=read_state_gal, then=with_saves),
      check=check_read_state,
      what="the read-only round where no class names the game's state (as in the game): the fake game is taken from its "
@@ -4665,8 +4673,12 @@ def check_read_survey(result):
     # EldenNet's own reader beside it, through the fake game's layout.
     world = d.get("world") or {"at_marks": []}
     at = {a["mark"]: a for a in world["at_marks"]}
+    # (Nearly every element read has a character behind its address: the reader's thread is not the game's, and a
+    # frame read while the fake world is taken down, at the fake game's return to its title, may meet an element
+    # whose character has just gone. One frame's list at most.)
     need(world.get("lacks") == 0 and world.get("calls", 0) >= 30 and len(at) == 6 and at[1]["player"] and
-         at[1]["has_hp"] and at[1]["near"] == 6 and world.get("near_chr") == world.get("near_read"),
+         at[1]["has_hp"] and at[1]["near"] == 6 and
+         world.get("near_read", 0) - 6 <= world.get("near_chr", 0) <= world.get("near_read", 0),
          "the world reader beside the survey: %s" % world, failures)
     # The nineteenth round: every other frame of that reader also reads the near characters' other fields through the
     # layout. Six characters beside the player: each with a handle and an entity's id of its own, three teams of two,
