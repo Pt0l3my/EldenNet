@@ -1917,6 +1917,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     F11) keep their faces until GraceUI publishes the setting to mods and the owner decides they follow it (O134).
     Decided on 2026-11-27 (O134): the subtitles and the chat box follow it from the next launch, in Noto Sans of their
     own; for EldenNet's pin of GraceUI 0.2.61 (D268, ABI 1.9), which publishes the value to mods.
+- bu Plain text for mods: plain_text at connect and with the display event, a mod's own Noto Sans faces from GraceUI's fonts folder (GraceUI 0.2.61, ABI 1.9) [done]
+  - refs: GraceUI:D180, GraceUI:D241, O134
+  - gives: GraceUI's D268, built on 2026-11-27 (GraceUI feat/foundations bdc260b; GraceUI's docs/eldennet-changes.md
+    §94): `plain_text` (1 or 0) in GraceUiConnectAnswer (56 bytes) and in GRACEUI_EVENT_DISPLAY (168 bytes), set with
+    ui.scale and its default at once, after warm-up and on each change; has_cap("plain-text") for older hosts; the
+    faces registered from GraceUI's fonts folder in a mod's registration window. For O134's build at the next pin.
 
 ### S11.3 EldenNet v0.2
 
