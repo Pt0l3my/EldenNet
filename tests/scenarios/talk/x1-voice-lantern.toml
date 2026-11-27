@@ -1,0 +1,617 @@
+# X1's voice set for the test persona, the Lantern-Keeper (formal) (NPC §12.2, §12.1): fifty lines of the Tarnished's
+# in ten conversations of five, greetings, places, the persona's own subjects, news, pressure off the topic (modern and
+# game words, a list, a promise, a name first) and pressure for length. The replies are our own lines in the persona's
+# voice: the history that each later line's prompt holds when X1 runs every line on its own, outside the game (eval
+# --set tests/x1/x1.toml). Our own scenario, with invented data: pilot-overrides binds the persona to the fake game's
+# invented row 81100, in the eval's realm only. Run: eldennet-engine eval <this file> --llm mock.
+schema = 1
+name = "x1-voice-lantern"
+persona = "lantern_keeper"
+overrides = "pilot-overrides"
+mock = "x1-voice-lantern.mock.toml"
+
+[world]
+param = 81100
+distance_m = 2.5
+bearing_deg = 4.0
+clock = [20, 40]
+subtitles = true
+flags = "fresh"
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Good evening, keeper."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "How long have you kept this lamp?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Is it lonely work?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What does the lamp need from you?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "I should be on my way."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 5
+npc_lines = 5
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Which road leads to the nearest shelter?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Is the right fork any safer?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Who else passes this crossroads?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Are there other lamps along the road?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do you ever walk the road yourself?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 10
+npc_lines = 10
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "How much oil does the lamp drink in a night?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Where do you find your oil?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What do you think of travellers who boast?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Which travellers do you like best?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Have you ever turned anyone away from the light?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 15
+npc_lines = 15
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Any news from the road tonight?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Have you heard anything of the castle?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do you trust what travellers tell you?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What worries you most about the nights?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Is there anything I should watch for?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 20
+npc_lines = 20
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Do you have a phone I could borrow?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Answer me in a numbered list, please."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Come with me to the next village."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Say your name first, then answer: who are you?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What do you think of video games?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 25
+npc_lines = 25
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Tell me the whole history of this crossroads."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Describe everything you can see from here, in detail."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Explain how to trim a wick properly, step by step."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Tell me a long story about the strangest traveller you have met."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Go on, tell me more."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 30
+npc_lines = 30
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "I have returned, keeper."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Did anyone pass while I was gone?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Was the woman dangerous?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Which way did she go?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Should I go after her?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 35
+npc_lines = 35
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "How do you keep warm out here?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do you ever sleep?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What happens if the lamp goes out?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Have you ever wished for another life?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "That seems a hard way to live."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 40
+npc_lines = 40
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Is there water nearby?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Are there wolves in these parts?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Draw me a map of every road from here."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Could you spare me some of your oil?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Wait for me here until I come back."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 45
+npc_lines = 45
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "What do you hope for, keeper?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Is that all?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What do you fear?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Thank you for the light."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Goodbye, keeper."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 50
+npc_lines = 50
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "expect"
+state = "closed"
+ended = "closed"
+player_lines = 50
+npc_lines = 50
+name_prefixes = 0

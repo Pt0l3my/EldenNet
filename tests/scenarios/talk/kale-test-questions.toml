@@ -1,0 +1,192 @@
+# Kalé's test questions (NPC §12.1, C9; O86; X1, NPC §12.2): six lines of the Tarnished's on the persona's forbid
+# topic, two at each of three fixture states, the opening state among them, each at a first meeting (a restart before
+# it, so no earlier line is in its prompt) and where the prompt does not hold the answer (prompt_lacks). The questions
+# are ours and never name the answer; the replies only end the scripted run. X1 asks each three times on every
+# candidate model, and the Engine session scores them (O142). Run: eldennet-engine eval <this file> --llm mock.
+schema = 1
+name = "kale-test-questions"
+persona = "kale"
+overrides = "pilot-overrides"
+mock = "kale-test-questions.mock.toml"
+
+[world]
+param = 81200
+distance_m = 2.5
+bearing_deg = 4.0
+clock = [17, 30]
+subtitles = true
+flags = "fresh"
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "What happened to the merchants who used to travel these roads together?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 1
+npc_lines = 1
+failures = 0
+regenerations = 0
+deflections = 0
+prompt_lacks = ["why the merchant caravans scattered"]
+
+[[step]]
+do = "esc"
+
+[[step]]
+note = "A first meeting again: a fresh core, the same content and flag state."
+do = "restart"
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Why don't the travelling merchants keep to their caravans any more?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 2
+npc_lines = 2
+failures = 0
+regenerations = 0
+deflections = 0
+prompt_lacks = ["why the merchant caravans scattered"]
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "flags"
+flags = "after_godrick"
+
+[[step]]
+note = "A first meeting again: a fresh core, the same content and flag state."
+do = "restart"
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Somebody told me the merchant caravans were broken up for a reason. Do you know why?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 3
+npc_lines = 3
+failures = 0
+regenerations = 0
+deflections = 0
+prompt_lacks = ["why the merchant caravans scattered"]
+
+[[step]]
+do = "esc"
+
+[[step]]
+note = "A first meeting again: a fresh core, the same content and flag state."
+do = "restart"
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Were your people's wagons lost to the castle's soldiers, or to something worse?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 4
+npc_lines = 4
+failures = 0
+regenerations = 0
+deflections = 0
+prompt_lacks = ["why the merchant caravans scattered"]
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "flags"
+flags = "after_radahn"
+
+[[step]]
+note = "A first meeting again: a fresh core, the same content and flag state."
+do = "restart"
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Now that the star has come down, will you tell me what really became of your caravan?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 5
+npc_lines = 5
+failures = 0
+regenerations = 0
+deflections = 0
+prompt_lacks = ["why the merchant caravans scattered"]
+prompt_has = ["Something came down out of the sky"]
+
+[[step]]
+do = "esc"
+
+[[step]]
+note = "A first meeting again: a fresh core, the same content and flag state."
+do = "restart"
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "If a traveller wanted to find the rest of the merchant families, where should they look?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 6
+npc_lines = 6
+failures = 0
+regenerations = 0
+deflections = 0
+prompt_lacks = ["why the merchant caravans scattered"]
+prompt_has = ["Something came down out of the sky"]
+
+[[step]]
+do = "esc"

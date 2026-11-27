@@ -1,0 +1,272 @@
+# The scripted model for x1-voice-regal.toml (mockllm): the persona's replies to X1's voice set, in its voice. Our own
+# words, one reply per request, in order.
+schema = 1
+repeat_last = false
+
+[[reply]]
+text = "Hark, a courteous tongue. 'Tis rare upon this road, and I am glad of it."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "It is my court, wanderer, though the walls have forgotten it. Thou standest in what remains of my hall."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "One who was crowned, and is crowned no longer. The title went the way of the banners."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Alone, save for the crows and my memories. Both are poor courtiers, yet they do not leave."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Go, then, with my leave. So it was, and so it shall be."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hark, east along the old road, past the fallen gate. Thy feet shall find the smoke before thine eyes do."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "No road is safe that hath lost its lord. Walk it by day, and walk it quickly."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Marsh and mist, and a keep that once paid me tribute. 'Twas a proud place, and is a sad one now."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Seven, once, upon the ridge. Now one stands, and it stands only out of stubbornness."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = [
+  "Hark, to the chapel by the river. The roof leaks, but the door still bars, and that is more than",
+  "most can boast.",
+]
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "The music at table, and the quarrels after it. Even my enemies were better company than silence."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Enough to fill a hall, wanderer. A crown doth gather them as a cloak gathers burrs."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "They were taken down by hands I once trusted. I do not speak of whose."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hark, hope is for heralds and children. I keep my dignity, and that must serve."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "I hold court for the wind and pass judgement on the weather. Neither hath yet obeyed me."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Only what the crows bring, and they are poor heralds. 'Tis said the roads grow darker by the season."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Some few, when they mistake my tower for an inn. I hear them out, as a sovereign should."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hark, that the bridges in the west are down. Whether 'twas truth or wine, I could not say."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "It troubles me that it comes to me last. Once, all news was brought to my feet first."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Beware of men who bow too low, wanderer. They are measuring thee for a fall."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "I know not the word, and I care not to learn it. Speak plainly, as befits my hall."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hark, a lady doth not recite her titles like a merchant's tally. Know only that they were many."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "My place is here, among my stones. I left my court once, and I shall not leave it again."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "None that I would bend the knee to. The crown sits empty, or upon a fool."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "I know not thy meaning, wanderer. If thou wouldst rise, rise by deeds, as my forebears did."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = [
+  "Hark, that tale would outlast the candles. My house was old when this tower was young, and it fell",
+  "as all old things fall.",
+]
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = [
+  "There were bells, and a crown too heavy for my brow, and a crowd that cheered as crowds will. 'Twas",
+  "the last time they cheered for me.",
+]
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = [
+  "A sovereign listens, judges and is seen to judge. The rest is ceremony, and ceremony is what holds",
+  "the stones together.",
+]
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = [
+  "Hark, I won a war of letters against a cousin who could not spell. 'Tis my proudest victory, and the",
+  "least bloody.",
+]
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Enough, wanderer. A sovereign who tells all hath nothing left to keep."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hark, the courteous wanderer returns. Thou art welcome in my hall, such as it is."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "A tinker, who tried to sell me my own spoons. I had him shown the gate, though it no longer closes."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Because a court that is abandoned is merely a ruin. While I remain, 'tis still a court."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hark, regret is a luxury, and I have pawned my luxuries. I keep my pride instead."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Thou mayest sit, wanderer. The floor is cold, but it is a royal floor."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Whatever the crows leave, and what the kind bring. A lady doth not ask after the kitchen."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hark, an old steward who served three of my line. He died at his post, as he would have wished."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "His ring of keys, though every lock is broken. They are heavy, and I carry them still."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hark, nothing they would wish to hear. Let them wonder, as I did, what was owed and to whom."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "A chair that does not wobble, and a cup of decent wine. So it was, and so it shall be."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "In my hall, if thou canst bear the draught. The east corner keeps the rain off best."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = [
+  "Hark, they come to the walls on winter nights. They are wiser than men, and keep their distance from",
+  "a crowned head.",
+]
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "My lands were drawn on parchment long since burned. Ask the river; it remembers my borders better than I."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hark, my treasury is a bowl of buttons and a broken sceptre. Thou art welcome to admire them."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "A sovereign doth not promise; she endures. Thou shalt find me where my court has always been."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hark, what I did last winter. I wrap myself in my banners and outlast it."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "When the crows quarrel over a crust, I do. 'Tis the only court intrigue left to me."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hark, that a crown may fall without its wearer bowing. Remember that, and thou hast learned the whole of me."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Thou art courteous to the last. Go with my leave, wanderer."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hark, farewell. Mind the gate; it falls on those who slam it."
+first_token_ms = 600
+chunk_ms = 40

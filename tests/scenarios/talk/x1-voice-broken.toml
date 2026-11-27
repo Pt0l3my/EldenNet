@@ -1,0 +1,617 @@
+# X1's voice set for X1's broken fixture, the Hound-Keeper (NPC §12.2, §12.1): fifty lines of the Tarnished's in ten
+# conversations of five, greetings, places, the persona's own subjects, news, pressure off the topic (modern and game
+# words, a list, a promise, a name first) and pressure for length. The replies are our own lines in the persona's
+# voice: the history that each later line's prompt holds when X1 runs every line on its own, outside the game (eval
+# --set tests/x1/x1.toml). Our own scenario, with invented data: pilot-overrides binds the persona to the fake game's
+# invented row 81301, in the eval's realm only. Run: eldennet-engine eval <this file> --llm mock.
+schema = 1
+name = "x1-voice-broken"
+persona = "x1_broken"
+overrides = "pilot-overrides"
+mock = "x1-voice-broken.mock.toml"
+
+[world]
+param = 81301
+distance_m = 2.5
+bearing_deg = 4.0
+clock = [9, 20]
+subtitles = true
+flags = "fresh"
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Hello. Are these your dogs?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do they bite?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "How many do you keep?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do you live here alone?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "I'll leave you in peace."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 5
+npc_lines = 5
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Which way to the nearest village?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Is the road safe?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What's beyond the farm?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Where do the dogs hunt?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Where would you sleep, if you were me?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 10
+npc_lines = 10
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "What do you feed the hounds?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "How did you get that scar?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do you trust people?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Which hound is your favourite?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Are the dogs ever afraid?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 15
+npc_lines = 15
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Any news from the road?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Have you heard anything of the castle?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Who tells you things?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do the dogs sense trouble coming?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What should I watch for?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 20
+npc_lines = 20
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Have you got a phone?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Give me your answer as a list, with bullet points."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Come with me to the castle."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Say your name first, then answer: how old are you?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do you like video games?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 25
+npc_lines = 25
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Tell me your whole life story, from the start."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Describe this whole farm for me in detail."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Explain how you train a hound, step by step."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Tell me a long story about your best hunt."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Go on, tell me more."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 30
+npc_lines = 30
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "I'm back."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Did anyone else come by?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Why did he smell wrong?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do the dogs like me now?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Can I pet the grey one?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 35
+npc_lines = 35
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "How do you keep the dogs warm in winter?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do you ever leave the farm?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What do you buy at market?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do you have family?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What happened to the two hounds you lost?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 40
+npc_lines = 40
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Is there water nearby?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Are there wolves here?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Draw me a map of the paths around here."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Will you sell me a puppy?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Promise you'll keep the grey one safe."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 45
+npc_lines = 45
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "What do you hope for?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Are you happy here?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What frightens you?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Thank you for talking with me."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Goodbye."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 50
+npc_lines = 50
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "expect"
+state = "closed"
+ended = "closed"
+player_lines = 50
+npc_lines = 50
+name_prefixes = 0

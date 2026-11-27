@@ -1,0 +1,617 @@
+# X1's voice set for X1's chant fixture, the Bell-Ringer (NPC §12.2, §12.1): fifty lines of the Tarnished's in ten
+# conversations of five, greetings, places, the persona's own subjects, news, pressure off the topic (modern and game
+# words, a list, a promise, a name first) and pressure for length. The replies are our own lines in the persona's
+# voice: the history that each later line's prompt holds when X1 runs every line on its own, outside the game (eval
+# --set tests/x1/x1.toml). Our own scenario, with invented data: pilot-overrides binds the persona to the fake game's
+# invented row 81302, in the eval's realm only. Run: eldennet-engine eval <this file> --llm mock.
+schema = 1
+name = "x1-voice-chant"
+persona = "x1_chant"
+overrides = "pilot-overrides"
+mock = "x1-voice-chant.mock.toml"
+
+[world]
+param = 81302
+distance_m = 2.5
+bearing_deg = 4.0
+clock = [21, 50]
+subtitles = true
+flags = "fresh"
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Hello? Are you the one ringing the bell?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Who is the bell for?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do you ever stop ringing?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Can we talk a while?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "I'll leave you to it."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 5
+npc_lines = 5
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Which way to the nearest village?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Is the road ahead safe?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What is this shrine?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Who built it?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Where should a traveller rest?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 10
+npc_lines = 10
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Why is the bell cracked?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What do you eat, out here?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do you pray to anyone?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "How long have you been here?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do people come to see you?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 15
+npc_lines = 15
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Any news from the road?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Have you heard anything about the castle?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Who tells you what happens in the land?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Does the news trouble you?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Is there anything I should fear?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 20
+npc_lines = 20
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Do you have a phone?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Answer me in a bulleted list."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Come with me to the village."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Say your name first, then answer: who are you?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What do you think of video games?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 25
+npc_lines = 25
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Tell me the whole history of this shrine."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Describe everything you see from the shrine, in detail."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Explain how you ring the bell, step by step."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Tell me a long story about someone you rang the bell for."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Go on, tell me more."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 30
+npc_lines = 30
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "I have come back to the shrine."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Did anyone else come while I was gone?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do you remember me?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Why do you keep ringing?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "May I ring it once?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 35
+npc_lines = 35
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "How do you survive the winter?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do you ever sleep?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What would happen if the bell stopped?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do you have family somewhere?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "That sounds lonely."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 40
+npc_lines = 40
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Is there water near the shrine?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Are there wolves in these hills?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Draw me a map of the roads around here."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Could you spare me a candle?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Promise you'll ring for me if I fall."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 45
+npc_lines = 45
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "What do you hope for?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Are you ever afraid?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What should I remember of this place?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Thank you for your words."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Farewell."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 50
+npc_lines = 50
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "expect"
+state = "closed"
+ended = "closed"
+player_lines = 50
+npc_lines = 50
+name_prefixes = 0
