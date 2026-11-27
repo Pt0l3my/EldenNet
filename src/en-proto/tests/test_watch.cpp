@@ -40,7 +40,8 @@ TEST_CASE("watch block: the read round's plan is appended, zero until the launch
   CHECK(valid(*b));
   CHECK(b->probe_plan.load() == 1);
   CHECK(kPlanSheet == 2);
-  CHECK(kPlanCount == 3);
+  CHECK(kPlanStay == 3);
+  CHECK(kPlanCount == 4);
 }
 
 TEST_CASE("watch block: what the round gathered, two bits a mark, in the room the plan's word left") {

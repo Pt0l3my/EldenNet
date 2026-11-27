@@ -50,8 +50,8 @@ struct Options {
   // outside it they are on screen by their distance, as always); at kill_at_s the first of them dies (never, where 0).
   std::uint32_t screen_from_s = 0, screen_to_s = 0, kill_at_s = 0;
   // The sheet's world (the twentieth read-only round), by the world's seconds: at block_at_s the player crosses into
-  // another block (its block id changes); at die_at_s it dies: its health goes to nothing and its dead bit is set,
-  // the save ledger counts the death and the sheet's runes are lost, and three seconds on the world loads again,
+  // another block (its block id changes); at die_at_s it dies: its health goes to nothing (its dead bit stays clear:
+  // that bit is the world's characters' alone), the save ledger counts the death and the sheet's runes are lost, and three seconds on the world loads again,
   // with a new player in it. Never, where 0.
   std::uint32_t block_at_s = 0, die_at_s = 0;
   bool wide_sheet = false;             // the save ledger and the hero sheet each lie at the start of 68 KiB of memory

@@ -4392,7 +4392,7 @@ def check_read(result, by_flag=False, events=False, marks=False):
     with open(table) as f:
         draft = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 21, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
+    need(d["report"] == "lodestar" and d["schema"] == 22, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
          failures)
     # Numbers and the catalogue's labels: no name of the fake game's, in either file.
     for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["SaveLedger", "FG::", "Imp", "task_loom", "Fg_"]:
@@ -4889,7 +4889,9 @@ def check_read_chars(result):
     moved, frames = world["pos_moved_by"], world["pos_frames_by"]
     need(len(moved) == 9 and moved[4] >= 3 and moved[3] == 0 and moved[5] == 0 and frames[3] >= 5 and frames[5] >= 5,
          "the position moved in the walk alone: moved %s of frames %s" % (moved, frames), failures)
-    need(world.get("near_read", 0) >= 20 and world.get("near_chr") == world.get("near_read") and
+    # (One frame's list may be read while the fake world is taken down: see the survey's case.)
+    need(world.get("near_read", 0) >= 20 and
+         world.get("near_read", 0) - 6 <= world.get("near_chr", 0) <= world.get("near_read", 0) and
          world.get("near_distance") == world.get("near_read"),
          "the near list, element by element: %s" % {k: v for k, v in world.items() if k.startswith("near")}, failures)
     failures += check_lines(("ELDENNET", "init", {"state": "ready"}), ("LAUNCHER", "end", {"kind": "clean"}))(result)
@@ -4898,9 +4900,15 @@ def check_read_chars(result):
 
 case("launcher-eldennet-read-state", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
                                               "--read", "--read-pace-s", "8"] +
-     game("--field-mirror", "--slot-by-state", "--slot-copy", "--first-slot", "6", "--title-frames", "720",
-          "--retitle-at-s", "15", "--retitle-for-s", "16", frames=3900),
+     game("--field-mirror", "--slot-by-state", "--slot-copy", "--first-slot", "6", "--title-frames", "840",
+          "--retitle-at-s", "16", "--retitle-for-s", "18", frames=4020),
      program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     # The state search's four looks against the fake game's states, in the launcher's seconds (the round is ready
+     # some 10.5 s in, a little later in a Debug build): the first look, at the title, comes 2 s after that, and
+     # the fake game leaves its title at 14.9 (it left at 12.9, 0.2 s after the look in a Release build and before
+     # it in a Debug one: the pair search then found nothing, 2026-11-27). The second look, about 28.5, is in the
+     # first world (14.9 to 30.9); the third, about 44.5, in the title again (to 48.9); the fourth, about 60.5, in
+     # the second world. Two seconds or more either side of each.
      prepare=install_eldennet(None, probe=True, gal_change=read_state_gal, then=with_saves),
      check=check_read_state,
      what="the read-only round where no class names the game's state (as in the game): the fake game is taken from its "
@@ -4948,7 +4956,7 @@ def check_read_survey(result):
     need(code == 0, "lint --report lodestar-found.json: exit %s %s" % (code, out[-400:]), failures)
     with open(report) as f:
         d = json.load(f)
-    need(d["report"] == "lodestar" and d["schema"] == 21,
+    need(d["report"] == "lodestar" and d["schema"] == 22,
          "the report's kind: %s %s" % (d.get("report"), d.get("schema")), failures)
     need(all(k not in d for k in ("state", "pair", "chars", "parts")),
          "the survey's report holds an earlier round's section: %s" % sorted(d.keys()), failures)
@@ -4983,8 +4991,12 @@ def check_read_survey(result):
     # EldenNet's own reader beside it, through the fake game's layout.
     world = d.get("world") or {"at_marks": []}
     at = {a["mark"]: a for a in world["at_marks"]}
+    # (Nearly every element read has a character behind its address: the reader's thread is not the game's, and a
+    # frame read while the fake world is taken down, at the fake game's return to its title, may meet an element
+    # whose character has just gone. One frame's list at most.)
     need(world.get("lacks") == 0 and world.get("calls", 0) >= 30 and len(at) == 6 and at[1]["player"] and
-         at[1]["has_hp"] and at[1]["near"] == 6 and world.get("near_chr") == world.get("near_read"),
+         at[1]["has_hp"] and at[1]["near"] == 6 and
+         world.get("near_read", 0) - 6 <= world.get("near_chr", 0) <= world.get("near_read", 0),
          "the world reader beside the survey: %s" % world, failures)
     # The nineteenth round: every other frame of that reader also reads the near characters' other fields through the
     # layout. Six characters beside the player: each with a handle and an entity's id of its own, three teams of two,
@@ -5043,9 +5055,9 @@ case("launcher-eldennet-read-survey", LBASE + ["--no-steam-check", "--game", "{g
 def check_read_sheet(result):
     """The sheet's plan (--read-plan 2; the twentieth read-only round): seven tasks and five marks; the fake player
     stands, moves (--walk-from-s to --walk-to-s) and crosses into another block (--block-at-s), dies (--die-at-s:
-    its health and dead bit, the ledger's count, the sheet's runes; the world loads again three seconds on), and
-    stands again. The sheet scan tells the ledger's and the sheet's numbers and never the name; EldenNet's own reader
-    counts the block's change, the health at nothing with the dead bit, the clock and the play time; the parts watch
+    its health goes to nothing and its dead bit stays clear, the ledger's count, the sheet's runes; the world loads
+    again three seconds on), and stands again. The sheet scan tells the ledger's and the sheet's numbers and never the name; EldenNet's own reader
+    counts the block's change, the health at nothing with the dead bit clear, the clock and the play time; the parts watch
     tells the position beside it; and the round says of each task that it was gathered, which the launcher's panel
     and log carry."""
     failures = any_line(result, "LAUNCHER", "tasks", count=7, plan=2)
@@ -5071,7 +5083,7 @@ def check_read_sheet(result):
     need(code == 0, "lint --report lodestar-found.json: exit %s %s" % (code, out[-400:]), failures)
     with open(report) as f:
         d = json.load(f)
-    need(d["report"] == "lodestar" and d["schema"] == 21,
+    need(d["report"] == "lodestar" and d["schema"] == 22,
          "the report's kind: %s %s" % (d.get("report"), d.get("schema")), failures)
     # The sheet scan. The ledger: the count of deaths rose by one, once, in the death's phase (the third); the play
     # time never keeps still and is left out; its two words to objects are addresses, and left out.
@@ -5114,8 +5126,8 @@ def check_read_sheet(result):
          ([hex(o) for o in numbers if 0x18 <= o < 0x34], sorted(runs.items())[:4]), failures)
     # EldenNet's own reader. By the marks (0 before the first; 1 the stand, 2 the ride, 3 the death, 4 the last
     # stand): the position moves in the ride alone; the block changes once in it (and once more as the new world's
-    # player stands in the first block again); the health reads nothing in the death's span, with the dead bit set
-    # where the fields were read then; the main player's type reads nothing; the clock steps a minute a frame and
+    # player stands in the first block again); the health reads nothing in the death's span, with the dead bit clear
+    # where the fields were read then (it is the world's characters' alone); the main player's type reads nothing; the clock steps a minute a frame and
     # the play time rises.
     world = d.get("world") or {}
     by = {k: world.get(k) or [0] * 6 for k in ("pos_moved_by", "pos_frames_by", "self_block_changes_by", "hp_zero_by",
@@ -5124,9 +5136,8 @@ def check_read_sheet(result):
          by["pos_moved_by"][1] == 0 and by["pos_moved_by"][2] >= 5 and by["pos_moved_by"][4] == 0 and
          by["self_block_changes_by"][1] == 0 and by["self_block_changes_by"][2] == 1 and
          by["self_block_changes_by"][4] == 0 and by["hp_zero_by"][3] >= 2 and
-         by["hp_zero_by"][1] + by["hp_zero_by"][2] + by["hp_zero_by"][4] == 0 and by["self_dead_by"][3] >= 1 and
-         by["self_dead_by"][1] + by["self_dead_by"][2] + by["self_dead_by"][4] == 0 and
-         world.get("zero_fields_frames", 0) >= 1 and world.get("dead_at_zero") == world.get("zero_fields_frames") and
+         by["hp_zero_by"][1] + by["hp_zero_by"][2] + by["hp_zero_by"][4] == 0 and sum(by["self_dead_by"]) == 0 and
+         world.get("zero_fields_frames", 0) >= 1 and world.get("dead_at_zero") == 0 and
          by["player_by"][4] == by["calls_by"][4],
          "the reader by the marks: %s" % by, failures)
     need(world.get("self_type_none_frames", 0) >= 12 and world.get("self_type_none_frames") == world.get("self_frames") and
@@ -5176,8 +5187,160 @@ case("launcher-eldennet-read-sheet", LBASE + ["--no-steam-check", "--game", "{ga
      check=check_read_sheet,
      what="the twentieth round: the sheet's plan. The sheet scan tells the ledger's count of deaths and the sheet's "
           "level and runes and never the name; EldenNet's own reader counts the block's change in the ride, the "
-          "health at nothing with the dead bit at the death, the clock and the play time; the parts watch tells the "
-          "position beside it; and the round says of each task that it was gathered, for the launcher's panel")
+          "health at nothing with the dead bit clear at the death, the clock and the play time; the parts watch tells "
+          "the position beside it; and the round says of each task that it was gathered, for the launcher's panel")
+
+
+def check_read_stay(result):
+    """The stay's plan (--read-plan 3; the twenty-first read-only round): six tasks and four marks. The fake player
+    stands, dies once (--die-at-s: its health goes to nothing, its dead bit stays clear, the ledger's count rises by
+    one; the world loads again three seconds on) and stays in the world. EldenNet's own reader reads the sheet
+    through the layout (the level, and of the name only that it is there); the sheet scan tells the count that rose
+    by one once, and holds the main player's part of health against the sheet; the watch reads the clock's minutes
+    and the play time's rise beside the reader, and the verdict on the stay rests on what the report as written
+    holds of them; the survey is slowed twenty seconds after the death."""
+    failures = any_line(result, "LAUNCHER", "tasks", count=6, plan=3)
+    failures += any_line(result, "ELDENNET", "read", stage="plan", plan=3, known=1)
+    failures += any_line(result, "ELDENNET", "read", stage="survey", made=1, mark=1)
+    failures += any_line(result, "ELDENNET", "read", stage="sheet", made=1, lacks=0, by_layout=1, part_beside=1, mark=1)
+    failures += any_line(result, "ELDENNET", "read", stage="stay_ways", lacking=0)
+    failures += any_line(result, "ELDENNET", "read", stage="stay_written", clock=1, play=1)
+    failures += any_line(result, "ELDENNET", "read", stage="stay_slowed")
+    # Every one of the four tasks gathered (two bits a mark, 01 each), told the launcher, which says so.
+    failures += any_line(result, "ELDENNET", "read", stage="gathered", word=0x55, mark=4)
+    failures += any_line(result, "LAUNCHER", "gathered", word=0x55)
+    failures += any_line(result, "LAUNCHER", "gathered", line=1, usable=1, report_failed=0)
+    for stage in ("state", "pair", "chars", "chars_look", "parts"):
+        need(not [e for e in result.events("ELDENNET", "read") if e.get("stage") == stage],
+             "the stay's plan ran the earlier rounds' %s" % stage, failures)
+    folder = os.path.join(result.paths["appdata"], "EldenNet", "probe")
+    report = os.path.join(folder, "lodestar-found.json")
+    if not os.path.exists(report):
+        return failures + ["no lodestar-found.json in the probe folder"]
+    code, out, _ = run_engine(result.args, result.env, ["lint", "--report", result.as_win(report)])
+    need(code == 0, "lint --report lodestar-found.json: exit %s %s" % (code, out[-400:]), failures)
+    with open(report) as f:
+        d = json.load(f)
+    need(d["report"] == "lodestar" and d["schema"] == 22,
+         "the report's kind: %s %s" % (d.get("report"), d.get("schema")), failures)
+    # EldenNet's own reader. The sheet through the layout in nearly every frame with a player: a level in its range
+    # that never changes, a name that is there and keeps its length; neither is told. By the marks (1 the stand, 2
+    # the death, 3 the stay): the health reads nothing in the death's span alone, and the dead bit is clear in
+    # every frame, those with no health among them.
+    world = d.get("world") or {}
+    by = {k: world.get(k) or [0] * 5 for k in ("hp_zero_by", "self_dead_by", "player_by", "calls_by", "pos_moved_by")}
+    need(world.get("lacks") == 0 and world.get("sheet_frames", 0) >= 30 and
+         world.get("level_frames") == world.get("sheet_frames") and world.get("level_changes") == 0 and
+         world.get("name_frames") == world.get("sheet_frames") and world.get("name_changes") == 0,
+         "the reader on the sheet: %s" %
+         {k: world.get(k) for k in ("lacks", "sheet_frames", "level_frames", "level_changes", "name_frames",
+                                    "name_changes")}, failures)
+    need(all(len(v) == 5 for v in by.values()) and by["hp_zero_by"][2] >= 2 and
+         by["hp_zero_by"][1] + by["hp_zero_by"][3] == 0 and sum(by["self_dead_by"]) == 0 and
+         world.get("zero_fields_frames", 0) >= 1 and world.get("dead_at_zero") == 0 and by["pos_moved_by"][1] == 0 and
+         by["pos_moved_by"][3] >= 3 and by["player_by"][3] == by["calls_by"][3] and by["calls_by"][3] >= 8,
+         "the reader by the marks: %s" % by, failures)
+    need(world.get("clock_frames", 0) >= 30 and world.get("clock_steps", 0) >= world.get("clock_frames", 0) // 2 and
+         world.get("play_frames", 0) >= 30 and world.get("play_fell") == 0,
+         "the reader on the clock and the play time: %s" %
+         {k: world.get(k) for k in ("clock_frames", "clock_steps", "clock_same", "clock_jumps", "play_frames",
+                                    "play_rose", "play_fell")}, failures)
+    # The sheet scan: the ledger's count of deaths is among the numbers that rose by one, once, in the death's
+    # phase (the second); and the main player's part of health was read beside the sheet in its passes.
+    sheet = d.get("sheet") or {"sheets": [], "phase_passes": []}
+    objects = {o["sheet_of"]: o for o in sheet["sheets"]}
+    passes = sheet.get("phase_passes") or [0] * 6
+    rose = {r["offset"]: r for r in (objects.get("save_data") or {}).get("rose_once", [])}
+    need(passes[0] >= 2 and passes[1] >= 2 and passes[2] >= 3 and 0x18 in rose and rose[0x18]["phases"] == 2 and
+         rose[0x18]["from_nothing"] is True,  # the fake ledger's count starts at nothing
+         "the sheet scan on the count of deaths: passes %s rose once %s" % (passes, sorted(rose.items())[:6]), failures)
+    need(sheet.get("part_passes", 0) >= 8 and isinstance(sheet.get("matches"), list),
+         "the part of health beside the sheet: %s" %
+         {k: v for k, v in sheet.items() if not isinstance(v, list)}, failures)
+    numbers = {n["offset"]: n for n in (objects.get("sheet") or {}).get("numbers", [])}
+    need(not [o for o in numbers if 0x18 <= o < 0x34],
+         "the name is never told: numbers %s" % [hex(o) for o in numbers if 0x18 <= o < 0x34], failures)
+    # The watch beside the reader, as the report holds it: the clock's object with a run of bits where the layout
+    # has the minute (0x12: the 8-byte word at 0x10, bit 16), and the ledger with a whole number that rises where
+    # the layout has the play time (0x20).
+    watched = (d.get("watch") or {}).get("watched") or []
+    clock = [b for o in watched if o.get("label") == "world_clock" for b in o.get("bit_hits") or []
+             if b["offset"] == 0x10 and b["bit"] == 16 and b["ticks"] >= 20]
+    play = [r for o in watched if o.get("label") == "save_data" for r in o.get("rise_hits") or []
+            if r["offset"] == 0x20 and r["whole"] is True and r["rises"] >= 20]
+    need(bool(clock) and bool(play), "the watch on the clock and the play time: %s" %
+         [(o.get("label"), o.get("readings"), o.get("bit_hits"), o.get("rise_hits")) for o in watched
+          if o.get("label") in ("world_clock", "save_data")], failures)
+    # The survey: its three checks of a bit at a health of nothing beside the twenty-one, and its count of the
+    # characters by their sheet.
+    survey = d.get("survey") or {}
+    checks = survey.get("checks") or []
+    need(survey.get("passes", 0) >= 6 and len(checks) == 24 and
+         len([c for c in checks if c.get("check") == "bit_at_zero"]) == 3 and
+         all(k in survey for k in ("sheet_same", "sheet_other", "sheet_none")),
+         "the survey in the stay's plan: %s" % {k: v for k, v in survey.items() if not isinstance(v, list)}, failures)
+    size = os.path.getsize(report)
+    need(256 * 1024 < size < 1024 * 1024, "the report at the game's sizes: %d bytes" % size, failures)
+    failures += any_line(result, "LAUNCHER", "read", report="lodestar-found.json", lint="clean")
+    need(not [e for e in result.events("ELDENNET", "read") if e.get("report") in ("refused", "lost")],
+         "the round could not write its report at some time", failures)
+    failures += any_line(result, "ELDENNET", "connect", skipped=1, why="read_round")
+    failures += check_lines(("ELDENNET", "init", {"state": "ready"}), ("LAUNCHER", "end", {"kind": "clean"}))(result)
+    return failures + ready_no_call(result) + en_log_is_clean(result)
+
+
+case("launcher-eldennet-read-stay", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
+                                             "--read", "--read-plan", "3", "--read-pace-s", "12"] +
+     game("--field-mirror", "--title-frames", "720", "--walk-from-s", "37", "--walk-to-s", "44", "--die-at-s", "27",
+          "--wide-sheet", "--retitle-at-s", "70", "--retitle-for-s", "100", frames=5700),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     # The fake game's seconds of the world against the launcher's tasks at twelve seconds each, the load's mark at
+     # about 10 of the world's seconds: the stand runs to 22, the death's task to 34 (the player dies at 27 and the
+     # world is back at 30), the stay to 46 (the player walks from 37 to 44, and stands otherwise). Twenty seconds after the death's mark, at 54, the survey is slowed. At
+     # 70 the fake game goes back to its title and stays there, as a tester who quits does.
+     prepare=install_eldennet(None, probe=True, gal_change=read_state_gal, then=with_saves),
+     check=check_read_stay,
+     what="the twenty-first round: the stay's plan. EldenNet's own reader reads the sheet through the layout (the "
+          "level, and of the name only that it is there) and the player's death by its health, the dead bit clear; "
+          "the sheet scan tells the count that rose by one once and holds the part of health against the sheet; the "
+          "watch reads the clock and the play time beside the reader, and the stay's verdict rests on the report as "
+          "written")
+
+
+def report_in_the_way(paths):
+    # Where the round writes its report there is a folder of that name: the file can never be written.
+    with_saves(paths)
+    os.makedirs(os.path.join(paths["appdata"], "EldenNet", "probe", "lodestar-found.json"))
+
+
+def check_read_report_lost(result):
+    """A round that cannot write its report (a folder stands where the file goes): the round says so in its log, sets
+    the word's highest bit for the launcher, and the launcher says at once that the files will not hold this run,
+    whatever the tasks gathered. (The twentieth round's two runs in the game lost their report and the panel said
+    the run was usable.)"""
+    failures = any_line(result, "ELDENNET", "read", stage="plan", plan=3, known=1)
+    failures += any_line(result, "ELDENNET", "read", report="lost", written=1)
+    lost = [e for e in result.events("ELDENNET", "read")
+            if e.get("stage") == "gathered" and int(e.get("word", "0")) & (1 << 31)]
+    need(lost, "the round never set the word's highest bit: %s" %
+         [e.get("word") for e in result.events("ELDENNET", "read") if e.get("stage") == "gathered"], failures)
+    failures += any_line(result, "LAUNCHER", "gathered", line=1, usable=0, report_failed=1)
+    need(not [e for e in result.events("LAUNCHER", "gathered") if e.get("usable") == "1"],
+         "the launcher said the run was usable", failures)
+    need(not [e for e in result.events("ELDENNET", "read") if e.get("report") == "back"],
+         "the round said its report was back", failures)
+    failures += check_lines(("ELDENNET", "init", {"state": "ready"}))(result)
+    return failures + en_log_is_clean(result)
+
+
+case("launcher-eldennet-read-report-lost", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
+                                                    "--read", "--read-plan", "3", "--read-pace-s", "6"] +
+     game("--field-mirror", "--title-frames", "720", "--retitle-at-s", "30", "--retitle-for-s", "100", frames=3000),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     prepare=install_eldennet(None, probe=True, gal_change=read_state_gal, then=report_in_the_way),
+     check=check_read_report_lost,
+     what="a read round that cannot write its report: the round sets the word's highest bit and the launcher says "
+          "the files will not hold this run, whatever the tasks gathered")
 
 
 def check_read_graceui(result):

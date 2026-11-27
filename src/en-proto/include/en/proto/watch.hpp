@@ -29,12 +29,14 @@ inline constexpr std::uint32_t kVersion = 3;  // 2: probe_plan appended; 3: prob
 // The read round's plans (Block::probe_plan): which tasks the launcher's panel lists, and so what the tester's marks
 // mean to the round. 0: the rounds up to the seventeenth (two characters; a stand, a walk, a hit, a heal). 1: the
 // character survey (one character; a stand, a look around, a kill). 2: the sheet (one character; a stand, a ride
-// or a run, the tester's own death). The DLL takes a number it does not know for a refusal of the round, never for
+// or a run, the tester's own death). 3: the stay (one character; a stand, the tester's own death, then some minutes
+// in the world as the tester likes). The DLL takes a number it does not know for a refusal of the round, never for
 // plan 0.
 inline constexpr std::uint32_t kPlanRounds = 0;
 inline constexpr std::uint32_t kPlanSurvey = 1;
 inline constexpr std::uint32_t kPlanSheet = 2;
-inline constexpr std::uint32_t kPlanCount = 3;
+inline constexpr std::uint32_t kPlanStay = 3;
+inline constexpr std::uint32_t kPlanCount = 4;
 // What the round says of a task that ended with a mark (Block::probe_gathered, the owner's wish of 2026-11-24: "a
 // per task feedback that what was needed did gather"): two bits a mark, the first mark's the lowest.
 inline constexpr std::uint32_t kGatherUntold = 0;  // the round has not said (or cannot tell)
