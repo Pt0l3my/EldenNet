@@ -2001,6 +2001,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     over 120 ms, its focus ring with it; the rail, the top bar and the key hints stay still; Reduce motion turns it
     off, and an open's own fade covers its first page. Nothing for EldenNet to change; a fake-game check that reads a
     page's pixels just after a change waits about 150 ms, or until the test build's alpha_milli reads 1000.
+- bz GraceUI follows its own settings with the menu closed too; the test build's plain_text is right before the first open (GraceUI 0.2.66) [done]
+  - refs: GraceUI:D273, WHY§686
+  - gives: GraceUI's D273, built on 2026-11-27 (GraceUI main 68d68ea; GraceUI's docs/eldennet-changes.md §99), from
+    the question of EldenNet's 0.2.62 pin (WHY§686): GraceUI's thread reads its own settings (Menu size, the theme,
+    Plain text, Reduce motion) at its first wake and at every change, open or not, so GraceUI_Test_GetMenu's
+    plain_text reads 1 before the menu first opens and follows a browser's change at once. Nothing a mod hears
+    changes; EldenNet's Plain text case may read the field again at the next pin.
 
 ### S11.3 EldenNet v0.2
 

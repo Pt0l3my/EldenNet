@@ -9972,6 +9972,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - `menu_plain_baked=1` (the bake at warm-up) and GraceUI's settings topic are what show it, and the case reads those.
   Put to Grace, with nothing for EldenNet to change.
 - GraceUI rewrote its `user\settings.json` with no values after the change.
+- *Later (2026-11-27):* GraceUI 0.2.66 (D273) answers it: GraceUI's thread now reads its own settings with the menu
+  closed too, so the test export's plain_text is right before the first open (roadmap S11.2.bz).
 
 ### 687. read-graceui's check rests on the state search, so it takes read-state's margins
 
