@@ -40,3 +40,12 @@ checked against its SHA-256 when the build is configured.
 
 Each licence was read before adoption, and none carries a clause on AI use. Dear ImGui 1.93.0's `LICENSE.txt` (its
 SHA-256 above) and GraceUI's `LICENSE` were read on 2026-11-20: MIT, with no such clause.
+
+## Test data from other projects (never shipped)
+
+- **BLAKE3's test vectors**, from [BLAKE3](https://github.com/BLAKE3-team/BLAKE3) at tag 1.8.2,
+  `test_vectors/test_vectors.json` (SHA-256 `dcb91ea8accc77e6d6e632af7cdc1a99a9f3ae78cf648da595c7d064db32f624`):
+  the first 32 bytes of the `hash`, `keyed_hash` and `derive_key` outputs of 16 of its cases, and the cases' key and
+  context string. Licence: CC0 1.0, or Apache 2.0, or Apache 2.0 with LLVM exceptions, at the user's choice (its
+  README's "Licenses"), read on 2026-11-27, with no clause on AI use. `src/en-proto/tests/test_blake3.cpp` checks our
+  own BLAKE3 against them; only the numbers the tests need are copied, and no code.

@@ -87,6 +87,19 @@ a dynamic initialiser or an exit-time destructor (ARCH §3.1, §1.7).
   EldenNet's own steps' times (`StepTimes`: steps, their sum, p99 and longest; the reader's, each reading's, the
   core's) and the conversations' log in memory, with C3's limits for the reader's step (`kReaderMeanUs`,
   `kReaderP99Us`).
+- **BLAKE3** (`blake3.hpp`; WHY§174, MEM §8.3): our own, from the specification, in its three modes: the hash (the
+  launcher's backup manifests, ARCH §4.4), the keyed hash and the derive-key mode (the playthrough's fingerprint, whose
+  key is derived from a context string). A 32-byte digest of a stream fed in pieces of any size, with no allocation.
+  It moved here from en-launcher with v0.3, so that en-core and the launcher share one implementation.
+- **The store's messages** (`store.hpp`; ARCH §1.3's C8, MEM §8.6): `DbRequest` (a sequence number and one of
+  `Open`, `Resolve`, `Close`, `Append`, `AppendPage`, `ConvOpen`, `ConvClose`, `UpsertJob`, `CommitJournal`,
+  `CommitLived`, `PutFacts`, `Forget`, `Checkpoint` and the queries `Bundle`, `JobInput`, `LivedInput`,
+  `EventsForFold`) and `DbResult` (the same number and one of `Done`, `Opened`, `Resolved`, `JobSaved`, `Failed`,
+  `Tripped` and the queries' rows), with the rows they carry: `StoredEvent` with its frozen `AudienceRow`s, `FactRow`,
+  `ConversationRow`, `JournalVersion`, `LivedVersion`, `MemoryJob` and `PlaythroughKey` (the fingerprint and the
+  name's hash, never the name). `How` is here, and Augur's is this one. Ids are 64-bit (`EventId`, `RowId`) and play
+  time is `Pt`, in milliseconds. These messages carry chat and model text, so unlike the others they have **no JSON
+  form**: they go from T6 to T9 and back, and are never logged, recorded or reported (PV rules).
 - **The JSON caps** (`json.hpp`, ARCH §10.2): `parse_json(text)` parses a JSON text only once it is at most 256 KB
   and nested at most 32 deep, both checked before nlohmann/json sees it (`within_depth` counts brackets outside
   strings, without parsing), and never throws for what the text holds. `read_json<T>(text)` parses within the caps
@@ -150,7 +163,9 @@ another); fields left out keep their defaults; malformed JSON refused with its p
 and just over; `Expected` through copies, moves and assignments between its two states with no object leaked, and
 with a value whose constructor is private; the fixed containers at and past their capacity, UTF-8 cut at whole
 characters, the flag sets' bits; a backend of the test's own driven through the interface with a token; and the guard:
-the answer when nothing throws, the fallback with only its own component tripped when anything is thrown.
+the answer when nothing throws, the fallback with only its own component tripped when anything is thrown; BLAKE3's
+three modes against 16 of each of its published vectors, whole and in pieces of seven sizes; and the store messages'
+words and which requests take the speech reserve.
 
 CTest also runs R1's compile-fail tests (`tests/compile_fail/game_thread.cpp`, in every build, the cross builds too:
 they only compile): copying a token, copying one from a reference, assigning one and making one without `issue()`,
