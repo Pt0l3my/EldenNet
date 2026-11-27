@@ -38,7 +38,7 @@ slug 024a612a-24db-41f3-b91d-c0b13685df61).
 
 # EldenNet's roadmap
 
-- updated: 2026-11-17
+- updated: 2026-11-27
 - refs: DESIGN§0, DESIGN§16, DESIGN§19, GraceUI:DESIGN§0, GraceUI:DESIGN§10, CLAUDE
 
 EldenNet is an LLM-driven NPC framework for Elden Ring, based on SkyrimNet with its author's
@@ -960,9 +960,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Superseded by S10.1.k and retired by the owner on 2026-11-22 (O106; WHY§363): R0 lives on as `lodestar find`, and
     R1's package, the DLL's R1 mode and the launcher's `--probe` are removed by Lodestar. What R1 found stays in the log
     and `docs/ops/probes/`.
-- g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
+- g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [done]
   - needs: a, S10.4.a
-  - refs: O90, G15, GraceUI:D175
+  - refs: O90, G15, GraceUI:D175, WHY§549
   - gives: planned with the Grace session on 2026-11-20 and run beside R1, independent of our task. GraceUI's side
     built the same day (GraceUI feat/spikes 4dade85, D175): grace-spike.dll, an observer that connects as a mod and
     writes a report of numbers into the folder the launcher names; read-only counters in graceui.dll's test build;
@@ -1010,6 +1010,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     seven package cases passed. At its title the owner again read EldenNet's banner (O114's "files incomplete")
     as a GraceUI warning: since engine 961cae6 an observer run shows the test run's plain note instead (WHY§565),
     for the next package.
+    Status on 2026-11-27: done. In spikes.5, S0-E passed in all five runs (A5, A1 to A4), in both load orders, beside
+    the Steam overlay and another overlay: hooked once with 9 hooks, EldenNet connected, no allocation on the present
+    thread after warm-up (WHY§549). The fault at every quit is the game's own (WHY§550, §556). S0-E's input half is
+    S11.1.a's.
 - h O89 to O91 folded into the designs: the derivation round (ARCH §6.2, §6.10), the spikes without GraceUI and the launcher's Mark (DESIGN §14, §16.1), the third-party rows (DESIGN §16.1) [done]
   - refs: O89, O90, O91, ARCH§6.2, ARCH§4.14, DESIGN§16.1
   - gives: folded on 2026-11-17 with the first in-game build's choices (WHY§159 to §204): ARCH
@@ -1368,8 +1372,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 ### S11.1 The spikes for v0.2
 
 - refs: DESIGN§16.1
-- S11.1.a Spike S4, input, and S0-E's input half, in game [waiting]
-  - refs: GraceUI:D175, O94, WHY§438
+- S11.1.a Spike S4, input, and S0-E's input half, in game [active]
+  - refs: GraceUI:D175, O94, WHY§438, WHY§549, WHY§566, O101, O106, O113
   - gives: GraceUI's side built on 2026-11-20 with S10.1.g's (run B: 60 s of typing in the observer's panel, a held
     key across the menu's open, a pad's close). Until R1 gets our task running, the movement row is the owner's word
     and GraceUI's counters (messages passed while held, DirectInput and XInput states masked); EldenNet's recording
@@ -1380,10 +1384,35 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     (2026-11-22; GraceUI's D205, WHY§350). Since the first conversation (2026-11-22, WHY§438), the skip hotkey, Tab by
     default, is masked from the game whenever it is bound, since GraceUI's hotkeys have no pause: S4 also checks that
     the game does not need Tab, and if it does, the skip takes another default.
-- b Spike S3, the talk observer, and the pilot persona's S6, in game [waiting]
-- c X1, voice in a bottle: candidate models against the prompt, offline, with its test questions
+    Since O101 and O106 (2026-11-21 and 22), EldenNet's own reader measures the movement row once a ready start
+    (S10.1.m) lets it run; until then the row rests on the owner's word and GraceUI's counters.
+    In spikes.5 and spikes.6 (2026-11-23 and 24) S0-E passed in all five runs, and the typing row held 60 s twice with
+    nothing passed to the game (WHY§549, WHY§566). Left: T and Tab, movement, the Steam keyboard, Proton, and the pad
+    rows on testers' machines.
+    Since O113 (2026-11-23) the box never takes the mouse, so the camera still turns with it while the player types:
+    S4's camera drift row now means drift while the mouse is still.
+    Status on 2026-11-27: active, not waiting. Half of it has passed in the owner's runs, but no package's steps hold
+    the T press in the default layout (O94) or the Tab check (WHY§438): the next spikes package adds both, and the
+    part waits on the owner again once it has them.
+- b Spike S3, the talk observer, and the pilot persona's S6, in game [planned]
+  - needs: S10.1.m, S10.1.c
+  - gives: Status on 2026-11-27: planned, not waiting. There is no package for the owner to run: the build's layout
+    has no fields for the HUD, the talk pop-up or the talk camera, which are leads alone, and S6's core flags are
+    S10.1.c's, which waits on S10.1.b.
+- c X1, voice in a bottle: candidate models against the prompt, offline, with its test questions [next]
   - refs: NPC§12.2, ARCH§12.3
-- d X3, latency in game [waiting]
+  - gives: Status on 2026-11-27: next. It runs offline and needs nothing but a model to call; it chooses the
+    models.toml the game lacks (S11.4.a's second slice). Built: the two personas X1 names, the pilot and the test
+    persona, and the eval with mock and recorded models (S11.3.e). Left: the eval's live models, which it refuses so
+    far; the three X1-only register fixtures (NPC §12.2); both personas' test questions as scenarios; the
+    positive-wording arm; the two 4B local models; and a cloud key, asked for through the session's credential form,
+    or a run by the owner.
+- d X3, latency in game [planned]
+  - needs: S10.1.m, S11.1.c
+  - refs: O128
+  - gives: Status on 2026-11-27: planned, not waiting. It needs a conversation in the real game, so S10.1.m's ready
+    start (the target rules read the HUD, teams and distances), and the models X1 picks. Its tool is ready: System ›
+    Traces at the 90th percentile (engine 1ee7d14 and 4058eb0; O128).
 
 ### S11.2 GraceUI 0.2 Foundations (0.1 before G15)
 
@@ -1926,7 +1955,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 ### S11.3 EldenNet v0.2
 
-- S11.3.a The LLM client in the DLL (built in S8.1.a and g; config file only), the chat box, input capture and gating, the talk observer
+- S11.3.a The LLM client in the DLL (built in S8.1.a and g; set up on F5 › AI or in the config files, no wizard
+    until v0.6), the chat box, input capture and gating, the talk observer [done]
   - refs: DESIGN§8, DESIGN§11, WHY§364, WHY§399, WHY§400, WHY§404, WHY§418, WHY§419, WHY§420, WHY§421, WHY§442
   - gives: built offline on 2026-11-22 (WHY§364; engine b045026 to b4451c8), on the fake game and a scripted model:
     the core's chat requests sent through en-llm's handle in the DLL with their stop sequences, its cancels, and the
@@ -1941,7 +1971,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The polish on 2026-11-23 (engine merge 5ec1555; WHY§493 to §495, §497): the second Esc's rule removed (G39 (c));
     the refusal's toast names the holder by GraceUI's id, and not-now by its reason (its words approved, O110);
     `features` and `range` reach the core from settings.toml and the pages.
-- b The prompt, the sanitizer and lint, pages, and commit on display
+    Title changed on 2026-11-27 from "config file only": since S11.4.a's second to fifth slices (G34, approved as O95;
+    O98, O99, O104), a v0.2 player sets providers, keys and models on AI › Providers and AI › Models.
+    Left on 2026-11-27, overtaking the list above: none of its own. The refused toast is built (the polish, engine
+    5ec1555; O110); the second Escape was dropped (G39 (c)); the mute state's sources go with S13.2.b (`types.toml`)
+    and S1 (`speech.toml`, S10.1.c). In game it waits for S10.1.m's HUD, menus and talk camera; teams and position
+    are confirmed already (WHY§614, WHY§654).
+    Status on 2026-11-27: done. Built and polished offline (engine b045026 to b4451c8, a7f8509 for O108, then 5ec1555;
+    WHY§364, WHY§418 to §422, WHY§493 to §497). What is left belongs to other parts: target rules 1 and 2 (f), 0
+    (S12.1.c) and 6 (S15.1.a); S10.1.m's fields in game; S4 and S3 (S11.1.a, b).
+- b The prompt, the sanitizer and lint, pages, and commit on display [done]
   - refs: DESIGN§8.3, DESIGN§8.4, DESIGN§8.5, WHY§402, WHY§403, WHY§409, WHY§412, WHY§414, WHY§415, WHY§427, WHY§432
   - gives: built offline on 2026-11-22 (WHY§364): the prompt's blocks in en-prompt's syntax, rendered from the
     persona's record within their caps and trim (WHY§403, §414, §428 to §430); the sanitizer (WHY§409 to §411); the
@@ -1953,7 +1992,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     (WHY§432); a narrower "Name:" rule, judged once the eval counts its removals (WHY§410); each page written to the
     store with v0.3's log (S12.1.a).
     The queued line goes once the stream ends with the last page up (2026-11-23, WHY§494).
-- c One pilot persona, in memory only, with the world view, what it knows and its road; news raised as O28 sets
+    Status on 2026-11-27: done. Built offline (WHY§364, WHY§403, WHY§409 to §415), the queued line's hold closed
+    (WHY§494). Left to other parts: the safety list's entries (h); the count of the sanitizer's "Name:" removals, which
+    goes with e's eval, before the narrower rule is judged (WHY§410); the pages written to the store (S12.1.a); block
+    9's time of day in game, once the clock field is confirmed (a lead so far, WHY§657).
+- c One pilot persona, in memory only, with the world view, what it knows and its road; news raised as O28
+    sets [waiting]
   - refs: DESIGN§10.6, O10, O28, WHY§418, WHY§424
   - gives: on 2026-11-22 the test persona was built: invented, `test_only`, built into the core's content and bound to
     the fake game's invented character through the tests' overrides, in the tests' realm alone (WHY§418, §423). The
@@ -1963,7 +2007,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     aliases as unverified leads; `known(P)` passes the truth tables for both personas at the eight states. Waits for
     the owner: the review, field by field (O43, O45, O46; its three questions answered as O109). Waits for the game: S1 for his row, S6
     for his flag block, his talk's flag and the world's flags; until then, in game, he knows only his road.
-- d Positive grounding, the "you, now" line, and settings with the range and the feature switches
+    Status on 2026-11-27: waiting. It is built: the pilot, `known(P)` and the truth tables at the eight states (engine
+    5d6577e; WHY§471 to §477), the eval at two states (engine 02c3856), and news raised by the world frame's item 9.
+    The next step is the owner's alone: the pilot's review, field by field, still pending in his file (O43, O45,
+    O46). O109 answered three questions from that review but is not the review. After it, S1 for his row and S6 for
+    his flags in game (S11.1.b).
+- d Positive grounding, the "you, now" line, and settings with the range and the feature switches [done]
   - refs: O36, DESIGN§11.4, WHY§424
   - gives: on 2026-11-22 the fixture states were built, the eight and `ashen`, as catalogue aliases, block offsets and
     track steps with no flag id and no text (WHY§424). The pilot persona and `known(P)` are not (c); the "you, now"
@@ -1973,7 +2022,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     for word), the "you, now" line, and `features` and `range` with ARCH §11.5's bounds in the core, `features.chat`
     and `features.self_awareness` read. Left: the DLL's settings reader handing them to the core (with the polish).
     The settings reader hands them to the core since 2026-11-23 (WHY§497); no page offers the keys yet.
-- e The eval tool and its CI stage, the fixture states and the pilot's truth tables
+    Status on 2026-11-27: done. Block 5b by `known(P)`, the "you, now" line, `features` and `range` are built (WHY§471,
+    §473, §476), and the DLL's settings reader hands them to the core (WHY§497; engine 5ec1555). That no page offers
+    the keys is by design: the F10 Ranges page is v0.6's (DESIGN §16.2), and the features' switches are not settings
+    of v0.2's pages.
+- e The eval tool and its CI stage, the fixture states and the pilot's truth tables [active]
+  - needs: S10.3.c
   - refs: DESIGN§14, WHY§424, WHY§425, WHY§426, WHY§431
   - gives: built offline on 2026-11-22 (WHY§364 (10)): `eldennet-engine eval` with `--llm mock` and `recorded`, four
     scenarios on the test persona (first words, no answer, a regeneration then a deflection, the word cap cutting the
@@ -1984,17 +2038,24 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     (WHY§425); counting the sanitizer's "Name:" removals (WHY§410).
     On 2026-11-23 the pilot's truth tables run with `known(P)` (c), and the eval takes fixture states and checks what
     the prompt holds: the pilot speaks at two states, his knowledge differing as it should (WHY§477).
+    Status on 2026-11-27: active. Built: the eval with mock and recorded models, five scenarios and mockllm (engine
+    26b8551 and d2cb93d); the fixture states and both personas' truth tables, which the eval takes (engine 02c3856;
+    WHY§424 to §426, §431, §477); the eval's CTest label, run on demand. Left: the CI stage, which needs S10.3.c, since
+    there is no CI service yet; the live and judged sets, which need a key and the judge's check (O29), work shared
+    with X1 (S11.1.c); mockllm as a local SSE server (WHY§425); the "Name:" removal count (WHY§410).
 - f Target rules 1 and 2: the talk key arming chat on the game's own talk, once spike S3 has checked the talk observer
   - needs: S11.1.b
   - refs: NPC§5.2, WHY§420
   - gives: left out of the first conversation, which takes targets by rules 3 to 5 alone (2026-11-22).
-- g The overrides' `disable.toml`: shipped personas and cards turned off by id, shown on Content packs
-  - refs: ARCH§11.6, DESIGN§11.4, PAGES§4.6
+- g The overrides' `disable.toml`: shipped personas and cards turned off by id, shown on Content packs [done]
+  - refs: ARCH§11.6, DESIGN§11.4, PAGES§4.6, O119, WHY§499
   - gives: not built with the first conversation's content loading (2026-11-22), which reads the overrides folder's
     whole files alone.
     Built on 2026-11-23 (WHY§499): `disable.toml` turns shipped personas off by id, checked strictly, warnings never
     naming an id; cards and the other lists warn (none shipped in v0.2). Left: the Content packs page, which the
     engine's pages do not have yet.
+    Built on 2026-11-24 (engine 7bfe283, merged at 86d3991; O119): Content packs shows what disable.toml turns off,
+    and the fake game's pages case reads it turning the test persona off. Status on 2026-11-27: done.
 - h The shipped safety list's fingerprints, made by the owner with `lexicon fingerprint` [waiting]
   - refs: O107, NPC§8.3, WHY§412
   - gives: `safety.toml` ships with its header and no entries (2026-11-22). The owner fingerprints the words on their
@@ -2064,6 +2125,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     review with the level the pages give them.
     L3 and L4 are speaking levels on the pages since 2026-11-23 (WHY§496), their words approved (O110). Left:
     L2's words still say NPCs speak from a later version, which a v0.2 build makes untrue (fixtures and goldens).
+    Overtaken by O120 (2026-11-24; engine 425a72d), as noted on 2026-11-27: L2's words say "NPCs speak once a model
+    answers Conversation".
     Content packs on 2026-11-24 (engine 7bfe283, merged at 86d3991), at GraceUI 0.2.39 (S11.2.bb): a category of its own
     after Settings, both views, read-only, as PAGES §4.6.9 has it: the shipped content (fixed words for its name and
     credit, since the pack has no manifest yet; the personas counted, knowledge and event rules as Included), the
@@ -2120,11 +2183,19 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     after, and the read-state and read-clock cases failing alike at the base in this container (for Lodestar). Left for
     v0.2's pages: none; the Bug report's Copy and Save stay 0.6's (S11.2.bp).
     Done on 2026-11-27: every page this part names is built, and the GraceUI folder ships in EldenNet's packages.
-- b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
+- b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps
+    pass [done]
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
   - gives: the server's security suite moved to S11.2.i on 2026-11-20 (the Grace session's plan).
-- c EldenNet's subtitles, chat box and call-out box as panels taking input through request_input, with the input-leak tests across holders
+    Status on 2026-11-27: done. EldenNet registers its space for both views on the main path, and on the banner path
+    (a refused gate or anti-cheat) for the game's view alone, so the browser never gets it there. GraceUI's server
+    and its security suite are S11.2.i, done. In the fake game's pages case a browser reads every topic and sends
+    commands, its banner case checks the game's view alone, and the anti-cheat case puts GraceUI in its notice-only
+    mode. In the real game the start still stops at discovery, so the browser has not served EldenNet's space there:
+    G4's rule working as designed, and the check in game is S11.5's.
+- c EldenNet's subtitles and chat box as panels taking input through request_input, with the input-leak tests across
+    holders (the call-out box moved to S15.1.a) [done]
   - refs: G17, GraceUI:DESIGN§10, GraceUI:D176, GraceUI:D139, WHY§364, WHY§434, WHY§435, WHY§436, WHY§437, WHY§439, WHY§441
   - gives: the server with two spaces and per-space routing moved to S11.2.i on 2026-11-20. The chat box needs typed
     characters, which ABI 1 does not yet give a mod's panel (WHY§241): GraceUI's input event comes first. Agreed on
@@ -2171,7 +2242,15 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     frame as presented, driven by tools/preview/shoot.py (engine a44d9f4 and 2311c1d, merged at de94506; WHY§595,
     §596): the box, the answer, the hint, the menu and F11's view, on a test backdrop, are in the showcase's In game
     section. The caret, seen touching the last letter, now stands a pixel clear (engine 52e6d72).
-- d A second Escape while a reply paces (NPC §5.7): a way for it to reach EldenNet once the box has closed, asked of GraceUI [done]
+    Title changed on 2026-11-27 from "subtitles, chat box and call-out box": the call-out box went to v0.6 on
+    2026-11-22 (WHY§364 (5); S15.1.a). O113 (2026-11-23) overtook the pointer in the box of the Left list above.
+    Status on 2026-11-27: done. The lower third, the speaker card, the chat box and the hint are built as panels
+    (engine b4451c8); the pad chord and the danger close are tested against GraceUI's real test build (engine
+    08fef7a); the italic lines, the rounded corners and the kept draft are done (engine 6930988; WHY§588 to §594), and
+    the caret is fixed (engine 52e6d72); the box no longer takes the mouse (O113, engine 8424f15); on the fake game no
+    input leaks across the menu, F11 and the box. Left to other parts: S4 and S0-E's input half in game (S11.1.a).
+    Plain text for the subtitles and the chat box (O134, 2026-11-27) is g.
+- d A second Escape while a reply paces (NPC §5.7): dropped by the owner's G39 (c) on 2026-11-23 [done]
   - needs: c
   - refs: NPC§5.7, WHY§437, WHY§461, G39
   - gives: the core's rule is built, but with the box closed nothing holds input and GraceUI takes no hotkey on Escape,
@@ -2179,7 +2258,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     proposal 0011): Esc and the pad act on the box only while it is open, Enter sending and Esc cancelling and
     closing; once the box has closed or the reply is out, they are the game's again, and a reply still pacing
     finishes (WHY§461). The core's unreachable rule is removed with the conversation's polish.
-
+    Title changed on 2026-11-27 to say the part was dropped (G39 (c)), as the header asks of a dropped part. It read
+    "a way for it to reach EldenNet once the box has closed, asked of GraceUI" after the colon.
 - e EldenNet's sensitive commands and settings marked for paired devices (GraceUI 0.2.25's protocol 1.8) [done]
   - needs: S11.2.al
   - refs: G9, GraceUI:D224, WHY§490, WHY§523
@@ -2200,11 +2280,21 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     build X yet. Look for an update of EldenNet."; the row "X, recognised, not readable yet" until the game is read.
     Built the same day (engine d37d35a): the banner by the stop's detail, the Home and System › Status rows by whether
     the reader runs (the Status check waiting while the start is under way, failing once it stopped).
+- g EldenNet's subtitles and chat box follow GraceUI's Plain text from the next launch (O134) [next]
+  - needs: S11.2.bu
+  - refs: O134
+  - gives: with Plain text on at launch, the subtitles and the chat box in Noto Sans of their own, F11 keeping its
+    faces; at EldenNet's pin of GraceUI 0.2.61 (GraceUI's D268), where the engine pins 0.2.58.
+
 ### S11.5 v0.2's exit checks
 
 - needs: S11.1, S11.3, S11.4
-- S11.5.a Latency, no multiplayer requests, output hygiene, silence, spoilers, voice, the config-file install and world awareness, on the pilot
+- S11.5.a Latency, no multiplayer requests, output hygiene, silence, spoilers, voice, the install (C13: the README,
+    then AI › Providers or the config files) and world awareness, on the pilot
   - refs: DESIGN§16.3
+  - gives: title changed on 2026-11-27 from "the config-file install": C13's v0.2 path is the README with AI ›
+    Providers and Models, or the config files, since S11.4.a's second to fifth slices (G34, approved as O95; O98,
+    O99, O104).
 - b The pilot's eval report and release checklist; no input leaks; the test questions per character (O86); no secret in any log
   - refs: NPC§12
 
@@ -2285,6 +2375,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - S13.3.a NPC types; Pacing, Reactions, Speaking up, Combat and Awareness; Events; the event monitor
   - refs: G5, PAGES§4.6
 - b Home's Happening now and Recent events; settings writable in the browser
+  - gives: noted on 2026-11-27: settings writable in the browser are built already, in v0.2. In the fake game's
+    pages case a browser changes a setting and settings.toml keeps it (S11.4.a). Left for v0.4: Home's Happening now
+    and Recent events.
 
 ### S13.4 v0.4's exit checks
 
@@ -2353,7 +2446,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 ### S15.2 GraceUI 0.6
 
 - S15.2.a The menu's fonts; the menu in game on F5, every page but Workshop; the space switcher and GraceUI's own space
-  - refs: G1, G15
+  - refs: G1, G15, GraceUI:DESIGN§10
+  - gives: noted on 2026-11-27: much of this is built in GraceUI 0.2. F5's menu shows EldenNet's space since GraceUI
+    0.2.0, GraceUI's own space last and a switcher once two mods have spaces (GraceUI's D171), and Workshop is in
+    the browser alone (PAGES §4.6.8; GraceUI's D258). Left for 0.6: the menu's fonts and the menu in game for the
+    pages v0.6 adds, as GraceUI's DESIGN §10 gives its 0.6 row.
 - b Settings, First light, the home-network switch and pairing, the call-out page, and the WIP pages
   - refs: G9, G7
 

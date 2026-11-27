@@ -2243,6 +2243,10 @@ spike passes when every measured rule passes, is incomplete when one is not meas
 | **v1.1** (planned) | The DLC's roster (O46; §7.8); the gamepad intent list (O11); English names from a non-English install's own English text, if S2 found it (O26); the map of the journey (GraceUI G21–G27, its §4.13; roadmap S7.9.d), on groundwork v1.0 builds anyway: the sightings record and the world stages; content plugins, from the Plugins folder and the dashboard (O66, O67) | Each profile's release checklist (NPC §12.4), its bindings verified by S1 and S2 |
 | Later | The director (§13): after a stretch of silence, one NPC within range is handed a subject through the autonomy path; followers on the companion layer, when actions open (O85); the recall gate (§10.1); the freeze after S5; code plugins through EldenNet's published interface, a preview first (O68), in the plugin cluster outside the game (O70); a sandbox for plugin hosts, as an option after a spike (O72) | Designed and scheduled when taken up |
 
+*2026-11-27 (roadmap S11.3.a):* v0.2's "LLM client (config file only)" is overtaken: since the AI pages (G34, O95,
+O98, O99, O104) a v0.2 player sets providers, keys and models on F5 › AI or in the config files; the wizard stays
+v0.6's.
+
 ### 16.3 Test schedule (O29)
 
 Each check runs and gates from the first increment in which the thing it checks ships, on the content that exists then (§14, Schedule). "Was" is the schedule before O29; §16.2's exit column is the roll-up. Targets are unchanged.
