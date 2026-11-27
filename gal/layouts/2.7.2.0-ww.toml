@@ -84,17 +84,35 @@
 #   means it. The dead bit's rivals: bit 1 of the byte 0x1C6 read as bit 0 in every sighting, the dead from the start
 #   included, so the two are not told apart and bit 0 stays; bit 4 of 0x53B read otherwise in 7 sightings and is no
 #   dead bit. Leads still: the player's block has not been seen to change at a crossing.
+# - the sheet, and what the twentieth round confirmed (its third run, 2026-11-25; the first two lost their report to
+#   its size). The sheet is the object the save data's word 0x8 in leads to, and the one 0x580 of the main player's
+#   object leads to: the same in every pass. The sheet scan told its numbers and the owner named them from the game's
+#   status screen: the level is the number 0x68 in (the one field of the sheet's 64 KiB that read the level the screen
+#   shows); the eight attributes lie from 0x3C in, as they are without what the character wears, and again from 0x288
+#   in as the screen shows them; the health, the focus and the stamina from 0x10, 0x1C and 0x2C in. The name: a run of
+#   text 0x9C in, told by its place and length alone and never read (its length here is the design's guess). Leads:
+#   the reader has not read them through this file. Not found: the count of deaths (no told number of either object
+#   rose by one at the owner's death; one hidden beside a larger number may have). Confirmed by the rule below, in
+#   that run: the position and its part (the reader's position moved in 58 of the ride's 58 seconds and in none of the
+#   stands'; the parts watch beside it listed part 13, 0x70 and 0x78 in, moving in all 28 of its passes of the ride
+#   and none of the stand); chr_type (nothing for the main player in 91 of 91 frames and one number for all 4,272
+#   others; the survey: nothing in 27 of 27 passes, 5 in 984 of 984 sightings); block_id (a block's id for the main
+#   player in 90 of 91 frames, changed once in the ride; the survey: a block or all ones in every sighting, 898 and 86
+#   of 984). The dead bit is the world's characters' only: the main player's health read nothing for eleven seconds
+#   with the bit clear in every frame that read it.
 # - when a field is confirmed (WHY§614, Engine's ruling of 2026-11-24 applying the design's O4): for this build,
 #   once three things hold in one run: EldenNet's own reader read it through this file in the game; a second,
 #   independent reading agrees; and the behaviour that gives the field its meaning was seen at least once. Such a
 #   field says status = "confirmed" itself; its class stays a lead until every field of it is. So far: from the
 #   twelfth round the event flags' nine fields (the reader went through all of them to five flags, four of which the
 #   owner had just set, and the round's own walk of the tree agreed on all five); from the seventeenth the fields
-#   named above; from the nineteenth a character's handle, npc_param_id, model, entity_id, team and on_screen.
-#   Waiting: dead (for the main player's own death), chr_type and block_id (for the reader), the position (for a
-#   second reading in the reader's run), player_set, and the clock's fields and the play time, which the reader has
-#   not read through this file in the game. The startup self-tests still run every session and stop a failing field
-#   whatever its status.
+#   named above; from the nineteenth a character's handle, npc_param_id, model, entity_id, team and on_screen; from
+#   the twentieth the position and its part, chr_type and block_id. Waiting: dead (confirmed in all but name for the
+#   world's characters; it does not mark the main player's death, which is to be read otherwise), player_set, the
+#   clock's fields and the play time (the reader read them in the twentieth round: a minute stepping on in 71 frames
+#   and standing in 110 with no jump, the time risen in 180 of 186 and never fallen; the watch's own word on them was
+#   not in that run's report, the session being too short for it), and the sheet's fields. The startup self-tests
+#   still run every session and stop a failing field whatever its status.
 # The other classes, fields, enums, params and self-test ids are later rounds' to find, and are left out. A release
 # build refuses this file (its classes and items are leads still).
 schema = 2
@@ -276,10 +294,10 @@ copy_size = 0x1F0
 status = "lead"
 [class.character.fields]
 handle = { off = 0x8, ty = "handle", group = "world", status = "confirmed" }
-block_id = { off = 0x38, ty = "u32", group = "world" }
+block_id = { off = 0x38, ty = "u32", group = "world", status = "confirmed" }
 npc_param_id = { off = 0x60, ty = "u32", group = "world", status = "confirmed" }
 model = { off = 0x64, ty = "u32", group = "world", status = "confirmed" }
-chr_type = { off = 0x68, ty = "i32", group = "world" }
+chr_type = { off = 0x68, ty = "i32", group = "world", status = "confirmed" }
 team = { off = 0x6C, ty = "u8", group = "world", status = "confirmed" }
 parts = { off = 0x190, ty = "ptr", group = "world", status = "confirmed" }
 on_screen = { off = 0x1C4, ty = "bit", bit = 4, group = "world", status = "confirmed" }
@@ -291,7 +309,7 @@ copy_size = 0x70
 status = "lead"
 [class.character_parts.fields]
 vitals = { off = 0x0, ty = "ptr", group = "world", status = "confirmed" }
-motion = { off = 0x68, ty = "ptr", group = "world" }
+motion = { off = 0x68, ty = "ptr", group = "world", status = "confirmed" }
 
 [class.vitals]
 copy_size = 0x140
@@ -304,7 +322,7 @@ max_hp = { off = 0x13C, ty = "i32", group = "world", status = "confirmed" }
 copy_size = 0x80
 status = "lead"
 [class.motion.fields]
-pos = { off = 0x70, ty = "vec3f", group = "world" }
+pos = { off = 0x70, ty = "vec3f", group = "world", status = "confirmed" }
 
 [class.characters]
 copy_size = 0
@@ -332,7 +350,15 @@ minute = { off = 0x8, ty = "bits", word = 8, shift = 39, width = 6, group = "pla
 copy_size = 0xA8
 status = "lead"
 [class.save_data.fields]
+player_data = { off = 0x8, ty = "ptr", group = "player" }
 play_time = { off = 0xA0, ty = "u32", group = "player" }
+
+[class.player_data]
+copy_size = 0xC0
+status = "lead"
+[class.player_data.fields]
+level = { off = 0x68, ty = "u32", group = "player", range = [1, 713] }
+name = { off = 0x9C, ty = "utf16[16]", group = "player" }
 
 [class.event_flags]
 copy_size = 0x48
