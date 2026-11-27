@@ -10,7 +10,7 @@
 //
 //   schema = 1
 //   [[reply]]                       # one per request, in order; the last repeats when `repeat_last` (default true)
-//   text = "Hm. The road runs on."  # what streams
+//   text = "Hm. The road runs on."  # what streams; or a list of pieces, joined by one space
 //   first_token_ms = 400            # from the request to its first delta
 //   chunk_ms = 60                   # between deltas
 //   chunk_chars = 12                # each delta's length in bytes (cut on a character's boundary)

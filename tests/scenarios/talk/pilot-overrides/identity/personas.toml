@@ -15,3 +15,23 @@ id = "lantern_keeper"
 file = "personas/lantern_keeper.toml"
 npc_params = [ { param = 81100, form = "default", expect_name_id = 0, verified = true } ]
 test_only = true
+
+# X1's three register fixtures (NPC §12.2): invented test personas, one each for archaic-regal, broken and chant, bound
+# to invented rows of the fake game, test_only, in the eval's realm alone. They never ship.
+[[persona]]
+id = "x1_regal"
+file = "personas/x1_regal.toml"
+npc_params = [ { param = 81300, form = "default", expect_name_id = 0, verified = true } ]
+test_only = true
+
+[[persona]]
+id = "x1_broken"
+file = "personas/x1_broken.toml"
+npc_params = [ { param = 81301, form = "default", expect_name_id = 0, verified = true } ]
+test_only = true
+
+[[persona]]
+id = "x1_chant"
+file = "personas/x1_chant.toml"
+npc_params = [ { param = 81302, form = "default", expect_name_id = 0, verified = true } ]
+test_only = true

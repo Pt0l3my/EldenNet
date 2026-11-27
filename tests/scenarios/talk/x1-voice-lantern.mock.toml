@@ -1,0 +1,254 @@
+# The scripted model for x1-voice-lantern.toml (mockllm): the persona's replies to X1's voice set, in its voice. Our
+# own words, one reply per request, in order.
+schema = 1
+repeat_last = false
+
+[[reply]]
+text = "Hm. Good evening, traveller. The lamp is lit, and the road is quiet."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Longer than I can count. The road keeps me, as much as I keep the lamp."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. Travellers pass, and some of them stop. That is company enough."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Oil, a trimmed wick and a steady hand. It asks for little and gives a great deal."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Go well, traveller. Mind the dark between lamps."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. Take the left fork and walk until the trees thin. There is a roof there, and a well."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Safer for those who walk it in daylight. Fewer return from it after dusk."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. Pilgrims, pedlars and the lost. Each thinks the road was made for them alone."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "There were once. Now there is this one, and the dark between."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. Only as far as the light reaches. Beyond it, the road belongs to others."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "On a long night, more than I would like. I keep a second flask for the worst of them."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. Travellers bring it, now and then, in return for a place by the light."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "They walk loudly and arrive late. The quiet ones tend to get where they are going."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. The ones who ask the way and then listen to the answer."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Never. The light is not mine to refuse. I only tend it."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. The wind came from the east all day. Travellers say the weather is turning."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Only what passing feet bring. Its soldiers are seldom kind to those who travel alone."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. I trust that they believe it. That is not always the same thing."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "That the oil will run short before the dawn comes. All else I can bear."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. Lights that move where no lamp stands. Walk the other way from them."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "I know no such thing, traveller. I have a lamp, a staff and a flask of oil."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. I speak as I always have. Ask your question plainly, and you shall have a plain answer."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "My place is beside the lamp. The road is yours to walk, not mine."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. Only the keeper of this lamp. Names matter less than light, at a crossroads."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "I do not follow your meaning, traveller. Speak of the road, and I can help you."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. It has always been a place where roads meet and people part. More than that, the stones keep to themselves."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Three roads, a hill, a line of trees and the dark beyond them. The lamp shows only so much."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. Cut it clean and short, so the flame stands straight. A ragged wick smokes and wastes the oil."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "One came by walking backwards, so he could see where he had been. He never said where he was going."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. That is all the story there is. Some travellers leave no more than that."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. So you have. The lamp is still lit, and so is the keeper."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "A pedlar with a lame mule, and a woman who would not give her name. Neither stayed long."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. She kept her hand near her blade and her eyes on the road. Careful, rather than dangerous."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "The right fork, at dusk. I hope she knows that road better than most."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. That is for you to judge. Mind the dark between lamps."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "A thick cloak and a patient heart. The lamp gives a little warmth to those who stand close."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. In the hours before dawn, when the road is emptiest. The lamp wakes me if it gutters."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Then I light it again. That is the whole of my work, and I have not tired of it."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. Once, perhaps. Now I would not know what to do with my hands."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hard, but plain. There is comfort in a task that is never quite finished."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. A spring behind the hill, cold even in summer. Drink slowly, it bites the teeth."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "There are, though they keep clear of the light. It is the dark they hunt in."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. Left to shelter, right to trouble, ahead to the river. That is the only map I keep."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "A little, if your need is real. The lamp must come first, but the lamp is not greedy."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. I am always here. That much you may count on."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Enough oil for the longest night, and travellers who find their way."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. It is a great deal, at a crossroads. Few roads are kind."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "A night with no oil and a traveller lost in it. I have seen it once, and once was enough."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. It is not mine to give, only mine to keep. Go well."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Goodbye, traveller. The road keeps those who keep to it."
+first_token_ms = 600
+chunk_ms = 40

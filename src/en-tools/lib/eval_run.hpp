@@ -2,7 +2,9 @@
 // The eval's runner (DESIGN §14, NPC §12.1, ARCH §12.2, §12.3; WHY§364 (10)): a scripted conversation through the
 // real core, its speech and prompt included, against a model that is scripted (`mock`, mockllm.hpp) or recorded
 // (`recorded`), on a simulated clock, with a stand-in for the surfaces that acknowledges each page on its first frame.
-// Live models and the judged sets wait for a key and the judge's check (DESIGN §14).
+// Live models and the judged sets wait for a key and the judge's check (DESIGN §14). The speech runs through the
+// eval's tap (speech_tap.hpp), which counts what each reply attempt did: the sanitizer's removals, the "Name:" prefix
+// by class (WHY§410), the lint's hits and the pager's takes, each attempt with its context.
 //
 // A scenario (tests/scenarios/talk/*.toml, ours):
 //
@@ -21,7 +23,7 @@
 //   flags = "fresh"                          # optional: a fixture flag state (tests/fixtures/flagstates/<name>.toml,
 //                                            # found from the scenario's folder up), read through the core's watch list
 //   [[step]]                                 # in order, from when the world is ready and the observer allows chat
-//   do = "open"                              # open | say | wait | esc | skip | move | flags | expect
+//   do = "open"                              # open | say | wait | esc | skip | move | flags | expect | restart
 //   [[step]]
 //   do = "say"
 //   text = "Where does the road go?"
@@ -33,11 +35,14 @@
 //   state = "open"                           # deflections, ended, last_npc, toast, prompt_has, prompt_lacks
 //   npc_lines = 1
 //   prompt_has = ["As things stand now:"]    # texts the last dialogue request's messages hold, or lack
+//   name_prefixes = 0                        # also: the reply attempts so far whose "Name:" step 5 took
 //
 // A `flags` step (`flags = "after_radahn"`) changes the world's flag state from the next snapshot on: the scenario's
 // overrides give a catalogue whose aliases a `ci:` record verifies (the eval's realm alone), so the core asks for them
 // (SetWatchFlags) and the runner answers each fourth snapshot with a FlagFrame of the state's aliases, as the game task
-// would. A failed `prompt_has` names its line and the entry's index, never the text.
+// would. A failed `prompt_has` names its line and the entry's index, never the text. A `restart` step starts a fresh
+// core with the same content and flag state, so that what follows is a first meeting with no earlier lines (the test
+// questions, NPC §12.1).
 //
 // The report holds the conversation's text, the model's included: it is a local-only kind, written only where the
 // caller says (`--report`), never into the repository (eval-reports/ is ignored by git), and never uploaded (PV rules).
@@ -54,12 +59,14 @@
 #include "en/core/content.hpp"
 #include "en/core/gate.hpp"
 #include "en/proto/expected.hpp"
+#include "en/proto/llm.hpp"
 #include "mockllm.hpp"
+#include "speech_tap.hpp"
 
 namespace en::tools {
 
 struct EvalStep {
-  enum class Kind : std::uint8_t { Open, Say, Wait, Esc, Skip, Move, Expect, Flags };
+  enum class Kind : std::uint8_t { Open, Say, Wait, Esc, Skip, Move, Expect, Flags, Restart };
   Kind kind = Kind::Wait;
   std::size_t line = 0;
   std::string text;                 // Say
@@ -69,6 +76,7 @@ struct EvalStep {
   std::optional<std::string> state, box, ended, last_npc, toast;
   std::optional<std::size_t> npc_lines, player_lines, failures, deflections;
   std::optional<std::size_t> regenerations, cancels;  // the run's so far: lines sent twice, requests cancelled
+  std::optional<std::size_t> name_prefixes;           // the run's so far: attempts whose "Name:" step 5 took
   std::vector<std::string> prompt_has, prompt_lacks;  // Expect: in the last dialogue request's messages, or not
   std::string flags;                                  // Flags: a fixture flag state's name
 };
@@ -107,6 +115,12 @@ struct EvalTurn {
   std::uint32_t words = 0;
   std::uint32_t requests = 0;  // this line's requests: 1, or 2 with a regeneration
   std::optional<core::Mono> first_page_ms;  // from the line to its first page's first frame
+  std::vector<std::size_t> attempts;        // its reply attempts, by index into EvalRun::attempts, in order
+  std::vector<proto::Message> prompt;       // its first request's messages, as the prompt rendered them
+  std::string flags;                        // the fixture flag state the world was in, or "" for none
+  // Its reply's first try (the last attempt opened before any regeneration, after a Reset), and its regeneration.
+  [[nodiscard]] std::optional<std::size_t> first_try(const std::vector<TapAttempt>& all) const;
+  [[nodiscard]] std::optional<std::size_t> regeneration(const std::vector<TapAttempt>& all) const;
 };
 
 struct EvalRun {
@@ -114,7 +128,10 @@ struct EvalRun {
   std::string persona;
   std::string llm;  // mock | recorded
   std::uint16_t words_max = 0;
+  std::string register_name;  // the persona's register: "archaic-regal", "formal", ...
+  std::vector<std::string> topics;  // its stages' `forbid` topics, eval-only (the test questions', NPC §12.1)
   std::vector<EvalTurn> turns;
+  std::vector<TapAttempt> attempts;  // every reply attempt the conversation opened, with its context and counts
   std::vector<std::string> toasts;  // every toast that went up
   std::vector<std::string> endings;
   std::size_t requests = 0, cancels = 0;
@@ -123,11 +140,23 @@ struct EvalRun {
 
 enum class EvalLlm : std::uint8_t { Mock, Recorded };
 
-// Runs the scenario through a fresh core loaded with the built-in content and the scenario's overrides, in the eval's
-// realm. An error is a problem with the inputs (a file that cannot be read or parsed, content that does not load).
-[[nodiscard]] proto::Expected<EvalRun, std::string> run_eval(const EvalScenario& scenario, EvalLlm llm);
+struct EvalOptions {
+  // An arm (NPC §12.2): an overrides folder loaded after the scenario's, whose files replace any of the same path
+  // (the positive-wording arm's former prompts, tests/x1/arms/).
+  std::optional<std::filesystem::path> arm;
+};
 
-// The report (schema 1, kind "eval-local"): the turns with their text, the metrics and the expectations.
+// Runs the scenario through a fresh core loaded with the built-in content, the scenario's overrides and the arm's, in
+// the eval's realm. An error is a problem with the inputs (a file that cannot be read or parsed, content that does not
+// load).
+[[nodiscard]] proto::Expected<EvalRun, std::string> run_eval(const EvalScenario& scenario, EvalLlm llm,
+                                                             const EvalOptions& options = {});
+
+// The speech counts as the report writes them: each kind that is not 0, by its name.
+[[nodiscard]] nlohmann::json counts_json(const SpeechCounts& c);
+
+// The report (schema 2, kind "eval-local"): the turns with their text and their first try's speech counts, the metrics
+// and the expectations.
 [[nodiscard]] nlohmann::json eval_report(const EvalRun& run);
 // The numbers alone, for standard output: no text of the conversation.
 [[nodiscard]] std::string eval_summary(const EvalRun& run);

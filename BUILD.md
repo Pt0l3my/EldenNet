@@ -322,6 +322,8 @@ the v0.1 catalogue, the rule files' schema, what ARCH §8 left open and how this
   hand when content, prompts or speech change (ARCH §12.1's eval stage). Its reports hold model text, a local-only
   kind, and stay in the build tree's `src/en-tools/eval-reports/` (ignored by git); live models and the judged sets wait
   for a key (WHY§364 (10)).
+- `en_tools_x1` (every Linux test run) exports X1's set as jobpacks for LLM Jobrunner, checks them against Jobrunner's
+  own rules (mirrored), and imports an invented sample of its results (src/en-tools/README.md, "eval --set").
 
 The three shipped routes are synthetic, written by us. DESIGN's C12 (S10.3.a) asks for golden events over three
 *recorded* routes of the owner's game; each becomes a route the same way, with `golden update <recording>`.

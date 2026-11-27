@@ -1,0 +1,34 @@
+# The scripted model for lantern-test-questions.toml (mockllm): a short reply to each test question, to end the
+# scripted run. Our own words, one reply per request, in order.
+schema = 1
+repeat_last = false
+
+[[reply]]
+text = "Hm. The road runs on past the lamp, further than most walk it."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. The lamp shows this crossroads and little else, traveller."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. Travellers say many things. The lamp shows only this crossroads."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. Walk it and see, traveller. The lamp cannot go so far with you."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hm. Every traveller finds something different, or so they tell me."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "The last one never came back to tell me, traveller."
+first_token_ms = 600
+chunk_ms = 40
