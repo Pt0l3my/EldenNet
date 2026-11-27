@@ -2004,6 +2004,10 @@ WORKSHOP_FRAMES = 1800
 # its own page; Settings › Developer's help names it too), Bug report's, and two of Workshop's own words, its
 # description's and a section's title, which nothing in game may draw.
 WORKSHOP_SHOWS = "Workshop|Bug report|raw workings|Every event"
+# And, by id (GraceUI 0.2.62's MenuPage, D269), whether the menu's last layout had each page present: Workshop absent
+# (0), whatever any page's words name it, beside Bug report and Settings › Developer present (1); one rule decides the
+# rail, the Related links and the search's reach, so one answer covers them.
+WORKSHOP_PAGES = "eldennet/tools.workshop|eldennet/tools.report|eldennet/settings.developer"
 WORKSHOP_STATES = ("workshop.exchange", "workshop.world", "workshop.known", "workshop.unknown", "workshop.status",
                    "workshop.kinds")
 WORKSHOP_GATE = ("Workshop shows EldenNet's raw workings: the text sent to the model and its replies, every event, and "
@@ -2150,11 +2154,13 @@ def check_workshop(r):
     except OSError:
         written = ""
     need(re.search(r"panel = false", written), "settings.toml after the switch: %r" % written, failures)
-    # In game: Tools › Bug report and Settings › Developer, never Workshop (in the browser alone, D258).
-    failures += (want_grace(r, 660, menu_open=1, menu_page="home", shows="0000") +
-                 want_grace(r, 1160, menu_open=1, menu_page="tools.report", shows="0100") +
-                 want_grace(r, 1260, menu_open=1, menu_page="settings.developer", shows=lambda s: s[2:] == "00") +
-                 want_grace(r, 1380, menu_open=0))
+    # In game: Tools › Bug report and Settings › Developer, never Workshop (in the browser alone, D258), by its words
+    # and by its id; after F5 closes the menu, its last layout's answer stands.
+    failures += (want_grace(r, 660, menu_open=1, menu_page="home", shows="0000", pages="011") +
+                 want_grace(r, 1160, menu_open=1, menu_page="tools.report", shows="0100", pages="011") +
+                 want_grace(r, 1260, menu_open=1, menu_page="settings.developer", shows=lambda s: s[2:] == "00",
+                            pages="011") +
+                 want_grace(r, 1380, menu_open=0, pages="011"))
     failures += check_lines(("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main", "pages": 0}),
                             ("LAUNCHER", "end", {"kind": "clean"}))(r)
     return failures + en_log_is_clean(r)
@@ -2164,12 +2170,12 @@ case("launcher-eldennet-graceui-workshop", LGAME + ["--dll", "{eldennetdll}", "-
      game("--d3d12", "--stay-title", "--press-keys", WORKSHOP_KEYS, "--grace-report", WORKSHOP_REPORTS,
           frames=WORKSHOP_FRAMES),
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),
-     env=dict(GRACE_ENV, FAKEGAME_SHOWS=WORKSHOP_SHOWS), timeout=240,
+     env=dict(GRACE_ENV, FAKEGAME_SHOWS=WORKSHOP_SHOWS, FAKEGAME_PAGES=WORKSHOP_PAGES), timeout=240,
      prepare=install_eldennet(EN_PANEL, then=install_graceui), during=browse_workshop, check=check_workshop,
      what="Tools › Workshop through GraceUI: in the browser alone, shown with Developer views, gated in the owner's "
           "words, under the Spoilers ribbon; its topics filled while the switch is on (the recorder, every event, the "
-          "flags, the kinds); Record this session off and on, a second file; never drawn in game; and, the switch "
-          "turned off, each topic cleared, the stream emptied, recording.set refused")
+          "flags, the kinds); Record this session off and on, a second file; never drawn in game, by its words and "
+          "its id; and, the switch turned off, each topic cleared, the stream emptied, recording.set refused")
 # EldenNet's AI pages (S11.4.a's second to fourth slices; PAGES §4.6.2), at the title screen, against a fake model
 # server of the tests' own on loopback (tests/pages/fake_models.py) with invented models, which the models.toml installed
 # beside the DLL names for the Cloud budget preset's provider. A browser of the tests' own adds the preset's provider and

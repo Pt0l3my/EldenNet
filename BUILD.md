@@ -148,7 +148,8 @@ cmake --build build-cl
   packs, Docs, Bug report and Logs drawn in game among them, `-pause` Pause AI by its quick switch's command and by
   Home's header switch's, `-talk-calls` AI › Requests after a reply and `-talk-traces` System › Traces and Performance
   after one, `-workshop` Tools › Workshop (its page data, its topics while Developer views are on, Record this session
-  off and on, never in game, cleared once the switch is off) and `-talk-workshop` Workshop's request and reply after
+  off and on, never in game by its words and by its id, GraceUI 0.2.62's `GraceUI_Test_MenuPage` through the fake
+  game's `FAKEGAME_PAGES`, cleared once the switch is off) and `-talk-workshop` Workshop's request and reply after
   one: F5's menu and, from Linux, a browser of the tests' own (`tests/pages/browser.py`) on GraceUI's server at the
   port the fake game's report names. Every
   GraceUI case sets `GRACEUI_TEST_PORT=free` (GraceUI 0.2.31's D234) in the game's environment, so the test build serves
@@ -209,11 +210,14 @@ cmake --build build-cl
   GraceUI 0.2.58): the checkout's own browser view, built first in its `web/` (`npm ci --ignore-scripts`, then
   `npm run build`; it uses the Playwright and Chromium the machine has, and nothing is installed for it), shows two
   space folders of the world state (Developer views off by default, and on) in Chromium over GraceUI's fake host, and
-  fails on a console error, a CSP violation, an off-origin request or a text under 4.5:1; of its dump, each view's rail,
-  each page's presence and Tools › Workshop's and Settings › Developer's text are held to `tests/pages/browser/`
-  (`tests/pages/browser_check.py`; `EN_UPDATE_GOLDENS=1` writes them anew). It is skipped while `web/` is not built. By
-  hand: `python3 -I tests/pages/browser_check.py --web <checkout>/web --pages src/en-overlay/pages --fixtures tests/pages
-  --work <a folder of its own>`. Without the variables the last three are left out, with a line saying so. Docs' documents
+  fails on a console error, a CSP violation, an off-origin request or a text under 4.5:1; of its dump, read from its
+  output (whole through a pipe since 0.2.62, D269), each view's rail, each page's presence and the text of Home, the AI
+  pages, Tools › Workshop and Settings › Developer are held to `tests/pages/browser/` (since 0.2.62 a page is read once
+  its every topic has come, so Home's and AI's hold still; `tests/pages/browser_check.py`; `EN_UPDATE_GOLDENS=1` writes
+  them anew). It takes a few minutes, each page about 1.2 s more since 0.2.62. It is skipped while `web/` is not
+  built. By hand: `python3 -I tests/pages/browser_check.py --web <checkout>/web --pages src/en-overlay/pages
+  --fixtures tests/pages --work <a folder of its own>`. Without the variables the last three are left out, with a line
+  saying so. Docs' documents
   (`src/en-overlay/docs/*.md`, converted by `python3 -I tools/docs/build.py` into `src/en-overlay/src/docs_data.cpp`)
   have two more in every build with Python: `en_docs_build` (`--check`: every draft within its Markdown subset and
   GraceUI's limits, its links to documents and headings that exist, and the file what the drafts build) and

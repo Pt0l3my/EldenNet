@@ -534,10 +534,11 @@ topic back and sends commands, and each page's in-game structure (`--dump`) matc
 (EN_UPDATE_GOLDENS=1 writes them anew), but Tools › Workshop's, whose dump is refused in every state (it is in the
 browser alone). With `EN_GRACEUI_SOURCE` and its `web/` built, `en_pages_browser` runs GraceUI's space check (D265) on
 two folders of the world state, Developer views off and on, in GraceUI's real browser view: no console error, CSP
-violation, off-origin request or text under 4.5:1, and each view's rail, each page's presence and Tools › Workshop's
-and Settings › Developer's text as `tests/pages/browser/` holds them (Workshop behind its gate in the owner's words, under
-its ribbon, absent with Developer views off and on a paired device); skipped while `web/` is not built. Workshop's own
-cases (`test_workshop.cpp`): its four page fields in the owner's words and its place,
+violation, off-origin request or text under 4.5:1, and each view's rail, each page's presence and the text of Home,
+the AI pages, Tools › Workshop and Settings › Developer as `tests/pages/browser/` holds them (Workshop behind its gate
+in the owner's words, under its ribbon, absent with Developer views off and on a paired device; Home's and AI's held
+since GraceUI 0.2.62 reads a page once its every topic has come, D269); skipped while `web/` is not built. Workshop's
+own cases (`test_workshop.cpp`): its four page fields in the owner's words and its place,
 every `workshop.*` topic drawn there alone and no setting homed there, nothing published, kept or taken while
 Developer views are off, `{}` and the stream cleared the moment they go off and the bodies back when they come on, the
 stream's ring and batches, the bodies from invented facts with the prompt's paths, addresses and a SteamID's shape
