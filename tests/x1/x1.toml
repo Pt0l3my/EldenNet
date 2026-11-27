@@ -1,0 +1,66 @@
+# X1, "voice in a bottle" (NPC §12.2; DESIGN §16.1; O139 to O142): the set that eldennet-engine exports as jobpacks
+# for LLM Jobrunner, which runs every turn on the owner's own model servers, and reads back from Jobrunner's results:
+#   eldennet-engine eval --set tests/x1/x1.toml --jobpack <folder>
+#   eldennet-engine eval --set tests/x1/x1.toml --jobrunner-results <results.jsonl> --report <local.json>
+#                        --summary <summary.json> --questions <questions.json>
+# Five personas' voice sets of fifty turns (Kalé, the Lantern-Keeper and X1's three register fixtures), each in two
+# arms: the prompts as they ship (positive) and the positive-wording arm's former wording (former). And both personas'
+# test questions, six each, three runs of each on every server: three jobpacks, x1-voice-1 (Kalé and the
+# Lantern-Keeper), x1-voice-2 (the fixtures) and x1-questions. Ours: the scenarios are in tests/scenarios/talk/, the
+# arm's prompts in arms/former/.
+schema = 1
+name = "x1"
+
+[arm.former]
+overrides = "arms/former"
+
+[[run]]
+pack = "x1-voice-1"
+code = "voice"
+kind = "voice"
+scenario = "../scenarios/talk/x1-voice-kale.toml"
+arms = ["positive", "former"]
+
+[[run]]
+pack = "x1-voice-1"
+code = "voice"
+kind = "voice"
+scenario = "../scenarios/talk/x1-voice-lantern.toml"
+arms = ["positive", "former"]
+
+[[run]]
+pack = "x1-voice-2"
+code = "voice"
+kind = "voice"
+scenario = "../scenarios/talk/x1-voice-regal.toml"
+arms = ["positive", "former"]
+
+[[run]]
+pack = "x1-voice-2"
+code = "voice"
+kind = "voice"
+scenario = "../scenarios/talk/x1-voice-broken.toml"
+arms = ["positive", "former"]
+
+[[run]]
+pack = "x1-voice-2"
+code = "voice"
+kind = "voice"
+scenario = "../scenarios/talk/x1-voice-chant.toml"
+arms = ["positive", "former"]
+
+[[run]]
+pack = "x1-questions"
+code = "tq"
+kind = "test_question"
+scenario = "../scenarios/talk/kale-test-questions.toml"
+arms = ["positive"]
+repeat = 3
+
+[[run]]
+pack = "x1-questions"
+code = "tq"
+kind = "test_question"
+scenario = "../scenarios/talk/lantern-test-questions.toml"
+arms = ["positive"]
+repeat = 3

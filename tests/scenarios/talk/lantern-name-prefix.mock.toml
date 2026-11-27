@@ -1,0 +1,18 @@
+# The scripted model for lantern-name-prefix.toml (mockllm): invented replies in our own words, one per request, each
+# opening with a "Name:" prefix of another class.
+schema = 1
+
+[[reply]]
+text = "Lantern-Keeper: Hm. I keep it, as I have for longer than I can count."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Old Keeper: that is what they call me. The road keeps its own name."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "But know this: the lamp shows the road, never the whole of it."
+first_token_ms = 600
+chunk_ms = 40

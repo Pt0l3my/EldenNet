@@ -1,0 +1,62 @@
+# The sanitizer's "Name:" prefix, counted by class (WHY§410): the test persona's replies open with one of its own
+# names, with a general prefix of two words, and with a real opening ("But know this:") that the general pattern also
+# takes. The eval counts each removal and its class, so that a narrower rule can be judged on data. Our own scenario,
+# with invented data: the persona is bound to the fake game's invented row 81100 by this folder's overrides, in the
+# eval's realm only (NPC §2.1). Run: eldennet-engine eval <this file> --llm mock.
+schema = 1
+name = "lantern-name-prefix"
+persona = "lantern_keeper"
+overrides = "overrides"
+mock = "lantern-name-prefix.mock.toml"
+
+[world]
+param = 81100
+distance_m = 2.5
+bearing_deg = 5.0
+clock = [20, 15]
+subtitles = true
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Who keeps this lamp?"
+
+[[step]]
+do = "wait"
+ms = 9000
+
+[[step]]
+do = "say"
+text = "What do the travellers call you?"
+
+[[step]]
+do = "wait"
+ms = 9000
+
+[[step]]
+do = "say"
+text = "Is there anything I should know before I go on?"
+
+[[step]]
+do = "wait"
+ms = 9000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 3
+npc_lines = 3
+failures = 0
+regenerations = 0
+name_prefixes = 3
+last_npc = "the lamp shows the road, never the whole of it."
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "expect"
+state = "closed"
+ended = "closed"

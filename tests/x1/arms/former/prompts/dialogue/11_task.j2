@@ -1,0 +1,6 @@
+{# X1's positive-wording arm (NPC §12.2, O36): block 11 with the promise reminder in its former wording (NPC §8.4
+   before the positive rewrites, 2026-11-07); the banned and safety reminders did not change. Ours; an overrides
+   file for the eval, never shipped. #}
+[ user ]
+Your turn:
+Answer as {{ name }}, in {{ possessive }} own voice, in at most {{ words_max }} words.{% for tic in spent_tics %} {{ quote(tic) }} has had its turn; say the rest in other words.{% endfor %}{% if reminder == "banned" %} Use only words a person of this land would use.{% endif %}{% if reminder == "promise" %} You can only speak. Offer, give, lead or promise nothing.{% endif %}{% if reminder == "safety" %} Stay within decency, in your own voice.{% endif %}{{ actions_tail }}
