@@ -1897,6 +1897,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Built the same day (GraceUI feat/foundations 0c8d0fa; GraceUI's docs/eldennet-changes.md §91): the npm script
     `check:space` in GraceUI's web, over a space folder and a golden, dumping this PC's view, a paired device's and each
     shown_with switch turned the other way, a gated page's gate first and a page not there named absent.
+- bs A slider's typed entry in both views: Enter or a press on the value, the bounds in words, snapped to the step (GraceUI 0.2.59) [done]
+  - refs: GraceUI:D173, GraceUI:DESIGN§3.8, PAGES§4.5
+  - gives: GraceUI's D266, built on 2026-11-27 (GraceUI feat/foundations 960d428; GraceUI's docs/eldennet-changes.md
+    §92): every integer, number and duration setting may be typed (a full stop or comma for the decimal point, the unit
+    ignored, snapped to the step within the bounds; a refusal in words under the row), with no change to the protocol,
+    the page data or the ABI. EldenNet's settings hold no numbers yet; a dump with a slider focused gains "Enter  Type".
 
 ### S11.3 EldenNet v0.2
 
