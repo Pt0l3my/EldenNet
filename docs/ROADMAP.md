@@ -1399,14 +1399,18 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: Status on 2026-11-27: planned, not waiting. There is no package for the owner to run: the build's layout
     has no fields for the HUD, the talk pop-up or the talk camera, which are leads alone, and S6's core flags are
     S10.1.c's, which waits on S10.1.b.
-- c X1, voice in a bottle: candidate models against the prompt, offline, with its test questions [next]
-  - refs: NPC§12.2, ARCH§12.3
+- c X1, voice in a bottle: candidate models against the prompt, offline, with its test questions [active]
+  - refs: NPC§12.2, ARCH§12.3, O139, O140, O141, O142
   - gives: Status on 2026-11-27: next. It runs offline and needs nothing but a model to call; it chooses the
     models.toml the game lacks (S11.4.a's second slice). Built: the two personas X1 names, the pilot and the test
     persona, and the eval with mock and recorded models (S11.3.e). Left: the eval's live models, which it refuses so
     far; the three X1-only register fixtures (NPC §12.2); both personas' test questions as scenarios; the
     positive-wording arm; the two 4B local models; and a cloud key, asked for through the session's credential form,
     or a run by the owner.
+    Decided on 2026-11-27 (O139 to O142): the design's two candidates and alternates, with the 4B pair, all run on the
+    owner's own servers through LLM Jobrunner. EldenNet's eval exports X1's turns as Jobrunner jobpacks and imports
+    its results; no key here and no cloud call; a $5 cap for any cloud run; the Engine session scores the test
+    questions and presents the results. Being built on 2026-11-27 (engine wip/x1).
 - d X3, latency in game [planned]
   - needs: S10.1.m, S11.1.c
   - refs: O128

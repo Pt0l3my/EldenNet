@@ -2773,3 +2773,68 @@ writing neither. **Options:** read it; or not.
 **Owner's words.** "Yes, read it (Recommended)" (Lodestar's question dialog, 2026-11-27).
 
 **Follows from.** O111, O121, O136; WHY§656.
+
+## O139
+
+**X1's candidate models** · *2026-11-27 · Decided by the owner, as recommended*
+
+**Question.** X1 (NPC §12.2; S11.1.c) tries candidate models against EldenNet's prompt for the pilot and the test
+persona. **Options:** (a) the design's two, `gemma-4-26b-a4b-it` and its fallback `gemma-4-31b-it`; (b) (a) and one or
+two alternates of another family picked at run time, so that a fail has a replacement in the same run; (c) (a) and
+NanoGPT's candidates, folding in S8.1.h.
+
+**Recommendation.** (b).
+
+**Decision.** (b), run on the owner's own servers (O140), the 4B pair (Gemma 4 E4B, Qwen3.5-4B) with them.
+
+**Owner's words.** "Design's two + alternates (Recommended)" (question dialog, 2026-11-27).
+
+**Follows from.** NPC §12.2; ARCH §12.3; S11.1.c.
+
+## O140
+
+**X1 runs on the owner's PC through LLM Jobrunner, the models run locally** · *2026-11-27 · Decided by the owner*
+
+**Question.** Where X1's runs spend their tokens. **Options:** (a) here, with an OpenRouter key through the session's
+credential form; (b) on the owner's PC, with their key; (c) smoke runs here, the full set on the PC. The owner first
+chose (a), then, in the same turn, said otherwise.
+
+**Decision.** On the owner's PC, through LLM Jobrunner, with the models run on the owner's own servers. EldenNet's eval
+exports X1's turns as a Jobrunner jobpack (format 1: messages and parameters, data only), the owner runs it, and the
+eval imports Jobrunner's `results.jsonl` (replies, timings, the model's file name; no address, path or key) to measure
+and score. No key enters this session, and no cloud call is made for X1. The eval's live path and mockllm's local SSE
+server wait for a later need.
+
+**Owner's words.** "Here, key via secure form (Recommended)" (question dialog), then "also, we should use jobrunner for
+these jobs, locally run those models" (2026-11-27).
+
+**Follows from.** O139; S8.1.h; S11.1.c, S11.3.e.
+
+## O141
+
+**X1's spending cap** · *2026-11-27 · Decided by the owner*
+
+**Question.** A cap on X1's cloud spending, estimated at $0.20 to $0.60. **Options:** $1, $3 (recommended) or $10.
+
+**Decision.** $5, for any cloud model X1 is ever run on (through Jobrunner's cloud cards or otherwise); a local run
+spends nothing.
+
+**Owner's words.** "$5" (question dialog, 2026-11-27).
+
+**Follows from.** O140.
+
+## O142
+
+**The Engine session scores X1's test questions and presents the results** · *2026-11-27 · Decided by the owner*
+
+**Question.** Until a judge model passes the judge's check (O29), who scores the test questions' replies. **Options:**
+(a) the owner reads them all; (b) the Engine session pre-sorts them and the owner confirms the leaks and a sample; (c)
+wait for the judge.
+
+**Decision.** The Engine session judges and sorts the replies, evaluates the results and presents them to the owner.
+The replies stay local (the session's scratchpad), never in a commit.
+
+**Owner's words.** "You judge and sort them, and them you evaluate results and present to me." (question dialog,
+2026-11-27).
+
+**Follows from.** O29; NPC §12.1; C9.
