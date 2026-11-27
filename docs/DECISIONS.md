@@ -2683,3 +2683,17 @@ Details; (b) Error, Warning, Info, Debug; (c) the raw words.
 **Owner's words.** "Errors, Warnings, Information, Details (Recommended)" (question dialog, 2026-11-25).
 
 **Follows from.** O128; GraceUI D257, D262; PAGES §4.6.7.
+
+## O134
+
+**Do EldenNet's own panels follow GraceUI's Plain text?** · *2026-11-27 · Open*
+
+**Question.** Since GraceUI 0.2.60 (D267), GraceUI › Menu's Plain text draws every space's pages in game in Noto Sans in
+place of the serif and display faces. EldenNet's own panels (the subtitles, the chat box, the F11 debug view) draw with
+EldenNet's own faces and do not change. GraceUI offers to publish the setting to mods, as it publishes `ui.scale`
+(D180). **Options:** (a) the subtitles and the chat box follow Plain text (its sans faces baked beside EldenNet's), the
+F11 view keeping its own; (b) all three follow it; (c) none: EldenNet's panels keep their faces whatever the setting.
+
+**Recommendation.** (a): a player who asks for plain text in the menu reads the lines in it too; F11 is for testers.
+
+**Follows from.** GraceUI D180, D267; O93; NPC §5 (the subtitles and the chat box).

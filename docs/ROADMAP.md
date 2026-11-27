@@ -1908,6 +1908,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     §92): every integer, number and duration setting may be typed (a full stop or comma for the decimal point, the unit
     ignored, snapped to the step within the bounds; a refusal in words under the row), with no change to the protocol,
     the page data or the ABI. EldenNet's settings hold no numbers yet; a dump with a slider focused gains "Enter  Type".
+- bt Plain text in game: the menu's serif and display roles in Noto Sans when GraceUI's Plain text is on (GraceUI 0.2.60) [done]
+  - refs: GraceUI:D180, PAGES§4.6
+  - gives: GraceUI's D267, built on 2026-11-27 (GraceUI feat/foundations 111119f; GraceUI's docs/eldennet-changes.md
+    §93): every space's pages in game follow GraceUI › Menu's Plain text, baked at launch and applied at once from the
+    nearest sans bakes in a session; grace-dev's dumps keep the serif faces. EldenNet's own panels (subtitles, chat box,
+    F11) keep their faces until GraceUI publishes the setting to mods and the owner decides they follow it (O134).
 
 ### S11.3 EldenNet v0.2
 
