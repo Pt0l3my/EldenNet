@@ -676,6 +676,10 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 651 | 2026-11-25 | Each log row's level is the logger's | DECIDED | #pages #privacy |
 | 652 | 2026-11-25 | At GraceUI 0.2.52 and 0.2.53 EldenNet's goldens move only as D256, D257 and D260 explain | FACT | #pages #goldens #graceui |
 | 653 | 2026-11-25 | The Bug report's copy and save go through GraceUI's share, and report.copy is dropped | DECIDED | #pages #privacy #graceui |
+| 654 | 2026-11-27 | The twentieth round's third run confirms the position, its part, chr_type and block_id: 28 fields | FACT | #lodestar #l6 #gal |
+| 655 | 2026-11-27 | The dead bit marks a dead character of the world, not the main player's death | FACT | #lodestar #l6 |
+| 656 | 2026-11-27 | The sheet is one object, reached from the save data and from the main player | LIKELY | #lodestar #l6 #gal |
+| 657 | 2026-11-27 | The clock waits for one run with its watch; the player's own death is read from the health | DECIDED | #lodestar #gal #augur |
 
 ## Entries
 
@@ -9557,3 +9561,46 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   path relative to the game's folder; in the browser Save is a download alone. The file is
   eldennet-report-<YYYY-MM-DD>.txt, with -2 and on in game rather than overwrite. Asked of Grace whether a paired
   device receives `share` in the topic's body; the final words go to the owner with the build.
+
+### 654. The twentieth round's third run confirms the position, its part, chr_type and block_id: 28 fields
+
+`2026-11-27` · FACT · `#lodestar` `#l6` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md ("The twentieth round's third run"), gal/layouts/2.7.2.0-ww.toml, engine fe04479 (merged at 2b93764), WHY§614
+
+- Confirmed by WHY§614's rule in one run: motion.pos and character_parts.motion (the reader's position moved in all 58
+  seconds of a ride and in none of the stands', the parts watch beside it listing part 13, 0x70 and 0x78 in, moving in
+  all 28 of its riding passes and none of the 11 standing), chr_type and block_id (the reader beside the survey's
+  checks, a crossing). 28 fields are confirmed. The clock's fields and the play time were read rightly by the reader,
+  but the watch's own invariants were not in this run's report, the session being too short for a clock to go round.
+
+### 655. The dead bit marks a dead character of the world, not the main player's death
+
+`2026-11-27` · FACT · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, src/en-gal/src/backend.cpp (read_player), en-augur world.cpp
+
+- At the owner's death the main player's health read nothing for eleven frames of the death's task, and the dead bit
+  (0x1C6, bit 0) was clear in every frame that read the fields, and in all 91 of the run. No bit of a character's first
+  2 KiB flipped at both of the survey's two deaths. A lead for the player's own: bit 4 of 0x53B, which read otherwise
+  than the dead bit in 2 of the main player's 27 passes and in none of the others' 984 sightings.
+
+### 656. The sheet is one object, reached from the save data and from the main player
+
+`2026-11-27` · LIKELY · `#lodestar` `#l6` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md, gal/layouts/2.7.2.0-ww.toml ([class.player_data]), O122, O124
+
+- The save data's word 0x8 in and the main player's object's 0x580 in lead to the same object in every pass. Named from
+  the owner's status screen: the level 0x68 in (the one field of its 64 KiB that read it); the eight attributes from
+  0x3C in as they are without what the character wears and from 0x288 in as the screen shows them; the health and its
+  maximum 0x10 and 0x14 in, the focus from 0x1C, the stamina from 0x2C; the resistances from 0x78; the name a run of
+  text 0x9C in, told by place and length alone. Leads until the reader reads them through the layout. The count of
+  deaths was not found: most likely dropped by the text rule beside a larger number. No number of the owner's
+  character is in any file.
+
+### 657. The clock waits for one run with its watch; the player's own death is read from the health
+
+`2026-11-27` · DECIDED · `#lodestar` `#gal` `#augur` · refs: WHY§614, §654, §655, src/en-gal/src/backend.cpp (read_player), src/en-augur/src/augur.cpp, world.cpp
+
+- The clock's fields and the play time stay leads until one run has the reader, a second reading and the watch's own
+  invariants together, as WHY§614 asks; the watch's thirteen earlier sessions do not stand beside this run's reader.
+  The next round's session is long enough for it.
+- Until a field is confirmed for it, the main player's death is what the health says: no health read, or none left,
+  with the main player's object present. `read_player` sets `pl.dead` so, and the dead bit stays the world's
+  characters' alone; Augur's player rules read `p.dead` unchanged. A second field (bit 4 of 0x53B) joins the layout
+  only once a round confirms it by WHY§614. Lodestar builds this with its next round, with a fake-game case.

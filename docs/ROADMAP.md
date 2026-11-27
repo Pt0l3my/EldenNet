@@ -1278,6 +1278,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     read round's report may be 1 MiB now (the owner's word, O126; WHY§632), the round says when it cannot write, and the
     case runs at the game's sizes (engine 033adec, merged at 3d90fe8; package 0.1.0-lodestar.27, README read by
     Engine). Awaiting the owner's third run.
+    The twentieth round's third run reviewed on 2026-11-27 (engine fe04479, merged at 2b93764; WHY§654 to §657):
+    position, type and block confirmed (28 fields); the sheet's level and name placed as leads from the owner's status
+    screen; the dead bit does not mark the main player's death, which is read from the health until a field is
+    confirmed; the count of deaths not found. Next: the reader on the sheet, the deaths by behaviour, the player's death,
+    the clock in a longer session.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
