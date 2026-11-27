@@ -183,6 +183,7 @@ combat lines, once S3 has recorded its kind (C-4).
 | D-14 | The Great Rune count | Flags 180–187 | catalogue | S6's core flags | **Spike** S6 · FACT, possible lag LIKELY, ER05 §2 | DESIGN §5.5, §10.3 |
 | D-15 | An NPC on horseback (the *on horseback* tag of NPC §7.2's `brief`) | Nothing designed: the GAL reads the ride state for the Tarnished only, and `Chr` holds no riding field (DESIGN §4.1, §5.2) | — | none planned (§3.1 gap 11) | **Gap** · the ride field FACT for the Tarnished, its values from one crate's doc comment, ER05 §3 | NPC §7.2 |
 | D-16 | The Tarnished's level, and an NPC's or an enemy's where the game keeps one (the owner's wish, O124) | For the Tarnished, a field of the character's sheet (the twentieth read-only round looks, O121, O122); for a character of the world, not known: its object, what it points at, or only its kind's row | — | none planned | **Gap** · O124 | none designed yet |
+| D-17 | A character's focus and stamina, each now and at its most, so the character a model plays knows when it is out of focus (the owner's wish, O136) | The catalogue's `vitals.fp`, `vitals.max_fp`, `vitals.stamina` and `vitals.max_stamina`, optional and open; the twenty-first read-only round holds the health part against the sheet (O138) | — | none planned | **Gap** · O136 | none designed yet (D-13 gives the Tarnished's bands) |
 
 ### 2.6 Quest and world awareness (E; O51)
 

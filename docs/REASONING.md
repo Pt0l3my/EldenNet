@@ -691,6 +691,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 666 | 2026-11-25 | Workshop's prompt part is the newest chat request of the conversation or the profile editor | DECIDED | #pages #engine |
 | 667 | 2026-11-27 | The floor follows the newest page field the space uses, and the page data's minor is the floor's | DECIDED | #graceui #pages |
 | 668 | 2026-11-27 | GraceUI's space check at 0.2.58: the dump from its file, and only what settles held to a golden | FACT | #graceui #tests #pages |
+| 669 | 2026-11-27 | Why the twentieth round gave the clock and the play time no second reading | FACT | #lodestar #l6 |
 
 ## Entries
 
@@ -9582,6 +9583,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   all 28 of its riding passes and none of the 11 standing), chr_type and block_id (the reader beside the survey's
   checks, a crossing). 28 fields are confirmed. The clock's fields and the play time were read rightly by the reader,
   but the watch's own invariants were not in this run's report, the session being too short for a clock to go round.
+- Later (2026-11-27): not the session's length, but the scans that keep a reader's step to themselves and the watch's
+  lack of a way to the clock and the save data (WHY§669).
 
 ### 655. The dead bit marks a dead character of the world, not the main player's death
 
@@ -9615,6 +9618,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   with the main player's object present. `read_player` sets `pl.dead` so, and the dead bit stays the world's
   characters' alone; Augur's player rules read `p.dead` unchanged. A second field (bit 4 of 0x53B) joins the layout
   only once a round confirms it by WHY§614. Lodestar builds this with its next round, with a fake-game case.
+- Later (2026-11-27): `read_player` sets `dead` from the health only where the health was read; where it was not (the
+  object absent, or the way to its part not bound), `dead` stays false. Accepted: an unread health is no death.
 
 ### 658. GraceUI 0.2.50 drops a page's unknown fields, and no GraceUI compares a page data's minor
 
@@ -9729,3 +9734,12 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   pages do not. EldenNet's golden holds each view's rail, every page's presence, and the text of Workshop and of
   Settings › Developer whole; the tool's own checks (console, CSP, off-origin, contrast) still fail the test. Both
   asked of Grace.
+
+### 669. Why the twentieth round gave the clock and the play time no second reading
+
+`2026-11-27` · FACT · `#lodestar` `#l6` · refs: WHY§654, §657, docs/ops/probes/2026-11-22-l5.md
+
+- Not the session's length. The scans that take a reader's step to themselves (the parts watch, the survey and the
+  sheet scan) were due nearly always between them, so the watch made 21 passes in the session and the rising search
+  none; and the watch had no way to `world_clock` or `save_data`, which no accessor names. The twenty-first round
+  gives the shared searches every other step and the watch a way to each by the build's statics, once a second.

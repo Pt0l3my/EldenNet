@@ -2723,3 +2723,53 @@ Privacy (the list sent to the owner the same day). **Options:** accept them as b
 **Owner's words.** "Accept as built (Recommended)" (question dialog, 2026-11-27).
 
 **Follows from.** O129 to O133; PAGES §4.6.8; S11.4.a.
+
+## O136
+
+**A character's focus and stamina are wanted, now and at their most** · *2026-11-27 · Decided by the owner: a wish for the design*
+
+**Question.** None was put: the owner said it on seeing the catalogue's rows `vitals.fp`, `vitals.max_fp`,
+`vitals.stamina` and `vitals.max_stamina` marked optional and open in Lodestar's document.
+
+**Decision.** A wish for the design: a character's focus and stamina, each as it is and at its most, are wanted, so
+that the character a model plays knows when it is out of focus for a spell or a skill. Placed as DATA §2.5's D-17.
+The catalogue keeps them optional (a missing one never stops a read group), the rounds seek them, and their use in a
+prompt is designed with the character's condition (D-13 gives the Tarnished's bands).
+
+**Owner's words.** "I would like to include these, it would be a good data for AI to know how much focus the
+character it roleplays, so it knows when it's out of focus to cast spells or skills." (to Lodestar, 2026-11-27.)
+
+**Follows from.** O124; DATA §2.5 (D-13).
+
+## O137
+
+**The twenty-first round's tasks: quiet, a stand, one death, four minutes of play** · *2026-11-27 · Decided by the owner, as recommended*
+
+**Question.** Asked by Lodestar: load the usual character somewhere quiet, stand still 20 seconds, let an enemy kill
+you once, then play freely in the world for 4 minutes, now and then sprinting or rolling and using a spell or a weapon
+skill, so that focus and stamina change. **Options:** those tasks; or others.
+
+**Recommendation.** Those tasks.
+
+**Decision.** Those tasks.
+
+**Owner's words.** "Yes, as described (Recommended)" (Lodestar's question dialog, 2026-11-27).
+
+**Follows from.** O123, O136; WHY§657.
+
+## O138
+
+**The twenty-first round reads the health part's first 512 bytes against the sheet** · *2026-11-27 · Decided by the owner, as recommended*
+
+**Question.** Asked by Lodestar: at each pass of the sheet scan, read the first 512 bytes of the part of the owner's
+own character that holds its health, and hold them against the sheet's health, focus and stamina, writing only which
+places matched and how often, never a value; and have EldenNet's reader check that a level and a name are there,
+writing neither. **Options:** read it; or not.
+
+**Recommendation.** Read it.
+
+**Decision.** Read it, as described.
+
+**Owner's words.** "Yes, read it (Recommended)" (Lodestar's question dialog, 2026-11-27).
+
+**Follows from.** O111, O121, O136; WHY§656.
