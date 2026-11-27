@@ -1987,6 +1987,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: GraceUI's D270, built on 2026-11-27 (GraceUI main 01d6e94; GraceUI's docs/eldennet-changes.md §96): the
     first repeat after 400 ms, then every 80 ms; a repeat never turns a switch, follows a link or acts; a held Enter
     no longer closes the field it opened. Nothing for EldenNet to change; its own panels still time their own repeats.
+- bx The in-game menu fades in on open and out on the player's close (GraceUI 0.2.64) [done]
+  - refs: GraceUI:D271, PAGES§4.6
+  - gives: GraceUI's D271, built on 2026-11-27 (GraceUI main 892d9f0; GraceUI's docs/eldennet-changes.md §97): 120 ms
+    in, and 200 ms out on F5, Esc, B at the top level or the close button, input back with the game at once. Danger,
+    a load, focus lost, the watchdog, a fault and the player's exit still take it away at once, cutting a fade short;
+    Reduce motion turns both fades off. EldenNet's panels and notices draw as before. Nothing for EldenNet to change;
+    a fake-game check that reads pixels just after a close waits about 250 ms first, or turns Reduce motion on.
 
 ### S11.3 EldenNet v0.2
 
