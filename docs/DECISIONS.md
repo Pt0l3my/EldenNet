@@ -2686,7 +2686,7 @@ Details; (b) Error, Warning, Info, Debug; (c) the raw words.
 
 ## O134
 
-**Do EldenNet's own panels follow GraceUI's Plain text?** · *2026-11-27 · Open*
+**Do EldenNet's own panels follow GraceUI's Plain text?** · *2026-11-27 · Decided by the owner, as recommended*
 
 **Question.** Since GraceUI 0.2.60 (D267), GraceUI › Menu's Plain text draws every space's pages in game in Noto Sans in
 place of the serif and display faces. EldenNet's own panels (the subtitles, the chat box, the F11 debug view) draw with
@@ -2696,4 +2696,30 @@ F11 view keeping its own; (b) all three follow it; (c) none: EldenNet's panels k
 
 **Recommendation.** (a): a player who asks for plain text in the menu reads the lines in it too; F11 is for testers.
 
+**Decision.** (a), from the next launch: the subtitles and the chat box use Noto Sans (GraceUI's fonts folder, OFL,
+registered as EldenNet's own faces in its registration window) when Plain text is on at launch, and a change in a
+session takes effect at the next launch, so no player carries both sets of faces; F11 keeps its own. Asked with the
+choice of following at once (both sets baked for every player) or not at all; Grace recommended the next launch
+(GraceUI 0.2.61, D268, publishes the value to mods).
+
+**Owner's words.** "Yes, from next launch (Recommended)" (question dialog, 2026-11-27).
+
 **Follows from.** GraceUI D180, D267; O93; NPC §5 (the subtitles and the chat box).
+
+## O135
+
+**Tools › Workshop's drafted words** · *2026-11-27 · Decided by the owner, as recommended*
+
+**Question.** Workshop was built on 2026-11-27 (engine d1a96c2) with the owner's words of O129 to O133 and words drafted
+in the build: its section descriptions, empty words, filters and searches, the exchange's, the world's, the known
+sets', the unknown characters' and the recording's labels and lines, `recording.set`'s refusal, the name's mask
+"[the Tarnished's name]", Settings › Developer's first help step, and a sentence each in Docs › Spoilers and Docs ›
+Privacy (the list sent to the owner the same day). **Options:** accept them as built, or change any of them.
+
+**Recommendation.** Accept as built.
+
+**Decision.** The words as built, as PAGES §4.6.8's dated note of 2026-11-27 holds them.
+
+**Owner's words.** "Accept as built (Recommended)" (question dialog, 2026-11-27).
+
+**Follows from.** O129 to O133; PAGES §4.6.8; S11.4.a.

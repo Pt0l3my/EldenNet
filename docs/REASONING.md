@@ -680,6 +680,17 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 655 | 2026-11-27 | The dead bit marks a dead character of the world, not the main player's death | FACT | #lodestar #l6 |
 | 656 | 2026-11-27 | The sheet is one object, reached from the save data and from the main player | LIKELY | #lodestar #l6 #gal |
 | 657 | 2026-11-27 | The clock waits for one run with its watch; the player's own death is read from the health | DECIDED | #lodestar #gal #augur |
+| 658 | 2026-11-25 | GraceUI 0.2.50 drops a page's unknown fields, and no GraceUI compares a page data's minor | FACT | #graceui #pages #engine |
+| 659 | 2026-11-25 | GraceUI's server keeps a watched topic's body and a stream's rows: a switch going off must clear them | FACT | #graceui #pages #privacy |
+| 660 | 2026-11-25 | A watch carries no view: Workshop is on this PC alone by pc_only, not by anything of EldenNet's | DECIDED | #graceui #privacy #pages |
+| 661 | 2026-11-25 | GraceUI 0.2.55's first focus moves the fake game's walks | METHOD | #graceui #tests |
+| 662 | 2026-11-25 | The goldens of a pin are checked by what moved, not by eye | METHOD | #pages #tests |
+| 663 | 2026-11-25 | MenuShows matches words, so absence is proved by a page's own words, not its name | METHOD | #tests #graceui |
+| 664 | 2026-11-25 | Workshop's texts: keys by value, then by shape; the name whole; the stream scrubbed whole each time | DECIDED | #privacy #engine #pages |
+| 665 | 2026-11-25 | Record this session opens a new file of the session, and Status follows the recorder, not the setting | DECIDED | #engine #pages |
+| 666 | 2026-11-25 | Workshop's prompt part is the newest chat request of the conversation or the profile editor | DECIDED | #pages #engine |
+| 667 | 2026-11-27 | The floor follows the newest page field the space uses, and the page data's minor is the floor's | DECIDED | #graceui #pages |
+| 668 | 2026-11-27 | GraceUI's space check at 0.2.58: the dump from its file, and only what settles held to a golden | FACT | #graceui #tests #pages |
 
 ## Entries
 
@@ -9604,3 +9615,117 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   with the main player's object present. `read_player` sets `pl.dead` so, and the dead bit stays the world's
   characters' alone; Augur's player rules read `p.dead` unchanged. A second field (bit 4 of 0x53B) joins the layout
   only once a round confirms it by WHY§614. Lodestar builds this with its next round, with a fake-game case.
+
+### 658. GraceUI 0.2.50 drops a page's unknown fields, and no GraceUI compares a page data's minor
+
+`2026-11-25` · FACT · `#graceui` `#pages` `#engine` · refs: GraceUI D258, D262, D264; codec.cpp `field`, PAGES§4.6.8
+
+- grace-protocol's decoder reads a page's fields by name and never looks at the others, so 0.2.50 (330342d) registers
+  a page with browser_only, shown_with, gate and ribbon as a plain page; neither its page check nor the web knows the
+  four. `minor` is decoded and compared with nothing (`kProtocolMinor` is defined, never used, at 0.2.50 and 0.2.53).
+  So Workshop on an older GraceUI would be drawn in game, ungated: the floor must cover every page field the space
+  uses. Since O133's Logs choices need 0.2.55 (an older registration refuses choices on a bar it filters itself), the
+  floor is 0.2.55, and no second page data was made (the Engine's reading). Later: Grace's G-6 answer, from 0.2.57
+  register_pages refuses page data whose minor is above the host's.
+
+### 659. GraceUI's server keeps a watched topic's body and a stream's rows: a switch going off must clear them
+
+`2026-11-25` · FACT · `#graceui` `#pages` `#privacy` · refs: grace-serve bridge.cpp, protocol 1.1, GraceUI D258
+
+- A state topic's newest body and a stream's rows (up to its ring) stay in GraceUI's server while any view watches,
+  for later watchers; the space cannot refuse a watch and never learns who watches. So when Developer views go off,
+  publishing nothing would leave Workshop's last bodies for a new watcher. The space publishes `{}` once on each watched
+  Workshop state topic and an empty batch past a gap on its stream (protocol 1.1 clears a stream so), then nothing; the
+  DLL empties its keeping at the same wake. Grace's G-5 answer: as planned; the server drops a topic's cache when its
+  last watcher leaves.
+
+### 660. A watch carries no view: Workshop is on this PC alone by pc_only, not by anything of EldenNet's
+
+`2026-11-25` · DECIDED · `#graceui` `#privacy` `#pages` · refs: GraceUI D221, D224, D264 (0.2.57), O132, engine 6281190
+
+- D221 refuses a paired device the commands a space marks sensitive, never a sub; a `browser_only` page is present in
+  a device's view, and the space never learns who watches. So EldenNet cannot keep Workshop off a device itself, and
+  built nothing to (O132). Workshop is on this PC alone, by pc_only (GraceUI 0.2.57, D264, protocol 1.20) on the
+  page and each of its seven topics: a device's page data leaves the page out, with its Related links, and its watch
+  of a Workshop topic is refused not_now, "Only on the PC the game runs on." (the editor case's device). Every
+  workshop.* topic is drawn on Workshop alone and no setting is homed there (tests check both), as the lint wants.
+
+### 661. GraceUI 0.2.55's first focus moves the fake game's walks
+
+`2026-11-25` · METHOD · `#graceui` `#tests` · refs: GraceUI D262 (4), (5); tests/fakegame/harness.py
+
+- A page's first focus is its body's first control, never a header action, and a stream's bar comes before its rows.
+  Four walks moved: Logs' first focus is the Level filter, three ↓ (the bar's search, Log detail's section label) reach
+  Log detail's shortcut; Providers' is the preset's shortcut, one ↑ reaches the own server's Remove (the row's stop
+  before it); Self-test's is Now's label, one ↑ reaches Run; GraceUI's Browser view's is its first switch, three ↓
+  reach Pair a device. A section's own actions come right after its label in the stop order (page_view.cpp).
+
+### 662. The goldens of a pin are checked by what moved, not by eye
+
+`2026-11-25` · METHOD · `#pages` `#tests` · refs: tests/pages/golden, GraceUI D261, D262
+
+- A script of ours compared each regenerated dump with the committed one and took a change only as D261's (a text cut
+  at one line now in pieces whose words join to it) or D262's (the focus ring moved, the help line and the foot's key
+  hints following it; Logs' rows and bar; a cell's x by its slot; a drawer mark gone), anything else a failure.
+  Nineteen moved, none unexplained. Kept in the session's scratchpad, not the repository.
+
+### 663. MenuShows matches words, so absence is proved by a page's own words, not its name
+
+`2026-11-25` · METHOD · `#tests` `#graceui` · refs: GraceUI_Test_MenuShows (D184), harness.py's workshop case
+
+- GraceUI_Test_MenuShows answers whether the menu draws a text anywhere: "Workshop" is drawn on Settings › Developer
+  in debug.panel's help, so it cannot prove the page absent there. The Workshop case looks for Workshop's name only on
+  Tools › Bug report (Tools' rail) and, on every report, for two of Workshop's own words (its description's "raw
+  workings" and its section's "Every event"), which nothing but the page draws. Also: --type-at's list is split at
+  commas, so a typed line takes none.
+
+### 664. Workshop's texts: keys by value, then by shape; the name whole; the stream scrubbed whole each time
+
+`2026-11-25` · DECIDED · `#privacy` `#engine` `#pages` · refs: PV2, PV5, en-llm secret.hpp, O132
+
+- ai_redact replaces each configured key's value (a provider's key, a secret header's value, four characters or
+  more) and then en-llm's credential shapes; mask_name replaces the playthrough's name matched whole, ASCII case
+  folded, never inside a word ("[the Tarnished's name]"); en-overlay scrubs the prompt's and the reply's path- and
+  address-shaped words and a SteamID's shape again as it publishes. A streamed reply is kept raw beside the shown text
+  and scrubbed whole at each piece, since a key or the name can fall across two pieces (and a mask must never be
+  masked again). en-llm's old scrub made a text one line; redact_credentials keeps line breaks, and the server's
+  message's scrub calls it after making the text one line, as before. A server's message is never kept.
+
+### 665. Record this session opens a new file of the session, and Status follows the recorder, not the setting
+
+`2026-11-25` · DECIDED · `#engine` `#pages` · refs: O131 (b), ARCH§7.5, PV8, D221
+
+- recording.set {on} (sensitive) opens a new file of the session's stem, its header first, or flushes and closes the
+  one written, in the wake after the overlay's tick; a press for what is so changes nothing; settings.toml is not
+  written. `recording_asked` now means "meant to be writing": the setting at the start, an S0 run, started on Workshop,
+  or a file that could not be opened (then System › Status's check fails in words); stopped on Workshop is not asked.
+
+### 666. Workshop's prompt part is the newest chat request of the conversation or the profile editor
+
+`2026-11-25` · DECIDED · `#pages` `#engine` · refs: ai.cpp `ai_submit`, PAGES§4.6.8
+
+- Every request of the core's and the profile editor's passes ai_submit, and the self-test's and the model lists'
+  never do, so one seam gives the Engine's reading (the newest call of the conversation or the profile editor) with
+  nothing to exclude. A decision call is no chat and is not kept (the core
+  makes none in v0.2; its built-in layout is rendered inside en-llm). The exchange is replaced by the next request.
+
+### 667. The floor follows the newest page field the space uses, and the page data's minor is the floor's
+
+`2026-11-27` · DECIDED · `#graceui` `#pages` · refs: GraceUI D263, D264; graceui_pin.hpp, tools/pages/build.py
+
+- From 0.2.57 register_pages refuses page data whose minor is above the host's (G-6), and an older one drops what it
+  does not know (WHY§658), so the page data says the floor's minor (20) and the floor is the oldest GraceUI that
+  reads every field used: 0.2.57 for pc_only, holding 0.2.56's share. The pin may run ahead of the floor for a tool of
+  the tests alone: at 0.2.58 (D265's space check) the floor stays 0.2.57 and the minor 20.
+
+### 668. GraceUI's space check at 0.2.58: the dump from its file, and only what settles held to a golden
+
+`2026-11-27` · FACT · `#graceui` `#tests` `#pages` · refs: GraceUI D265, web/tools/check-space.ts; tests/pages/browser_check.py
+
+- check-space.ts writes its dump with `process.stdout.write` and ends with `process.exit`, so through a pipe its output
+  stops at 65,536 bytes; EldenNet's dump is about 85 KB, so browser_check.py passes `--golden <work file> --update` and
+  reads the file. A page is dumped once its text has held still for 400 ms: Home's and AI's pages, of many topics,
+  differ between runs (a later topic's rows or "Nothing to show."), while the rails, presence and Tools' and Settings'
+  pages do not. EldenNet's golden holds each view's rail, every page's presence, and the text of Workshop and of
+  Settings › Developer whole; the tool's own checks (console, CSP, off-origin, contrast) still fail the test. Both
+  asked of Grace.

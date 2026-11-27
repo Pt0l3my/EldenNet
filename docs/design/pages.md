@@ -782,6 +782,8 @@ a later version (O41, EldenNet DESIGN §13); v1 is dialogue only and never write
   tail, in both views: a Level filter on each row's own level and "Find in the log" on its line. Logs shows in game
   too, the newest 200 rows, scrubbed as the browser's 500 are, so a search in the browser may find a line the game no
   longer holds.
+- *Since 2026-11-27 (engine d1a96c2; GraceUI D262; O133):* the Level filter offers Errors, Warnings, Information and
+  Details, in that order.
 
 #### 4.6.8 Tools
 
@@ -819,6 +821,15 @@ a later version (O41, EldenNet DESIGN §13); v1 is dialogue only and never write
   controls, Augur's event kinds and schemas.
 - A "contains spoilers" confirmation once a session, and the red Spoilers ribbon on every page while it is open
   (SP8).
+- *Since 2026-11-27, as built (engine d1a96c2; GraceUI D258, D263, D264; O129 to O132; WHY§658 to §668):* in the
+  browser alone, shown with Developer views at once (F11 still from the next start), behind the owner's gate sentence
+  once a page load, with the Spoilers ribbon, and on this PC alone by `pc_only` on the page and its seven topics. Its
+  sections: the last prompt and reply (the newest call of the conversation or the profile editor, keys and the
+  character's name left out), every event (Augur's golden form, the newest 500), the world view (stages, flags with
+  their raw bits and verification, tracks), what each character knows (the known set at its active stage; the cue
+  that would fire now is absent until v0.3), unknown characters (each with a row of TOML, and GraceUI's Copy), the
+  recording (a "Record this session" header switch, `recording.set`, sensitive) and Augur's event kinds and rules.
+  Nothing is kept while Developer views are off; turning them off clears what GraceUI holds.
 
 #### 4.6.9 The foot
 

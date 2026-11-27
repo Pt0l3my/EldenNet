@@ -1848,6 +1848,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     words once a browser session, and a `ribbon` at the page's top while it is open. SP8's ribbon is read as each
     page's: every page that shows unfiltered developer content carries it (Workshop now, the Event monitor's plumbing at
     0.4), not every page of the session. For Workshop's build after the next pin.
+    Taken by Workshop's build on 2026-11-27 (engine d1a96c2).
 - bl A panel drawn in each frame by its mod's callback, on the present thread: on_present, told its time and whether the menu is open (GraceUI 0.2.52, ABI 1.8) [done]
   - refs: GraceUI:D259, GraceUI:D71, WHY§364, WHY§645, PAGES§4.6.7
   - gives: built on 2026-11-25 (GraceUI feat/foundations 832b8d9; GraceUI's docs/eldennet-changes.md §85): one of a
@@ -1914,6 +1915,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     §93): every space's pages in game follow GraceUI › Menu's Plain text, baked at launch and applied at once from the
     nearest sans bakes in a session; grace-dev's dumps keep the serif faces. EldenNet's own panels (subtitles, chat box,
     F11) keep their faces until GraceUI publishes the setting to mods and the owner decides they follow it (O134).
+    Decided on 2026-11-27 (O134): the subtitles and the chat box follow it from the next launch, in Noto Sans of their
+    own; for EldenNet's pin of GraceUI 0.2.61 (D268, ABI 1.9), which publishes the value to mods.
 
 ### S11.3 EldenNet v0.2
 
@@ -1996,7 +1999,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 - S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs [active]
   - needs: S11.2.h
-  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, O99, O104, O119, O120, O125, O127, O128, O129, O130, O131, O132, O133, G34, G36
+  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, O99, O104, O119, O120, O125, O127, O128, O129, O130, O131, O132, O133, O135, G34, G36
   - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format. The
     allowances' and reactions' inherit tri-states (PAGES) use GraceUI's third = "inherit" and the settings topic's
     `inherited` list, added on 2026-11-20 at EldenNet's request (GraceUI feat/foundations ac4bc39). Since GraceUI
@@ -2104,6 +2107,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     readings decided by the owner (O129 to O133): the full gate sentence, Developer views turning it on at once, a
     "Record this session" header switch, this PC alone (not released until GraceUI gives a this-PC-only mark, asked of
     Grace), and Logs' level words. Being built on GraceUI 0.2.55, EldenNet's floor rising to 0.2.55 with Logs' words.
+    Tools › Workshop built on 2026-11-27 (engine wip/workW, merged at d1a96c2; WHY§658 to §668), with GraceUI pinned at
+    0.2.58 (0c8d0fa) and EldenNet's floor at 0.2.57, page data minor 20: in the browser alone behind its gate and ribbon,
+    on this PC alone by `pc_only`, its seven sections and Record this session; Logs' level words (O133); GraceUI's space
+    check over EldenNet's pages as en_pages_browser. The fake game's suite under Wine: 144 of 147, the pause case fixed
+    after, and the read-state and read-clock cases failing alike at the base in this container (for Lodestar). Left for
+    v0.2's pages: none; the Bug report's Copy and Save stay 0.6's (S11.2.bp).
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
