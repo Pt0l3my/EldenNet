@@ -2364,12 +2364,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     O145.
 - b What each persona has seen of the world, the since-line, and reaction cues
   - refs: MEM§12.13, O28
-- c The pacing core and the autonomous class; the pilot's own-initiative lines, once S3 and S6 allow them
-  - refs: DESIGN§9.4, DESIGN§8.9, O31, NPC§5.2, WHY§420
+- c The pacing core and the autonomous class; the pilot's own-initiative lines, once S3 and S6 allow them [done]
+  - refs: DESIGN§9.4, DESIGN§8.9, O31, NPC§5.2, WHY§420, O147
   - gives: with them target rule 0, the talk key answering a line a persona has just addressed to the Tarnished
     (NPC §5.2), which the first conversation left out (2026-11-22).
+    Moved to S13.2.j on 2026-11-27 by O147: own lines cannot run in game before S3 and S6, so they and the pacing
+    core ship whole in v0.4, with the speaking-up settings (O145).
 - d The 60-second news cooldown, subjects, persona instructions and the player's profile layers, by file
   - refs: O30, DESIGN§7.7
+  - gives: noted on 2026-11-27: persona instructions and the player's profile layers are built already (the v0.3
+    survey); the subjects and autonomy's subject line move with autonomy to S13.2.j (O147).
 - e One memory per witness, and the lived layer's update at quiet moments
   - refs: O46, DESIGN§10.3, MEM§13
 
@@ -2378,6 +2382,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - S12.2.a Named NPCs (the pilot) and Playthrough; Conversations and Memories, with Forget
   - refs: PAGES§4.6
 - b Home's Nearby; Speaking up for named NPCs; the top bar's Journey
+  - gives: noted on 2026-11-27: Speaking up moves to S13.3.a, with the own lines (O145, O147).
 
 ### S12.3 v0.3's exit checks
 
@@ -2424,6 +2429,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     owner's key. Folded into the design the same day (S10.1.j).
 - i Stance, unseen attackers and the concealed Tarnished, as spikes S7 and S8 verify their reads
   - refs: DESIGN§6.5, WHY§98
+- j The pacing core and the Autonomous class; the pilot's own-initiative lines, his autonomy and subjects, and target rule 0
+  - needs: S11.1.b
+  - refs: DESIGN§9.4, DESIGN§8.9, O31, O145, O147, NPC§5.2, WHY§420
+  - gives: moved from S12.1.c on 2026-11-27 by O147, so that they ship whole: with the speaking-up settings, and
+    working in game only once spike S3 and the pilot's S6 have passed.
 
 ### S13.3 GraceUI 0.4
 

@@ -10029,3 +10029,5 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   SQLite, as a development path only; the MinGW, clang-cl and Wine runs wait for the pinned amalgamation.
 - *Later (2026-11-27):* O146 was decided the same day, as recommended: the owner allowed www.sqlite.org, and SQLite
   3.54.1's amalgamation is pinned by its published SHA3-256. The development path on the system's SQLite is dropped.
+- *Later (2026-11-27):* by O147 the world topic offers wait for the knowledge base in v0.5, and v0.3's own-line
+  checks move to v0.4 with the own lines themselves (S13.2.j); the other readings stand.

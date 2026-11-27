@@ -2925,7 +2925,7 @@ when any trivial event happens." (2026-11-27).
 
 ## O145
 
-**Which speaking-up settings v0.3 reads** · *2026-11-27 · Open*
+**Which speaking-up settings v0.3 reads** · *2026-11-27 · Decided by the owner*
 
 **Question.** Pacing (O31, in the owner's words: time between lines, lines within a time window, and a cooldown per
 event type) is the only limit on how often NPCs start lines themselves; it is separate from spoilers, which the
@@ -2937,12 +2937,18 @@ GraceUI 0.3's Speaking up page (PAGES §4.6.6) shows some of them for the pilot'
 - (b) Every pacing and reaction key in v0.3.
 - (c) Defaults only in v0.3; the Speaking up page waits for v0.4.
 
-**Owner's words.** "What is the current dssign for this? What are the limitations? As far I as remember I only asked
-for a spoiler filter so that NPCs don't talk about things that haven't happened yet or mention spoilers that could be
-active or current but the player shouldn't know about yet." (question dialog, 2026-11-27; the Engine session answers
-with the design, O31 and O86, and asks again).
+**Owner's words.** "What is the current dssign for this? What are the limitations? As far I as remember I only asked for
+a spoiler filter so that NPCs don't talk about things that haven't happened yet or mention spoilers that could be active
+or current but the player shouldn't know about yet." (question dialog, 2026-11-27; the Engine session answers with the
+design, O31 and O86, and asks again). Then, as a rule for every version (O147): "Anything that can't be fully done in a
+version (some parts come later to work fully, etc.) Should just be postponed until it can be implemented as fully
+functional (or at least considered ready to test as) feature." (2026-11-27).
 
-**Follows from.** O30; O31; O86; DESIGN §9.4; PAGES §4.6.6.
+**Decision.** None in v0.3, by O147: NPCs' own lines cannot run in game in v0.3 (they need spikes S3 and S6), so the
+`pacing` and `reactions` keys and the Speaking up page come together in v0.4, with the own lines, the pacing core and
+the `Autonomous` class (roadmap S13.2.b, S13.2.j and S13.3.a), as DESIGN §16.2 had the keys.
+
+**Follows from.** O30; O31; O86; O147; DESIGN §9.4; PAGES §4.6.6.
 
 ## O146
 
@@ -2957,11 +2963,35 @@ session's network refuses www.sqlite.org. **Options:**
 **Decision.** (a). The owner added www.sqlite.org to the cloud environment's allowed domains the same day. SQLite is
 pinned at 3.54.1, its amalgamation `2026/sqlite-amalgamation-3540100.zip`, checked by the SHA3-256 that sqlite.org's
 download page publishes (`92281c86e2957f9b9305890f9ac04204caa7b677cc868dc326d942689df28e30`). Its licence, read on
-sqlite.org's copyright page on 2026-11-27: public domain, every contributor's affidavit on file, free for any
-purpose; no clause about AI. No development path on the system's SQLite is needed.
+sqlite.org's copyright page on 2026-11-27: public domain, every contributor's affidavit on file, free for any purpose;
+no clause about AI. No development path on the system's SQLite is needed.
 
 **Owner's words.** "New environment (Recommended)" (question dialog, 2026-11-27); then "Claude didn't let me approve
-that environment." (the approval could not be given from the phone); then "I've added www.sqlite.org to allowed
-domains, try again." (2026-11-27).
+that environment." (the approval could not be given from the phone); then "I've added www.sqlite.org to allowed domains,
+try again." (2026-11-27).
 
 **Follows from.** ARCH §2.3 (`en-store`); CLAUDE.md (a dependency's licence read before adoption).
+
+## O147
+
+**A feature ships in a version only when it works there** · *2026-11-27 · Decided by the owner*
+
+**Question.** Some features of a version can be built but not work fully until a later version or a spike supplies what
+they need (NPCs' own lines before spikes S3 and S6; topic offers before the knowledge base). Ship them in part, or move
+them?
+
+**Decision.** A feature goes into a version only when it works fully there, or at least is ready to test as a whole.
+Whatever cannot is postponed, whole, to the version where it can. Applied on 2026-11-27 to v0.3:
+- the pacing core, the `Autonomous` class, Kalé's own-initiative lines, his autonomy and its subjects, and target
+  rule 0 move to v0.4 (roadmap S13.2.j, from S12.1.c), where they also wait for S3 and S6;
+- the speaking-up settings and the Speaking up page move with them (O145; S13.3.a);
+- world topic offers in block 7 wait for the knowledge base in v0.5 (WHY§689's reading reversed);
+- v0.3 keeps what works whole: the store, memories with their audiences, the memory job, the lived layer, rollback,
+  NG+, crash recovery, the since-line and the reaction cue in conversation, and the 60-second news cooldown.
+Each later version's plan is read against this rule when it is made.
+
+**Owner's words.** "Anything that can't be fully done in a version (some parts come later to work fully, etc.) Should
+just be postponed until it can be implemented as fully functional (or at least considered ready to test as) feature."
+(2026-11-27).
+
+**Follows from.** DESIGN §16.2; O145.
