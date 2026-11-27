@@ -3338,3 +3338,78 @@ TEST_CASE("in game: the sheet scan tells the numbers of the save data's object a
     CHECK(r.last <= lodestar::SheetScan::kMost);
   }
 }
+
+TEST_CASE("in game: the sheet scan holds the part of health against the sheet found by the save data's own word") {
+  // The build's layout binds the save data's word to the sheet (as the real game's does since the twentieth
+  // round): the round gives no word of the main player's, and the part must be read all the same.
+  FakeWorld w;
+  w.world();
+  const auto rva = [&](std::uint64_t at) { return static_cast<std::uint32_t>(at - w.base); };
+  const std::uint64_t manager = w.mem.alloc(0x100), hero = w.mem.alloc(0x800), save = w.mem.alloc(0x1000);
+  const std::uint64_t sheet = w.mem.alloc(0x1000), holder = w.mem.alloc(0x40), part = w.mem.alloc(0x200);
+  w.mem.put<std::uint64_t>(w.at("st_characters"), manager);
+  w.mem.put<std::uint64_t>(w.at("st_save_data"), save);
+  w.mem.put<std::uint64_t>(manager + 0x10, hero);
+  w.mem.put<std::uint64_t>(save + 0x8, sheet);
+  w.mem.put<std::uint64_t>(hero + 0x30, holder);
+  w.mem.put<std::uint64_t>(holder + 0x0, part);
+  w.mem.put<std::uint32_t>(sheet + 0x1C, 120);  // what the character has of something just now
+  w.mem.put<std::uint32_t>(sheet + 0x20, 150);  // and at most
+  w.mem.put<std::uint32_t>(part + 0x148, 120);
+  w.mem.put<std::uint32_t>(part + 0x14C, 150);
+  lodestar::SheetScan::Options o;
+  o.base = w.base;
+  o.image_size = w.sys->image().size();
+  o.image = &w.sys->image();
+  o.save_slot = rva(w.at("st_save_data"));
+  o.manager_slot = rva(w.at("st_characters"));
+  o.main_player_word = 0x10;
+  o.save_sheet_word = 0x8;
+  o.save_first_word = 0x8;
+  o.save_second_word = 0x8;
+  o.parts_at = 0x30;
+  o.vitals_at = 0x0;
+  o.anchors[0] = 0x1C;
+  o.anchors[1] = 0x20;
+  o.anchor_count = 2;
+  lodestar::SheetScan scan(o);
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  std::uint64_t now = 10'000'000;
+  const auto pass = [&] {
+    now += 30'000'000;
+    for (int steps = 0; steps < 200; ++steps) {
+      reader.begin_tick();
+      if (scan.step(gt, reader, now)) return;
+    }
+    FAIL("a pass did not end");
+  };
+  // Slowed to a pass every ten seconds: it is not due again until then, and never faster than its own pace.
+  scan.set_every(10'000'000);
+  pass();
+  CHECK_FALSE(scan.due(now + 9'000'000));
+  CHECK(scan.due(now + 10'000'000));
+  scan.set_every(1);
+  pass();
+  CHECK_FALSE(scan.due(now + lodestar::SheetScan::kEveryUs - 1));
+  // It is spent to nothing and comes back: the part's field goes with the sheet's each time.
+  for (const std::uint32_t v : {60u, 0u, 0u, 45u, 120u}) {
+    w.mem.put<std::uint32_t>(sheet + 0x1C, v);
+    w.mem.put<std::uint32_t>(part + 0x148, v);
+    pass();
+  }
+  const lodestar::SheetFound f = scan.found();
+  CHECK(f.passes == 7);
+  CHECK(f.part_passes == 7);
+  // The anchor at nothing reads the same as every empty field of the part in two passes of seven: none of those
+  // comes to nine in ten, and only the field that followed it is told.
+  REQUIRE(f.matches.size() == 2);
+  CHECK(f.matches[0].anchor == 0x1C);
+  CHECK(f.matches[0].offset == 0x148);
+  CHECK(f.matches[0].equal == 7);
+  CHECK(f.matches[0].of == 7);
+  CHECK(f.matches[0].together == 4);
+  CHECK(f.matches[1].anchor == 0x20);
+  CHECK(f.matches[1].offset == 0x14C);
+  CHECK(f.matches[1].together == 0);
+}

@@ -964,6 +964,7 @@ constexpr auto kKeys = std::to_array<Key>({
     U("self_block_frames"), U("zero_fields_frames"), U("dead_at_zero"), AU("self_frames_by"), AU("self_dead_by"),
     AU("self_block_changes_by"), AU("calls_by"), AU("player_by"), AU("hp_zero_by"), U("clock_frames"),
     U("clock_steps"), U("clock_same"), U("clock_jumps"), U("play_frames"), U("play_rose"), U("play_fell"),
+    U("sheet_frames"), U("level_frames"), U("level_changes"), U("name_frames"), U("name_changes"),
     // The sheet scan (in game). `first` and `last` under `numbers` are numbers of the tester's own character,
     // written with the owner's word (O122); no key holds a text, and a run that reads as one is told by its place.
     O("sheet"), B("sheet_classed"), B("sheet_is_first"), B("sheet_is_second"), AO("sheets"), W("sheet_of", kSheetOf),
@@ -980,7 +981,7 @@ constexpr auto kKeys = std::to_array<Key>({
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 21, kKeys, report::kMaxLargeReportBytes};
+constexpr report::Vocabulary kVocabulary{"lodestar", 22, kKeys, report::kMaxLargeReportBytes};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -1980,6 +1981,11 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     w.number("play_frames", f.play_frames);
     w.number("play_rose", f.play_rose);
     w.number("play_fell", f.play_fell);
+    w.number("sheet_frames", f.sheet_frames);
+    w.number("level_frames", f.level_frames);
+    w.number("level_changes", f.level_changes);
+    w.number("name_frames", f.name_frames);
+    w.number("name_changes", f.name_changes);
     w.end_object();
   }
 

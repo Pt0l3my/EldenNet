@@ -694,6 +694,9 @@ class CharSurvey {
   CharSurvey& operator=(const CharSurvey&) = delete;
 
   void mark(std::uint64_t now_us) noexcept;  // the next phase begins; from one thread
+  // How long after a pass the next is due (kEveryUs at first): the round slows the survey once it has what it is
+  // after, so that the reader's spare time goes to the other searches. From any thread.
+  void set_every(std::uint64_t every_us) noexcept;
   [[nodiscard]] bool due(std::uint64_t now_us) const noexcept;  // the stepping thread's
   bool step(const proto::GameThread& gt, GuardedReader& reader, std::uint64_t now_us);  // whether a pass ended
   [[nodiscard]] SurveyFound found() const;
@@ -744,6 +747,7 @@ class SheetScan {
   SheetScan& operator=(const SheetScan&) = delete;
 
   void mark(std::uint64_t now_us) noexcept;  // the next phase begins; from one thread
+  void set_every(std::uint64_t every_us) noexcept;  // as the survey's
   [[nodiscard]] bool due(std::uint64_t now_us) const noexcept;  // the stepping thread's
   bool step(const proto::GameThread& gt, GuardedReader& reader, std::uint64_t now_us);  // whether a pass ended
   [[nodiscard]] SheetFound found() const;

@@ -107,7 +107,7 @@ struct SheetScan::Impl {
   static constexpr std::size_t kPartFields = kPartSpan / 4;
   std::uint64_t holder_at = 0, part_at = 0;
   std::array<std::byte, kPartSpan> part_now{}, part_before{};
-  bool part_read_now = false, part_had = false;
+  bool part_read_now = false, part_tried_now = false, part_had = false;
   std::uint32_t part_passes = 0;
   std::array<std::uint32_t, 8> anchor_before{};
   bool anchors_had = false;
@@ -115,6 +115,7 @@ struct SheetScan::Impl {
   std::array<std::uint32_t, kPhases> phase_passes{};
   bool sheet_classed = false, sheet_is_first = false, sheet_is_second = false;
   std::atomic<std::uint32_t> phase{0};
+  std::atomic<std::uint64_t> every_us{kEveryUs};
   mutable std::mutex mutex;
   Summary shared;
 
@@ -337,6 +338,9 @@ SheetScan::SheetScan(Options options) : impl_(std::make_unique<Impl>(options)) {
 SheetScan::~SheetScan() = default;
 
 void SheetScan::mark(std::uint64_t) noexcept { impl_->phase.fetch_add(1, std::memory_order_release); }
+void SheetScan::set_every(std::uint64_t every_us) noexcept {
+  impl_->every_us.store(std::max<std::uint64_t>(every_us, kEveryUs), std::memory_order_relaxed);
+}
 
 bool SheetScan::due(std::uint64_t now_us) const noexcept {
   return impl_->step != Impl::Step::Manager || now_us >= impl_->next_due_us;
@@ -353,7 +357,7 @@ bool SheetScan::step(const proto::GameThread& gt, GuardedReader& reader, std::ui
     }
     ++m.passes;
     m.publish();
-    m.next_due_us = now_us + kEveryUs;
+    m.next_due_us = now_us + m.every_us.load(std::memory_order_relaxed);
     m.step = Step::Manager;
     return true;
   };
@@ -364,6 +368,7 @@ bool SheetScan::step(const proto::GameThread& gt, GuardedReader& reader, std::ui
         m.read_now = 0;
         m.save_now = false;
         m.part_read_now = false;
+        m.part_tried_now = false;
         m.object_now = 0;
         m.piece_from = 0;
         m.piece_size = kPiece;
@@ -401,13 +406,13 @@ bool SheetScan::step(const proto::GameThread& gt, GuardedReader& reader, std::ui
         }
         m.target[1] = got == 1 && plausible(word_at(raw, 0)) ? word_at(raw, 0) : 0;
         if (m.target[1] != 0) m.note(m.target[1]);
-        if (m.o.parts_at != 0 && m.o.anchor_count != 0) m.step = Step::Holder;
         if (got == 1) return false;
         break;
       }
       case Step::Holder: {
         // The main player's holder of parts, then the part of health, then the part's first 0x200 bytes: three
-        // reads, made just before the sheet's own so that the two are of one moment.
+        // reads, made just before the sheet's own first piece (after the save data's object, and whichever way
+        // the sheet was found) so that the two are of one moment as nearly as the reader can make them.
         m.step = Step::Piece;
         std::array<std::byte, 8> raw{};
         const int got = m.read(gt, reader, m.player_at + m.o.parts_at, raw);
@@ -446,6 +451,12 @@ bool SheetScan::step(const proto::GameThread& gt, GuardedReader& reader, std::ui
       }
       case Step::Piece: {
         if (m.object_now >= kObjects) return finish();
+        if (m.object_now == 1 && m.piece_from == 0 && !m.part_tried_now && m.target[1] != 0 && m.player_at != 0 &&
+            m.o.parts_at != 0 && m.o.anchor_count != 0) {
+          m.part_tried_now = true;
+          m.step = Step::Holder;
+          break;
+        }
         Impl::Object& ob = m.objects[m.object_now];
         const std::uint64_t at = m.target[m.object_now];
         const std::uint32_t from = m.piece_from;

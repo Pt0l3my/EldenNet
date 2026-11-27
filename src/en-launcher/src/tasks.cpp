@@ -222,8 +222,8 @@ std::vector<Task> stay_tasks() {
        "If you died sooner than you meant to, that counts too: carry on.",
        0, true, "I died and I am back"},
       {K::Wait, "Stay in the world",
-       "Do as you like until the time is up: play, ride, fight or stand. Only stay in the world: no quitting to "
-       "the title, and no long stop at a grace's menu.",
+       "Play as you like, but stay in the world: no quitting, no long stop at a grace. Now and then sprint or "
+       "roll, and use a spell or a skill: the round looks for focus and stamina.",
        240, true, ""},
       {K::End, "Quit the game",
        "Quit as you usually do. Whatever happened on the way, send the files: the round's own line below says "

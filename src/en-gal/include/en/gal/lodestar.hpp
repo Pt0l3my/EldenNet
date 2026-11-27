@@ -903,6 +903,13 @@ struct WorldRead {
   std::uint64_t play_frames = 0;           // frames with a play time
   std::uint64_t play_rose = 0;             // of them: above the frame's before
   std::uint64_t play_fell = 0;             //   below it
+  // The main player's sheet through the layout (the twenty-first round). Neither the level nor the name's length is
+  // written here: only that they were there and whether they changed.
+  std::uint64_t sheet_frames = 0;          // frames with the sheet's object
+  std::uint64_t level_frames = 0;          // of them: a level in the layout's range
+  std::uint64_t level_changes = 0;         //   another than in the frame before
+  std::uint64_t name_frames = 0;           // a name of one to sixteen letters
+  std::uint64_t name_changes = 0;          //   of another length than in the frame before
 };
 
 struct PairHit {

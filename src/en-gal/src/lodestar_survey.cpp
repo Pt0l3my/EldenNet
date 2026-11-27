@@ -119,6 +119,7 @@ struct CharSurvey::Impl {
   std::uint32_t told_most = 0;  // the most characters a pass had when the fields were told
   std::array<std::uint32_t, kPhases> phase_passes{};
   std::atomic<std::uint32_t> phase{0};
+  std::atomic<std::uint64_t> every_us{kEveryUs};
   mutable std::mutex mutex;
   Summary shared;
 
@@ -536,6 +537,9 @@ CharSurvey::CharSurvey(Options options) : impl_(std::make_unique<Impl>(std::move
 CharSurvey::~CharSurvey() = default;
 
 void CharSurvey::mark(std::uint64_t) noexcept { impl_->phase.fetch_add(1, std::memory_order_release); }
+void CharSurvey::set_every(std::uint64_t every_us) noexcept {
+  impl_->every_us.store(std::max<std::uint64_t>(every_us, kEveryUs), std::memory_order_relaxed);
+}
 
 bool CharSurvey::due(std::uint64_t now_us) const noexcept {
   return impl_->step != Impl::Step::Manager || now_us >= impl_->next_due_us;
@@ -553,7 +557,7 @@ bool CharSurvey::step(const proto::GameThread& gt, GuardedReader& reader, std::u
     }
     ++m.passes;
     m.publish();
-    m.next_due_us = now_us + kEveryUs;
+    m.next_due_us = now_us + m.every_us.load(std::memory_order_relaxed);
     m.step = Step::Manager;
     return true;
   };
