@@ -1994,6 +1994,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     a load, focus lost, the watchdog, a fault and the player's exit still take it away at once, cutting a fade short;
     Reduce motion turns both fades off. EldenNet's panels and notices draw as before. Nothing for EldenNet to change;
     a fake-game check that reads pixels just after a close waits about 250 ms first, or turns Reduce motion on.
+- by In game a page's body fades in at a change of page (GraceUI 0.2.65) [done]
+  - refs: GraceUI:D272, PAGES§4.6
+  - gives: GraceUI's D272, built on 2026-11-27 (GraceUI main 006241c; GraceUI's docs/eldennet-changes.md §98): at a
+    change of page or space (the rail, LT and RT, Page Up and Down, a link, the switcher) the new page's body fades in
+    over 120 ms, its focus ring with it; the rail, the top bar and the key hints stay still; Reduce motion turns it
+    off, and an open's own fade covers its first page. Nothing for EldenNet to change; a fake-game check that reads a
+    page's pixels just after a change waits about 150 ms, or until the test build's alpha_milli reads 1000.
 
 ### S11.3 EldenNet v0.2
 
