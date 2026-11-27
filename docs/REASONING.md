@@ -712,6 +712,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 687 | 2026-11-27 | read-graceui's check rests on the state search, so it takes read-state's margins | METHOD | #tests #lodestar |
 | 688 | 2026-11-27 | v0.2 never gave personas an audience, so every memory item of v0.3 needs Augur's personas first | FACT | #engine #memory #augur |
 | 689 | 2026-11-27 | v0.3's plan: the readings the Engine settles | DECIDED | #engine #memory #eval |
+| 690 | 2026-11-27 | GraceUI's answers for v0.3's pages: Forget's arm, the rollback panel, chat text, 64-bit keys | FACT | #graceui #pages #memory |
 
 ## Entries
 
@@ -10033,3 +10034,23 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   3.54.1's amalgamation is pinned by its published SHA3-256. The development path on the system's SQLite is dropped.
 - *Later (2026-11-27):* by O147 the world topic offers wait for the knowledge base in v0.5, and v0.3's own-line
   checks move to v0.4 with the own lines themselves (S13.2.j); the other readings stand.
+
+### 690. GraceUI's answers for v0.3's pages: Forget's arm, the rollback panel, chat text, 64-bit keys
+
+`2026-11-27` · FACT · `#graceui` `#pages` `#memory` · refs: PAGES§4.6.5, O144, PV4, GraceUI D77, D264
+
+- **Forget's 1 s arm** (PAGES §4.6.5): GraceUI has none today. In game a destructive action's second A sends it at
+  once; in the browser the confirmation is live at once, with Cancel focused. EldenNet asked for GraceUI's offered
+  `confirm_after_ms` on a header or row action (protocol 1.21, at most 3000), so that Forget declares 1000.
+- **O144's panel** is EldenNet's own: a panel on GRACEUI_LAYER_MODAL that takes input, and `request_input` as
+  GRACEUI_HOLDER_MODAL with keyboard and pad and the input-events flag. `poll` then gives keys with repeats, pad
+  presses and releases, pointer events, and the holder's end with its reason; EldenNet moves the focus itself.
+  - The player's exit (D77), danger and a load end the holder whatever it shows. So "closed without an answer" asks
+    again at the next safe moment, and chat stays refused meanwhile.
+  - While the panel holds input, F5 says "EldenNet has the controls"; the closing press never reaches the game.
+- **Chat and model text in topics** (PV4) never reaches GraceUI's search (pages and settings only), the browser's
+  title ("page name · space"), its URL (no route kept) or any cache (no browser storage; `Cache-Control: no-store`;
+  topics over the WebSocket). EldenNet also asked for GraceUI's offered `private` mark on a topic, which a lint keeps
+  out of any later search or title, as a guard.
+- **Row keys** may be a 64-bit id as a string of digits, never a JSON number (the browser loses integers above 2^53):
+  `conversation/18446744073709551615` fits GraceUI's 64-byte member id.
