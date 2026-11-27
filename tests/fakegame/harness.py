@@ -5464,9 +5464,11 @@ def check_read_graceui(result):
 
 case("launcher-eldennet-read-graceui", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
                                                 "--read", "--read-pace-s", "8"] +
-     game("--field-mirror", "--slot-by-state", "--first-slot", "6", "--title-frames", "720", "--retitle-at-s", "15",
-          "--retitle-for-s", "16", frames=3900),
+     game("--field-mirror", "--slot-by-state", "--first-slot", "6", "--title-frames", "840", "--retitle-at-s", "16",
+          "--retitle-for-s", "18", frames=4020),
      program="{launcher}", needs=EN_PROBE_NEEDS + ("graceui",), toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     # Its check rests on the state search's four looks (state_done, title clean, none overrun): the fake game's
+     # states as read-state's, two seconds or more either side of each look (see there).
      prepare=install_eldennet(None, probe=True, gal_change=read_state_gal,
                               then=lambda paths: (with_saves(paths), install_graceui(paths))),
      check=check_read_graceui,
