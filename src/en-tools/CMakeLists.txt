@@ -30,7 +30,8 @@ if(EN_BUILD_TESTS AND NOT WIN32)
   target_compile_definitions(en_tools_tests PRIVATE EN_TOOLS_SCENARIOS="${PROJECT_SOURCE_DIR}/tests/scenarios"
     EN_TOOLS_GOLDEN="${PROJECT_SOURCE_DIR}/tests/golden" EN_TOOLS_WORK="${CMAKE_CURRENT_BINARY_DIR}/scn"
     EN_TOOLS_CONTENT="${PROJECT_SOURCE_DIR}/content/eldenring"
-    EN_TOOLS_PROMPT_FIXTURES="${PROJECT_SOURCE_DIR}/tests/fixtures/prompt" EN_TOOLS_X1="${PROJECT_SOURCE_DIR}/tests/x1")
+    EN_TOOLS_PROMPT_FIXTURES="${PROJECT_SOURCE_DIR}/tests/fixtures/prompt"
+    EN_TOOLS_X1="${PROJECT_SOURCE_DIR}/tests/x1")
   add_test(NAME en_tools_tests COMMAND en_tools_tests)
   file(GLOB _en_routes CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/tests/scenarios/*.scn)
   foreach(_en_route IN LISTS _en_routes)

@@ -112,7 +112,8 @@ int run_x1(const std::string& set_path, const std::optional<std::string>& jobpac
         std::fputs("eval: a jobpack cannot be written\n", stderr);
         return 2;
       }
-      std::printf("jobpack %s: %zu items, %zu runs per server, %zu bytes\n", p.name.c_str(), p.items, p.runs, bytes.size());
+      std::printf("jobpack %s: %zu items, %zu runs per server, %zu bytes\n", p.name.c_str(), p.items, p.runs,
+                  bytes.size());
     }
     return 0;
   }

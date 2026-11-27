@@ -3,8 +3,8 @@
 // real core, its speech and prompt included, against a model that is scripted (`mock`, mockllm.hpp) or recorded
 // (`recorded`), on a simulated clock, with a stand-in for the surfaces that acknowledges each page on its first frame.
 // Live models and the judged sets wait for a key and the judge's check (DESIGN §14). The speech runs through the
-// eval's tap (speech_tap.hpp), which counts what each reply attempt did: the sanitizer's removals, the "Name:" prefix by
-// class (WHY§410), the lint's hits and the pager's takes, each attempt with its context.
+// eval's tap (speech_tap.hpp), which counts what each reply attempt did: the sanitizer's removals, the "Name:" prefix
+// by class (WHY§410), the lint's hits and the pager's takes, each attempt with its context.
 //
 // A scenario (tests/scenarios/talk/*.toml, ours):
 //
@@ -40,8 +40,8 @@
 // A `flags` step (`flags = "after_radahn"`) changes the world's flag state from the next snapshot on: the scenario's
 // overrides give a catalogue whose aliases a `ci:` record verifies (the eval's realm alone), so the core asks for them
 // (SetWatchFlags) and the runner answers each fourth snapshot with a FlagFrame of the state's aliases, as the game task
-// would. A failed `prompt_has` names its line and the entry's index, never the text. A `restart` step starts a fresh core
-// with the same content and flag state, so that what follows is a first meeting with no earlier lines (the test
+// would. A failed `prompt_has` names its line and the entry's index, never the text. A `restart` step starts a fresh
+// core with the same content and flag state, so that what follows is a first meeting with no earlier lines (the test
 // questions, NPC §12.1).
 //
 // The report holds the conversation's text, the model's included: it is a local-only kind, written only where the

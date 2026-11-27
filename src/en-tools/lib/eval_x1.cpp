@@ -78,7 +78,8 @@ std::size_t code_points(std::string_view s) {
 
 proto::Expected<X1Set, std::string> parse_x1_set(std::string_view text, const fs::path& folder) {
   if (const auto unsafe = proto::unsafe_for_toml(text, proto::TomlText::Player)) {
-    return proto::Unexpected{"line " + std::to_string(unsafe->line) + ": refused before it is parsed: " + unsafe->problem};
+    return proto::Unexpected{"line " + std::to_string(unsafe->line) + ": refused before it is parsed: " +
+                             unsafe->problem};
   }
   toml::parse_result parsed = toml::parse(text);
   if (!parsed) {
@@ -148,7 +149,8 @@ proto::Expected<X1Set, std::string> parse_x1_set(std::string_view text, const fs
     if (arms == nullptr || arms->empty()) return proto::Unexpected{at(t, where + ".arms: a list of the set's arms")};
     for (const toml::node& n : *arms) {
       const auto name = n.value<std::string>();
-      const bool known = name && std::any_of(set.arms.begin(), set.arms.end(), [&](const X1Arm& a) { return a.name == *name; });
+      const bool known =
+          name && std::any_of(set.arms.begin(), set.arms.end(), [&](const X1Arm& a) { return a.name == *name; });
       if (!known) return proto::Unexpected{at(n, where + ".arms: each must be positive or an arm the set defines")};
       if (std::find(r.arms.begin(), r.arms.end(), *name) != r.arms.end()) {
         return proto::Unexpected{at(n, where + ".arms: an arm named twice")};
@@ -195,7 +197,9 @@ proto::Expected<std::vector<X1Item>, std::string> build_x1_items(const X1Set& se
       auto run = run_eval(*scenario, EvalLlm::Mock, options);
       const std::string here = where + ", arm " + arm;
       if (!run) return proto::Unexpected{here + ": " + run.error()};
-      if (!run->failed.empty()) return proto::Unexpected{here + ": the scripted run missed an expectation: " + run->failed.front()};
+      if (!run->failed.empty()) {
+        return proto::Unexpected{here + ": the scripted run missed an expectation: " + run->failed.front()};
+      }
       for (std::size_t ti = 0; ti < run->turns.size(); ++ti) {
         const EvalTurn& t = run->turns[ti];
         const auto first = t.first_try(run->attempts);
@@ -204,9 +208,9 @@ proto::Expected<std::vector<X1Item>, std::string> build_x1_items(const X1Set& se
         if (t.requests != 1 || t.failure || t.deflection || t.cut_off || t.pages == 0 || t.prompt.empty() || !first ||
             !whole) {
           return proto::Unexpected{here + ": turn " + std::to_string(ti + 1) +
-                                   ": a scripted reply of ours did not show whole, as written (regenerated, deflected, "
-                                   "failed, cut off, or changed by the lint or the pager's caps), so the turns after it "
-                                   "would not hold our history"};
+                                   ": a scripted reply of ours did not show whole, as written (regenerated, "
+                                   "deflected, failed, cut off, or changed by the lint or the pager's caps), so the "
+                                   "turns after it would not hold our history"};
         }
         X1Item item;
         item.pack = r.pack;
@@ -286,7 +290,8 @@ proto::Expected<std::vector<X1Jobpack>, std::string> x1_jobpacks(const X1Set& se
     j["name"] = name;
     j["server"] = "*";
     j["description"] = pack_description(set, name, in, s);
-    j["defaults"] = {{"max_tokens", s.max_tokens}, {"temperature", s.temperature}, {"thinking", false}, {"stop", s.stop}};
+    j["defaults"] = {
+        {"max_tokens", s.max_tokens}, {"temperature", s.temperature}, {"thinking", false}, {"stop", s.stop}};
     json list = json::array();
     for (const X1Item* i : in) {
       json item = {{"id", i->id}, {"messages", i->messages}};
@@ -299,17 +304,22 @@ proto::Expected<std::vector<X1Jobpack>, std::string> x1_jobpacks(const X1Set& se
     p.json = std::move(j);
     const std::string desc = p.json["description"].get<std::string>();
     const std::string where = "the jobpack " + name + ": ";
-    if (code_points(desc) > JobpackCaps::kDescriptionChars) return proto::Unexpected{where + "its description passes 600 characters"};
+    if (code_points(desc) > JobpackCaps::kDescriptionChars) {
+      return proto::Unexpected{where + "its description passes 600 characters"};
+    }
     if (p.items == 0) return proto::Unexpected{where + "it holds no item"};
     if (p.items > JobpackCaps::kItems) return proto::Unexpected{where + "it passes Jobrunner's 2,000 items"};
     if (p.runs * JobpackCaps::kServers > JobpackCaps::kRuns) {
       return proto::Unexpected{where + "its runs pass Jobrunner's 5,000 with 8 servers up"};
     }
+    const auto bad_stop = [](const std::string& x) { return x.empty() || x.size() > JobpackCaps::kStopChars; };
     if (s.max_tokens < 1 || s.max_tokens > JobpackCaps::kMaxTokens || s.stop.size() > JobpackCaps::kStops ||
-        std::any_of(s.stop.begin(), s.stop.end(), [](const std::string& x) { return x.empty() || x.size() > JobpackCaps::kStopChars; })) {
+        std::any_of(s.stop.begin(), s.stop.end(), bad_stop)) {
       return proto::Unexpected{where + "its sampling passes Jobrunner's caps"};
     }
-    if (jobpack_text(p).size() > JobpackCaps::kFileBytes) return proto::Unexpected{where + "it passes Jobrunner's 2 MB"};
+    if (jobpack_text(p).size() > JobpackCaps::kFileBytes) {
+      return proto::Unexpected{where + "it passes Jobrunner's 2 MB"};
+    }
     out.push_back(std::move(p));
   }
   return out;
@@ -390,7 +400,9 @@ void read_jobrunner_results(std::string_view text, std::size_t file, const std::
   for (const X1Item& i : items) by_id.emplace(i.id, &i);
   std::set<std::tuple<std::string, int, std::string>> seen;
   for (const X1Line& l : into.lines) seen.emplace(l.id, l.run, l.server);
-  const auto refuse = [&](std::size_t line, std::string why) { into.refused.push_back(X1Refusal{file, line, std::move(why)}); };
+  const auto refuse = [&](std::size_t line, std::string why) {
+    into.refused.push_back(X1Refusal{file, line, std::move(why)});
+  };
   if (text.size() > kResultsFileMax) {
     refuse(0, "the file is larger than 64 MB");
     return;
@@ -439,7 +451,8 @@ void read_jobrunner_results(std::string_view text, std::size_t file, const std::
     const auto ok_it = o.find("ok");
     const auto server = str("server", 256);
     const auto model = str("model", 512);
-    if (!item_no || !id || !jobrunner_id(*id) || !run || ok_it == o.end() || !ok_it->is_boolean() || !server || !model) {
+    if (!item_no || !id || !jobrunner_id(*id) || !run || ok_it == o.end() || !ok_it->is_boolean() || !server ||
+        !model) {
       refuse(number, "item, id, run, ok, server or model missing or not of Jobrunner's form");
       continue;
     }
@@ -472,15 +485,17 @@ void read_jobrunner_results(std::string_view text, std::size_t file, const std::
     }
     if (const auto it = o.find("finish_reason"); it != o.end() && it->is_string()) {
       const std::string& f = it->get_ref<const std::string&>();
-      if (f.size() <= 32 && std::all_of(f.begin(), f.end(), [](char c) { return (c >= 'a' && c <= 'z') || c == '_'; })) {
+      const auto plain = [](char c) { return (c >= 'a' && c <= 'z') || c == '_'; };
+      if (f.size() <= 32 && std::all_of(f.begin(), f.end(), plain)) {
         l.finish_reason = f;
       }
     }
     l.first_token_s = number_at(o, "first_token_s");
     l.total_s = number_at(o, "total_s");
     if (const auto it = o.find("usage"); it != o.end() && it->is_object()) {
-      if (const auto c = it->find("completion_tokens"); c != it->end() && c->is_number_integer() &&
-                                                       c->get<std::int64_t>() >= 0 && c->get<std::int64_t>() < 1000000) {
+      const auto c = it->find("completion_tokens");
+      if (c != it->end() && c->is_number_integer() && c->get<std::int64_t>() >= 0 &&
+          c->get<std::int64_t>() < 1000000) {
         l.completion_tokens = c->get<std::int64_t>();
       }
     }
@@ -809,8 +824,10 @@ X1Outputs x1_measure(const X1Set& set, const std::vector<X1Item>& items, const X
     mj["arms"] = std::move(arm_list);
     mj["test_questions"] = {{"replies", questions}, {"to_score", questions}};
     printed << "  model " << mi + 1 << ": " << server << " / " << model << ": " << mine.size() << " runs; C10 "
-            << (met ? "met" : "not met") << (c10.n == expected ? "" : " so far") << " (within the cap " << static_cast<int>(std::round(within * 100)) << "%, archaic "
-            << static_cast<int>(std::round(archaic * 100)) << "%); " << questions << " test-question replies to score\n";
+            << (met ? "met" : "not met") << (c10.n == expected ? "" : " so far") << " (within the cap "
+            << static_cast<int>(std::round(within * 100)) << "%, archaic "
+            << static_cast<int>(std::round(archaic * 100)) << "%); " << questions
+            << " test-question replies to score\n";
     model_list.push_back(std::move(mj));
   }
   summary["models"] = std::move(model_list);
@@ -820,7 +837,9 @@ X1Outputs x1_measure(const X1Set& set, const std::vector<X1Item>& items, const X
   std::vector<const X1Measured*> order;
   for (const X1Measured& m : measured) order.push_back(&m);
   std::map<std::string, std::size_t> place;
-  for (std::size_t i = 0; i < items.size(); ++i) place[items[i].persona + "\n" + items[i].kind + "\n" + std::to_string(items[i].turn)] = i;
+  for (std::size_t i = 0; i < items.size(); ++i) {
+    place[items[i].persona + "\n" + items[i].kind + "\n" + std::to_string(items[i].turn)] = i;
+  }
   std::stable_sort(order.begin(), order.end(), [&](const X1Measured* a, const X1Measured* b) {
     const auto ka = place[a->item->persona + "\n" + a->item->kind + "\n" + std::to_string(a->item->turn)];
     const auto kb = place[b->item->persona + "\n" + b->item->kind + "\n" + std::to_string(b->item->turn)];

@@ -106,7 +106,8 @@ proto::Expected<EvalScenario, std::string> parse_eval_scenario(std::string_view 
     const std::string kind = t["do"].value_or(std::string());
     const auto k = std::find(kStepKinds.begin(), kStepKinds.end(), kind);
     if (k == kStepKinds.end()) {
-      return proto::Unexpected{at(t, where + ".do: must be one of open, say, wait, esc, skip, move, expect, flags, restart")};
+      return proto::Unexpected{
+          at(t, where + ".do: must be one of open, say, wait, esc, skip, move, expect, flags, restart")};
     }
     st.kind = static_cast<EvalStep::Kind>(k - kStepKinds.begin());
     st.text = t["text"].value_or(std::string());
@@ -618,7 +619,8 @@ class Runner {
 
 }  // namespace
 
-proto::Expected<EvalRun, std::string> run_eval(const EvalScenario& scenario, EvalLlm llm, const EvalOptions& options) {
+proto::Expected<EvalRun, std::string> run_eval(const EvalScenario& scenario, EvalLlm llm,
+                                               const EvalOptions& options) {
   Runner r(scenario, llm, options);
   return r.run();
 }

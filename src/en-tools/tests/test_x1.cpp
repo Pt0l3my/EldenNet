@@ -30,7 +30,7 @@ X1Set the_set() {
 
 }  // namespace
 
-TEST_CASE("x1: the archaic-regal fixture's archaic sentences, counted by the shadow lint though its register allows them") {
+TEST_CASE("x1: the archaic-regal fixture's archaic sentences, counted though its register allows them") {
   const auto path = std::filesystem::path(EN_TOOLS_SCENARIOS) / "talk" / "x1-voice-regal.toml";
   auto scenario = parse_eval_scenario(*read_file(path.string(), 256 * 1024), path.parent_path());
   REQUIRE(scenario.has_value());
@@ -102,8 +102,11 @@ TEST_CASE("x1: the set's items, each turn the prompt the core renders after our 
   }
   CHECK(questions == 12);
   // The arms differ in their prompts and in nothing else.
-  const auto pos = std::find_if(items->begin(), items->end(), [](const X1Item& i) { return i.id == "positive-kale-voice-t08"; });
-  const auto old = std::find_if(items->begin(), items->end(), [](const X1Item& i) { return i.id == "former-kale-voice-t08"; });
+  const auto by_id = [&](const char* id) {
+    return std::find_if(items->begin(), items->end(), [&](const X1Item& i) { return i.id == id; });
+  };
+  const auto pos = by_id("positive-kale-voice-t08");
+  const auto old = by_id("former-kale-voice-t08");
   REQUIRE(pos != items->end());
   REQUIRE(old != items->end());
   CHECK(pos->messages != old->messages);
@@ -111,7 +114,7 @@ TEST_CASE("x1: the set's items, each turn the prompt the core renders after our 
   CHECK(pos->messages[0]["content"].get<std::string>().find("Of great events not written there") == std::string::npos);
   CHECK(old->messages[0]["content"].get<std::string>().find("Of great events not written there") != std::string::npos);
   // Kalé's second stage holds from his seventh conversation on.
-  const auto howl = std::find_if(items->begin(), items->end(), [](const X1Item& i) { return i.id == "positive-kale-voice-t31"; });
+  const auto howl = by_id("positive-kale-voice-t31");
   REQUIRE(howl != items->end());
   CHECK(howl->state == "howl_told");
   auto packs = x1_jobpacks(set, *items);
