@@ -692,6 +692,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 667 | 2026-11-27 | The floor follows the newest page field the space uses, and the page data's minor is the floor's | DECIDED | #graceui #pages |
 | 668 | 2026-11-27 | GraceUI's space check at 0.2.58: the dump from its file, and only what settles held to a golden | FACT | #graceui #tests #pages |
 | 669 | 2026-11-27 | Why the twentieth round gave the clock and the play time no second reading | FACT | #lodestar #l6 |
+| 670 | 2026-11-27 | A clock's hours are told by when they step: at the readings at which its minutes go round | METHOD | #lodestar #watch |
+| 671 | 2026-11-27 | A fake-game case wants seconds, not tenths, between a look and the state it is to see | METHOD | #lodestar #tests #fakegame |
+| 672 | 2026-11-27 | A search that can come back empty for two reasons needs a case on each path | FACT | #lodestar #l6 |
 
 ## Entries
 
@@ -9743,3 +9746,33 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   sheet scan) were due nearly always between them, so the watch made 21 passes in the session and the rising search
   none; and the watch had no way to `world_clock` or `save_data`, which no accessor names. The twenty-first round
   gives the shared searches every other step and the watch a way to each by the build's statics, once a second.
+
+### 670. A clock's hours are told by when they step: at the readings at which its minutes go round
+
+`2026-11-27` · METHOD · `#lodestar` `#watch` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the twenty-first round"), src/en-gal/src/lodestar_trial.cpp (Run::with_minutes), engine 0ce2889 (merged at 27c3b17)
+
+- Counting a run's steps alone ties with the top bits of any slow count read at a resonant pace, and the scan's order
+  decides: the fake game's clock word holds a count of seconds below its minutes, whose top bits stepped by one about
+  as often as the minutes went round, and the lower run won (read-clock's "hour_bit=4, wanted 32"). The watch now asks
+  what a clock does: in the same word, every step of the hours comes at a reading at which those minutes went round or
+  jumped. A unit case shows the tie and fails without the rule.
+
+### 671. A fake-game case wants seconds, not tenths, between a look and the state it is to see
+
+`2026-11-27` · METHOD · `#lodestar` `#tests` `#fakegame` · refs: docs/ops/probes/2026-11-22-l5.md, tests/fakegame/harness.py, engine 0ce2889
+
+- read-state passed with 0.2 s to spare in a Release build and failed in a Debug one, where the round is ready a third
+  of a second later: its state search's first look met a world where it meant the title. The fake game's states now
+  leave two seconds or more either side of each of the four looks, stated beside the case; a case is run in a Debug
+  tree before it is called sound. read-survey's and read-state's checks allow one frame's list read while the fake
+  world is taken down.
+
+### 672. A search that can come back empty for two reasons needs a case on each path
+
+`2026-11-27` · FACT · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, src/en-gal/src/lodestar_sheet.cpp, engine f390682
+
+- SheetScan read the main player's part of health only on the path where the round names the sheet by the main
+  player's word; on the layout's path (save_data.player_data, bound since the twentieth round) it was never read, and
+  the search would have come back empty from the game. Found by reading the steps, not by a test, since the unit case
+  used the other path. It is read now before the sheet's first piece whichever way the sheet was found, with a case on
+  each path.

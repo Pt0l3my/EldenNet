@@ -1287,6 +1287,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     screen; the dead bit does not mark the main player's death, which is read from the health until a field is
     confirmed; the count of deaths not found. Next: the reader on the sheet, the deaths by behaviour, the player's death,
     the clock in a longer session.
+    The twenty-first round built on 2026-11-27 (engine 0ce2889, merged at 27c3b17; package 0.1.0-lodestar.28, README
+    read by Engine; WHY§670 to §672): a stand, the tester's death and four minutes in the world, for the clock's and the
+    play time's second reading, the count of deaths, the player's death by its health, the sheet through the reader,
+    and a character's focus and stamina (O136, O137, O138). The read-state and read-clock cases mended. Awaiting the
+    owner's run.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
