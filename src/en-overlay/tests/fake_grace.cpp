@@ -92,6 +92,9 @@ uint32_t has_cap(const char* name, uint64_t length) {
   return 0;
 }
 
+// Whether this GraceUI has 0.2.61's Plain text for mods (D268).
+bool plain_cap() { return has_cap(GRACEUI_CAP_PLAIN_TEXT, std::strlen(GRACEUI_CAP_PLAIN_TEXT)) != 0; }
+
 GraceUiStatus connect(const GraceUiConnectRequest* request, GraceUiConnectAnswer* answer) {
   Grace& g = *g_fake;
   if (request == nullptr || answer == nullptr || request->size < sizeof(GraceUiConnectRequest)) return GRACEUI_REFUSED;
@@ -107,11 +110,15 @@ GraceUiStatus connect(const GraceUiConnectRequest* request, GraceUiConnectAnswer
   answer->abi_minor = GRACEUI_ABI1_MINOR;
   answer->floor = g.connect_status == GRACEUI_TOO_OLD ? request->floor : 0;
   answer->consumer = g.connect_status == GRACEUI_OK || g.connect_status == GRACEUI_INACTIVE ? kMe : 0;
-  if (answer->size >= sizeof(GraceUiConnectAnswer)) {
+  if (answer->size >= offsetof(GraceUiConnectAnswer, display_height) + sizeof answer->display_height) {  // ABI 1.2's
     answer->ui_scale = 1.25f;
     answer->ui_scale_default = 1.25f;
     answer->display_width = g.display_width;
     answer->display_height = g.display_height;
+  }
+  // ABI 1.9's (D268), with the cap: the player's Plain text; without it the mod's bytes are left as the mod set them.
+  if (answer->size >= sizeof(GraceUiConnectAnswer) && plain_cap()) {
+    answer->plain_text = g.plain_text;
   }
   return g.connect_status;
 }
@@ -157,9 +164,11 @@ GraceUiStatus poll(GraceUiConsumer me, GraceUiEvent* event) {
     if (size >= sizeof(GraceUiEvent)) {
       char* frame = event->frame;
       const std::uint64_t capacity = event->frame_capacity;
+      const std::uint32_t mods_plain = event->plain_text;
       *event = e;
       event->frame = frame;
       event->frame_capacity = capacity;
+      if (!plain_cap()) event->plain_text = mods_plain;  // a GraceUI before 0.2.61's bytes
     } else {
       std::memcpy(static_cast<void*>(event), &e, 16);
     }
@@ -708,7 +717,13 @@ void Grace::display() {
   e.scale = 1.25f;
   e.content_scale = 1.0f;
   e.faces_scale = faces.empty() ? 0.0f : 1.0f;
+  e.plain_text = plain_text;  // poll writes it only with the cap
   queue(*this, e);
+}
+
+void Grace::set_plain_text(bool on) {
+  plain_text = on ? 1u : 0u;
+  display();
 }
 
 std::uint64_t Grace::panel_of(const std::string&) const { return panels.size() == 1 ? panels.begin()->first : 0; }

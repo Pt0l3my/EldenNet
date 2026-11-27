@@ -49,12 +49,13 @@ extern "C" {
 
 /* The ABI major this header describes, and its minor: the number of the newest appends (0: the first table). */
 #define GRACEUI_ABI_MAJOR 1u
-#define GRACEUI_ABI1_MINOR 8u /* 1: a holder's events and set_caret (GraceUI 0.2.1, D176); 2: the display and scaled
+#define GRACEUI_ABI1_MINOR 9u /* 1: a holder's events and set_caret (GraceUI 0.2.1, D176); 2: the display and scaled
                                  faces (GraceUI 0.2.2, D180); 3: pad chords (GraceUI 0.2.14, D204); 4: a hotkey's
                                  binding as the player set it (GraceUI 0.2.16, D210); 5: a wait handle for the mod's
                                  events (GraceUI 0.2.17, D212); 6: an uploaded file with its command (GraceUI 0.2.26,
                                  D226); 7: what pressed a hotkey, its key or its pad chord (GraceUI 0.2.38, D243); 8: a
-                                 panel's drawing each frame, on the present thread (GraceUI 0.2.52, D259) */
+                                 panel's drawing each frame, on the present thread (GraceUI 0.2.52, D259); 9: Plain
+                                 text, at connect and with the display (GraceUI 0.2.61, D268) */
 
 /*
  * GraceUI's own version (GRACEUI_VERSION_PACK). Needs no start: callable from any thread, at any time after the DLL is
@@ -160,6 +161,8 @@ typedef uint32_t GraceUiStatus;
 #define GRACEUI_CAP_WAKE "wake" /* wake_event: since 0.2.17, ABI 1.5 (D212) */
 #define GRACEUI_CAP_HOTKEY_BY "hotkey-by" /* GraceUiEvent.hotkey_by: since 0.2.38, ABI 1.7 (D243) */
 #define GRACEUI_CAP_ON_PRESENT "on-present" /* set_on_present: since 0.2.52, ABI 1.8 (D259) */
+#define GRACEUI_CAP_PLAIN_TEXT "plain-text" /* connect's and GRACEUI_EVENT_DISPLAY's plain_text: since 0.2.61, ABI 1.9
+                                               (D268) */
 
 /* A connected mod's handle, which every slot after connect takes; 0 is none. */
 typedef uint64_t GraceUiConsumer;
@@ -192,6 +195,12 @@ typedef struct GraceUiConnectAnswer {
   float ui_scale_default;    /* its default: a mod's content scale is (H / 1080) x ui_scale / ui_scale_default */
   uint32_t display_width;    /* the back buffer's size; 0 until the game's swap chain is bound (often so at connect) */
   uint32_t display_height;
+  /* From ABI 1.9 (D268): GraceUI's Plain text (ui.menu.plain_text), as ui_scale is: the player's, kept from the last
+   * session, or its default. 1: the player wants prose and titles in a plain sans face (GraceUI's own fonts\
+   * NotoSans-Regular.ttf and NotoSans-SemiBold.ttf, which a mod may register as faces of its own); 0: not. A GraceUI
+   * without has_cap("plain-text") leaves it as the mod set it: zero it before connect, or check the cap. */
+  uint32_t plain_text;
+  uint32_t reserved19;       /* 0 */
 } GraceUiConnectAnswer;
 
 /* ---- notice: a short text GraceUI shows above everything else (the notice layer, D76), in game. */
@@ -537,7 +546,8 @@ typedef struct GraceUiHotkeyDesc {
 #define GRACEUI_EVENT_INPUT_ENDED 8u /* the mod's holder ended: why; once, after its other events */
 #define GRACEUI_EVENT_PAD 9u         /* with GRACEUI_WANT_PAD: a pad button's press or release (button, pressed, pad) */
 /* From ABI 1.2 (D180), to every mod that polls with an event of 1.2's size: */
-#define GRACEUI_EVENT_DISPLAY 10u    /* the display: once after warm-up, then after each change of its size or ui.scale */
+#define GRACEUI_EVENT_DISPLAY 10u    /* the display: once after warm-up, then after each change of its size or ui.scale,
+                                        and from ABI 1.9 (D268) of Plain text */
 /* From ABI 1.4 (D210), to a mod connected with ABI minor 4 or more: */
 #define GRACEUI_EVENT_HOTKEY_CHANGED 11u /* the player changed a hotkey's key or pad chord (hotkey_id): describe_hotkey
                                             gives it as it is now */
@@ -607,6 +617,11 @@ typedef struct GraceUiEvent {
   uint8_t* file;           /* the mod's buffer for the file, or null */
   uint64_t file_capacity;  /* its size in bytes: GRACEUI_UPLOAD_MAX always suffices */
   uint64_t file_length;    /* the file's length, 0 when the command has none; with GRACEUI_FULL, the size needed */
+  /* From ABI 1.9 (D268): with GRACEUI_EVENT_DISPLAY, GraceUI's Plain text, as connect's plain_text. A mod whose event is
+   * smaller than this still gets the display event, without it, and one more when only Plain text changed. A GraceUI
+   * without has_cap("plain-text") leaves it as the mod set it. */
+  uint32_t plain_text;
+  uint32_t reserved19;  /* 0 */
 } GraceUiEvent;
 
 /* ---- A space (D75, D81, D169): the mod's pages, topics and commands, as the bridge protocol's frames (§6). The same
