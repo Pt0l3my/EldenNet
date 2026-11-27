@@ -33,6 +33,16 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHY�
   (`kSchemaMinReader`, 1: every v1.x migration is additive). `migration_lint` refuses transaction control (BEGIN,
   COMMIT, END, ROLLBACK, SAVEPOINT, RELEASE starting a statement; a trigger's own BEGIN and END are allowed) and
   `journal_mode` anywhere, skipping comments and quoted strings.
+- **The files** (`files.hpp`; MEM §8.1 to §8.3). Under `<saves>\<SteamID64>\`: the live `pt-s<slot>-<fp8>.sqlite`;
+  `backups\` with three rotating copies (`.1` the newest, taken at each playthrough start and before a forget) and a
+  migration's last two (`.pre-<from>-<to>`); `archive\` for an older character in a reused slot
+  (`-<utc>.sqlite`, kept for good); a corrupt file set aside in place (`.corrupt-<utc>`) for the newest backup to
+  take its place. `locate` finds a key's file in MEM §8.3's order: the live file; a live file in the slot whose meta
+  matches the name's hash and the archetype with gifts equal or unread (0xFF) on either side, renamed while closed
+  after a TRUNCATE checkpoint; an archived file of this fingerprint, restored; else a new file. In the last two the
+  slot's other live files are archived, never deleted. The store reads no name: the key carries its hash
+  (`identity_of`, `soft_match`). File names' times are UTC, made without a clock or a locale (`utc_stamp`). Paths
+  never leave en-store; `backups_of` answers the count and times alone, for the Memories page.
 - **`0001_init.sql`**: MEM §8.7's schema as written, with the reserved recall tables (`memories`, `memory_actors`,
   `memories_fts` on FTS5, `embeddings`) and the seams (`npc_intents`, `decisions`). Ours on top of it: `meta` also
   holds `next_conv_id` (conversations' ids, the core's, never reused) and `facts_stale` (set by a trim until the core's
@@ -51,6 +61,10 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHY�
   comma (the C++ global locale always; a C locale when the system has one), a batch with an apostrophe in a comment, a
   semicolon in a string and a trigger, a transaction dropped or committed, a constraint, the fault classes, and a
   backup that never overwrites;
+- the files (`test_files.cpp`): names and UTC stamps, the soft match's rules, a key's live file, a new file with the
+  slot's other character archived and restored when that character comes back, another slot untouched, a renamed
+  file with no WAL left, three rotating backups with the newest in `.1`, a migration's last two, and a corrupt file
+  set aside for the newest backup (never taken for another character);
 - the migrations (`test_migrate.cpp`): the shipped set numbered and clean, 0001 on an empty file with every table and
   both checks clean, a re-run that changes nothing, a later migration's backup, a failed one leaving the previous
   version and none of its tables, a newer file opened or refused by `schema_min_reader`, and the lint's every rule.
