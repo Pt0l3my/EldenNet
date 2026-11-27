@@ -13,9 +13,14 @@ cmake -S . -B build -G Ninja                      # GCC; CXX=clang++ for Clang, 
 cmake --build build
 build/src/en-proto/en_proto_tests && build/src/en-prompt/en_prompt_tests && build/src/en-llm/en_llm_tests \
   && build/src/en-gal/en_gal_tests && build/src/en-overlay/en_overlay_tests && build/src/en-augur/en_augur_tests \
-  && build/src/en-core/en_core_tests
+  && build/src/en-core/en_core_tests && build/src/en-store/en_store_tests
 (cd build && ctest -R compile_fail)               # R1's compile-fail tests: they only compile, so every build runs them
 ```
+
+The configure step downloads SQLite 3.54.1's amalgamation from www.sqlite.org into the build tree (`_deps/`), checked
+by the SHA3-256 SQLite publishes and our SHA-256, and builds it as the build's one C target (`en_sqlite`, its warnings
+off; `cmake/sqlite.cmake`, THIRD_PARTY.md). Every toolchain below compiles it: GCC and Clang, MinGW-w64's gcc and
+clang-cl. en-store alone links it.
 
 CTest also runs en-gal's decoder against LLVM's disassembler (`en_gal_x86_objects`: every instruction of the build's own
 `eldennet-engine` and `en_gal_tests`; `en_gal_x86_random`: 20,000 seeded random byte strings, assembled by the build's
