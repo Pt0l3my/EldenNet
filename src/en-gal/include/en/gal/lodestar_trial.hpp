@@ -728,7 +728,16 @@ class SheetScan {
     std::uint32_t save_sheet_word = 0;    // or, with sheet_at 0, in the save data's object (the layout's own field)
     std::uint32_t save_first_word = 0;    // in the save data's object: two words the sheet may be behind (leads)
     std::uint32_t save_second_word = 0;
+    // The main player's part of health, read beside the sheet (0x200 bytes) and held against numbers of the
+    // sheet: where the holder of parts lies in a character and the part in the holder (the layout's), and up to
+    // eight places of the sheet (the round's). With `parts_at` 0, or no anchor, the part is not read.
+    std::uint32_t parts_at = 0;
+    std::uint32_t vitals_at = 0;
+    std::array<std::uint32_t, 8> anchors{};
+    std::uint32_t anchor_count = 0;
   };
+  static constexpr std::uint32_t kPartSpan = 0x200;
+  static constexpr std::size_t kListedMatches = 8;  // an anchor
   explicit SheetScan(Options options);
   ~SheetScan();
   SheetScan(const SheetScan&) = delete;

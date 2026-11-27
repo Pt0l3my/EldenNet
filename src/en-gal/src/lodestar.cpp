@@ -968,7 +968,8 @@ constexpr auto kKeys = std::to_array<Key>({
     // written with the owner's word (O122); no key holds a text, and a run that reads as one is told by its place.
     O("sheet"), B("sheet_classed"), B("sheet_is_first"), B("sheet_is_second"), AO("sheets"), W("sheet_of", kSheetOf),
     U("text_fields"), U("address_fields"), U("restless"), AO("numbers"), U("last"), U("changes"), U("phases"),
-    AO("text_runs"), U("run_fields"), B("numbers_cut"), U("rose_once_total"), AO("rose_once"), B("from_nothing"),
+    AO("text_runs"), U("run_fields"), B("numbers_cut"), U("rose_once_total"), AO("rose_once"), B("from_nothing"), U("part_passes"), AO("matches"),
+    U("anchor"), U("equal_passes"), U("changed_together"),
     // The character survey (in game): behaviour only, no value of any character.
     O("survey"), U("tracked"), U("most_listed"), U("deaths"), U("fields_total"), AO("survey_fields"), U("seen"),
     U("changed_for"), U("most"), U("zeros"), U("small"), U("block_like"), U("id_like"), B("player_alone"),
@@ -1992,6 +1993,18 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     w.boolean("sheet_classed", f.sheet_classed);
     w.boolean("sheet_is_first", f.sheet_is_first);
     w.boolean("sheet_is_second", f.sheet_is_second);
+    w.number("part_passes", f.part_passes);
+    w.begin_array("matches");
+    for (const SheetMatch& r : f.matches) {
+      w.begin_object();
+      w.number("anchor", r.anchor);
+      w.number("offset", r.offset);
+      w.number("equal_passes", r.equal);
+      w.number("of", r.of);
+      w.number("changed_together", r.together);
+      w.end_object();
+    }
+    w.end_array();
     w.begin_array("sheets");
     for (const SheetObject& o : f.objects) {
       w.begin_object();

@@ -3150,6 +3150,21 @@ TEST_CASE("in game: the sheet scan tells the numbers of the save data's object a
   o.sheet_at = 0x580;
   o.save_first_word = 0x8;
   o.save_second_word = 0x10;
+  // The main player's part of health, held against two numbers of the sheet: an attribute that keeps still (two
+  // fields of the part read the same) and the purse (one field follows it through the death; another holds what
+  // it was and stays behind).
+  const std::uint64_t holder = w.mem.alloc(0x40), part = w.mem.alloc(0x200);
+  w.mem.put<std::uint64_t>(hero + 0x30, holder);
+  w.mem.put<std::uint64_t>(holder + 0x0, part);
+  w.mem.put<std::uint32_t>(part + 0x8, 40);
+  w.mem.put<std::uint32_t>(part + 0x30, 40);
+  w.mem.put<std::uint32_t>(part + 0x20, 48'213);
+  w.mem.put<std::uint32_t>(part + 0x24, 48'213);
+  o.parts_at = 0x30;
+  o.vitals_at = 0x0;
+  o.anchors[0] = 0x10;
+  o.anchors[1] = 0x44;
+  o.anchor_count = 2;
   lodestar::SheetScan scan(o);
   GuardedReader reader(*w.sys);
   const auto gt = en::proto::GameThread::issue();
@@ -3179,6 +3194,7 @@ TEST_CASE("in game: the sheet scan tells the numbers of the save data's object a
   w.mem.put<std::uint32_t>(save + 0xD0, 1);
   w.mem.put<std::uint32_t>(sheet_a + 0x44, 0);
   w.mem.put<std::uint32_t>(sheet_b + 0x44, 0);
+  w.mem.put<std::uint32_t>(part + 0x20, 0);
   pass();
   w.mem.put<std::uint64_t>(manager + 0x10, 0);
   pass();
@@ -3203,6 +3219,21 @@ TEST_CASE("in game: the sheet scan tells the numbers of the save data's object a
   CHECK(f.phase_passes[1] == 6);
   CHECK(f.phase_passes[2] == 5);
   CHECK(f.phase_passes[3] == 4);
+  // The part beside the sheet, in each of the sheet's 18 passes: the two fields that read the attribute, and the
+  // one that followed the purse through its change (the one that stayed behind fell out).
+  CHECK(f.part_passes == 18);
+  REQUIRE(f.matches.size() == 3);
+  CHECK(f.matches[0].anchor == 0x10);
+  CHECK(f.matches[0].offset == 0x8);
+  CHECK(f.matches[0].equal == 18);
+  CHECK(f.matches[0].of == 18);
+  CHECK(f.matches[0].together == 0);
+  CHECK(f.matches[1].anchor == 0x10);
+  CHECK(f.matches[1].offset == 0x30);
+  CHECK(f.matches[2].anchor == 0x44);
+  CHECK(f.matches[2].offset == 0x20);
+  CHECK(f.matches[2].equal == 18);
+  CHECK(f.matches[2].together == 1);
   CHECK(f.sheet_classed);
   CHECK(f.sheet_is_first);
   CHECK_FALSE(f.sheet_is_second);

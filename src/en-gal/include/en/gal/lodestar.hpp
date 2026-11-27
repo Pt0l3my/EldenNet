@@ -795,6 +795,16 @@ struct SheetObject {
   std::uint32_t rises_total = 0;     // fields that rose by one once and never changed otherwise
   std::vector<SheetRise> rises;      // by offset, 256 at most
 };
+// A field of the main player's part of health that reads the same as a number of its sheet (the owner's wish of
+// 2026-11-27: the focus and the stamina, which the sheet names and a character's part must hold too). Counted over
+// the passes; no value is told. A field that follows its number through a change is the one.
+struct SheetMatch {
+  std::uint32_t anchor = 0;    // the number's place in the sheet (one the round gives)
+  std::uint32_t offset = 0;    // the field's place in the part
+  std::uint32_t equal = 0;     // passes in which the two read the same
+  std::uint32_t of = 0;        // passes in which both were read
+  std::uint32_t together = 0;  // of the equal ones, passes in which both had changed since the pass before
+};
 struct SheetFound {
   std::uint32_t passes = 0;
   std::uint32_t absent = 0;          // passes that read neither object
@@ -804,6 +814,8 @@ struct SheetFound {
   bool sheet_is_first = false;       // the sheet is the object the save data's first given word leads to
   bool sheet_is_second = false;      // or its second
   std::vector<SheetObject> objects;
+  std::uint32_t part_passes = 0;     // passes that read the main player's part of health beside the sheet
+  std::vector<SheetMatch> matches;   // by anchor, the fields that followed it best first; 8 an anchor at most
 };
 
 // EldenNet's own reader on the world's leads (in game; ErBackend::world_alone, the seventeenth round): the game's
