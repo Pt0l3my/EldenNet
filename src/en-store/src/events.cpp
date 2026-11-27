@@ -108,6 +108,12 @@ Result<void> insert(Playthrough& pt, const StoredEvent& ev) {
   return {};
 }
 
+Result<void> insert_own(Playthrough& pt, StoredEvent ev, const std::string& persona) {
+  if (persona.empty()) return Unexpected{Fault::Invalid};
+  ev.audience = {proto::AudienceRow{persona, proto::How::Direct}};
+  return insert(pt, ev);
+}
+
 Result<void> add_page(Playthrough& pt, const proto::db::AppendPage& p) {
   auto s =
       Stmt::prepare(pt.db,

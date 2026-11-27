@@ -41,7 +41,10 @@ class Db {
   // Opens (or, with `create`, creates) the file and sets its kind's pragmas: WAL, NORMAL sync, foreign keys, the busy
   // timeout, temp store and cache, the checkpoint and journal limits, FAST secure delete, an untrusted schema, no
   // mmap, and the application id on a new file. A file another application wrote (its application id) is NotADb.
-  [[nodiscard]] static Result<Db> open(const std::filesystem::path& path, FileKind kind, bool create);
+  [[nodiscard]] static Result<Db> open(const std::filesystem::path& path, FileKind kind, bool create,
+                                       int busy_timeout_ms = kBusyTimeoutMs);
+  // MEM §8.5: a lock held by another connection is waited for this long before a request fails as Busy.
+  static constexpr int kBusyTimeoutMs = 2000;
 
   [[nodiscard]] bool is_open() const noexcept { return db_ != nullptr; }
   [[nodiscard]] sqlite3* raw() const noexcept { return db_; }

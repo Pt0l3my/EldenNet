@@ -287,8 +287,7 @@ Result<std::vector<RowId>> recover(Playthrough& pt) {
     e.conv_id = c.id;
     e.payload = "{\"reason\":\"crash\",\"player_lines\":" + number_text(*player) +
                 ",\"committed\":" + number_text(*committed) + ",\"known\":null}";
-    e.audience = {proto::AudienceRow{c.persona, proto::How::Direct}};
-    if (auto r = events::insert(pt, e); !r) return Unexpected{r.error()};
+    if (auto r = events::insert_own(pt, std::move(e), c.persona); !r) return Unexpected{r.error()};
     closed.push_back(c.id);
   }
   if (!closed.empty()) {

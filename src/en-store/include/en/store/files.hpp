@@ -36,14 +36,16 @@ struct SaveFolder {
 // 1. the live file `pt-s<slot>-<fp8>`;
 // 2. a live file in the same slot whose meta matches on the name's hash and the archetype, with the gifts equal or
 //    0xFF on either side: renamed to the new fp8 while closed, after a TRUNCATE checkpoint, so no -wal is left;
-// 3. an archived file with this fp8: restored, any other live file in the slot archived;
-// 4. otherwise a new file, any other live file in the slot archived, never deleted.
+// 3. this file set aside as corrupt in an earlier session (MEM §8.6), with a backup: the newest backup restored;
+// 4. an archived file with this fp8: restored;
+// 5. otherwise a new file. From 3 on, any other live file in the slot is archived, never deleted.
 struct Located {
   std::filesystem::path path;
-  bool create = false;            // 4: no file yet
+  bool create = false;            // 5: no file yet
   bool renamed = false;           // 2
-  bool restored_archive = false;  // 3
-  bool archived_other = false;    // 3 or 4: another character's file moved to the archive
+  bool restored_backup = false;   // 3
+  bool restored_archive = false;  // 4
+  bool archived_other = false;    // 3 to 5: another character's file moved to the archive
 };
 [[nodiscard]] Result<Located> locate(const SaveFolder& folder, const proto::PlaythroughKey& key, std::int64_t wall);
 

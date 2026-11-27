@@ -91,7 +91,7 @@ void Db::close() noexcept {
 std::int64_t Db::changes() const noexcept { return db_ != nullptr ? sqlite3_changes64(db_) : 0; }
 std::int64_t Db::last_insert_rowid() const noexcept { return db_ != nullptr ? sqlite3_last_insert_rowid(db_) : 0; }
 
-Result<Db> Db::open(const std::filesystem::path& path, FileKind kind, bool create) {
+Result<Db> Db::open(const std::filesystem::path& path, FileKind kind, bool create, int busy_timeout_ms) {
   (void)kind;  // one kind in v0.3; pools and diag come later (WHY§689)
   Db d;
   int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_NOMUTEX | SQLITE_OPEN_EXRESCODE;
@@ -102,7 +102,7 @@ Result<Db> Db::open(const std::filesystem::path& path, FileKind kind, bool creat
   d.db_ = raw;
   if (rc != SQLITE_OK) return Unexpected{fault_of(rc)};
   sqlite3_extended_result_codes(raw, 1);
-  sqlite3_busy_timeout(raw, 2000);
+  sqlite3_busy_timeout(raw, busy_timeout_ms);
   // A file that is not a database answers NOTADB to its first read: the application id is that read.
   Stmt app;
   if (auto s = Stmt::prepare(d, "PRAGMA application_id"); s) {

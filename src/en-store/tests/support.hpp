@@ -6,12 +6,15 @@
 #include <atomic>
 #include <filesystem>
 #include <fstream>
+#include <functional>
+#include <optional>
 #include <random>
 #include <string>
 
 #include "en/store/db.hpp"
 #include "en/store/migrate.hpp"
 #include "en/store/playthrough.hpp"
+#include "en/store/store.hpp"
 
 namespace en::store::test {
 
@@ -86,5 +89,30 @@ inline proto::StoredEvent event(std::int64_t id, std::string kind, proto::Pt t,
   e.audience = std::move(aud);
   return e;
 }
+
+// An invented account, slot and character, and a store's configuration under `saves` with a fixed wall clock and a
+// roomy disk; `mono` is the breaker's clock (0 unless given).
+inline proto::PlaythroughKey invented_key() {
+  proto::PlaythroughKey k;
+  k.steamid64 = 76561190000000002ull;
+  k.slot = 1;
+  k.fp8 = "7e8f9a0b";
+  k.name_hash = "hash-of-another-invented-name";
+  k.archetype = 2;
+  k.gift = 4;
+  return k;
+}
+inline StoreCfg store_config(const std::filesystem::path& saves, std::function<std::uint64_t()> mono = {}) {
+  StoreCfg c;
+  c.saves = saves;
+  c.build = "test-build";
+  c.wall = [] { return std::int64_t{1764201600}; };
+  c.mono_ms = mono ? std::move(mono) : [] { return std::uint64_t{0}; };
+  c.free_bytes = [](const std::filesystem::path&) -> std::optional<std::uint64_t> { return 10ull << 30; };
+  return c;
+}
+
+// The crash child (test_crash.cpp): run by the test program itself when its first argument is `--crash-child`.
+int crash_child(int argc, char** argv);
 
 }  // namespace en::store::test

@@ -12,9 +12,10 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHY�
 ## What it holds
 
 - **SQLite's layer** (`db.hpp`). `Db::open(path, kind, create)` opens a playthrough file with MEM §8.5's pragmas: WAL
-  (set alone, first), NORMAL sync, foreign keys, a 2 s busy timeout, temp store in memory, an 8 MB cache, the WAL's
-  autocheckpoint at 1,000 pages and a 4 MB journal limit, FAST secure delete, an untrusted schema and no mmap. A new
-  file gets the application id `0x454E5054`; a file with another, or none that reads as a database, is `NotADb`.
+  (set alone, first), NORMAL sync, foreign keys, a 2 s busy timeout (a test's own, shorter, when given), temp store in
+  memory, an 8 MB cache, the WAL's autocheckpoint at 1,000 pages and a 4 MB journal limit, FAST secure delete, an
+  untrusted schema and no mmap. A new file gets the application id `0x454E5054`; a file with another, or none that
+  reads as a database, is `NotADb`.
   `Stmt` binds and reads every id as a 64-bit integer, text as UTF-8 and a number as itself, never formatted into
   SQL. `Transaction` is `BEGIN IMMEDIATE` (every request) or `EXCLUSIVE` (a migration), rolled back unless committed.
   `execute_batch` runs a whole text of statements split by SQLite's own parser (`sqlite3_prepare_v2` from the tail the
@@ -39,8 +40,9 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHY�
   (`-<utc>.sqlite`, kept for good); a corrupt file set aside in place (`.corrupt-<utc>`) for the newest backup to
   take its place. `locate` finds a key's file in MEM §8.3's order: the live file; a live file in the slot whose meta
   matches the name's hash and the archetype with gifts equal or unread (0xFF) on either side, renamed while closed
-  after a TRUNCATE checkpoint; an archived file of this fingerprint, restored; else a new file. In the last two the
-  slot's other live files are archived, never deleted. The store reads no name: the key carries its hash
+  after a TRUNCATE checkpoint; this file set aside as corrupt in an earlier session, with its newest backup restored
+  (MEM §8.6); an archived file of this fingerprint, restored; else a new file. In the last three the slot's other live
+  files are archived, never deleted. The store reads no name: the key carries its hash
   (`identity_of`, `soft_match`). File names' times are UTC, made without a clock or a locale (`utc_stamp`). Paths
   never leave en-store; `backups_of` answers the count and times alone, for the Memories page.
 - **The requests on one file** (`playthrough.hpp`; MEM §8.6, §8.7). A `Playthrough` is an open file with meta's
@@ -59,6 +61,8 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHY�
     `open_jobs`.
   - The event log's SQL is `events.cpp`'s alone, the one file whose SQL names `event_audience` (MEM §1.3; CTest's
     `en_augur_audience_grep`). A persona's query joins on its own rows, so it never reads who else perceived an event.
+    The store's one event of its own, a crashed conversation's ConversationEnded, gets its persona-only audience there
+    too (`insert_own`).
 - **The store's core** (`store.hpp`; MEM §8.3, §9, §3.8; O144). `StoreCore::handle(DbRequest)` answers one
   `DbResult` of the same sequence number, synchronously: the tests and the eval call it so, and T9 runs it behind C8.
   Each write is one `BEGIN IMMEDIATE` transaction; a query reads the persona's own rows. **Open**:
@@ -81,6 +85,18 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHY�
   makes a new one. **Forget** (MEM §9.5) takes a backup first (the undo), removes one NPC's rows in the journey
   (another's overheard rows stay) or the whole journey's (its epochs stay), records the act without content, and
   empties the WAL (a TRUNCATE checkpoint) so the forgotten rows do not linger in it.
+- **The breaker** (`Breaker`, MEM §8.6): three failed transactions within 60 s of monotonic time, or one Corrupt,
+  NotADb or IoErr, trip the store for that file for the session: the request answers `Tripped` with the cause, the file
+  is closed (set aside if corrupt, for the next session to restore its newest backup), and its Open answers `Tripped`
+  until the session ends. Busy is never counted, nor a refusal before SQL (Invalid, NotOpen) or a newer file (TooNew).
+  A failed transaction takes the open file's counters in RAM back with it, so a retried append still persists them.
+- **T9** (`loop.hpp`; ARCH §1.2, §1.3; MEM §8.6). `Store::spawn(cfg, notify)` starts the thread and answers a
+  `StoreHandle`. C8 is two bounded queues of our own, 1,024 each way. `send` never blocks: a full queue answers `Full`,
+  for the shell's spill ring. The loop waits on C8 with a 250 ms timeout, drains all that is there, and runs each
+  request as its own transaction, in order. A run of more than 16 consecutive appends shares one transaction; if it
+  fails, they run one by one, so the bad one fails alone. Each result goes back in order, then `notify` wakes the core.
+  The timeout paces housekeeping: on the first quiet 250 ms after writes, at most once per 10 s, a passive checkpoint,
+  whose result comes back (sequence number 0) only when it trips the breaker. `before_request` is the tests' stall.
 - **The trim** (`rollback.cpp`, MEM §9.2), in one transaction:
   - every epoch started after the cut goes whole, and the first at or before it is cut into;
   - a reply shown across the cut keeps its pages shown at or before it;
@@ -125,6 +141,18 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHY�
   slot's other character archived and restored when that character comes back, another slot untouched, a renamed
   file with no WAL left, three rotating backups with the newest in `.1`, a migration's last two, and a corrupt file
   set aside for the newest backup (never taken for another character);
+- the faults (`test_faults.cpp`, through `fault_vfs.hpp`, a shim over SQLite's default VFS registered by the tests
+  alone): the breaker's window and what it never counts; a full disk failing each write alone and the third tripping
+  the file, kept as it was; a failed write, and a failed sync at a checkpoint, as IOERR tripping at once; a file found
+  corrupt in session (garbled reads), closed and set aside, its Open refused for the session and its newest backup
+  restored the next; a lock held by a second connection answering Busy, mid-session and at open, never counted;
+- the loop (`test_loop.cpp`): a stalled store (`before_request`) filling C8 to 1,024 with the next send answering
+  Full at once and every request landing once it drains, in order; a burst with one bad append failing alone, a query
+  among them in its place and the counter still persisted; the passive checkpoint's pacing;
+- the hard kill (`test_crash.cpp`): the test program runs itself as a child (`--crash-child`) that appends through T9
+  and writes down each acknowledged id, and is killed without warning (`posix_spawn` and SIGKILL on Linux,
+  `TerminateProcess` on Windows and under Wine): every acknowledged id is in the file, which is whole and opens again
+  with its counter past them;
 - the migrations (`test_migrate.cpp`): the shipped set numbered and clean, 0001 on an empty file with every table and
   both checks clean, a re-run that changes nothing, a later migration's backup, a failed one leaving the previous
   version and none of its tables, a newer file opened or refused by `schema_min_reader`, and the lint's every rule.

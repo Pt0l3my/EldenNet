@@ -36,8 +36,16 @@ proto::PlaythroughKey the_key() {
 struct Rig {
   TempDir dir;
   std::int64_t now_wall = 1764201600;
-  StoreCore store{StoreCfg{dir.path() / "saves", "test-build", [this] { return now_wall; }, [] { return 0ull; },
-                           [](const fs::path&) -> std::optional<std::uint64_t> { return 10ull << 30; }}};
+  StoreCfg config() {
+    StoreCfg c;
+    c.saves = dir.path() / "saves";
+    c.build = "test-build";
+    c.wall = [this] { return now_wall; };
+    c.mono_ms = [] { return 0ull; };
+    c.free_bytes = [](const fs::path&) -> std::optional<std::uint64_t> { return 10ull << 30; };
+    return c;
+  }
+  StoreCore store{config()};
   std::uint64_t seq = 0;
   proto::EventId next = 0;
   proto::RowId next_conv = 0;

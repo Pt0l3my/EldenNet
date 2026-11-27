@@ -92,6 +92,9 @@ struct CutPlan {
 namespace events {
 
 [[nodiscard]] Result<void> insert(Playthrough& pt, const proto::StoredEvent& ev);
+// An event of the store's own (MEM §3.8: a conversation a crash left open, ended), perceived by its persona alone: the
+// audience Augur gives every ConversationEnded (the subject radius), so the store composes no other.
+[[nodiscard]] Result<void> insert_own(Playthrough& pt, proto::StoredEvent ev, const std::string& persona);
 [[nodiscard]] Result<void> add_page(Playthrough& pt, const proto::db::AppendPage& p);
 // The persona's view: events of the journey whose audience holds it, each with its own row alone, by id, in
 // (after, upto] (upto unset: no bound).

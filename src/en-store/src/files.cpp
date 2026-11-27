@@ -62,11 +62,15 @@ void settle(const fs::path& p) {
   db->close();
 }
 
+// A file's time, in seconds since the epoch, by the two clocks' distance now. Not clock_cast: MSVC's goes through its
+// leap-second table (the time-zone database, which reads the registry through Advapi32), in the game's process too.
 std::int64_t wall_of(const fs::path& p) {
   std::error_code ec;
   const auto t = fs::last_write_time(p, ec);
   if (ec) return 0;
-  const auto sys = std::chrono::clock_cast<std::chrono::system_clock>(t);
+  const auto file_now = fs::file_time_type::clock::now();
+  const auto sys_now = std::chrono::system_clock::now();
+  const auto sys = sys_now + std::chrono::duration_cast<std::chrono::system_clock::duration>(t - file_now);
   return std::chrono::duration_cast<std::chrono::seconds>(sys.time_since_epoch()).count();
 }
 
@@ -179,10 +183,16 @@ Result<Located> locate(const SaveFolder& folder, const proto::PlaythroughKey& ke
       return out;
     }
   }
-  // 3. An archived file of this fingerprint comes back; 4. else a new file. Either way the slot's others are archived.
+  // 3. This file, set aside as corrupt, gives way to its newest backup; 4. an archived file of this fingerprint comes
+  // back; 5. else a new file. Whichever, the slot's others are archived.
   const auto archived = files_like(folder.archive(), file_stem(key.slot, key.fp8) + "-", ".sqlite");
   for (const fs::path& p : others) {
     if (archive_file(folder, p, wall)) out.archived_other = true;
+  }
+  const std::string aside = out.path.filename().string() + ".corrupt-";
+  if (!files_like(folder.dir, aside, "").empty() && restore_newest(folder, key.slot, key.fp8)) {
+    out.restored_backup = true;
+    return out;
   }
   if (!archived.empty()) {
     if (!rename_with_sidecars(archived.back(), out.path)) return Unexpected{Fault::IoErr};

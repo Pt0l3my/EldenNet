@@ -23,6 +23,33 @@ Overloaded(F...) -> Overloaded<F...>;
 
 proto::DbResult failed(std::uint64_t seq, Fault f) { return proto::DbResult{seq, db::Failed{f}}; }
 
+// A transaction that fails leaves the file as it was, so the open file's counters in RAM go back with it: else a run
+// of appends retried one by one would find the counter ahead and never write it (MEM §8.6: never decreases, always
+// persisted).
+class Rewind {
+ public:
+  explicit Rewind(Playthrough& pt)
+      : pt_(pt), journey_(pt.journey), epoch_(pt.epoch), event_(pt.next_event_id), conv_(pt.next_conv_id) {}
+  ~Rewind() {
+    if (kept_) return;
+    pt_.journey = journey_;
+    pt_.epoch = epoch_;
+    pt_.next_event_id = event_;
+    pt_.next_conv_id = conv_;
+  }
+  Rewind(const Rewind&) = delete;
+  Rewind& operator=(const Rewind&) = delete;
+  void keep() noexcept { kept_ = true; }
+
+ private:
+  Playthrough& pt_;
+  std::uint16_t journey_;
+  std::int64_t epoch_;
+  proto::EventId event_;
+  proto::RowId conv_;
+  bool kept_ = false;
+};
+
 // The first epoch of a journey later than `journey`, if the file has one: a save from an earlier journey is cut at its
 // start at the latest, so that the trim always takes the file back into the save's journey.
 Result<std::optional<proto::Pt>> later_journey_start(const Db& d, std::uint16_t journey) {
@@ -86,6 +113,7 @@ db::Opened StoreCore::do_open(const db::Open& o, std::optional<Fault>& fault) {
     fault = loc.error();
     return opened;
   }
+  opened.restored_backup = loc->restored_backup;
   opened.restored_archive = loc->restored_archive;
   opened.archived_other = loc->archived_other;
   std::optional<std::uint64_t> free;
@@ -99,13 +127,13 @@ db::Opened StoreCore::do_open(const db::Open& o, std::optional<Fault>& fault) {
   opened.low_disk = free && *free < kLowDiskBytes;
 
   bool create = loc->create;
-  auto file = Db::open(loc->path, FileKind::Playthrough, create);
+  auto file = Db::open(loc->path, FileKind::Playthrough, create, cfg_.busy_timeout_ms);
   if (!file && !create && (file.error() == Fault::NotADb || file.error() == Fault::Corrupt)) {
     // MEM §8.6: a corrupt file is set aside, and the newest backup takes its place, or a new file does.
     (void)set_aside(loc->path, wall());
     opened.restored_backup = restore_newest(folder, o.key.slot, o.key.fp8);
     create = !opened.restored_backup;
-    file = Db::open(loc->path, FileKind::Playthrough, create);
+    file = Db::open(loc->path, FileKind::Playthrough, create, cfg_.busy_timeout_ms);
   }
   if (!file) {
     fault = file.error();
@@ -317,7 +345,7 @@ db::Opened StoreCore::do_resolve(const db::Resolve& r, std::optional<Fault>& fau
         fault = Fault::IoErr;
         return opened;
       }
-      auto file = Db::open(live, FileKind::Playthrough, true);
+      auto file = Db::open(live, FileKind::Playthrough, true, cfg_.busy_timeout_ms);
       if (!file) {
         fault = file.error();
         return opened;
@@ -355,11 +383,13 @@ db::Opened StoreCore::do_resolve(const db::Resolve& r, std::optional<Fault>& fau
 Result<std::uint64_t> StoreCore::forget(const db::Forget& f) {
   // MEM §9.5: a backup first (the undo), then one transaction, then the WAL emptied so the rows do not linger in it.
   if (auto b = rotate_backup(pt_->db, pt_->folder, pt_->key.slot, pt_->key.fp8); !b) return Unexpected{b.error()};
+  Rewind rewind(*pt_);
   auto tx = Transaction::immediate(pt_->db);
   if (!tx) return Unexpected{tx.error()};
   auto rows = store::forget(*pt_, f.journey, f.persona, f.at_pt);
   if (!rows) return Unexpected{rows.error()};
   if (auto r = tx->commit(); !r) return Unexpected{r.error()};
+  rewind.keep();
   (void)checkpoint(pt_->db, true);
   return *rows;
 }
@@ -367,25 +397,97 @@ Result<std::uint64_t> StoreCore::forget(const db::Forget& f) {
 Result<void> StoreCore::append_all(const std::vector<db::Append>& appends) {
   if (!pt_ || choice_) return Unexpected{Fault::NotOpen};
   pt_->wall = wall();
+  Rewind rewind(*pt_);
   auto tx = Transaction::immediate(pt_->db);
   if (!tx) return Unexpected{tx.error()};
   for (const db::Append& a : appends) {
     if (auto r = append(*pt_, a); !r) return r;
   }
-  return tx->commit();
+  if (auto c = tx->commit(); !c) return c;
+  rewind.keep();
+  return {};
+}
+
+bool Breaker::counts(Fault f) noexcept {
+  return f != Fault::Busy && f != Fault::Invalid && f != Fault::NotOpen && f != Fault::TooNew;
+}
+
+bool Breaker::note(Fault f, std::uint64_t mono_ms) {
+  if (cause_) return true;
+  if (!counts(f)) return false;
+  if (f == Fault::Corrupt || f == Fault::NotADb || f == Fault::IoErr) {
+    cause_ = f;
+    return true;
+  }
+  std::erase_if(recent_, [&](std::uint64_t t) { return mono_ms >= t + kWindowMs || t > mono_ms; });
+  recent_.push_back(mono_ms);
+  if (recent_.size() >= kFailures) cause_ = f;
+  return cause_.has_value();
+}
+
+namespace {
+
+std::string key_id(const proto::PlaythroughKey& k) {
+  return std::to_string(k.steamid64) + "/" + number_text(k.slot) + "/" + k.fp8;
+}
+
+}  // namespace
+
+std::uint64_t StoreCore::mono() const {
+  if (cfg_.mono_ms) return cfg_.mono_ms();
+  return static_cast<std::uint64_t>(
+      std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch())
+          .count());
+}
+
+std::optional<Fault> StoreCore::tripped_for(const proto::PlaythroughKey& key) const {
+  const std::string id = key_id(key);
+  for (const auto& [k, f] : tripped_) {
+    if (k == id) return f;
+  }
+  return std::nullopt;
+}
+
+void StoreCore::trip(Fault cause) {
+  if (!pt_) return;
+  tripped_.emplace_back(key_id(pt_->key), cause);
+  const fs::path live = pt_->folder.live(pt_->key.slot, pt_->key.fp8);
+  close();
+  // A corrupt file is set aside, so the next session restores the newest backup (MEM §8.6).
+  if (cause == Fault::Corrupt || cause == Fault::NotADb) (void)set_aside(live, wall());
+  breaker_ = Breaker{};
 }
 
 proto::DbResult StoreCore::handle(const proto::DbRequest& req) {
+  // An Open of a file tripped this session answers its trip; everything else runs, and a failure is counted.
+  if (const auto* o = std::get_if<db::Open>(&req.op)) {
+    if (const auto f = tripped_for(o->key)) {
+      close();
+      return proto::DbResult{req.seq, db::Tripped{*f}};
+    }
+  }
+  proto::DbResult out = run(req);
+  if (const auto* f = std::get_if<db::Failed>(&out.result); f != nullptr && pt_ && breaker_.note(f->fault, mono())) {
+    const Fault cause = breaker_.cause().value_or(f->fault);
+    trip(cause);
+    out.result = db::Tripped{cause};
+  }
+  return out;
+}
+
+proto::DbResult StoreCore::run(const proto::DbRequest& req) {
   const std::uint64_t seq = req.seq;
   // A write: one transaction, Done or its fault.
   const auto write = [&](auto&& op) -> proto::DbResult {
     if (!pt_ || choice_) return failed(seq, Fault::NotOpen);
     pt_->wall = wall();
+    Rewind rewind(*pt_);
     auto tx = Transaction::immediate(pt_->db);
     if (!tx) return failed(seq, tx.error());
     auto r = op();
     if (!r) return failed(seq, r.error());
     if (auto c = tx->commit(); !c) return failed(seq, c.error());
+    rewind.keep();
     return proto::DbResult{seq, db::Done{}};
   };
   const auto query = [&](auto&& op) -> proto::DbResult {
@@ -438,7 +540,10 @@ proto::DbResult StoreCore::handle(const proto::DbRequest& req) {
                           return proto::DbResult{seq, db::Done{}};
                         },
                         [&](const db::Checkpoint&) -> proto::DbResult {
-                          if (pt_) (void)checkpoint(pt_->db, false);
+                          // Passive: it never waits for a reader. A failed sync or write is a fault like any other.
+                          if (pt_ && !choice_) {
+                            if (auto r = checkpoint(pt_->db, false); !r) return failed(seq, r.error());
+                          }
                           return proto::DbResult{seq, db::Done{}};
                         },
                         [&](const db::Bundle& q) { return query([&] { return bundle(*pt_, q); }); },
