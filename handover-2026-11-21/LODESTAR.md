@@ -98,6 +98,21 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    the rows whose status moved and the header's stamp, add a line under "Changes to this page", sweep the page
    by hand, and publish the edit. Our labels and the layout's own numbers only; nothing of the game, of other
    projects' code or of the owner's character. Refresh it after every round's review.
+   **The twenty-first round** (package 0.1.0-lodestar.28, engine 0ce2889; the record's "What was changed for the
+   twenty-first round"; built and verified, waiting for Engine's read and then the owner's run): plan 3
+   (`--read-plan 3`, the stay): load somewhere quiet, stand 20 s, the tester's own death, 240 s of free play
+   with sprints and a spell or a skill. The owner's wish of 2026-11-27 for a character's focus and stamina is
+   O136 (DATA §2.5 D-17); the tasks are O137 and the new reading O138. What it is after: the clock's and the play
+   time's second reading (the twentieth round's watch was starved by the scans with a step to themselves, not
+   by a short session: WHY§669; they now leave every other step, and the watch has ways to `world_clock` and
+   `save_data`); the count of deaths as a field that rose by one once; the player's death by its health, with
+   three bits checked at a health of nothing; the sheet's level and name through `world_alone` (never written);
+   the focus and the stamina, by holding the main player's part of health against six numbers of the sheet;
+   O124's count of characters by their sheet. The stay's verdict rests on the report as written. On the way:
+   the watch's hours must step with their minutes (a Debug-only tie in the fake game's clock), and the
+   `read-state` case has margins of two seconds (Engine's two failing cases). The owner's document has a Track C
+   ("version 1.0 and after") from Engine's survey of 2026-11-27, kept in `later.py` beside its generator; honour
+   the survey's "not yet sayable" list when refreshing it.
    **The twentieth round's third run, reviewed** (package 0.1.0-lodestar.27; the record's "The twentieth round's
    third run"; engine fe04479): the report whole (618 KB), all five tasks gathered. The sheet named from the
    owner's status screen (in chat only): level 0x68, the attributes from 0x3C (bare) and 0x288 (as shown),
