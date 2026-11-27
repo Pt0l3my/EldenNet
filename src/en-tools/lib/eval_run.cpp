@@ -6,12 +6,14 @@
 #include <cstdio>
 #include <fstream>
 #include <map>
+#include <memory>
 #include <sstream>
 #include <variant>
 
 #include <toml.hpp>
 
 #include "en/core/core.hpp"
+#include "en/core/speech_content.hpp"
 #include "en/proto/toml_check.hpp"
 #include "golden_run.hpp"
 #include "prompt_fixture.hpp"  // find_flag_state
@@ -27,17 +29,6 @@ std::string at(const toml::node& n, const std::string& what) {
   return "line " + std::to_string(n.source().begin.line) + ": " + what;
 }
 
-std::size_t words_of(std::string_view s) {
-  std::size_t n = 0;
-  bool in_word = false;
-  for (const char c : s) {
-    const bool space = c == ' ' || c == '\t' || c == '\n';
-    if (!space && !in_word) ++n;
-    in_word = !space;
-  }
-  return n;
-}
-
 // A plain relative path inside its folder: no root, no "..".
 bool inside(const fs::path& p) {
   if (p.empty() || p.is_absolute() || p.has_root_name()) return false;
@@ -47,7 +38,8 @@ bool inside(const fs::path& p) {
   return true;
 }
 
-constexpr std::array<std::string_view, 8> kStepKinds = {"open", "say", "wait", "esc", "skip", "move", "expect", "flags"};
+constexpr std::array<std::string_view, 9> kStepKinds = {"open", "say",    "wait",  "esc",    "skip",
+                                                        "move", "expect", "flags", "restart"};
 
 }  // namespace
 
@@ -98,11 +90,11 @@ proto::Expected<EvalScenario, std::string> parse_eval_scenario(std::string_view 
   if (s.param == 0) return proto::Unexpected{std::string("world.param, the persona's invented row, is needed")};
   const toml::array* steps = root["step"].as_array();
   if (steps == nullptr || !steps->is_array_of_tables()) return proto::Unexpected{std::string("the scenario needs [[step]]s")};
-  constexpr std::array<std::string_view, 20> kStep = {"do",           "text",     "ms",          "distance_m",
+  constexpr std::array<std::string_view, 21> kStep = {"do",           "text",     "ms",          "distance_m",
                                                       "state",        "box",      "ended",       "last_npc",
                                                       "toast",        "npc_lines", "player_lines", "failures",
                                                       "deflections",  "regenerations", "cancels", "note", "at",
-                                                      "flags",        "prompt_has", "prompt_lacks"};
+                                                      "flags",        "prompt_has", "prompt_lacks", "name_prefixes"};
   for (std::size_t i = 0; i < steps->size(); ++i) {
     const toml::table& t = *steps->get(i)->as_table();
     const std::string where = "step[" + std::to_string(i) + "]";
@@ -113,7 +105,9 @@ proto::Expected<EvalScenario, std::string> parse_eval_scenario(std::string_view 
     st.line = static_cast<std::size_t>(t.source().begin.line);
     const std::string kind = t["do"].value_or(std::string());
     const auto k = std::find(kStepKinds.begin(), kStepKinds.end(), kind);
-    if (k == kStepKinds.end()) return proto::Unexpected{at(t, where + ".do: must be one of open, say, wait, esc, skip, move, expect, flags")};
+    if (k == kStepKinds.end()) {
+      return proto::Unexpected{at(t, where + ".do: must be one of open, say, wait, esc, skip, move, expect, flags, restart")};
+    }
     st.kind = static_cast<EvalStep::Kind>(k - kStepKinds.begin());
     st.text = t["text"].value_or(std::string());
     st.ms = static_cast<Mono>(std::max<std::int64_t>(0, t["ms"].value_or(std::int64_t{0})));
@@ -124,7 +118,8 @@ proto::Expected<EvalScenario, std::string> parse_eval_scenario(std::string_view 
         (kk == "state" ? st.state : kk == "box" ? st.box : kk == "ended" ? st.ended : kk == "last_npc" ? st.last_npc : st.toast) = *v;
       }
     }
-    for (const char* key : {"npc_lines", "player_lines", "failures", "deflections", "regenerations", "cancels"}) {
+    for (const char* key : {"npc_lines", "player_lines", "failures", "deflections", "regenerations", "cancels",
+                            "name_prefixes"}) {
       if (const auto v = t[key].value<std::int64_t>()) {
         const std::string_view kk = key;
         (kk == "npc_lines"       ? st.npc_lines
@@ -132,7 +127,8 @@ proto::Expected<EvalScenario, std::string> parse_eval_scenario(std::string_view 
          : kk == "failures"      ? st.failures
          : kk == "deflections"   ? st.deflections
          : kk == "regenerations" ? st.regenerations
-                                 : st.cancels) = static_cast<std::size_t>(std::max<std::int64_t>(0, *v));
+         : kk == "cancels"       ? st.cancels
+                                 : st.name_prefixes) = static_cast<std::size_t>(std::max<std::int64_t>(0, *v));
       }
     }
     if (st.kind == EvalStep::Kind::Say && st.text.empty()) return proto::Unexpected{at(t, where + ": say needs a text")};
@@ -182,30 +178,53 @@ constexpr proto::ChrHandle kPartner{0x500};
 
 class Runner {
  public:
-  Runner(const EvalScenario& s, EvalLlm llm) : s_(s), llm_(llm) {}
+  Runner(const EvalScenario& s, EvalLlm llm, const EvalOptions& options) : s_(s), llm_(llm), options_(options) {}
 
   proto::Expected<EvalRun, std::string> run() {
     run_.scenario = s_.name;
     run_.persona = s_.persona;
     run_.llm = llm_ == EvalLlm::Mock ? "mock" : "recorded";
-    std::vector<core::ContentFile> files = core::builtin_content();
+    files_ = core::builtin_content();
     if (s_.overrides) {
       auto extra = read_content_folder(s_.folder / *s_.overrides, core::ContentOrigin::Override);
       if (!extra) return proto::Unexpected{"overrides: " + extra.error()};
-      for (core::ContentFile& f : *extra) files.push_back(std::move(f));
+      for (core::ContentFile& f : *extra) files_.push_back(std::move(f));
     }
-    if (const auto errors = core_.load_content(files, core::Realm::Eval); !errors.empty()) {
-      return proto::Unexpected{"the content does not load: " + core::describe(errors.front())};
+    if (options_.arm) {
+      auto extra = read_content_folder(*options_.arm, core::ContentOrigin::Override);
+      if (!extra) return proto::Unexpected{"the arm: " + extra.error()};
+      for (core::ContentFile& f : *extra) files_.push_back(std::move(f));
     }
+    // The speech the core will run, loaded from the same pack, so that the tap can wrap it (Core(SpeechParts)).
+    auto pack = core::load_content(files_);
+    if (!pack) return proto::Unexpected{"the content does not load: " + core::describe(pack.error().front())};
+    auto speech = core::load_speech(*pack);
+    if (!speech) return proto::Unexpected{"the content does not load: " + core::describe(speech.error().front())};
+    tap_ = std::make_unique<SpeechTap>(speech->lint, speech->prompt);
+    if (auto loaded = fresh_core(); !loaded.empty()) return proto::Unexpected{std::move(loaded)};
     if (s_.flags) {
       auto f = flag_state(*s_.flags);
       if (!f) return proto::Unexpected{f.error()};
       flags_ = std::move(*f);
     }
-    const auto persona = core_.directory().find(s_.persona);
+    const auto persona = core_->directory().find(s_.persona);
     if (!persona) return proto::Unexpected{std::string("the scenario's persona is not in the content")};
-    persona_ = &core_.directory().persona(*persona);
+    persona_ = &core_->directory().persona(*persona);
     run_.words_max = persona_->reply_words_max;
+    run_.register_name = core::to_string(persona_->reg);
+    if (const auto st = persona_->record.find("stages"); st != persona_->record.end() && st->is_array()) {
+      for (const nlohmann::json& stage : *st) {
+        const auto f = stage.find("forbid");
+        if (f == stage.end() || !f->is_array()) continue;
+        for (const nlohmann::json& topic : *f) {
+          if (topic.is_string() && std::find(run_.topics.begin(), run_.topics.end(), topic.get<std::string>()) ==
+                                       run_.topics.end()) {
+            run_.topics.push_back(topic.get<std::string>());
+          }
+        }
+      }
+    }
+    flags_name_ = s_.flags.value_or(std::string());
     if (llm_ == EvalLlm::Mock) {
       if (!s_.mock) return proto::Unexpected{std::string("the scenario names no mock script")};
       const auto text = read_file((s_.folder / *s_.mock).string(), 256 * 1024);
@@ -221,7 +240,44 @@ class Runner {
       if (!events) return proto::Unexpected{"the recorded events: " + events.error()};
       model_.emplace<RecordedModel>(std::move(*events));
     }
-    // Boot: T1 ready, a healthy model, a playthrough, and the world until the gate has held and the observer allows.
+    if (auto booted = boot(); !booted.empty()) return proto::Unexpected{std::move(booted)};
+    for (const EvalStep& st : s_.steps) {
+      if (st.kind == EvalStep::Kind::Restart) {
+        if (auto loaded = fresh_core(); !loaded.empty()) return proto::Unexpected{std::move(loaded)};
+        if (auto booted = boot(); !booted.empty()) return proto::Unexpected{std::move(booted)};
+        continue;
+      }
+      do_step(st);
+    }
+    finish();
+    return std::move(run_);
+  }
+
+ private:
+  // A core of its own over the tap's parts, the content loaded (the first, or a restart's: a first meeting again).
+  std::string fresh_core() {
+    core_.reset();
+    core_ = std::make_unique<core::Core>(tap_->parts());
+    if (const auto errors = core_->load_content(files_, core::Realm::Eval); !errors.empty()) {
+      return "the content does not load: " + core::describe(errors.front());
+    }
+    watch_.reset();
+    replies_.clear();
+    ack_.reset();
+    acked_.reset();
+    failure_page_.reset();
+    box_open_ = shut_ = closing_ = false;
+    ui_ = proto::UiModel{};
+    if (persona_ != nullptr) {
+      const auto persona = core_->directory().find(s_.persona);
+      persona_ = persona ? &core_->directory().persona(*persona) : nullptr;
+    }
+    return {};
+  }
+
+  // Boot: T1 ready, a healthy model, a playthrough, and the world until the gate has held and the observer allows.
+  std::string boot() {
+    const Mono from = t_;
     feed(core::CoreInput{proto::Lifecycle{proto::Lifecycle::DataReady{proto::BuildKey{0}, all_caps()}}});
     feed(core::CoreInput{proto::NetHealth{true}});
     proto::Lifecycle::PlaythroughReady p;
@@ -229,17 +285,13 @@ class Runner {
     (void)p.name.try_assign("Vessel");  // invented; it stays in the core
     p.play_time_ms = 600000;
     feed(core::CoreInput{proto::Lifecycle{p}});
-    while (!(core_.state().phase == core::Phase::InWorld && core_.state().gate_open)) {
-      if (t_ > 30000) return proto::Unexpected{std::string("the world never became ready")};
+    while (!(core_->state().phase == core::Phase::InWorld && core_->state().gate_open)) {
+      if (t_ - from > 30000) return "the world never became ready";
       advance(250);
     }
     advance(3500);
-    for (const EvalStep& st : s_.steps) do_step(st);
-    finish();
-    return std::move(run_);
+    return {};
   }
-
- private:
   static proto::Capabilities all_caps() {
     proto::Capabilities c;
     c.groups = proto::FlagSetTraits<proto::GroupSet>::all;
@@ -252,7 +304,7 @@ class Runner {
     if (!path) return proto::Unexpected{std::string("no fixture flag state of that name above the scenario")};
     const auto text = read_file(path->string(), 64 * 1024);
     if (!text) return proto::Unexpected{std::string("the fixture flag state cannot be read")};
-    auto fs = core_.knowledge().fixture(*text);
+    auto fs = core_->knowledge().fixture(*text);
     if (!fs) return proto::Unexpected{"the fixture flag state: " + fs.error()};
     return std::move(*fs);
   }
@@ -260,7 +312,7 @@ class Runner {
   // The game task's answer to the core's watch list: each watched id's bit as the state has its alias, every id valid.
   std::optional<proto::FlagFrame> frame() const {
     if (!watch_ || !flags_) return std::nullopt;
-    const core::WatchList& list = core_.watch_list();
+    const core::WatchList& list = core_->watch_list();
     if (list.version != watch_->version) return std::nullopt;
     proto::FlagFrame f;
     f.watch_version = list.version;
@@ -308,8 +360,13 @@ class Runner {
   }
 
   void feed(core::CoreInput in) {
-    const core::Outputs o = core_.step(std::move(in), t_);
+    const core::Outputs o = core_->step(std::move(in), t_);
     absorb(o);
+    // The attempts the conversation opened in this step belong to the line in flight: the newest, its PlayerSaid
+    // committed in this step or before.
+    for (; seen_attempts_ < tap_->attempts().size(); ++seen_attempts_) {
+      if (!run_.turns.empty()) run_.turns.back().attempts.push_back(seen_attempts_);
+    }
   }
 
   template <class F>
@@ -332,7 +389,7 @@ class Runner {
     for (const core::Commit& c : o.commits) {
       switch (c.kind) {
         case core::Commit::Kind::PlayerSaid:
-          run_.turns.push_back(EvalTurn{c.text, "", 0, false, false, false, 0, 0, std::nullopt});
+          run_.turns.push_back(EvalTurn{c.text, "", 0, false, false, false, 0, 0, std::nullopt, {}, {}, flags_name_});
           said_at_.push_back(c.at);
           break;
         case core::Commit::Kind::NpcSaid:
@@ -363,6 +420,7 @@ class Runner {
       if (const auto* chat = std::get_if<proto::ChatRequest>(&r.body)) {
         last_prompt_.clear();
         for (const proto::Message& m : chat->messages) last_prompt_ += m.joined() + "\n";
+        if (!run_.turns.empty() && run_.turns.back().prompt.empty()) run_.turns.back().prompt = chat->messages;
       }
       with_model([&](auto& m) { m.submit(r, t_); });
       ++run_.requests;
@@ -454,9 +512,12 @@ class Runner {
       case EvalStep::Kind::Expect:
         expect(st);
         return;
+      case EvalStep::Kind::Restart:  // run() starts the fresh core
+        return;
       case EvalStep::Kind::Flags:
         if (auto f = flag_state(st.flags)) {
           flags_ = std::move(*f);
+          flags_name_ = st.flags;
         } else {
           run_.failed.push_back("line " + std::to_string(st.line) + ": " + f.error());
         }
@@ -498,6 +559,11 @@ class Runner {
       check(st, "regenerations", std::to_string(n), std::to_string(*st.regenerations));
     }
     if (st.cancels) check(st, "cancels", std::to_string(run_.cancels), std::to_string(*st.cancels));
+    if (st.name_prefixes) {
+      std::size_t n = 0;
+      for (const TapAttempt& a : tap_->attempts()) n += a.counts.name_prefixes();
+      check(st, "name_prefixes", std::to_string(n), std::to_string(*st.name_prefixes));
+    }
     for (std::size_t i = 0; i < st.prompt_has.size(); ++i) {
       if (last_prompt_.find(st.prompt_has[i]) == std::string::npos) {
         run_.failed.push_back("line " + std::to_string(st.line) + ": the prompt lacks prompt_has[" + std::to_string(i) + "]");
@@ -517,11 +583,18 @@ class Runner {
     }
   }
 
-  void finish() { settle(); }
+  void finish() {
+    settle();
+    run_.attempts.assign(tap_->attempts().begin(), tap_->attempts().end());
+  }
 
   const EvalScenario& s_;
   EvalLlm llm_;
-  core::Core core_;
+  const EvalOptions& options_;
+  std::vector<core::ContentFile> files_;
+  std::unique_ptr<SpeechTap> tap_;   // before the core, which holds its parts
+  std::unique_ptr<core::Core> core_;
+  std::size_t seen_attempts_ = 0;
   const core::Persona* persona_ = nullptr;
   std::variant<std::monostate, MockModel, RecordedModel> model_;
   EvalRun run_;
@@ -538,28 +611,72 @@ class Runner {
   std::vector<Mono> said_at_;
   std::optional<proto::GameCommand::SetWatchFlags> watch_;  // the core's last watch list
   std::optional<core::FlagState> flags_;                    // the world's flag state, by the catalogue's aliases
+  std::string flags_name_;                                  // its fixture's name
   std::string last_prompt_;                                 // the last dialogue request's messages, for prompt_has
   std::map<std::pair<proto::ConvId, proto::ReplyId>, std::size_t> replies_;
 };
 
 }  // namespace
 
-proto::Expected<EvalRun, std::string> run_eval(const EvalScenario& scenario, EvalLlm llm) {
-  Runner r(scenario, llm);
+proto::Expected<EvalRun, std::string> run_eval(const EvalScenario& scenario, EvalLlm llm, const EvalOptions& options) {
+  Runner r(scenario, llm, options);
   return r.run();
+}
+
+std::optional<std::size_t> EvalTurn::first_try(const std::vector<TapAttempt>& all) const {
+  std::optional<std::size_t> out;
+  for (const std::size_t i : attempts) {
+    if (i < all.size() && !all[i].context.regeneration) out = i;
+  }
+  return out;
+}
+
+std::optional<std::size_t> EvalTurn::regeneration(const std::vector<TapAttempt>& all) const {
+  for (const std::size_t i : attempts) {
+    if (i < all.size() && all[i].context.regeneration) return i;
+  }
+  return std::nullopt;
+}
+
+nlohmann::json counts_json(const SpeechCounts& c) {
+  nlohmann::json j = nlohmann::json::object();
+  nlohmann::json removed = nlohmann::json::object(), soft = nlohmann::json::object(), hard = nlohmann::json::object();
+  for (std::size_t k = 0; k < c.removed.size(); ++k) {
+    if (c.removed[k] != 0) removed[removed_name(k)] = c.removed[k];
+  }
+  for (std::size_t k = 0; k < c.soft.size(); ++k) {
+    if (c.soft[k] != 0) soft[soft_name(k)] = c.soft[k];
+  }
+  for (std::size_t k = 0; k < c.hard.size(); ++k) {
+    if (c.hard[k] != 0) hard[hard_name(k)] = c.hard[k];
+  }
+  j["removed"] = std::move(removed);
+  j["soft"] = std::move(soft);
+  j["hard"] = std::move(hard);
+  j["sentences"] = c.sentences;
+  j["archaic_sentences"] = c.archaic_sentences;
+  j["full"] = c.full;
+  j["over"] = c.over;
+  j["trailers"] = c.trailers;
+  j["stream_stops"] = c.stream_stops;
+  if (c.name_class) j["name_prefix"] = {{"class", to_string(*c.name_class)}, {"text", c.name_prefix}};
+  return j;
 }
 
 nlohmann::json eval_report(const EvalRun& run) {
   nlohmann::json j;
-  j["schema"] = 1;
+  j["schema"] = 2;
   j["kind"] = "eval-local";  // holds the conversation's text: local only, never committed or uploaded
   j["scenario"] = run.scenario;
   j["persona"] = run.persona;
+  j["register"] = run.register_name;
   j["llm"] = run.llm;
   j["words_max"] = run.words_max;
   nlohmann::json turns = nlohmann::json::array();
   std::size_t shown = 0, within = 0, failures = 0, deflections = 0, cut = 0, regenerations = 0;
   std::vector<Mono> latency;
+  SpeechCounts speech;  // the first tries'
+  std::array<std::size_t, 3> classes{};
   for (const EvalTurn& t : run.turns) {
     nlohmann::json tj;
     tj["player"] = t.player;
@@ -571,6 +688,13 @@ nlohmann::json eval_report(const EvalRun& run) {
     tj["deflection"] = t.deflection;
     tj["requests"] = t.requests;
     tj["first_page_ms"] = t.first_page_ms ? nlohmann::json(*t.first_page_ms) : nlohmann::json(nullptr);
+    if (const auto a = t.first_try(run.attempts)) {
+      const SpeechCounts& c = run.attempts[*a].counts;
+      tj["speech"] = counts_json(c);
+      speech.add(c);
+      if (c.name_class) ++classes[static_cast<std::size_t>(*c.name_class)];
+    }
+    if (const auto a = t.regeneration(run.attempts)) tj["regeneration_speech"] = counts_json(run.attempts[*a].counts);
     turns.push_back(std::move(tj));
     if (!t.reply.empty()) {
       ++shown;
@@ -596,6 +720,9 @@ nlohmann::json eval_report(const EvalRun& run) {
   m["cancels"] = run.cancels;
   m["first_page_ms_median"] = latency.empty() ? nlohmann::json(nullptr) : nlohmann::json(latency[latency.size() / 2]);
   m["first_page_ms_max"] = latency.empty() ? nlohmann::json(nullptr) : nlohmann::json(latency.back());
+  // The first tries' speech (WHY§410: the "Name:" prefixes by class, so that a narrower rule can be judged on data).
+  m["speech"] = counts_json(speech);
+  m["name_prefixes"] = {{"name", classes[0]}, {"short", classes[1]}, {"long", classes[2]}};
   j["metrics"] = std::move(m);
   j["toasts"] = run.toasts;
   j["endings"] = run.endings;
@@ -611,7 +738,9 @@ std::string eval_summary(const EvalRun& run) {
     << m["replies_shown"].get<std::size_t>() << " replies shown, " << m["failure_pages"].get<std::size_t>()
     << " failure pages, " << m["deflections"].get<std::size_t>() << " deflections, " << m["regenerations"].get<std::size_t>()
     << " regenerations, within the word cap " << static_cast<int>(m["within_words_max"].get<double>() * 100.0 + 0.5)
-    << "%, " << run.failed.size() << " expectations failed\n";
+    << "%, " << m["name_prefixes"]["name"].get<std::size_t>() + m["name_prefixes"]["short"].get<std::size_t>() +
+                    m["name_prefixes"]["long"].get<std::size_t>()
+    << " name prefixes, " << run.failed.size() << " expectations failed\n";
   return o.str();
 }
 

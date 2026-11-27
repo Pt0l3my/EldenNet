@@ -1,6 +1,6 @@
 // eldennet-engine eval and mockllm (DESIGN §14, NPC §12.1, ARCH §12.2, §12.3; WHY§364 (10)).
 //
-//   eldennet-engine eval <scenario.toml> --llm mock|recorded [--report FILE]
+//   eldennet-engine eval <scenario.toml> --llm mock|recorded [--arm FOLDER] [--report FILE]
 //   eldennet-engine mockllm --script <mock.toml> [--requests N]
 //
 // `eval` runs a scripted conversation (tests/scenarios/talk/) through the real core against a scripted model (mock)
@@ -28,9 +28,10 @@ namespace fs = std::filesystem;
 
 void eval_usage() {
   std::fputs(
-      "usage: eldennet-engine eval <scenario.toml> --llm mock|recorded [--report FILE]\n"
+      "usage: eldennet-engine eval <scenario.toml> --llm mock|recorded [--arm FOLDER] [--report FILE]\n"
       "  --llm mock      the scenario's scripted model (its `mock` script; mockllm)\n"
       "  --llm recorded  the scenario's recorded model events (its `recorded` file)\n"
+      "  --arm FOLDER    an overrides folder after the scenario's (the positive-wording arm's former prompts)\n"
       "  --report FILE   write the report there: it holds the conversation's text, so keep it local (eval-reports/)\n"
       "exit codes: 0 every expectation held; 1 an expectation failed; 2 usage, an input, or the report\n",
       stderr);
@@ -58,7 +59,7 @@ bool write_file(const fs::path& path, const std::string& text) {
 }  // namespace
 
 int run_eval(int argc, char** argv) {
-  std::optional<std::string> scenario, llm, report;
+  std::optional<std::string> scenario, llm, report, arm;
   for (int i = 1; i < argc; ++i) {
     const std::string a = argv[i];
     const bool more = i + 1 < argc;
@@ -70,6 +71,8 @@ int run_eval(int argc, char** argv) {
       llm = argv[++i];
     } else if (a == "--report" && more && !report) {
       report = argv[++i];
+    } else if (a == "--arm" && more && !arm) {
+      arm = argv[++i];
     } else if (a.rfind("--", 0) == 0 || scenario) {
       eval_usage();
       return 2;
@@ -92,7 +95,10 @@ int run_eval(int argc, char** argv) {
     std::fprintf(stderr, "eval: %s\n", parsed.error().c_str());
     return 2;
   }
-  auto run = en::tools::run_eval(*parsed, *llm == "mock" ? en::tools::EvalLlm::Mock : en::tools::EvalLlm::Recorded);
+  en::tools::EvalOptions options;
+  if (arm) options.arm = fs::path(*arm);
+  auto run = en::tools::run_eval(*parsed, *llm == "mock" ? en::tools::EvalLlm::Mock : en::tools::EvalLlm::Recorded,
+                                 options);
   if (!run) {
     std::fprintf(stderr, "eval: %s\n", run.error().c_str());
     return 2;

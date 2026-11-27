@@ -92,6 +92,13 @@ proto::Expected<MockScript, std::string> parse_mock_script(std::string_view text
     }
     MockReply r;
     r.text = t["text"].value_or(std::string());
+    if (const toml::array* parts = t["text"].as_array()) {  // a long text in pieces, joined by one space
+      for (const toml::node& n : *parts) {
+        const auto s = n.value<std::string>();
+        if (!s || s->empty()) return proto::Unexpected{at_line(n, where + ".text: its pieces must be strings")};
+        r.text += (r.text.empty() ? "" : " ") + *s;
+      }
+    }
     r.think = t["think"].value_or(std::string());
     r.trailer = t["trailer"].value_or(std::string());
     r.reset = t["reset"].value_or(false);

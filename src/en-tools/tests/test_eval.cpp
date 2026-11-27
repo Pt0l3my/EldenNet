@@ -203,7 +203,7 @@ TEST_CASE("eval: a scenario's errors") {
   const auto bad = parse_eval_scenario(
       "schema = 1\nname = \"x\"\npersona = \"p\"\n[world]\nparam = 5\n[[step]]\ndo = \"dance\"\n", ".");
   REQUIRE_FALSE(bad.has_value());
-  CHECK(bad.error() == "line 6: step[0].do: must be one of open, say, wait, esc, skip, move, expect, flags");
+  CHECK(bad.error() == "line 6: step[0].do: must be one of open, say, wait, esc, skip, move, expect, flags, restart");
   const auto no_state =
       parse_eval_scenario("schema = 1\nname = \"x\"\npersona = \"p\"\n[world]\nparam = 5\n[[step]]\ndo = \"flags\"\n", ".");
   REQUIRE_FALSE(no_state.has_value());

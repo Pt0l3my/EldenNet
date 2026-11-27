@@ -24,7 +24,8 @@ if(EN_BUILD_TESTS AND NOT WIN32)
   # And the dialogue prompt on the shipped templates and the lexicon on the shipped lists (the first conversation's part
   # A: test_dialogue_prompt.cpp), which en-core's own tests leave to invented ones; and the eval (part B: test_eval.cpp).
   add_executable(en_tools_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/main.cpp ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_scn.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_eval.cpp ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_dialogue_prompt.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_eval.cpp ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_dialogue_prompt.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_tap.cpp)
   target_link_libraries(en_tools_tests PRIVATE en_tools_scn en_doctest)
   target_compile_definitions(en_tools_tests PRIVATE EN_TOOLS_SCENARIOS="${PROJECT_SOURCE_DIR}/tests/scenarios"
     EN_TOOLS_GOLDEN="${PROJECT_SOURCE_DIR}/tests/golden" EN_TOOLS_WORK="${CMAKE_CURRENT_BINARY_DIR}/scn"

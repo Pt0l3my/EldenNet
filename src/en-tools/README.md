@@ -341,7 +341,7 @@ place, its play time rising.
 ## eval and mockllm: the first conversation, offline (S11.3, part B; WHY§364)
 
 ```sh
-eldennet-engine eval <scenario.toml> --llm mock|recorded [--report FILE]
+eldennet-engine eval <scenario.toml> --llm mock|recorded [--arm FOLDER] [--report FILE]
 eldennet-engine mockllm --script <mock.toml> [--requests N]
 ```
 
@@ -357,9 +357,11 @@ recorded` with its recorded events, each request's from its own start with the l
 A scenario (`tests/scenarios/talk/*.toml`, `lib/eval_run.hpp` has its schema) names its persona, its overrides, its
 script and recording, one invented character (its NpcParam row, distance, bearing; the clock and the subtitles), and
 its steps from when the world is ready and the observer allows chat: `open`, `say`, `wait`, `esc`, `skip`, `move`,
-`flags` and `expect`, whose fields (the state, the box, the lines, the "…" pages, the deflections, the regenerations and
+`flags`, `restart` (a fresh core with the same content and flag state: a first meeting again, with no earlier lines)
+and `expect`, whose fields (the state, the box, the lines, the "…" pages, the deflections, the regenerations and
 the requests cancelled so far, the last ending, the last reply's text, a toast that went up, and texts the last
-dialogue request's messages hold or lack, `prompt_has` and `prompt_lacks`) are each checked. The world's flag state is
+dialogue request's messages hold or lack, `prompt_has` and `prompt_lacks`, and the reply attempts whose "Name:" the
+sanitizer took, `name_prefixes`) are each checked. The world's flag state is
 a fixture state (`[world] flags`, then each `flags` step): the scenario's overrides give a catalogue that a `ci:` record
 verifies in the eval's realm alone, the core sends its watch list, and the runner answers every fourth snapshot with a
 FlagFrame of the state's aliases, as the game task would (S11.3.c). A failed `prompt_has` names its line and index.
@@ -371,10 +373,20 @@ world's frame in its first sentence regenerated once with block 11's reminder; t
 and the persona's deflection) and `lantern-long-reply` (the reply's second sentence fills it past the word cap, and the
 stream is cancelled while it streams).
 
-**The report is local-only.** `--report FILE` writes JSON (schema 1, `kind = "eval-local"`): each line of the
-Tarnished's and the reply shown, as committed, with its pages, words, cut-off, "…" page, deflection, requests and the
-time to its first page; the metrics (replies shown, the share within `reply_words_max`, "…" pages, deflections,
-cut-offs, regenerations, requests, cancels, the first page's median and maximum); the toasts, the endings and the
+**The speech tap** (`lib/speech_tap.hpp`; WHY§410). The core runs the eval's own speech parts (`Core(SpeechParts)`):
+part A's sanitizer, lint and pager over the content's lexicon, each wrapped, so that every reply attempt the
+conversation opens is recorded with its context (the sanitizer's names, the lint's context, the word cap) and counted:
+the sanitizer's removals by step, the "Name:" prefix by class (`name`, one of the speaker's names; `short`, a general
+prefix of at most two words; `long`, which a narrower rule would keep, such as "But know this:"), the lint's soft and
+hard hits, the archaic sentences whatever the register allows (a shadow lint with `archaic = false`, for the
+`archaic-regal` share), the pager's Full and Over, and a trailer or a run-on from the stream's flow. `--arm FOLDER`
+loads an overrides folder after the scenario's (the positive-wording arm's former prompts, `tests/x1/arms/former/`).
+
+**The report is local-only.** `--report FILE` writes JSON (schema 2, `kind = "eval-local"`): each line of the
+Tarnished's and the reply shown, as committed, with its pages, words, cut-off, "…" page, deflection, requests, the
+time to its first page and its first try's speech counts (and its regeneration's); the metrics (replies shown, the
+share within `reply_words_max`, "…" pages, deflections, cut-offs, regenerations, requests, cancels, the first page's
+median and maximum, the first tries' speech counts and the "Name:" prefixes by class); the toasts, the endings and the
 expectations that failed. It holds model text, unlike the numbers-only reports, so it is written only where
 `--report` says, never into the repository (`eval-reports/` is ignored by git) and never uploaded (PV rules); there is
 no default path. What `eval` prints is numbers only, and a failed `last_npc` names its line, not the text. Exit codes:
