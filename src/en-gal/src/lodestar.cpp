@@ -861,7 +861,8 @@ constexpr std::array<std::string_view, 6> kWordKinds = {"zero", "small", "vtable
 constexpr std::array<std::string_view, 3> kJumpAs = {"fraction", "whole", "hour"};
 constexpr std::array<std::string_view, 3> kTreeMatch = {"start", "index", "address"};
 constexpr std::array<std::string_view, 2> kSheetOf = {"save_data", "sheet"};
-constexpr std::array<std::string_view, 6> kCheck = {"is", "equal", "with_player", "block", "bits_equal", "changed"};
+constexpr std::array<std::string_view, 7> kCheck = {"is",         "equal",   "with_player", "block",
+                                                    "bits_equal", "changed", "bit_at_zero"};
 constexpr std::array<std::string_view, 9> kRefusal = {"unreadable",    "static_section", "static_alignment",
                                                       "class_section", "getter_section", "getter_not_function",
                                                       "no_path",       "path_section",   "path_text"};
@@ -967,13 +968,14 @@ constexpr auto kKeys = std::to_array<Key>({
     // written with the owner's word (O122); no key holds a text, and a run that reads as one is told by its place.
     O("sheet"), B("sheet_classed"), B("sheet_is_first"), B("sheet_is_second"), AO("sheets"), W("sheet_of", kSheetOf),
     U("text_fields"), U("address_fields"), U("restless"), AO("numbers"), U("last"), U("changes"), U("phases"),
-    AO("text_runs"), U("run_fields"), B("numbers_cut"),
+    AO("text_runs"), U("run_fields"), B("numbers_cut"), U("rose_once_total"), AO("rose_once"), B("from_nothing"),
     // The character survey (in game): behaviour only, no value of any character.
     O("survey"), U("tracked"), U("most_listed"), U("deaths"), U("fields_total"), AO("survey_fields"), U("seen"),
     U("changed_for"), U("most"), U("zeros"), U("small"), U("block_like"), U("id_like"), B("player_alone"),
     AU("handles"), AO("pairs"), U("a"), U("b"), U("holds_for"), U("of"), U("dead_total"), AO("dead_bits"),
     U("agree_alive"), U("agree_dead"), U("against"), U("screen_total"), AO("screen_bits"), U("look"),
-    U("flipped_in"), AO("checks"), W("check", kCheck), U("player_holds"), U("player_of"),
+    U("flipped_in"), AO("checks"), W("check", kCheck), U("player_holds"), U("player_of"), U("sheet_same"),
+    U("sheet_other"), U("sheet_none"),
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
@@ -1887,6 +1889,9 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.end_object();
     }
     w.end_array();
+    w.number("sheet_same", f.sheet_same);
+    w.number("sheet_other", f.sheet_other);
+    w.number("sheet_none", f.sheet_none);
     w.end_object();
   }
 
@@ -2016,6 +2021,16 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
         w.begin_object();
         w.number("offset", r.offset);
         w.number("run_fields", r.fields);
+        w.end_object();
+      }
+      w.end_array();
+      w.number("rose_once_total", o.rises_total);
+      w.begin_array("rose_once");
+      for (const SheetRise& r : o.rises) {
+        w.begin_object();
+        w.number("offset", r.offset);
+        w.number("phases", r.phases);
+        w.boolean("from_nothing", r.from_nothing);
         w.end_object();
       }
       w.end_array();

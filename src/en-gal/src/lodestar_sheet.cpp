@@ -62,6 +62,7 @@ struct SheetScan::Impl {
     std::vector<std::uint32_t> first;    // by field
     std::vector<std::uint16_t> changes;  // by field: passes in which it differed from the pass before
     std::vector<std::uint8_t> phases;    // by field: bit n, it changed in phase n
+    std::vector<std::uint8_t> rose;      // by field: the changes that were a rise by exactly one (up to 255)
     std::vector<std::uint8_t> marks;     // by field: kText, kAddress, kSeen
   };
   struct Told {
@@ -72,6 +73,9 @@ struct SheetScan::Impl {
     std::size_t field_count = 0;
     std::array<SheetText, kListedTexts> texts{};
     std::size_t text_count = 0;
+    std::uint32_t rises_total = 0;
+    std::array<SheetRise, kListedRises> rises{};
+    std::size_t rise_count = 0;
   };
   struct Summary {
     std::uint32_t passes = 0, absent = 0, phase = 0;
@@ -108,6 +112,7 @@ struct SheetScan::Impl {
       ob.first.resize(kFields);
       ob.changes.resize(kFields);
       ob.phases.resize(kFields);
+      ob.rose.resize(kFields);
       ob.marks.resize(kFields);
     }
   }
@@ -173,7 +178,9 @@ struct SheetScan::Impl {
         ob.first[f] = v;
         continue;
       }
-      if (field_at(before, f * 4) == v) continue;  // seen before, so it lies within what `before` holds
+      const std::uint32_t was = field_at(before, f * 4);  // seen before, so it lies within what `before` holds
+      if (was == v) continue;
+      if (v == was + 1 && was != 0xFFFF'FFFFu && ob.rose[f] != 0xFF) ++ob.rose[f];
       if (ob.changes[f] != 0xFFFF) ++ob.changes[f];
       ob.phases[f] = static_cast<std::uint8_t>(ob.phases[f] | (1u << std::min(phase_now, 7u)));
     }
@@ -209,10 +216,19 @@ struct SheetScan::Impl {
       t.restless = 0;
       t.field_count = 0;
       t.text_count = 0;
+      t.rises_total = 0;
+      t.rise_count = 0;
       if (ob.passes == 0) continue;
       const std::span<const std::byte> last(ob.before.data(), ob.bytes);  // each part as it was last read
       for (std::size_t f = 0; f < kFields; ++f) {
         if ((ob.marks[f] & kSeen) == 0) continue;
+        // What rose by one once and did nothing else: its place and phase, whatever the field holds.
+        if (ob.changes[f] == 1 && ob.rose[f] == 1) {
+          ++t.rises_total;
+          if (t.rise_count < kListedRises) {
+            t.rises[t.rise_count++] = SheetRise{static_cast<std::uint32_t>(f * 4), ob.phases[f], ob.first[f] == 0};
+          }
+        }
         // An address first: its halves read as letters too, and are no text. Neither is ever told.
         if ((ob.marks[f] & kAddress) != 0) {
           ++t.address_fields;
@@ -412,6 +428,8 @@ SheetFound SheetScan::found() const {
     ob.restless = t.restless;
     ob.fields.assign(t.fields.begin(), t.fields.begin() + static_cast<std::ptrdiff_t>(t.field_count));
     ob.texts.assign(t.texts.begin(), t.texts.begin() + static_cast<std::ptrdiff_t>(t.text_count));
+    ob.rises_total = t.rises_total;
+    ob.rises.assign(t.rises.begin(), t.rises.begin() + static_cast<std::ptrdiff_t>(t.rise_count));
     out.objects.push_back(std::move(ob));
   }
   return out;

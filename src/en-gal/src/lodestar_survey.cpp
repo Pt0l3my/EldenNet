@@ -46,7 +46,7 @@ void bump(std::uint16_t& v) { v = v == 0xFFFF ? v : static_cast<std::uint16_t>(v
 }  // namespace
 
 struct CharSurvey::Impl {
-  enum class Step : std::uint8_t { Manager, Bounds, List, Chr, Holder, Vitals };
+  enum class Step : std::uint8_t { Manager, Bounds, List, Chr, Holder, Vitals, Sheet };
 
   struct Tracked {
     std::uint64_t address = 0;
@@ -84,6 +84,7 @@ struct CharSurvey::Impl {
     std::size_t screen_count = 0;
     std::array<SurveyCheck, kMaxChecks> checks{};
     std::size_t check_count = 0;
+    std::uint32_t sheet_same = 0, sheet_other = 0, sheet_none = 0;
   };
 
   Options o;
@@ -103,6 +104,8 @@ struct CharSurvey::Impl {
 
   std::vector<SurveyCheck> checks;  // the round's, with their counts (made once)
   std::size_t player_slot = kMaxTracked;  // the main player's place, once its copy of this pass is taken
+  std::uint64_t player_sheet_class = 0;   // the first word of the main player's sheet, in this pass
+  std::uint32_t sheet_same = 0, sheet_other = 0, sheet_none = 0;
 
   Step step = Step::Manager;
   std::uint64_t manager_at = 0, player_at = 0, list_begin = 0, holder = 0, vitals = 0;
@@ -291,6 +294,10 @@ struct CharSurvey::Impl {
           known = again && number(now, bytes, c.a, x) && number(before, t.bytes, c.a, y);
           holds = x != y;
           break;
+        case SurveyCheck::kBitAtZero:
+          known = hp != nullptr && *hp <= 0 && bit_of(c.a, p);
+          holds = p;
+          break;
         default: break;
       }
       if (!known) continue;
@@ -339,6 +346,9 @@ struct CharSurvey::Impl {
     s.screen_count = 0;
     s.check_count = checks.size();
     std::copy(checks.begin(), checks.end(), s.checks.begin());
+    s.sheet_same = sheet_same;
+    s.sheet_other = sheet_other;
+    s.sheet_none = sheet_none;
     // The characters of this pass, the main player's place among them, and those seen twice or more.
     std::array<std::size_t, kMaxSeen> seen{};
     std::size_t n = 0, player = kMaxSeen;
@@ -553,6 +563,7 @@ bool CharSurvey::step(const proto::GameThread& gt, GuardedReader& reader, std::u
         m.phase_now = std::min(m.phase.load(std::memory_order_acquire), kPhases - 1);
         m.read_now = 0;
         m.player_slot = kMaxTracked;
+        m.player_sheet_class = 0;
         m.target = 0;
         m.target_count = 0;
         m.list_count = 0;
@@ -631,7 +642,7 @@ bool CharSurvey::step(const proto::GameThread& gt, GuardedReader& reader, std::u
           m.step = Step::Holder;
         } else {
           m.take(m.slot_now, m.bytes_now, nullptr);
-          ++m.target;
+          m.step = Step::Sheet;
         }
         return false;
       }
@@ -646,8 +657,7 @@ bool CharSurvey::step(const proto::GameThread& gt, GuardedReader& reader, std::u
           m.step = Step::Vitals;
         } else {
           m.take(m.slot_now, m.bytes_now, nullptr);
-          ++m.target;
-          m.step = Step::Chr;
+          m.step = Step::Sheet;
         }
         return false;
       }
@@ -661,8 +671,39 @@ bool CharSurvey::step(const proto::GameThread& gt, GuardedReader& reader, std::u
         } else {
           m.take(m.slot_now, m.bytes_now, nullptr);
         }
+        m.step = Step::Sheet;
+        return false;
+      }
+      case Step::Sheet: {
+        // Whether this character has a sheet as the main player has (O124): the first word of the object its
+        // word at the sheet's place leads to, held against the main player's of this pass. One read; none where
+        // the round gives no place for it.
+        const Impl::Tracked& t = m.tracked[m.slot_now];
+        const bool is_player = t.address == m.player_at;
         ++m.target;
         m.step = Step::Chr;
+        if (m.o.sheet_at == 0 || std::uint64_t{m.o.sheet_at} + 8 > t.bytes) break;
+        const std::uint64_t at = word_at(m.copy_of(m.slot_now), m.o.sheet_at);
+        if (!plausible(at)) {
+          if (!is_player) ++m.sheet_none;
+          break;
+        }
+        std::array<std::byte, 8> raw{};
+        const int got = m.read(gt, reader, at, raw);
+        if (got == 2) {  // the reader's time was up: this step again
+          --m.target;
+          m.step = Step::Sheet;
+          return false;
+        }
+        const std::uint64_t cls = got == 1 ? word_at(raw, 0) : 0;
+        const bool classed = cls >= m.o.base && cls - m.o.base < m.o.image_size;
+        if (is_player) {
+          m.player_sheet_class = classed ? cls : 0;
+        } else if (!classed) {
+          ++m.sheet_none;
+        } else if (m.player_sheet_class != 0) {
+          ++(cls == m.player_sheet_class ? m.sheet_same : m.sheet_other);
+        }
         return false;
       }
     }
@@ -690,6 +731,9 @@ SurveyFound CharSurvey::found() const {
   out.screen_total = s.screen_total;
   out.screen_bits.assign(s.screen.begin(), s.screen.begin() + static_cast<std::ptrdiff_t>(s.screen_count));
   out.checks.assign(s.checks.begin(), s.checks.begin() + static_cast<std::ptrdiff_t>(s.check_count));
+  out.sheet_same = s.sheet_same;
+  out.sheet_other = s.sheet_other;
+  out.sheet_none = s.sheet_none;
   return out;
 }
 

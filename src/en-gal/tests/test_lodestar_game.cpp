@@ -2623,6 +2623,11 @@ TEST_CASE("in game: the character survey tells a character's fields by how they 
     w.mem.put<std::int32_t>(c.vitals + 0x8, 500);
     w.mem.put<std::int32_t>(c.vitals + 0xC, 500);
     w.mem.put<std::uint64_t>(c.at + 0x100, w.mem.alloc(0x10));  // an address of its own
+    // A sheet: the main player's, and behind the same place in the others an object of the same class (the odd
+    // ones), of another class (the even ones), or nothing (the ninth).
+    const std::uint64_t sheet = w.mem.alloc(0x20);
+    w.set_vtable(sheet, hero || index % 2 == 1 ? "npc" : "beast");
+    if (index != 9) w.mem.put<std::uint64_t>(c.at + 0x500, sheet);
     w.mem.put<std::uint32_t>(c.at + 0x200, 0x3F80'0000u);       // the same in all: 1.0
     chars.push_back(c);
     return c.at;
@@ -2661,6 +2666,9 @@ TEST_CASE("in game: the character survey tells a character's fields by how they 
   check(Check::kChanged, 0x40, 0);                  // 7: the counter
   check(Check::kChanged, 0x10, 0);                  // 8: the kind's number
   check(Check::kIs, 0x7FE, 0);                      // 9: a place that does not lie whole in the copy
+  check(Check::kBitAtZero, 0x21 * 8 + 5, 0);        // 10: the dead bit while the health reads nothing
+  check(Check::kBitAtZero, 0x21 * 8 + 6, 0);        // 11: a bit that is never set
+  o.sheet_at = 0x500;
   check(Check::kKinds, 0, 0);                       // no check: left out
   lodestar::CharSurvey survey(o);
   GuardedReader reader(*w.sys);
@@ -2747,7 +2755,7 @@ TEST_CASE("in game: the character survey tells a character's fields by how they 
   CHECK(f.pairs[0].holds == 9);
   CHECK(f.pairs[0].of == 9);
   // The round's checks: twenty passes, nine others and the main player in each.
-  REQUIRE(f.checks.size() == 10);
+  REQUIRE(f.checks.size() == 12);
   const auto counts = [&](std::size_t i, std::uint32_t holds, std::uint32_t of, std::uint32_t player_holds,
                           std::uint32_t player_of) {
     CAPTURE(i);
@@ -2769,6 +2777,13 @@ TEST_CASE("in game: the character survey tells a character's fields by how they 
   counts(7, 171, 171, 19, 19);   // a change needs a sighting before
   counts(8, 0, 171, 0, 19);
   counts(9, 0, 0, 0, 0);
+  counts(10, 5, 5, 0, 0);        // the dead one's five sightings with no health: the bit set in each
+  counts(11, 0, 5, 0, 0);
+  // Who has a sheet as the main player has: four of the nine in every pass, four an object of another class,
+  // one nothing there.
+  CHECK(f.sheet_same == 4 * 20);
+  CHECK(f.sheet_other == 4 * 20);
+  CHECK(f.sheet_none == 20);
   // The dead bit: it was set as the one died, clear in every living character at every sighting since, and set
   // in the dead one. The on-screen bit flipped before in the looking phase, so it is no candidate.
   REQUIRE(f.dead_bits.size() == 1);
@@ -3117,6 +3132,12 @@ TEST_CASE("in game: the sheet scan tells the numbers of the save data's object a
   w.mem.put<std::uint64_t>(save + 0x8, sheet_a);
   w.mem.put<std::uint64_t>(save + 0x10, w.mem.alloc(0x10));
   w.mem.put<std::uint32_t>(save + 0x94, 12);       // the deaths so far
+  // A second count, right after a larger number (as the game's lies beside its play time): the two read as text
+  // and neither is told as a number; its rise by one at the death is told all the same. And a flag that goes from
+  // nothing to one at the death, as other objects' do when a world loads again.
+  w.mem.put<std::uint32_t>(save + 0xC0, 0x0123'4567u);
+  w.mem.put<std::uint32_t>(save + 0xC4, 77);
+  w.mem.put<std::uint32_t>(save + 0xD0, 0);
   w.mem.put<std::uint32_t>(save + 0xA0, 1000);     // the play time: never still
   w.mem.put<std::uint32_t>(save + 0x4100, 3);      // in the second piece
   lodestar::SheetScan::Options o;
@@ -3154,6 +3175,8 @@ TEST_CASE("in game: the sheet scan tells the numbers of the save data's object a
   // The death: the count rises by one and the purse empties; then the world loads again, with no main player for
   // two passes, and the sheet lies elsewhere after it.
   w.mem.put<std::uint32_t>(save + 0x94, 13);
+  w.mem.put<std::uint32_t>(save + 0xC4, 78);
+  w.mem.put<std::uint32_t>(save + 0xD0, 1);
   w.mem.put<std::uint32_t>(sheet_a + 0x44, 0);
   w.mem.put<std::uint32_t>(sheet_b + 0x44, 0);
   pass();
@@ -3206,6 +3229,20 @@ TEST_CASE("in game: the sheet scan tells the numbers of the save data's object a
   CHECK(field(sd, 0x94)->phases == 0b100);
   CHECK(field(sd, 0xA0) == nullptr);
   CHECK(sd.restless == 1);
+  // The rises by one, once: the count that is told as a number, the count hidden beside a larger number, and the
+  // flag (marked as rising from nothing). The play time rose every pass, by more: not one of them.
+  CHECK(field(sd, 0xC0) == nullptr);
+  CHECK(field(sd, 0xC4) == nullptr);
+  CHECK(sd.rises_total == 3);
+  REQUIRE(sd.rises.size() == 3);
+  CHECK(sd.rises[0].offset == 0x94);
+  CHECK(sd.rises[0].phases == 0b100);
+  CHECK_FALSE(sd.rises[0].from_nothing);
+  CHECK(sd.rises[1].offset == 0xC4);
+  CHECK(sd.rises[1].phases == 0b100);
+  CHECK_FALSE(sd.rises[1].from_nothing);
+  CHECK(sd.rises[2].offset == 0xD0);
+  CHECK(sd.rises[2].from_nothing);
   CHECK(field(sd, 0x8) == nullptr);
   CHECK(field(sd, 0xC) == nullptr);
   CHECK(sd.address_fields == 4);

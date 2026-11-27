@@ -124,7 +124,7 @@ class ErBackend final : public proto::GameBackend {
   // the book's phase B is not set.
   struct WorldAlone {
     static constexpr std::uint32_t kSlot = 1, kPlayer = 2, kParts = 4, kNear = 8, kFields = 16, kClock = 32,
-                                   kPlay = 64;
+                                   kPlay = 64, kSheet = 128;
     std::uint32_t lacks = 0;                  // the parts the layout does not bind (the bits above)
     bool state = false;                       // the game's state's object was there
     std::optional<std::int32_t> save_slot;    // as read: -1 where no save is loaded
@@ -174,6 +174,14 @@ class ErBackend final : public proto::GameBackend {
     // otherwise), in every call: the clock where its hour is below 24 and its minute below 60.
     std::optional<proto::Clock> clock;
     std::optional<std::uint64_t> play_time;
+    // The main player's sheet through the save data's own word (the twenty-first round), in every call where the
+    // layout binds the word, the sheet's size and its level (`lacks` has kSheet otherwise): the level where it is
+    // in the layout's range; and, where the layout binds the name, how many letters lie there before the first
+    // nothing (1 to 16, each one a letter). The letters are looked at here and nowhere kept; the caller is to
+    // tell no more of the two numbers than that they were there and whether they changed.
+    bool sheet = false;                        // the sheet's object was there
+    std::optional<std::uint32_t> level;
+    std::optional<std::uint32_t> name_units;
   };
   // `fields`: the list's characters' other fields too (one copy of a character each; the round asks every other call).
   WorldAlone world_alone(const proto::GameThread& gt, bool fields = false);

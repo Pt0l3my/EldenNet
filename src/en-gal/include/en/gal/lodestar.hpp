@@ -698,7 +698,8 @@ struct SurveyCheck {
     kBlock = 3,       // the number at `a` is shaped as a block's id
     kBitsEqual = 4,   // the bits `a` and `b` (the byte times 8, plus the bit) read the same
     kChanged = 5,     // the number at `a` is not what it was at the character's sighting before
-    kKinds = 6,
+    kBitAtZero = 6,   // the bit `a` is set, counted over the sightings in which the health read nothing
+    kKinds = 7,
   };
   std::uint32_t kind = kIs;
   std::uint32_t a = 0;
@@ -743,6 +744,12 @@ struct SurveyFound {
   std::uint32_t screen_total = 0;
   std::vector<SurveyFlip> screen_bits;  // at most 32, the most flips first
   std::vector<SurveyCheck> checks;      // the round's own checks, in the order given (32 at most)
+  // Whether a character of the world has a sheet as the main player has (O124), where the round gives the sheet's
+  // place in a character: sightings of the others whose word there leads to an object of the class of the main
+  // player's sheet, to an object of another class, or to nothing.
+  std::uint32_t sheet_same = 0;
+  std::uint32_t sheet_other = 0;
+  std::uint32_t sheet_none = 0;
 };
 
 // The sheet scan (in game; the twentieth round, the owner's O121 and O122): the save data's object and the main
@@ -763,6 +770,15 @@ struct SheetText {
   std::uint32_t offset = 0;   // where a run that reads as text begins
   std::uint32_t fields = 0;   // how many 32-bit fields it touches
 };
+// A field that rose by exactly one between two passes, once, and never changed otherwise: told for every field,
+// whatever it holds (a text and an address included), since only its behaviour is told and never a value. A count
+// that stands beside a larger number is taken for text and not told as a number (the twentieth round lost the
+// count of deaths so); it is found here.
+struct SheetRise {
+  std::uint32_t offset = 0;
+  std::uint32_t phases = 0;      // bit n: the rise fell in the tester's phase n
+  bool from_nothing = false;     // it read nothing before (a flag set, more likely than a count)
+};
 struct SheetObject {
   std::uint32_t which = 0;           // 0: the save data's object; 1: the sheet
   bool there = false;                // it was read at least once
@@ -776,6 +792,8 @@ struct SheetObject {
   std::vector<SheetField> fields;    // by offset, 2,048 at most
   bool cut = false;                  // the round wrote fewer of them than it had, for the report's size
   std::vector<SheetText> texts;      // by offset, 32 at most
+  std::uint32_t rises_total = 0;     // fields that rose by one once and never changed otherwise
+  std::vector<SheetRise> rises;      // by offset, 256 at most
 };
 struct SheetFound {
   std::uint32_t passes = 0;

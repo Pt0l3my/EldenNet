@@ -140,6 +140,59 @@ TEST_CASE("backend: in the world, every group's fields come from the world as th
   CHECK(r.task.status().commands.load() == 3);
 }
 
+TEST_CASE("backend: the main player's death is its health at nothing; the dead bit is the world's characters' alone") {
+  // The twentieth round in the game (WHY§655, §657): the main player's health read nothing for eleven seconds with
+  // the bit that marks a dead character of the world clear in every frame. So the player's death is read from its
+  // health, with its object there; the bit decides nothing for the player, and decides alone for the others.
+  Running r;
+  r.start();
+  r.w.world();
+  r.run(1.0, 60);
+  REQUIRE(r.io.last().player.has_value());
+  CHECK_FALSE(r.io.last().player->dead);
+  REQUIRE_FALSE(r.io.last().chars.empty());
+  CHECK_FALSE(r.io.last().chars[0].dead);
+  const std::uint64_t parts = r.w.mem.get<std::uint64_t>(r.w.player + 0x30);
+  const std::uint64_t vitals = r.w.mem.get<std::uint64_t>(parts + 0x0);
+  // The dead bit set on the player with health left: not dead.
+  r.w.mem.put<std::uint8_t>(r.w.player + 0x21, static_cast<std::uint8_t>(r.w.mem.get<std::uint8_t>(r.w.player + 0x21) | 0x20));
+  r.run(0.5, 60);
+  REQUIRE(r.io.last().player.has_value());
+  CHECK_FALSE(r.io.last().player->dead);
+  // Its health at nothing with the bit clear: dead.
+  r.w.mem.put<std::uint8_t>(r.w.player + 0x21, static_cast<std::uint8_t>(r.w.mem.get<std::uint8_t>(r.w.player + 0x21) & ~0x20));
+  const std::int32_t before = r.w.mem.get<std::int32_t>(vitals + 0x0);
+  r.w.mem.put<std::int32_t>(vitals + 0x0, 0);
+  r.run(0.5, 60);
+  REQUIRE(r.io.last().player.has_value());
+  CHECK(r.io.last().player->dead);
+  CHECK(r.io.last().player->hp.cur == 0);
+  // Back with health: alive again.
+  r.w.mem.put<std::int32_t>(vitals + 0x0, before);
+  r.run(0.5, 60);
+  CHECK_FALSE(r.io.last().player->dead);
+  // A character of the world: dead by the bit, whatever its health reads; and not dead without it at no health.
+  const std::uint64_t npc = r.w.npcs[0];
+  const std::uint64_t npc_parts = r.w.mem.get<std::uint64_t>(npc + 0x30);
+  const std::uint64_t npc_vitals = r.w.mem.get<std::uint64_t>(npc_parts + 0x0);
+  const std::uint64_t handle = r.w.mem.get<std::uint64_t>(npc + 0x8);
+  const auto of = [&]() -> const en::proto::Chr* {
+    for (const en::proto::Chr& c : r.io.last().chars) {
+      if (c.handle.raw == handle) return &c;
+    }
+    return nullptr;
+  };
+  r.w.mem.put<std::uint8_t>(npc + 0x21, static_cast<std::uint8_t>(r.w.mem.get<std::uint8_t>(npc + 0x21) | 0x20));
+  r.run(0.5, 60);
+  REQUIRE(of() != nullptr);
+  CHECK(of()->dead);
+  r.w.mem.put<std::uint8_t>(npc + 0x21, static_cast<std::uint8_t>(r.w.mem.get<std::uint8_t>(npc + 0x21) & ~0x20));
+  r.w.mem.put<std::int32_t>(npc_vitals + 0x0, 0);
+  r.run(0.5, 60);
+  REQUIRE(of() != nullptr);
+  CHECK_FALSE(of()->dead);
+}
+
 TEST_CASE("backend: the core's text and param look-ups are answered in the snapshot") {
   Running r;
   r.start();
@@ -523,7 +576,8 @@ TEST_CASE("backend: the world's leads alone read through a layout that places th
     return layout;
   };
   const std::string layout = cut({"characters", "near_entry", "character", "character_parts", "vitals", "motion",
-                                  "game_state", "event_flags", "flag_node", "world_clock", "save_data"});
+                                  "game_state", "event_flags", "flag_node", "world_clock", "save_data",
+                                  "player_data", "item_id"});
   REQUIRE(layout.find("[class.vitals]") != std::string::npos);
   REQUIRE(layout.find("[class.player_character]") == std::string::npos);
   REQUIRE(layout.find("[class.menus]") == std::string::npos);
@@ -635,6 +689,21 @@ TEST_CASE("backend: the world's leads alone read through a layout that places th
   CHECK(timed.clock->m == 47);
   REQUIRE(timed.play_time.has_value());
   CHECK(*timed.play_time == 3'600'123);
+  // The sheet through the save data's own word: the level in its range, and a name of some letters (their count
+  // is the caller's to hold against the call before, and no more).
+  CHECK(timed.sheet);
+  REQUIRE(timed.level.has_value());
+  CHECK(*timed.level == 12);
+  REQUIRE(timed.name_units.has_value());
+  CHECK(*timed.name_units >= 1);
+  CHECK(*timed.name_units <= 16);
+  const std::uint64_t sheet_at = w.mem.get<std::uint64_t>(save_at + 0x20);
+  w.mem.put<std::uint32_t>(sheet_at + 0x8, 9999);  // a level past the layout's range: none
+  const WA odd = backend.world_alone(gt);
+  CHECK(odd.sheet);
+  CHECK_FALSE(odd.level.has_value());
+  CHECK(odd.name_units == timed.name_units);
+  w.mem.put<std::uint32_t>(sheet_at + 0x8, 12);
   w.mem.put<std::uint8_t>(clock_at + 0x10, 24);  // an hour that is none: no clock, and no fault
   CHECK_FALSE(backend.world_alone(gt).clock.has_value());
   w.mem.put<std::uint8_t>(clock_at + 0x10, 21);
@@ -765,7 +834,8 @@ TEST_CASE("backend: the world's leads alone read nothing of a part the layout do
     w.layout = whole.substr(0, from) + fields + whole.substr(to);
     backend_of({"characters", "near_entry", "character", "character_parts", "vitals", "motion", "game_state"},
                [&](const WA& a, ErBackend& backend) {
-                 CHECK(a.lacks == (WA::kFields | WA::kClock | WA::kPlay));
+                 CHECK(a.lacks == (WA::kFields | WA::kClock | WA::kPlay | WA::kSheet));
+                 CHECK_FALSE(a.sheet);
                  CHECK_FALSE(a.clock.has_value());
                  CHECK_FALSE(a.play_time.has_value());
                  CHECK(a.fields_bound == 0);
@@ -782,7 +852,7 @@ TEST_CASE("backend: the world's leads alone read nothing of a part the layout do
   // No vitals: the parts are not read; the slot, the player's class and the list are.
   backend_of({"characters", "near_entry", "character", "character_parts", "motion", "game_state"},
              [&](const WA& a, ErBackend&) {
-               CHECK(a.lacks == (WA::kParts | WA::kClock | WA::kPlay));
+               CHECK(a.lacks == (WA::kParts | WA::kClock | WA::kPlay | WA::kSheet));
                CHECK(a.player);
                CHECK_FALSE(a.hp.has_value());
                CHECK_FALSE(a.pos.has_value());
@@ -791,7 +861,7 @@ TEST_CASE("backend: the world's leads alone read nothing of a part the layout do
              });
   // No state and no element: the slot and the list are not read.
   backend_of({"characters", "character", "character_parts", "vitals", "motion"}, [&](const WA& a, ErBackend&) {
-    CHECK(a.lacks == (WA::kSlot | WA::kNear | WA::kClock | WA::kPlay));
+    CHECK(a.lacks == (WA::kSlot | WA::kNear | WA::kClock | WA::kPlay | WA::kSheet));
     CHECK_FALSE(a.state);
     CHECK(a.player);
     CHECK(a.hp.has_value());
@@ -799,7 +869,8 @@ TEST_CASE("backend: the world's leads alone read nothing of a part the layout do
   });
   // Nothing of it at all (the flags' layout): nothing is read, not even the statics.
   backend_of({"event_flags", "flag_node"}, [&](const WA& a, ErBackend& backend) {
-    CHECK(a.lacks == (WA::kSlot | WA::kPlayer | WA::kParts | WA::kNear | WA::kFields | WA::kClock | WA::kPlay));
+    CHECK(a.lacks ==
+          (WA::kSlot | WA::kPlayer | WA::kParts | WA::kNear | WA::kFields | WA::kClock | WA::kPlay | WA::kSheet));
     CHECK_FALSE(a.characters);
     CHECK(backend.reader().copies() == 0);
   });

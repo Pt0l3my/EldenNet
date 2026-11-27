@@ -685,6 +685,7 @@ class CharSurvey {
     // The round's own checks of places an earlier survey left open (kind, a and b; the counts start at nothing).
     // kMaxChecks at most; a check whose place lies outside a character's copy is not counted for that sighting.
     std::vector<SurveyCheck> checks;
+    std::uint32_t sheet_at = 0;           // where in a character the sheet's address lies (0: not looked for)
   };
   static constexpr std::size_t kMaxChecks = 32;
   explicit CharSurvey(Options options);
@@ -710,7 +711,7 @@ class CharSurvey {
 class SheetScan {
  public:
   static constexpr std::uint32_t kSpan = 0x10000, kPiece = 0x4000;
-  static constexpr std::size_t kObjects = 2, kListed = 2048, kListedTexts = 32;
+  static constexpr std::size_t kObjects = 2, kListed = 2048, kListedTexts = 32, kListedRises = 256;
   static constexpr std::uint32_t kPhases = 6;
   static constexpr std::uint32_t kMaxChanges = 8;        // a number that changed in more passes is not listed
   static constexpr std::uint32_t kMost = 99'999'999;     // a number above it is not told (nor is nothing)
