@@ -191,10 +191,11 @@ TEST_CASE("options: --read brings the console, and keeps the backup, EldenNet's 
   CHECK(parse_ok({"--read", "--read-plan", "0"}).read_plan_given);
   CHECK(parse_ok({"--read", "--read-plan", "2"}).read_plan == 2);
   CHECK(parse_ok({"--read", "--read-plan", "3"}).read_plan == 3);
-  CHECK(parse_error({"--read", "--read-plan", "4"}) ==
-        "--read-plan is 0 (the rounds up to the seventeenth), 1 (the survey), 2 (the sheet) or 3 (the stay)");
+  CHECK(parse_ok({"--read", "--read-plan", "4"}).read_plan == 4);
+  CHECK(parse_error({"--read", "--read-plan", "5"}) ==
+        "--read-plan is 0 (the rounds up to the seventeenth), 1 (the survey), 2 (the sheet), 3 (the stay) or 4 (the tour)");
   CHECK(parse_error({"--read", "--read-plan", "x"}) ==
-        "--read-plan is 0 (the rounds up to the seventeenth), 1 (the survey), 2 (the sheet) or 3 (the stay)");
+        "--read-plan is 0 (the rounds up to the seventeenth), 1 (the survey), 2 (the sheet), 3 (the stay) or 4 (the tour)");
   CHECK(parse_error({"--read-plan", "1"}) == "--read-plan goes with --read");
   CHECK(usage_text().find("--read-plan") != std::string::npos);
   CHECK(parse_error({"--read", "--read-pace-s", "0"}) == "--read-pace-s is 1 to 600 seconds");

@@ -357,3 +357,37 @@ TEST_CASE("tasks: a marked wait stamps its mark when its time is up") {
   CHECK(c.changed);
   CHECK_FALSE(c.mark);
 }
+
+TEST_CASE("tasks: the tour's list (plan 4): twelve marks, each a change of state the round sets against the others") {
+  const std::vector<Task> tasks = read_tasks(4);
+  REQUIRE(tasks.size() == 21);
+  CHECK(tasks.front().kind == TaskKind::Round);
+  CHECK(tasks.back().kind == TaskKind::End);
+  std::size_t marks = 0, seconds = 0, dos = 0;
+  for (const Task& t : tasks) {
+    CHECK_FALSE(t.title.empty());
+    CHECK_FALSE(t.detail.empty());
+    CHECK(t.title.size() <= 40);
+    CHECK(t.detail.size() <= 180);
+    marks += t.mark ? 1 : 0;
+    seconds += t.seconds;
+    dos += t.kind == TaskKind::Do ? 1 : 0;
+    if (t.kind == TaskKind::Do) {
+      CHECK_FALSE(t.button.empty());
+      CHECK(t.mark);  // every confirmation of the tester's is a change of state, and a mark
+    }
+  }
+  CHECK(marks == 12);
+  CHECK(marks <= en::proto::watch::kGatherMarks);  // the round's word has two bits a mark
+  CHECK(dos == 10);
+  CHECK(seconds == 275);
+  // The marks in their order: the load, the menu open, the menu closed, the sprints' end, mounted, on foot, the
+  // other grace, back, locked on, released, the death, the stay's end.
+  CHECK(tasks[1].mark);
+  CHECK(tasks[4].title == "Open the game's menu");
+  CHECK(tasks[7].kind == TaskKind::Wait);
+  CHECK(tasks[7].mark);
+  CHECK(tasks[19].seconds == 120);
+  CHECK(tasks[19].mark);
+}
+

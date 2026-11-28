@@ -232,12 +232,75 @@ std::vector<Task> stay_tasks() {
   };
 }
 
+// The twenty-second read-only round (plan 4, the tour; the owner agreed to its tasks on 2026-11-28, O151). Twelve
+// marks, each a change of state the round's scan by phases sets against the others: the load at a grace; the
+// game's menu open and closed; the end of the sprints and the spell (the reader's focus and stamina); mounted and on
+// foot; another grace and back (two loading screens, and the place); locked on and released; the tester's own
+// death, once; two minutes in the world. The four keys (T, Tab, V, B) are the engine's question of what the game
+// does with them (S11.1.a): the tester presses them on foot and with the menu open, and says what happened.
+std::vector<Task> tour_tasks() {
+  using K = TaskKind;
+  return {
+      {K::Round, "Wait at the title screen",
+       "EldenNet is reading the game. Do not load a save yet: this row turns grey when it is time.", 0, false, ""},
+      {K::Do, "Load your usual character",
+       "Go to a quiet grace of your choice and stand beside it, on foot. Do not sit down. When you stand there, "
+       "press Pause, and let go of the controls.",
+       0, true, "I stand at the grace"},
+      {K::Wait, "Stand still", "On foot. Hands off the keyboard and the mouse until the time is up.", 20, false, ""},
+      {K::Wait, "Press T, Tab, V and B",
+       "Press each key three times, slowly: T, then Tab, then V, then B. Watch whether the game does anything at "
+       "each. You tell us afterwards.",
+       25, false, ""},
+      {K::Do, "Open the game's menu",
+       "Open the main menu (the one with Equipment and Status) and leave it open. Then press Pause.", 0, true,
+       "The menu is open"},
+      {K::Wait, "Keep the menu open",
+       "With the menu open, press T, Tab, V and B again, three times each. Watch what each does. Leave the menu "
+       "open.",
+       25, false, ""},
+      {K::Do, "Close the menu", "Close the game's menu, so that you stand in the world again. Then press Pause.", 0,
+       true, "The menu is closed"},
+      {K::Wait, "Sprint, roll and cast",
+       "Sprint and roll, and use a spell or a weapon skill a few times, until the time is up.", 30, true, ""},
+      {K::Do, "Mount your horse", "Call your horse and get on it. Then press Pause.", 0, true, "I am on my horse"},
+      {K::Wait, "Stay mounted", "Ride about or stand, but stay on the horse until the time is up.", 15, false, ""},
+      {K::Do, "Dismount", "Get off the horse. When you stand on foot, press Pause.", 0, true, "I am on foot"},
+      {K::Do, "Travel to another grace",
+       "Open the map and travel to any other grace. When you stand there after the loading screen, press Pause.",
+       0, true, "I have arrived"},
+      {K::Wait, "Stand still", "Stay where you arrived until the time is up.", 15, false, ""},
+      {K::Do, "Travel back",
+       "Travel back to the grace you started from. When you stand there after the loading screen, press Pause.", 0,
+       true, "I am back"},
+      {K::Wait, "Stand still", "Stay where you arrived until the time is up.", 15, false, ""},
+      {K::Do, "Lock on to an enemy",
+       "Find any enemy and lock on to it. Press Pause while you are locked on.", 0, true, "I am locked on"},
+      {K::Wait, "Stay locked on",
+       "Keep the lock until the time is up. If you die meanwhile, carry on with the tasks as they come.", 10, false,
+       ""},
+      {K::Do, "Release the lock", "Let go of the lock. Then press Pause.", 0, true, "The lock is released"},
+      {K::Do, "Let an enemy kill you, once",
+       "Let it kill you. Wait until you are back in the world and can move, then press Pause. After this, try not "
+       "to die again.",
+       0, true, "I died and I am back"},
+      {K::Wait, "Stay in the world",
+       "Play as you like, but stay in the world and try not to die: no quitting, no long stop at a grace.", 120,
+       true, ""},
+      {K::End, "Quit the game",
+       "Quit as you usually do. Whatever happened on the way, send the files: the round's own line below says "
+       "what it gathered.",
+       0, false, ""},
+  };
+}
+
 }  // namespace
 
 std::vector<Task> read_tasks(std::uint32_t plan) {
   if (plan == 1) return survey_tasks();
   if (plan == 2) return sheet_tasks();
   if (plan == 3) return stay_tasks();
+  if (plan == 4) return tour_tasks();
   // The fourteenth read-only round. First the save's slot, by the two numbers it must read: the last character of
   // the tester's list is loaded, then the usual one (the owner agreed, 2026-11-23, and the owner's save file gave
   // their slots). Then, with the usual character, the parts watch's phases: standing, walking, standing, one hit,
