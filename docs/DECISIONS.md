@@ -3051,3 +3051,35 @@ since patch 1.12, the dodge), which the page's help is to say.
 menu next to each key to select a modifier: Shift, Ctrl, Alt, None." (2026-11-28).
 
 **Follows from.** O94; WHY§706; GraceUI G37, D208.
+
+## O151
+
+**The twenty-second read round: its tasks, readings and extras** · *2026-11-28 · Decided by the owner*
+
+**Question.** Put to the owner by the Lodestar session for its twenty-second read-only round (relayed in its message
+104): the round's tasks; a new reading of the near characters' part of health; which ride-along measurements to take;
+whether to add T and Tab; and three extras of Lodestar's own.
+
+**Decision.** All as recommended, and every option offered:
+- **The tasks** (about 8 minutes): the usual character loaded somewhere quiet, standing 20 s; the game's own menu open
+  10 s and closed; sprinting, rolling and a spell or skill for 30 s; one travel to a Site of Grace from the map; killed
+  by an enemy exactly once; then 2 minutes of free play without dying if possible.
+- **The near characters' part of health:** the first 352 bytes of it, for up to 48 characters near the player, every
+  few seconds; the report holds counts only (for how many the numbers look like a focus and a stamina), never a value.
+- **The ride-alongs:** EldenNet's own cost (the MB its memory grew over the run and its reader thread's processor time a
+  minute) and the window's set-up as flags (fullscreen, borderless or windowed, and whether display scaling is above
+  100%), no size or resolution written.
+- **T and Tab:** one step, on foot and with the game's menu open, and the owner's word in chat on whether anything
+  happened (WHY§706). The owner's save keeps the layout from before patch 1.12, so this answers for that layout.
+- **Lodestar's three extras:** riding (mount, 15 s, dismount: where the game keeps "is riding", the owner's own
+  character's data only); lock-on (locked on to an enemy 10 s, released); and the place's id (one more loading screen,
+  back to where the round began; the first 8 KiB of each of the game's ~217 main objects read at four moments, as rounds
+  12 to 14 did, for a number that changes with the place and returns with it; written: where such numbers lie, never
+  which places were visited).
+
+**Owner's words.** "Yes, as described (Recommended)" (the tasks); "Yes, read it (Recommended)" (the near characters'
+part of health); both ride-alongs, adding "anything else that could be added for you, engine or grace?"; "Add it to
+round 22 (Recommended)" (T and Tab); all three of Lodestar's extras (question dialogs, 2026-11-28). On the twenty-first
+round: "yeah I also died another time during the Stay in the world" task." (two deaths in all; WHY§710).
+
+**Follows from.** O111; O143; WHY§614; WHY§706; WHY§708 to §710.
