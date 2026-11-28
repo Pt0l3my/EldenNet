@@ -140,6 +140,18 @@ the model lists say what went wrong with a provider:
 - "Refused the request: the model may not exist there.": press List models, and choose a model the provider lists.
 - "Answered with something EldenNet could not read." or "Declined to answer.": try again, or choose another model.
 
+## Messages about memory
+
+- **"Memory is off for this session: …"** EldenNet keeps nothing new this session; conversations still work. The words
+  after the colon say why: the file is in use by another program, the disk is full, the file is damaged (its newest
+  backup is used next time), it was made by a newer EldenNet, it could not be read or written, or no Elden Ring save
+  folder was found.
+- **"EldenNet's memory file was damaged, so its newest backup was restored."** What came after that backup is lost.
+- **"Less than 200 MB of disk is free: EldenNet may stop saving memories."** Free some space.
+- **"Memory is behind; recent events are not being saved."** The PC is very busy; it passes on its own.
+- **"(Not yet: EldenNet is waiting for your answer about this save.)"** You loaded an older save: answer the panel in
+  the middle of the screen first.
+
 ## Messages in a conversation
 
 - **"They have nothing to say to you."** This character is not one EldenNet voices.

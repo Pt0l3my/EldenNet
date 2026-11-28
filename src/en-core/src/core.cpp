@@ -514,6 +514,12 @@ Outputs Core::step(CoreInput input, Mono now) {
                    no_account_ = a.steamid64 == 0;
                  },
                  [&](CoreInput::MemoryChoice& c) { store_.resolve(c.choice); },
+                 [&](CoreInput::Forget& f) {
+                   if (!can_forget(f.journey)) return;
+                   const proto::Pt pt = last_ && last_->player ? static_cast<proto::Pt>(last_->player->play_time_ms)
+                                                               : 0;
+                   if (store_.forget(f.journey, f.persona, pt)) ++forgets_;
+                 },
                  [&](CoreInput::StoreBacklog& b) {
                    if (b.behind && !backlog_.behind) {
                      conversation_.notice(ToastClass::Degraded, proto::ToastLevel::Warning, std::string(kMemoryBehind),
@@ -620,6 +626,24 @@ void Core::run_conversation(Mono at, bool fresh, const proto::UiEvent* ui, const
     out.requests.clear();
     std::erase_if(out.calls, [](const CallNote& n) { return n.what == CallNote::What::Sent; });
   }
+}
+
+std::vector<std::pair<std::string, bool>> Core::present() const {
+  std::vector<std::pair<std::string, bool>> out;
+  if (!last_ || !content_loaded_ || state_.phase != Phase::InWorld) return out;
+  for (const proto::Chr& c : last_->chars) {
+    const auto bound = directory_.index().resolve(c);
+    if (!bound || bound->persona >= directory_.size()) continue;
+    const std::string& id = directory_.persona(bound->persona).id;
+    const auto same = [&](const auto& p) { return p.first == id; };
+    if (std::none_of(out.begin(), out.end(), same)) out.emplace_back(id, c.dead);
+  }
+  return out;
+}
+
+bool Core::can_forget(std::uint16_t journey) const noexcept {
+  return store_.mode() == StorePath::Mode::Open && store_.journey() == journey &&
+         conversation_.state() == proto::ConvState::Closed;
 }
 
 // The rollback choice's panel (MEM §9.1, O144; WHY§690): in the model while the choice waits and the moment is calm (a

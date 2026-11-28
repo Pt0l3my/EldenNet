@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "en/overlay/characters.hpp"
+#include "en/overlay/memory.hpp"
 #include "en/overlay/workshop.hpp"
 #include "en/proto/calls.hpp"
 #include "en/proto/content_view.hpp"
@@ -36,7 +37,7 @@
 namespace en::overlay {
 
 // The increment eldennet.dll registers, its release's (GraceUI D173): a page of a later one is absent from both views.
-inline constexpr std::string_view kIncrement = "0.2";  // the AI pages' (PAGES §4.6.2)
+inline constexpr std::string_view kIncrement = "0.3";  // the memory pages' (PAGES §4.6.4, §4.6.5)
 inline constexpr std::string_view kSpaceId = "eldennet";
 
 // The generated page data and settings description (space_data.cpp, tools/pages/build.py), as the protocol's JSON.
@@ -236,6 +237,8 @@ struct SpaceFacts {
   // The Characters pages' facts (characters.hpp): the profiles of the loaded content and the player's layers; null
   // before the content is loaded (the list is empty, and no member has a body).
   const CharacterFacts* characters = nullptr;
+  // The memory pages' facts (memory.hpp): the playthrough's file as the DLL read it; null before a playthrough.
+  const MemoryFacts* memory = nullptr;
   // The Content packs page's projection (en-proto's content_view.hpp, built by en-core on each load); null before the
   // first load (the topic publishes nothing).
   const proto::ContentView* content = nullptr;
@@ -397,6 +400,8 @@ class Space {
   [[nodiscard]] std::vector<ProfileRequest> take_profile_requests() { return characters_.take_requests(); }
   void answer_profile(const ProfileRequest& request, const ProfileAnswer& a) { characters_.answer(request, a); }
   [[nodiscard]] std::vector<std::pair<std::uint64_t, std::string>> take_answers() { return characters_.take_answers(); }
+  // The memory pages' forgets and transcripts the space took (memory.hpp), for the DLL to make.
+  [[nodiscard]] std::vector<MemoryRequest> take_memory_requests() { return memory_.take_requests(); }
 
   // ---- Tools › Workshop (workshop.hpp): whether Developer views are on, as the space publishes `debug.panel` (the page
   // follows it at once, GraceUI D258's shown_with); one of Augur's events for its stream, taken only while they are on;
@@ -489,6 +494,7 @@ class Space {
   std::set<std::string, std::less<>> picked_;           // the jobs providers.toml holds a model for, as the facts said
   std::set<std::string, std::less<>> fallback_picked_;  // and a fallback for
   Characters characters_;  // the Characters pages and the profile editor (characters.hpp)
+  MemoryPages memory_;     // the memory pages (memory.hpp)
   std::string about_slots_;  // About's slots' values when it was last published (collect_docs)
   std::string report_what_;  // the player's words for the bug report: in memory, for its preview alone
   std::set<std::string, std::less<>> report_off_;  // the optional parts of the bug report left out

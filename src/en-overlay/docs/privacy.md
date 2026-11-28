@@ -15,6 +15,7 @@ Everything is in `%APPDATA%\EldenNet`, in these folders:
 | crashes | A record of each time the game ended badly: the newest 20 |
 | save-backups | Copies of your saves: the newest 10 |
 | recordings | Recordings of each session's numbers, only if you turn Record sessions on |
+| saves | Each character's memories: what the people you met saw, heard and remember, and your conversations |
 
 In `config`, `settings.toml` holds your settings, `providers.toml` your providers and each job's choices, and
 `secrets.toml` your keys, which only your Windows user may read. The launcher's two files hold where the game is,
@@ -46,13 +47,19 @@ they stay on this PC unless you choose to share one.
 
 ## What you type, and what characters say
 
-Lines are shown on screen alone: in the chat box and as the character speaks. In this version no page keeps them, and
-no log, title, notice history or search holds them. They go to your provider as
-[What a conversation sends](doc:provider#What a conversation sends) says, and nowhere else.
+Lines are shown on screen: in the chat box and as the character speaks, and afterwards on History › Conversations,
+which reads them from your character's file in saves. No log, title, notice history or search holds them. They go to
+your provider as [What a conversation sends](doc:provider#What a conversation sends) says, and nowhere else.
 
 With Developer views on, Tools › Workshop, in the browser, also shows the newest request as it was sent and its reply
 as the model wrote it, with your keys and your character's name left out. It keeps them in memory alone, until the
 next request or until the game closes, and writes them nowhere.
+
+## Your characters' memories
+
+Each character's file in saves holds what the people you met remember of you, on this PC alone. History › Memories
+shows it, and its Forget makes one person, or everyone, forget a journey. Forgetting takes a backup first: that
+backup keeps the forgotten memories until three newer backups replace it.
 
 ## Your character's name
 

@@ -88,6 +88,10 @@ class StorePath {
   void close();
   // The player's answer to the choice.
   void resolve(proto::db::Choice choice);
+  // MEM §9.5 (History › Memories' Forget): one persona of the open journey forgotten, or the whole journey when
+  // `persona` is empty; the store takes a backup first. What the core holds of it goes with it (facts, bundles, open
+  // jobs, news). False, and nothing sent, unless the file is open on that journey.
+  bool forget(std::uint16_t journey, const std::string& persona, proto::Pt at_pt);
 
   // What a result means for the core: the world may go on (the open answered, whichever way), and what to toast.
   struct Effect {

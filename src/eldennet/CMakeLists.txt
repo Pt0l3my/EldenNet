@@ -58,6 +58,7 @@ set(EN_DLL_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/win/overlay.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/conversation.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/store.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/win/memory.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/ai.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/profiles.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/workshop.cpp

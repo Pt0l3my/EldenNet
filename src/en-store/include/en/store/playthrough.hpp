@@ -51,6 +51,9 @@ struct Playthrough {
 [[nodiscard]] Result<proto::db::JobInputResult> job_input(const Playthrough& pt, const proto::db::JobInput& q);
 [[nodiscard]] Result<proto::db::LivedInputResult> lived_input(const Playthrough& pt, const proto::db::LivedInput& q);
 [[nodiscard]] Result<proto::db::FoldEvents> fold_events(const Playthrough& pt, const proto::db::EventsForFold& q);
+// The pages' reads (S12.2; PAGES §4.6.4, §4.6.5): the journeys, a journey's conversations or memory cards, one
+// conversation's lines. The backups are files.hpp's, answered by the store itself.
+[[nodiscard]] Result<proto::db::PageRows> page(const Playthrough& pt, const proto::db::PageQuery& q);
 
 // The open memory jobs (queued, running, deferred, parked), oldest first.
 [[nodiscard]] Result<std::vector<proto::MemoryJob>> open_jobs(const Db& db);
@@ -109,6 +112,8 @@ namespace events {
                                                            std::size_t n);
 // Every event of the journey with every audience row, by id (the refold, MEM §9.2).
 [[nodiscard]] Result<std::vector<proto::StoredEvent>> all_of(const Db& db, std::uint16_t journey);
+// A conversation's PlayerSaid and NpcSaid rows, oldest first, without their audiences: the transcript page's.
+[[nodiscard]] Result<std::vector<proto::StoredEvent>> lines_of(const Db& db, proto::RowId conv);
 // The events a cut removes, summarised (O144): turns, lines addressed to the Tarnished, witnessed events, stage
 // changes, with their newest items.
 [[nodiscard]] Result<void> summarise_cut(const Db& db, const CutPlan& plan, proto::db::RollbackSummary& out);

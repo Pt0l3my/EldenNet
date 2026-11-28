@@ -302,7 +302,9 @@ DWORD WINAPI core_main(void* param) noexcept {
       // The store's answers (C8), in order, then the spill ring drained and its state, when it changed.
       db_in.clear();
       store_poll(s, db_in);
-      for (en::proto::DbResult& r : db_in) step(en::core::CoreInput{std::move(r)}, now);
+      for (en::proto::DbResult& r : db_in) {
+        if (!memory_result(s, *core, r)) step(en::core::CoreInput{std::move(r)}, now);  // the pages' own aside
+      }
       if (const auto backlog = store_backlog(s)) step(en::core::CoreInput{*backlog}, now);
       if (now - last_tick >= 100) {
         last_tick = now;
@@ -361,7 +363,11 @@ DWORD WINAPI core_main(void* param) noexcept {
       s.record.bytes = rec.on() ? rec.bytes() : 0;
       s.record.rotate_bytes = en::shell::kRecordingRotateBytes;
       ui_in.clear();
+      memory_tick(s, *core, now);  // the memory pages' facts, and the store read again when due (memory.cpp)
       overlay_tick(s, *core, cs.snapshots > 0 ? latest.get() : nullptr, tripped, now, ui_in);
+      // The memory pages' forgets, through the core alone (MEM §9.5).
+      for (en::core::CoreInput::Forget& f : s.forgets_asked) step(en::core::CoreInput{std::move(f)}, now);
+      s.forgets_asked.clear();
       // The pages' behaviour changes, each on the behaviour the core holds now, from the next step (ARCH §11.6).
       for (const en::shell::SettingsEdit& e : s.behaviour_edits) {
         en::core::Behaviour b = core->behaviour();

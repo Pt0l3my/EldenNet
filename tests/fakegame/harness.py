@@ -1707,7 +1707,8 @@ def check_graceui_events(r):
 
 # EldenNet's pages (S11.4.a; GraceUI D169, D171), at the title screen (in the world the fake game's player reads as in
 # danger, which keeps GraceUI's menu shut, invariant 9): F5 opens GraceUI's menu on EldenNet's Home; Page Down past AI's
-# four pages and Characters › Named NPCs (S7.2.b) to System › Status, then Performance and Traces (PAGES §4.6.7), and
+# four pages, Characters › Playthrough and Named NPCs (S7.2.b, S12.2.a) and History's two pages (S12.2.b, greyed at the
+# title: "Load a character to see this.") to System › Status, then Performance and Traces (PAGES §4.6.7), and
 # once more to Logs, drawn in game since GraceUI 0.2.50 (D257: its rows, as the browser's are, and its filter bar),
 # where the tail's Level filter has the first focus (since GraceUI 0.2.55, D262: a stream's bar comes before its rows,
 # and the first focus is the body's first control), and three ↓ (the bar's search, Log detail's section) reach Log
@@ -1720,7 +1721,8 @@ def check_graceui_events(r):
 # commands, and gives Bug report words of the case's own, which reach no other topic, no log line, no recording and no
 # file. The overrides folder holds a disable.toml of our own, which turns the test persona off, and a folder nested past
 # the four levels the DLL reads, which it leaves out.
-PAGES_KEYS = ("600:f5,720:next,765:next,810:next,855:next,900:next,930:next,990:next,1050:next,1140:next,1160:down,"
+PAGES_KEYS = ("600:f5,700:next,725:next,750:next,775:next,800:next,825:next,850:next,875:next,900:next,990:next,"
+              "1050:next,1140:next,1160:down,"
               "1180:down,1200:down,1260:return,1380:right,1500:prior,1620:next,1680:next,1800:next,1920:f5")
 PAGES_REPORTS = "360,660,960,1020,1080,1230,1320,1440,1560,1650,1740,1860,1980"
 PAGES_FRAMES = 2100
@@ -1813,7 +1815,7 @@ def check_graceui_pages(r):
     # The browser: the welcome names EldenNet's space at its increment; every topic watched came back, built by
     # EldenNet from what it knows, in its own words; each command answered once, by EldenNet's one command path.
     spaces = {s.get("id"): s for s in d.get("welcome", {}).get("spaces", [])}
-    need(spaces.get("eldennet", {}).get("increment") == "0.2" and spaces["eldennet"].get("version") == "0.1.0",
+    need(spaces.get("eldennet", {}).get("increment") == "0.3" and spaces["eldennet"].get("version") == "0.1.0",
          "the welcome named %s" % sorted(spaces), failures)
     status = body("status")
     items = {i.get("label"): i.get("value") for i in status.get("items", [])}
@@ -2092,7 +2094,7 @@ def check_workshop(r):
                                                                  "ribbon")},
          failures)
     tools = next((c for c in pages.get("categories", []) if c.get("id") == "tools"), {})
-    need(tools.get("pages") == ["tools.report", "tools.workshop"] and pages.get("minor") == 20,
+    need(tools.get("pages") == ["tools.report", "tools.workshop"] and pages.get("minor") == 21,
          "Tools' pages: %s (minor %s)" % (tools.get("pages"), pages.get("minor")), failures)
     action = (page.get("actions") or [{}])[0]
     need(action.get("command") == "recording.set" and action.get("label") == "Record this session" and
@@ -2539,7 +2541,7 @@ def check_graceui_ai(r):
     body = lambda name: d.get(name) or {}
     row_of = lambda b, pid: next((x for x in b.get("rows", []) if x.get("id") == pid), {})
     spaces = {s.get("id"): s for s in d.get("welcome", {}).get("spaces", [])}
-    need(spaces.get("eldennet", {}).get("increment") == "0.2", "the welcome named %s" % sorted(spaces), failures)
+    need(spaces.get("eldennet", {}).get("increment") == "0.3", "the welcome named %s" % sorted(spaces), failures)
     # AI › Models as the browser view has it (GraceUI's pages topic, D169): one card per job, in PAGES' order, each with
     # its slot as its chip and its live status from ai.jobs (D202), and no Jobs table.
     models = next((pg for pg in body("pages").get("pages", []) if pg.get("id") == "ai.models"), {})
@@ -2548,8 +2550,8 @@ def check_graceui_ai(r):
     need(cards == [(slot, title, slot, "ai.jobs", slot) for slot, title in (
         ("dialogue", "Conversation"), ("bark_live", "Quick lines"), ("bark_pool", "Prepared lines"),
         ("memory", "Memory"), ("selftest", "Self-test"))], "the Models page's cards: %s" % cards, failures)
-    # The page data's minor: the floor's, protocol 1.20's (GraceUI D264: Workshop on this PC alone).
-    need(body("pages").get("minor") == 20 and [s.get("id") for s in models.get("sections", [])][:2] == ["now", "preset"]
+    # The page data's minor: the floor's, protocol 1.21's (GraceUI D274: the memory pages' Forget and private topics).
+    need(body("pages").get("minor") == 21 and [s.get("id") for s in models.get("sections", [])][:2] == ["now", "preset"]
          and len(models.get("sections", [])) == 7, "the Models page's sections: %s (minor %s)" %
          ([s.get("id") for s in models.get("sections", [])], body("pages").get("minor")), failures)
     need(body("first_status").get("sentence", "").startswith("No provider yet"),

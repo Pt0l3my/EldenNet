@@ -8,13 +8,16 @@ line    rule           30, 135  240x1
 text    ink.mute       30, 145   21x30   glyphs 2 "AI"
 line    rule           30, 185  240x1   
 text    ink.hi         30, 195  106x30   glyphs 10 "Characters"
-fill    tint.select     0, 235  300x40  
-fill    gold            0, 235    3x40  
-text    gold.hi        50, 243   84x25   glyphs 9 "Named NPCs"
-line    rule           30, 275  240x1   
-text    ink.mute       30, 285   64x30   glyphs 6 "System"
-line    rule           30, 325  240x1   
-text    ink.mute       30, 335   53x30   glyphs 5 "Tools"
+text    ink.mute       50, 243   93x25   glyphs 11 "Playthrough"
+fill    tint.select     0, 275  300x40  
+fill    gold            0, 275    3x40  
+text    gold.hi        50, 283   84x25   glyphs 9 "Named NPCs"
+line    rule           30, 315  240x1   
+text    ink.mute       30, 325   74x30   glyphs 7 "History"
+line    rule           30, 365  240x1   
+text    ink.mute       30, 375   64x30   glyphs 6 "System"
+line    rule           30, 415  240x1   
+text    ink.mute       30, 425   53x30   glyphs 5 "Tools"
 line    rule           30, 900  240x1   
 text    ink.mute       30, 910   85x30   glyphs 8 "Settings"
 line    rule           30, 950  240x1   
@@ -147,4 +150,4 @@ stroke  edge          572,1044   42x28   r3 w1
 text    ink.body      580,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     621,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi       347, 248  510x76   r5 w3 clip1
-# 107 items, 4770 vertices, 9879 indices, 4 commands; check_draw_list: passes
+# 110 items, 4846 vertices, 9993 indices, 4 commands; check_draw_list: passes

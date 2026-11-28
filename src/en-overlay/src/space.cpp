@@ -1126,11 +1126,17 @@ json traces_body(const SpaceFacts& f) {
 // GraceUI's framework topic (D188): the pages greyed, each with its words. At L1 Home and the AI pages (PAGES §4.4; System
 // and Settings stay usable), with the banner's own words (O95: one form, en-core's "EldenNet inactive: …"); at L2, or
 // with no healthy model, every page stays usable and the AI pages lead with the cause (ai.status).
+// The memory pages before a playthrough is loaded (PAGES §4.6.4, §4.6.5): "Load a character to see this."
 json space_state_body(const SpaceFacts& f) {
   json greyed = json::object();
   if (f.level == Level::Inactive) {
     const std::string words = banner_words(f);
     for (const char* page : {"home", "ai.providers", "ai.models", "ai.selftest", "ai.requests"}) greyed[page] = words;
+  }
+  if (f.memory == nullptr || !f.memory->loaded) {
+    for (const char* page : {"characters.playthrough", "history.conversations", "history.memories"}) {
+      if (!greyed.contains(page)) greyed[page] = "Load a character to see this.";
+    }
   }
   return json{{"greyed", std::move(greyed)}};
 }
@@ -2244,6 +2250,15 @@ std::string Space::command(std::string_view cmd_frame, const SpaceFacts& facts, 
       return ai_command(id, name, args, facts);
     }
     if (name == kReportBuild || name == kReportPart) return report_command(id, name, args);
+    if (name == kForgetNpc || name == kForgetJourney) {  // the memory pages' (memory.hpp): the DLL makes them
+      const std::string error = memory_.command(name, args, facts.memory);
+      return answer(id, error, error.empty()               ? std::string_view()
+                               : error == "busy"           ? "Not while someone is talking, or memory is busy."
+                               : error == "read_only"      ? "An earlier journey is read only."
+                               : error == "not_now"        ? "Load a character first."
+                               : error == "confirm_required" ? "Confirm to forget."
+                                                             : std::string_view());
+    }
     if (name == kPauseCommand) {
       // Pause AI for this session (D15): {"on": bool}, for the DLL to hand to the core; its state follows on `status`.
       const auto on = args.is_object() ? args.find("on") : args.end();
@@ -2412,6 +2427,7 @@ json Space::body(std::string_view topic, const SpaceFacts& facts) const {
   }
   if (topic == kProviderChoices) return provider_choices_body(facts);
   if (Workshop::owns_topic(topic)) return Workshop::body(topic, workshop_on() ? facts.workshop : nullptr);
+  if (MemoryPages::owns(topic)) return MemoryPages::body(topic, facts.memory);
   if (topic == kNamedList) return Characters::list_body(facts.characters);
   if (topic.rfind(std::string(kNamedFamily) + "/", 0) == 0) {
     return Characters::general_body(facts.characters, topic.substr(kNamedFamily.size() + 1));
@@ -2660,6 +2676,24 @@ void Space::collect(const SpaceFacts& facts, std::uint64_t now_ms, std::vector<s
     json b = body(topic, facts);
     if (topic != kNamedList && b.empty()) continue;
     Topic& t = topics_[topic];
+    std::string text = text_of(b);
+    if (!t.fresh && text == t.last) continue;
+    t.fresh = false;
+    t.last = std::move(text);
+    t.last_ms = now_ms;
+    ++t.rev;
+    frames.push_back(R"({"v":1,"t":"state","space":"eldennet","topic":")" + topic + R"(","rev":)" +
+                     std::to_string(t.rev) + R"(,"body":)" + t.last + "}");
+  }
+  // The memory pages' topics (memory.hpp): each watched, on change, at most every 500 ms (Nearby's twice a second); a
+  // family member with no body is not published (absence is silent). A watched transcript the facts lack is asked for.
+  memory_.want(watched_, facts.memory);
+  for (const std::string& topic : watched_) {
+    if (!MemoryPages::owns(topic)) continue;
+    json b = body(topic, facts);
+    if (b.empty()) continue;
+    Topic& t = topics_[topic];
+    if (!t.fresh && t.rev != 0 && now_ms - t.last_ms < 500) continue;
     std::string text = text_of(b);
     if (!t.fresh && text == t.last) continue;
     t.fresh = false;

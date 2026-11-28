@@ -130,6 +130,12 @@ struct CoreInput {
   struct Account {
     std::uint64_t steamid64 = 0;
   };
+  // History › Memories' Forget (MEM §9.5; PAGES §4.6.5), through the space's one command path: one persona of the
+  // journey, or the whole journey when `persona` is empty. Refused while a conversation is open (Core::can_forget).
+  struct Forget {
+    std::uint16_t journey = 1;
+    std::string persona;
+  };
   // The shell's spill ring (MEM §8.6) when it changes: `behind`, events not being saved (a toast as it turns on);
   // `pages_held`, the ring full, so the chat shows no new page until it drains (they wait, as for a hidden overlay).
   struct StoreBacklog {
@@ -144,7 +150,8 @@ struct CoreInput {
   // event (C10) and the model client's health, which the shell passes when it changes; and the player's Pause AI.
   // Then the store's answers (C8, in order), the account, the answer to the choice and the spill ring's state.
   std::variant<std::unique_ptr<proto::WorldSnapshot>, proto::Lifecycle, BootBanner, Tick, proto::UiEvent,
-               proto::LlmEvent, proto::NetHealth, Pause, proto::DbResult, Account, MemoryChoice, StoreBacklog>
+               proto::LlmEvent, proto::NetHealth, Pause, proto::DbResult, Account, MemoryChoice, StoreBacklog,
+               Forget>
       payload;
 };
 
@@ -285,6 +292,13 @@ class Core {
   [[nodiscard]] const MemoryLog& log() const noexcept { return log_; }
   // The store's side (store_path.hpp): its mode, the choice's summary while it waits, the journey's facts.
   [[nodiscard]] const StorePath& store() const noexcept { return store_; }
+  // Whether a forget may go now: the file open on the journey, and no conversation open (its rows would go under it).
+  [[nodiscard]] bool can_forget(std::uint16_t journey) const noexcept;
+  // The personas perceived in the newest snapshot (SP7), alive, by profile id: Home's Nearby and Playthrough's "Here
+  // now"; and whether a perceived one lies dead (Playthrough's "Fell").
+  [[nodiscard]] std::vector<std::pair<std::string, bool>> present() const;
+  // How many forgets the core has sent the store (the shell reads the pages' data again after each).
+  [[nodiscard]] std::uint64_t forgets() const noexcept { return forgets_; }
   // Whether a memory job is in flight (its input asked for, or its request out).
   [[nodiscard]] bool memory_busy() const noexcept { return memory_run_.has_value(); }
   // Whether a lived update is due and waits for its quiet moment (MEM §13.2).
@@ -372,6 +386,7 @@ class Core {
   std::uint32_t choice_id_ = 0;
   std::optional<Mono> choice_closed_at_;
   bool choice_wanted_ = false;
+  std::uint64_t forgets_ = 0;
   std::vector<LayerFinding> layer_findings_;
   std::vector<ContentError> content_warnings_;
   MemoryLog log_;

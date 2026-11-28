@@ -40,14 +40,18 @@ name = "EldenNet"
 settings_schema = 2
 commands = ["settings.set", "settings.reset", "selftest.run", "models.list", "providers.add", "providers.remove",
             "providers.key", "profile.check", "profile.save", "profile.reset", "profile.restore", "profile.draft",
-            "report.build", "report.part", "ai.pause", "recording.set"]
+            "report.build", "report.part", "ai.pause", "recording.set", "memory.forget_npc", "memory.forget_journey"]
 # A model's draft of the player's notes: answered within 90 s (D216; NPC §4.7's 20 s to the first token, 60 s in all).
 slow_commands = ["profile.draft"]
 # From this PC alone, never a paired device (G9, D221; S11.4.e): a provider of one's own with its address, a provider's
 # removal, and a key (a row secret, which GraceUI refuses from a device whether marked or not); and, by the owner's O112
 # (b), the profile editor's writing commands: the player's notes are saved, reset and restored on this PC alone.
 sensitive_commands = ["providers.add", "providers.remove", "providers.key", "profile.save", "profile.reset",
-                      "profile.restore", "recording.set"]
+                      "profile.restore", "recording.set", "memory.forget_npc", "memory.forget_journey"]
+# The memory pages' forgets (PAGES §4.6.5) likewise: they change this PC's files, from this PC alone.
+# The top bar's Journey (GraceUI D254; PAGES §4.6.4, §4.6.5): the journeys the playthrough's file holds, an earlier one
+# read only; the scoped pages show the one chosen, the current one at first.
+scope = { label = "Journey", topic = "journeys" }
 # ai.pause is not: a paired device may pause and resume as it may run the self-test, and it writes nothing. And by D221
 # as debug.record_sessions is: recording.set, Workshop's Record this session, which writes to this PC's disk (PV8).
 
@@ -206,6 +210,57 @@ id = "profiles"
 shape = "state"
 family = true
 
+# The memory pages (PAGES §4.6.1, §4.6.4, §4.6.5; S12.2.a, S12.2.b): the scope's journeys; Characters › Playthrough's
+# people met by journey and each one's status; History › Conversations' list by journey and each transcript (private:
+# the Tarnished's and the NPCs' words, PV4, GraceUI D274); History › Memories' NPCs by journey and each one's card,
+# keepsakes, memory work and Forget (private: the memory job's words); the backups and whether a forget may go now;
+# Home's Nearby. Families keyed by the journey's number, by "<journey>.<persona>", or by a conversation's id.
+
+[[topic]]
+id = "journeys"
+shape = "state"
+
+[[topic]]
+id = "playthrough"
+shape = "state"
+family = true
+
+[[topic]]
+id = "met"
+shape = "state"
+family = true
+
+[[topic]]
+id = "conversations"
+shape = "state"
+family = true
+private = true
+
+[[topic]]
+id = "conversation"
+shape = "state"
+family = true
+private = true
+
+[[topic]]
+id = "memories"
+shape = "state"
+family = true
+
+[[topic]]
+id = "journal"
+shape = "state"
+family = true
+private = true
+
+[[topic]]
+id = "memory.state"
+shape = "state"
+
+[[topic]]
+id = "nearby"
+shape = "state"
+
 # Content packs (PAGES §4.6.9): one topic, a member per section (GraceUI D185's props.field).
 
 [[topic]]
@@ -293,7 +348,7 @@ pages = []
 [[category]]
 id = "characters"
 name = "Characters"
-pages = ["characters.named"]
+pages = ["characters.playthrough", "characters.named"]
 
 [[category]]
 id = "map"
@@ -303,7 +358,7 @@ pages = []
 [[category]]
 id = "history"
 name = "History"
-pages = []
+pages = ["history.conversations", "history.memories"]
 
 [[category]]
 id = "behaviour"
@@ -699,6 +754,19 @@ props = { field = "home", empty = "No model call yet this session." }
 kind = "component"
 component = "computed_sentence"
 topic = "usage"
+
+# Home's Nearby (PAGES §4.6.1; SP7): the met NPCs perceived now, "speaking" in a conversation, and the disposition word
+# once a journal holds one; no distance, no number. Characters › Playthrough lists everyone met.
+[[page.sections]]
+id = "nearby"
+title = "Nearby"
+description = "The people you have met who are near you now."
+
+[[page.sections.blocks]]
+kind = "component"
+component = "table"
+topic = "nearby"
+props = { empty = "Nobody you have met is near you now." }
 
 [[page]]
 id = "system.status"
@@ -1096,6 +1164,36 @@ sort = [{ key = "at_ms", label = "Time", direction = "descending" }, { key = "fi
 # ships in 0.2 here, with the editor, at the owner's wish to edit profiles now. The Allowances and Reactions tabs wait
 # for the allowances (NPC §1.4), and Met and Nearby for the sightings store (MEM §8.7): absent until then (SP5).
 
+# ---- Characters › Playthrough (PAGES §4.6.4; S12.2.a), scoped by the Journey: the people met on the journey in view,
+# each by the name the game shows, their status from what the Tarnished perceived alone (SP7), and when last met; the
+# chosen one's Status card. Their story lines, Related and World now come with 0.5 (S12.4): absent until then.
+[[page]]
+id = "characters.playthrough"
+category = "characters"
+name = "Playthrough"
+description = "The people you have met on this journey, and how they are as far as you have seen."
+increment = "0.3"
+scoped = true
+live = true
+related = ["characters.named", "history.memories", "history.conversations"]
+help.purpose = "See who you have met on this journey and how they were when you last saw them."
+help.steps = [
+  "Choose a journey at the top: the current one shows first; an earlier one is read only.",
+  "Choose someone in the list.",
+  "Read their Status: whether they are here now, when you last met them and how often.",
+  "Open History › Memories to see what they remember of you.",
+]
+master = { topic = "playthrough", key = "id", detail = "met", label = "People met", empty = "You have met nobody on this journey yet.", none = "Choose someone to see how they are." }
+
+[[page.sections]]
+id = "status"
+title = "Status"
+
+[[page.sections.blocks]]
+kind = "component"
+component = "key_value_list"
+topic = "met"
+
 [[page]]
 id = "characters.named"
 category = "characters"
@@ -1111,6 +1209,120 @@ master = { topic = "named.list", key = "id", detail = "named", label = "Named NP
 id = "profile"
 name = "Profile"
 sections = [{ id = "general", title = "General profile", description = "What anyone would see on meeting them, in EldenNet's own words.", blocks = [{ kind = "component", component = "key_value_list", topic = "named" }] }, { id = "yours", title = "Your notes", description = "Your own layer over EldenNet's profile, kept in a file of your own. Left unset, a field keeps EldenNet's.", blocks = [{ kind = "editor", topic = "profiles", editor = { save = "profile.save", check = "profile.check", reset = "profile.reset", restore = "profile.restore", draft = "profile.draft", notes_label = "Your rough notes for a draft", notes_max = 400 } }] }]
+
+# ---- History › Conversations (PAGES §4.6.5; S12.2.b), scoped by the Journey: every conversation with a named NPC,
+# newest first, and the chosen one's lines as they were shown (SP2); chat text on screen alone (PV4: private topics).
+[[page]]
+id = "history.conversations"
+category = "history"
+name = "Conversations"
+description = "Every conversation you had with a named NPC on this journey, as it was shown."
+increment = "0.3"
+scoped = true
+live = true
+related = ["history.memories", "characters.named"]
+help.purpose = "Read again what you and a named NPC said to each other on this journey."
+help.steps = [
+  "Choose a journey at the top: the current one shows first; an earlier one is read only.",
+  "Choose a conversation in the list: who it was with, when, and how it ended.",
+  "Read its lines: yours as you typed them, and theirs as they were shown.",
+]
+master = { topic = "conversations", key = "id", detail = "conversation", label = "Conversations", empty = "No conversation on this journey yet.", none = "Choose a conversation to read it." }
+
+[[page.sections]]
+id = "lines"
+title = "What was said"
+
+[[page.sections.blocks]]
+kind = "component"
+component = "table"
+topic = "conversation"
+props = { empty = "Reading this conversation…" }
+
+# ---- History › Memories (PAGES §4.6.5; S12.2.b), scoped by the Journey: what each NPC with a profile remembers, its
+# card, keepsakes and memory work, as the memory job wrote them (SP2; private topics, PV4), with Forget this NPC on its
+# row and Forget this journey at the top, each confirmed by a second press that counts after 1 s (GraceUI D274; a
+# danger close cancels it, invariant 9), and the backups by count. The page's own switch (features.memory, D45) waits
+# for the behaviour settings' pages; diaries are a later version.
+[[page]]
+id = "history.memories"
+category = "history"
+name = "Memories"
+description = "What each NPC with a profile remembers of this journey, and the means to make them forget."
+increment = "0.3"
+scoped = true
+live = true
+related = ["history.conversations", "characters.named", "characters.playthrough"]
+help.purpose = "See what each NPC remembers of this journey, and make one forget, or everyone, if you wish."
+help.steps = [
+  "Choose a journey at the top: the current one shows first; an earlier one is read only.",
+  "Choose an NPC: their journal, keepsakes and memory work show beside the list.",
+  "To make one NPC forget this journey, use Forget this NPC, and press again to confirm.",
+  "To make everyone forget this journey, use Forget this journey at the top, and press again to confirm.",
+  "Each forget takes a backup first; Backups says how many are kept.",
+]
+master = { topic = "memories", key = "id", detail = "journal", label = "NPCs", empty = "Nobody remembers anything of this journey yet.", none = "Choose an NPC to see what they remember." }
+
+[[page.actions]]
+id = "forget_journey"
+label = "Forget this journey"
+command = "memory.forget_journey"
+tone = "destructive"
+confirm = "Everyone forgets everything of this journey: facts, journals, keepsakes and conversations. A backup is taken first, and it keeps what was forgotten until three newer backups replace it."
+confirm_after_ms = 1000
+
+[[page.sections]]
+id = "card"
+title = "Their journal"
+
+[[page.sections.blocks]]
+kind = "component"
+component = "key_value_list"
+topic = "journal"
+props = { field = "card" }
+
+[[page.sections]]
+id = "keepsakes"
+title = "Keepsakes"
+description = "What they keep of this journey, at most eight; the protected one is never pushed out."
+
+[[page.sections.blocks]]
+kind = "component"
+component = "table"
+topic = "journal"
+props = { field = "keepsakes", empty = "No keepsake yet." }
+
+[[page.sections]]
+id = "work"
+title = "Memory work"
+
+[[page.sections.blocks]]
+kind = "component"
+component = "key_value_list"
+topic = "journal"
+props = { field = "work" }
+
+[[page.sections]]
+id = "forget"
+title = "Forget"
+description = "A backup is taken first, and it keeps what was forgotten until three newer backups replace it."
+
+[[page.sections.blocks]]
+kind = "component"
+component = "table"
+topic = "journal"
+props = { field = "forget" }
+row_actions = [{ id = "forget", label = "Forget this NPC", command = "memory.forget_npc", key = "id", tone = "destructive", confirm = "They forget everything of this journey: their facts, journal, keepsakes and conversations. A backup is taken first.", confirm_after_ms = 1000 }]
+
+[[page.sections]]
+id = "backups"
+title = "Backups"
+description = "Diaries: later version."
+
+[[page.sections.blocks]]
+kind = "component"
+component = "key_value_list"
+topic = "memory.state"
 
 # ---- The foot: Content packs (PAGES §4.6.9; S11.4.a), read-only: the shipped content, the player's overrides, what
 # disable.toml turns off and this session's loads, from the topic `content`, a member per section (GraceUI D185). No

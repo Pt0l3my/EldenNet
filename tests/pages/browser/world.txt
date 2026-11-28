@@ -3,9 +3,9 @@
 rail: Home: home
 rail: AI: ai.providers, ai.models, ai.selftest, ai.requests
 rail: Voice: absent
-rail: Characters: characters.named
+rail: Characters: characters.playthrough, characters.named
 rail: Map: absent
-rail: History: absent
+rail: History: history.conversations, history.memories
 rail: Behaviour: absent
 rail: System: system.status, system.performance, system.traces, system.logs
 rail: Tools: tools.report
@@ -48,6 +48,10 @@ page home:
   0:58:20 Conversation reply Old Bram talker-small 2.20 s failed
   0:58:00 Conversation reply Old Bram talker-small 0.61 s 1.54 s shown
   In the last hour: no own-initiative calls, and 24 of the 600 requests EldenNet may send in an hour.
+  NEARBY
+  The people you have met who are near you now.
+  NAME NOW DISPOSITION
+  Oswin the Lamplighter Here
   RELATED
   Status
   Whether EldenNet is healthy on this PC and game build, and if not, why.
@@ -412,7 +416,90 @@ page ai.requests:
   How long each line took, from its request to the screen.
   Logs
   EldenNet's own log of this session, with nothing personal in it.
+page characters.playthrough:
+  Playthrough
+  The people you have met on this journey, and how they are as far as you have seen.
+  PEOPLE MET
+  Oswin the Lamplighter
+  Here now
+  STATUS
+  Status
+  Here now
+  Last met
+  At 0:12 of play
+  First met
+  At 0:12 of play
+  Times met
+  1
+  RELATED
+  Named NPCs
+  Every named character EldenNet voices: who they appear to be, and your own notes on them.
+  Memories
+  What each NPC with a profile remembers of this journey, and the means to make them forget.
+  Conversations
+  Every conversation you had with a named NPC on this journey, as it was shown.
 page characters.named: present
+page history.conversations:
+  Conversations
+  Every conversation you had with a named NPC on this journey, as it was shown.
+  CONVERSATIONS
+  Oswin the Lamplighter
+  0:11
+  WHAT WAS SAID
+  WHO LINE WHEN
+  You Is the lamp yours? 0:11
+  Oswin the Lamplighter It keeps me as I keep it. 0:11
+  RELATED
+  Memories
+  What each NPC with a profile remembers of this journey, and the means to make them forget.
+  Named NPCs
+  Every named character EldenNet voices: who they appear to be, and your own notes on them.
+page history.memories:
+  Memories
+  Forget this journey
+  What each NPC with a profile remembers of this journey, and the means to make them forget.
+  NPCS
+  Oswin the Lamplighter
+  0
+  THEIR JOURNAL
+  Their journal
+  Nothing written yet.
+  Last met
+  At 0:12 of play
+  First met
+  At 0:12 of play
+  Times met
+  1
+  KEEPSAKES
+  What they keep of this journey, at most eight; the protected one is never pushed out.
+  No keepsake yet.
+  MEMORY WORK
+  Memory work
+  One waiting
+  FORGET
+  A backup is taken first, and it keeps what was forgotten until three newer backups replace it.
+  WHAT GOES
+  ACTIONS
+  Everything Oswin the Lamplighter remembers of this journey: their facts, journal, keepsakes and conversations. Forget this NPC
+  BACKUPS
+  Diaries: later version.
+  Backups
+  3
+  Newest
+  2025-11-27 00:00 UTC
+  Then
+  2025-11-26 00:00 UTC
+  Then
+  2025-11-25 00:00 UTC
+  What a backup holds
+  Each holds what was remembered when it was taken, the forgotten memories included, until three newer backups replace it.
+  RELATED
+  Conversations
+  Every conversation you had with a named NPC on this journey, as it was shown.
+  Named NPCs
+  Every named character EldenNet voices: who they appear to be, and your own notes on them.
+  Playthrough
+  The people you have met on this journey, and how they are as far as you have seen.
 page system.status: present
 page system.performance: present
 page system.traces: present
@@ -445,9 +532,9 @@ page content: present
 rail: Home: home
 rail: AI: ai.providers, ai.models, ai.selftest, ai.requests
 rail: Voice: absent
-rail: Characters: characters.named
+rail: Characters: characters.playthrough, characters.named
 rail: Map: absent
-rail: History: absent
+rail: History: history.conversations, history.memories
 rail: Behaviour: absent
 rail: System: system.status, system.performance, system.traces, system.logs
 rail: Tools: tools.report
@@ -490,6 +577,10 @@ page home:
   0:58:20 Conversation reply Old Bram talker-small 2.20 s failed
   0:58:00 Conversation reply Old Bram talker-small 0.61 s 1.54 s shown
   In the last hour: no own-initiative calls, and 24 of the 600 requests EldenNet may send in an hour.
+  NEARBY
+  The people you have met who are near you now.
+  NAME NOW DISPOSITION
+  Oswin the Lamplighter Here
   RELATED
   Status
   Whether EldenNet is healthy on this PC and game build, and if not, why.
@@ -854,7 +945,90 @@ page ai.requests:
   How long each line took, from its request to the screen.
   Logs
   EldenNet's own log of this session, with nothing personal in it.
+page characters.playthrough:
+  Playthrough
+  The people you have met on this journey, and how they are as far as you have seen.
+  PEOPLE MET
+  Oswin the Lamplighter
+  Here now
+  STATUS
+  Status
+  Here now
+  Last met
+  At 0:12 of play
+  First met
+  At 0:12 of play
+  Times met
+  1
+  RELATED
+  Named NPCs
+  Every named character EldenNet voices: who they appear to be, and your own notes on them.
+  Memories
+  What each NPC with a profile remembers of this journey, and the means to make them forget.
+  Conversations
+  Every conversation you had with a named NPC on this journey, as it was shown.
 page characters.named: present
+page history.conversations:
+  Conversations
+  Every conversation you had with a named NPC on this journey, as it was shown.
+  CONVERSATIONS
+  Oswin the Lamplighter
+  0:11
+  WHAT WAS SAID
+  WHO LINE WHEN
+  You Is the lamp yours? 0:11
+  Oswin the Lamplighter It keeps me as I keep it. 0:11
+  RELATED
+  Memories
+  What each NPC with a profile remembers of this journey, and the means to make them forget.
+  Named NPCs
+  Every named character EldenNet voices: who they appear to be, and your own notes on them.
+page history.memories:
+  Memories
+  Forget this journey
+  What each NPC with a profile remembers of this journey, and the means to make them forget.
+  NPCS
+  Oswin the Lamplighter
+  0
+  THEIR JOURNAL
+  Their journal
+  Nothing written yet.
+  Last met
+  At 0:12 of play
+  First met
+  At 0:12 of play
+  Times met
+  1
+  KEEPSAKES
+  What they keep of this journey, at most eight; the protected one is never pushed out.
+  No keepsake yet.
+  MEMORY WORK
+  Memory work
+  One waiting
+  FORGET
+  A backup is taken first, and it keeps what was forgotten until three newer backups replace it.
+  WHAT GOES
+  ACTIONS
+  Everything Oswin the Lamplighter remembers of this journey: their facts, journal, keepsakes and conversations. Forget this NPC
+  BACKUPS
+  Diaries: later version.
+  Backups
+  3
+  Newest
+  2025-11-27 00:00 UTC
+  Then
+  2025-11-26 00:00 UTC
+  Then
+  2025-11-25 00:00 UTC
+  What a backup holds
+  Each holds what was remembered when it was taken, the forgotten memories included, until three newer backups replace it.
+  RELATED
+  Conversations
+  Every conversation you had with a named NPC on this journey, as it was shown.
+  Named NPCs
+  Every named character EldenNet voices: who they appear to be, and your own notes on them.
+  Playthrough
+  The people you have met on this journey, and how they are as far as you have seen.
 page system.status: present
 page system.performance: present
 page system.traces: present
@@ -887,9 +1061,9 @@ page content: present
 rail: Home: home
 rail: AI: ai.providers, ai.models, ai.selftest, ai.requests
 rail: Voice: absent
-rail: Characters: characters.named
+rail: Characters: characters.playthrough, characters.named
 rail: Map: absent
-rail: History: absent
+rail: History: history.conversations, history.memories
 rail: Behaviour: absent
 rail: System: system.status, system.performance, system.traces, system.logs
 rail: Tools: tools.report, tools.workshop
@@ -932,6 +1106,10 @@ page home:
   0:58:20 Conversation reply Old Bram talker-small 2.20 s failed
   0:58:00 Conversation reply Old Bram talker-small 0.61 s 1.54 s shown
   In the last hour: no own-initiative calls, and 24 of the 600 requests EldenNet may send in an hour.
+  NEARBY
+  The people you have met who are near you now.
+  NAME NOW DISPOSITION
+  Oswin the Lamplighter Here
   RELATED
   Status
   Whether EldenNet is healthy on this PC and game build, and if not, why.
@@ -1296,7 +1474,90 @@ page ai.requests:
   How long each line took, from its request to the screen.
   Logs
   EldenNet's own log of this session, with nothing personal in it.
+page characters.playthrough:
+  Playthrough
+  The people you have met on this journey, and how they are as far as you have seen.
+  PEOPLE MET
+  Oswin the Lamplighter
+  Here now
+  STATUS
+  Status
+  Here now
+  Last met
+  At 0:12 of play
+  First met
+  At 0:12 of play
+  Times met
+  1
+  RELATED
+  Named NPCs
+  Every named character EldenNet voices: who they appear to be, and your own notes on them.
+  Memories
+  What each NPC with a profile remembers of this journey, and the means to make them forget.
+  Conversations
+  Every conversation you had with a named NPC on this journey, as it was shown.
 page characters.named: present
+page history.conversations:
+  Conversations
+  Every conversation you had with a named NPC on this journey, as it was shown.
+  CONVERSATIONS
+  Oswin the Lamplighter
+  0:11
+  WHAT WAS SAID
+  WHO LINE WHEN
+  You Is the lamp yours? 0:11
+  Oswin the Lamplighter It keeps me as I keep it. 0:11
+  RELATED
+  Memories
+  What each NPC with a profile remembers of this journey, and the means to make them forget.
+  Named NPCs
+  Every named character EldenNet voices: who they appear to be, and your own notes on them.
+page history.memories:
+  Memories
+  Forget this journey
+  What each NPC with a profile remembers of this journey, and the means to make them forget.
+  NPCS
+  Oswin the Lamplighter
+  0
+  THEIR JOURNAL
+  Their journal
+  Nothing written yet.
+  Last met
+  At 0:12 of play
+  First met
+  At 0:12 of play
+  Times met
+  1
+  KEEPSAKES
+  What they keep of this journey, at most eight; the protected one is never pushed out.
+  No keepsake yet.
+  MEMORY WORK
+  Memory work
+  One waiting
+  FORGET
+  A backup is taken first, and it keeps what was forgotten until three newer backups replace it.
+  WHAT GOES
+  ACTIONS
+  Everything Oswin the Lamplighter remembers of this journey: their facts, journal, keepsakes and conversations. Forget this NPC
+  BACKUPS
+  Diaries: later version.
+  Backups
+  3
+  Newest
+  2025-11-27 00:00 UTC
+  Then
+  2025-11-26 00:00 UTC
+  Then
+  2025-11-25 00:00 UTC
+  What a backup holds
+  Each holds what was remembered when it was taken, the forgotten memories included, until three newer backups replace it.
+  RELATED
+  Conversations
+  Every conversation you had with a named NPC on this journey, as it was shown.
+  Named NPCs
+  Every named character EldenNet voices: who they appear to be, and your own notes on them.
+  Playthrough
+  The people you have met on this journey, and how they are as far as you have seen.
 page system.status: present
 page system.performance: present
 page system.traces: present

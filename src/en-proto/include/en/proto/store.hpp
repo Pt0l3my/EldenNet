@@ -245,13 +245,22 @@ struct LivedInput {  // MEM §13.3
 struct EventsForFold {  // MEM §9.2: every event of the journey, with every audience row
   std::uint16_t journey = 1;
 };
+// The pages' reads (S12.2; PAGES §4.6.4, §4.6.5): the DLL's own, from its own sequence numbers (kPageSeq up), never the
+// core's. Each answers PageRows of its kind: the journeys the file holds, a journey's conversations (newest first, at
+// most kPageConversations), one conversation's shown lines, a journey's memory cards, or the backups' count and times.
+struct PageQuery {
+  enum class What : std::uint8_t { Journeys, Conversations, Transcript, Memories, Backups };
+  What what = What::Journeys;
+  std::uint16_t journey = 1;  // Conversations, Memories
+  RowId conv = 0;             // Transcript
+};
 
 }  // namespace db
 
 struct DbRequest {
   using Op = std::variant<db::Open, db::Resolve, db::Close, db::Append, db::AppendPage, db::ConvOpen, db::ConvClose,
                           db::UpsertJob, db::CommitJournal, db::CommitLived, db::PutFacts, db::Forget, db::Checkpoint,
-                          db::Bundle, db::JobInput, db::LivedInput, db::EventsForFold>;
+                          db::Bundle, db::JobInput, db::LivedInput, db::EventsForFold, db::PageQuery>;
   std::uint64_t seq = 0;
   Op op;
   // Speech (a PlayerSaid, or an NpcSaid page) takes the speech reserve of the spill ring (MEM §8.6).
@@ -390,12 +399,42 @@ struct FoldEvents {
   std::vector<StoredEvent> events;  // in id order, every audience row
 };
 
+// The pages' rows (PageQuery). Chat and model text are here for the pages that show them alone (PV4): never logged.
+struct JourneyRow {
+  std::uint16_t journey = 1;
+  Pt first_pt = 0, last_pt = 0;  // its first epoch's start, and its newest event's play time
+  std::uint32_t conversations = 0;
+  bool current = false;
+  friend bool operator==(const JourneyRow&, const JourneyRow&) = default;
+};
+struct MemoryCard {
+  std::string persona;
+  std::vector<FactRow> facts;
+  std::optional<JournalVersion> journal;  // the newest version
+  std::uint32_t queued = 0, running = 0;  // its memory work: jobs waiting (queued, deferred, parked) and running
+  std::optional<JobState> last;           // its newest job's state
+  friend bool operator==(const MemoryCard&, const MemoryCard&) = default;
+};
+struct PageRows {
+  PageQuery::What what = PageQuery::What::Journeys;
+  std::uint16_t journey = 1;
+  RowId conv = 0;
+  std::vector<JourneyRow> journeys;
+  std::vector<ConversationRow> conversations;  // newest first
+  std::vector<StoredEvent> lines;              // Transcript: its PlayerSaid and NpcSaid rows, oldest first
+  std::vector<MemoryCard> cards;               // by persona
+  std::uint32_t backups = 0;
+  std::vector<std::int64_t> backup_walls;  // newest first
+};
+inline constexpr std::size_t kPageConversations = 200;
+inline constexpr std::uint64_t kPageSeq = std::uint64_t{1} << 62;  // the pages' sequence numbers, above the core's
+
 }  // namespace db
 
 struct DbResult {
   std::uint64_t seq = 0;  // the request's
   std::variant<db::Done, db::Opened, db::Resolved, db::JobSaved, db::Failed, db::Tripped, db::BundleResult,
-               db::JobInputResult, db::LivedInputResult, db::FoldEvents>
+               db::JobInputResult, db::LivedInputResult, db::FoldEvents, db::PageRows>
       result;
 };
 

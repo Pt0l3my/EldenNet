@@ -3,6 +3,7 @@
 // and the queries that read them back.
 #include "en/store/playthrough.hpp"
 
+#include <algorithm>
 #include <set>
 
 namespace en::store {
@@ -39,6 +40,31 @@ proto::JobCause cause_of(std::string_view w) {
 constexpr std::string_view kJobColumns =
     "id, journey, persona, kind, cause, conv_id, from_event_id, upto_event_id, journal_version, state, attempts, "
     "created_pt, last_error, last_try_wall";
+
+constexpr std::string_view kConvColumns =
+    "id, journey, epoch, persona, stage, started_pt, ended_pt, end_reason, player_lines, committed_lines, "
+    "first_event_id, last_event_id, shown_context, persona_hash, kb_hash, model_fp";
+
+proto::ConversationRow read_conv(const Stmt& s) {
+  proto::ConversationRow c;
+  c.id = s.i64(0);
+  c.journey = static_cast<std::uint16_t>(s.i64(1));
+  c.epoch = s.i64(2);
+  c.persona = s.text(3);
+  c.stage = s.text(4);
+  c.started_pt = s.i64(5);
+  c.ended_pt = s.opt_i64(6);
+  c.end_reason = s.text(7);
+  c.player_lines = static_cast<std::uint32_t>(s.i64(8));
+  c.committed_lines = static_cast<std::uint32_t>(s.i64(9));
+  c.first_event_id = s.opt_i64(10);
+  c.last_event_id = s.opt_i64(11);
+  c.shown_context = s.text(12);
+  c.persona_hash = s.text(13);
+  c.kb_hash = s.text(14);
+  c.model_fp = s.opt_text(15);
+  return c;
+}
 
 proto::MemoryJob read_job(const Stmt& s) {
   proto::MemoryJob j;
@@ -432,10 +458,7 @@ Result<proto::db::JobInputResult> job_input(const Playthrough& pt, const proto::
   for (const proto::StoredEvent& e : out.evidence) {
     if (e.conv_id) convs.insert(*e.conv_id);
   }
-  auto cs = Stmt::prepare(pt.db,
-                          "SELECT id, journey, epoch, persona, stage, started_pt, ended_pt, end_reason, player_lines, "
-                          "committed_lines, first_event_id, last_event_id, shown_context, persona_hash, kb_hash, "
-                          "model_fp FROM conversations WHERE id = ?1");
+  auto cs = Stmt::prepare(pt.db, "SELECT " + std::string(kConvColumns) + " FROM conversations WHERE id = ?1");
   if (!cs) return Unexpected{cs.error()};
   for (const RowId id : convs) {
     cs->reset();
@@ -443,24 +466,7 @@ Result<proto::db::JobInputResult> job_input(const Playthrough& pt, const proto::
     auto got = cs->step();
     if (!got) return Unexpected{got.error()};
     if (!*got) continue;
-    proto::ConversationRow c;
-    c.id = cs->i64(0);
-    c.journey = static_cast<std::uint16_t>(cs->i64(1));
-    c.epoch = cs->i64(2);
-    c.persona = cs->text(3);
-    c.stage = cs->text(4);
-    c.started_pt = cs->i64(5);
-    c.ended_pt = cs->opt_i64(6);
-    c.end_reason = cs->text(7);
-    c.player_lines = static_cast<std::uint32_t>(cs->i64(8));
-    c.committed_lines = static_cast<std::uint32_t>(cs->i64(9));
-    c.first_event_id = cs->opt_i64(10);
-    c.last_event_id = cs->opt_i64(11);
-    c.shown_context = cs->text(12);
-    c.persona_hash = cs->text(13);
-    c.kb_hash = cs->text(14);
-    c.model_fp = cs->opt_text(15);
-    out.conversations.push_back(std::move(c));
+    out.conversations.push_back(read_conv(*cs));
   }
   return out;
 }
@@ -483,6 +489,112 @@ Result<proto::db::FoldEvents> fold_events(const Playthrough& pt, const proto::db
   auto all = events::all_of(pt.db, q.journey);
   if (!all) return Unexpected{all.error()};
   return proto::db::FoldEvents{q.journey, std::move(*all)};
+}
+
+Result<proto::db::PageRows> page(const Playthrough& pt, const proto::db::PageQuery& q) {
+  using W = proto::db::PageQuery::What;
+  proto::db::PageRows out;
+  out.what = q.what;
+  out.journey = q.journey;
+  out.conv = q.conv;
+  const auto rows = [](Stmt& s, auto&& each) -> Result<void> {
+    for (;;) {
+      auto r = s.step();
+      if (!r) return Unexpected{r.error()};
+      if (!*r) return {};
+      each(s);
+    }
+  };
+  switch (q.what) {
+    case W::Journeys: {
+      auto s = Stmt::prepare(pt.db,
+                             "SELECT j.journey, (SELECT min(start_pt) FROM epochs WHERE journey = j.journey), "
+                             "(SELECT max(t_play_ms) FROM events WHERE journey = j.journey), "
+                             "(SELECT count(*) FROM conversations WHERE journey = j.journey) "
+                             "FROM (SELECT DISTINCT journey FROM epochs) j ORDER BY j.journey");
+      if (!s) return Unexpected{s.error()};
+      if (auto r = rows(*s, [&](const Stmt& st) {
+            proto::db::JourneyRow j;
+            j.journey = static_cast<std::uint16_t>(st.i64(0));
+            j.first_pt = st.opt_i64(1).value_or(0);
+            j.last_pt = std::max<proto::Pt>(j.first_pt, st.opt_i64(2).value_or(0));
+            j.conversations = static_cast<std::uint32_t>(st.i64(3));
+            j.current = j.journey == pt.journey;
+            out.journeys.push_back(j);
+          });
+          !r) {
+        return Unexpected{r.error()};
+      }
+      return out;
+    }
+    case W::Conversations: {
+      auto s = Stmt::prepare(pt.db, "SELECT " + std::string(kConvColumns) +
+                                        " FROM conversations WHERE journey = ?1 ORDER BY started_pt DESC, id DESC "
+                                        "LIMIT ?2");
+      if (!s) return Unexpected{s.error()};
+      s->bind(1, std::int64_t{q.journey}).bind(2, static_cast<std::int64_t>(proto::db::kPageConversations));
+      if (auto r = rows(*s, [&](const Stmt& st) { out.conversations.push_back(read_conv(st)); }); !r) {
+        return Unexpected{r.error()};
+      }
+      return out;
+    }
+    case W::Transcript: {
+      auto s = Stmt::prepare(pt.db, "SELECT " + std::string(kConvColumns) + " FROM conversations WHERE id = ?1");
+      if (!s) return Unexpected{s.error()};
+      s->bind(1, q.conv);
+      if (auto r = rows(*s, [&](const Stmt& st) { out.conversations.push_back(read_conv(st)); }); !r) {
+        return Unexpected{r.error()};
+      }
+      if (out.conversations.empty()) return out;  // forgotten, or trimmed: nothing to show
+      out.journey = out.conversations.front().journey;
+      auto lines = events::lines_of(pt.db, q.conv);
+      if (!lines) return Unexpected{lines.error()};
+      out.lines = std::move(*lines);
+      return out;
+    }
+    case W::Memories: {
+      // Every persona with facts, a journal or memory work in the journey, by id.
+      auto s = Stmt::prepare(pt.db,
+                             "SELECT persona FROM npc_facts WHERE journey = ?1 UNION "
+                             "SELECT persona FROM npc_journal WHERE journey = ?1 UNION "
+                             "SELECT persona FROM memory_jobs WHERE journey = ?1 ORDER BY 1");
+      if (!s) return Unexpected{s.error()};
+      s->bind(1, std::int64_t{q.journey});
+      std::vector<std::string> personas;
+      if (auto r = rows(*s, [&](const Stmt& st) { personas.push_back(st.text(0)); }); !r) {
+        return Unexpected{r.error()};
+      }
+      auto jobs = Stmt::prepare(pt.db,
+                                "SELECT sum(state IN ('queued', 'deferred', 'parked')), sum(state = 'running'), "
+                                "(SELECT state FROM memory_jobs WHERE journey = ?1 AND persona = ?2 "
+                                "ORDER BY id DESC LIMIT 1) FROM memory_jobs WHERE journey = ?1 AND persona = ?2");
+      if (!jobs) return Unexpected{jobs.error()};
+      for (const std::string& persona : personas) {
+        proto::db::MemoryCard c;
+        c.persona = persona;
+        auto f = facts_of(pt.db, q.journey, persona);
+        if (!f) return Unexpected{f.error()};
+        c.facts = std::move(*f);
+        auto j = newest_journal(pt.db, q.journey, persona);
+        if (!j) return Unexpected{j.error()};
+        c.journal = std::move(*j);
+        jobs->reset();
+        jobs->bind(1, std::int64_t{q.journey}).bind(2, std::string_view(persona));
+        auto got = jobs->step();
+        if (!got) return Unexpected{got.error()};
+        if (*got) {
+          c.queued = static_cast<std::uint32_t>(jobs->opt_i64(0).value_or(0));
+          c.running = static_cast<std::uint32_t>(jobs->opt_i64(1).value_or(0));
+          if (const auto last = jobs->opt_text(2)) c.last = state_of(*last);
+        }
+        out.cards.push_back(std::move(c));
+      }
+      return out;
+    }
+    case W::Backups:
+      return out;  // the store answers it from the files (files.hpp's backups_of)
+  }
+  return out;
 }
 
 Result<std::vector<proto::MemoryJob>> open_jobs(const Db& db) {

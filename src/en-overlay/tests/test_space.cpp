@@ -17,6 +17,7 @@
 
 #include "calls_fixture.hpp"
 #include "characters_fixture.hpp"
+#include "memory_fixture.hpp"
 #include "content_fixture.hpp"
 #include "en/overlay/docs.hpp"
 #include "en/overlay/space.hpp"
@@ -305,6 +306,7 @@ SpaceFacts facts_of(std::string_view state) {
   f.perf = en::overlay::test::perf_fixture(state);              // System › Performance (system_fixture.hpp)
   f.traces = en::overlay::test::traces_fixture(state);          // System › Traces (system_fixture.hpp)
   f.workshop = en::overlay::test::workshop_fixture(state);      // Tools › Workshop (workshop_fixture.hpp)
+  f.memory = en::overlay::test::memory_fixture(state);          // the memory pages (memory_fixture.hpp)
   return f;
 }
 
@@ -373,13 +375,15 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
   std::vector<std::string> ids;
   for (const json& p : pages["pages"]) {
     ids.push_back(p["id"].get<std::string>());
-    // Every page ships in the increment registered or an earlier one (D173): Home and System in 0.1, AI in 0.2.
+    // Every page ships in the increment registered or an earlier one (D173): Home and System in 0.1, AI in 0.2, the
+    // memory pages in 0.3.
     CHECK(p["increment"].get<std::string>() <= std::string(kIncrement));
   }
   CHECK(ids == std::vector<std::string>{"home", "system.status", "system.performance", "system.traces", "system.logs",
                                         "settings.developer", "ai.providers", "ai.models", "ai.selftest",
-                                        "ai.requests", "characters.named", "content", "tools.report", "tools.workshop",
-                                        "docs"});
+                                        "ai.requests", "characters.playthrough", "characters.named",
+                                        "history.conversations", "history.memories", "content", "tools.report",
+                                        "tools.workshop", "docs"});
   // The rail holds PAGES §4.2.1's categories in their order, the slice's pages in theirs.
   std::vector<std::string> rail;
   for (const json& c : pages["categories"]) rail.push_back(c["id"].get<std::string>());
@@ -409,24 +413,28 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
   CHECK(pages["commands"] == json::array({"settings.set", "settings.reset", "selftest.run", "models.list",
                                           "providers.add", "providers.remove", "providers.key", "profile.check",
                                           "profile.save", "profile.reset", "profile.restore", "profile.draft",
-                                          "report.build", "report.part", "ai.pause", "recording.set"}));
-  // The floor's minor, GraceUI 0.2.57's (D264: register_pages refuses a newer one): 1.20's pc_only, on 1.19's share
+                                          "report.build", "report.part", "ai.pause", "recording.set",
+                                          "memory.forget_npc", "memory.forget_journey"}));
+  // The floor's minor, GraceUI 0.2.67's (D264: register_pages refuses a newer one): 1.21's confirm_after_ms and private
+  // topics (D274), on 1.20's pc_only, 1.19's share
   // (D263), 1.18's filter's own choices (D262), 1.17's browser-only page (D258), 1.16's stream's filter bar (D257),
   // 1.15's header switch (D256), 1.13's quick switches and live pages (D252), 1.12's document block, prose field and
   // preview (D251), 1.11's filter bar (D250), 1.10's foot (D248) and 1.8's sensitive marks (D221).
-  CHECK(pages["minor"] == 20);
+  CHECK(pages["minor"] == 21);
   // Pause AI for this session, the one quick switch (GraceUI §78's form), and not sensitive: a paired device may pause.
   CHECK(pages["quick"] == json::array({{{"id", "pause"}, {"label", "Pause AI for this session"},
                                         {"command", "ai.pause"},
                                         {"state", {{"topic", "status"}, {"field", "ai_paused"}}}, {"home", "home"}}}));
   CHECK(std::find(pages["sensitive_commands"].begin(), pages["sensitive_commands"].end(), "ai.pause") ==
         pages["sensitive_commands"].end());
-  // Home, Performance, Traces, Requests and Workshop are live (D252): their topics move by themselves; no other page is.
+  // Home, Performance, Traces, Requests, Workshop and the memory pages are live (D252): their topics move by
+  // themselves; no other page is.
   std::vector<std::string> live;
   for (const json& p : pages["pages"]) {
     if (p.value("live", false)) live.push_back(p["id"].get<std::string>());
   }
   CHECK(live == std::vector<std::string>{"home", "system.performance", "system.traces", "ai.requests",
+                                         "characters.playthrough", "history.conversations", "history.memories",
                                          "tools.workshop"});
   // System's pages in PAGES §4.2.1's order, Performance and Traces after Status.
   for (const json& c : pages["categories"]) {
@@ -448,7 +456,7 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
       for (const json& b : sec["blocks"]) {
         for (const json& a : b.value("row_actions", json::array())) {
           ++row_actions;
-          CHECK(a["command"] == "providers.remove");
+          CHECK((a["command"] == "providers.remove" || a["command"] == "memory.forget_npc"));
           CHECK(a["tone"] == "destructive");
           CHECK_FALSE(a.value("confirm", std::string()).empty());
         }
@@ -461,7 +469,7 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
       }
     }
   }
-  CHECK(row_actions == 1);
+  CHECK(row_actions == 2);  // Providers' Remove, Memories' Forget this NPC
   CHECK(forms == 2);
   // Home's and System's blocks on GraceUI 0.2.7's props (D185 to D187): one topic for System › Status, its own words
   // for an empty list, the log newest first.
@@ -873,10 +881,12 @@ TEST_CASE("space: the AI pages' topics: projections only, the address on Provide
   CHECK(st["rows"].size() == 1);
   CHECK(st["rows"][0]["verdict"] == "Acceptable");
 
-  // GraceUI's space.state (D188): nothing greyed but at L1, where the AI pages carry the banner's words.
-  CHECK(s.body("space.state", f) == json{{"greyed", json::object()}});
+  // GraceUI's space.state (D188): nothing greyed but at L1, where the AI pages carry the banner's words, and the memory
+  // pages before a playthrough ("Load a character to see this.").
+  CHECK(s.body("space.state", facts_of("world")) == json{{"greyed", json::object()}});
+  CHECK(s.body("space.state", f)["greyed"].size() == 3);  // the title: the memory pages alone
   const json greyed = s.body("space.state", facts_of("banner"))["greyed"];
-  CHECK(greyed.size() == 5);  // Home and AI (PAGES §4.4): System and Settings stay usable
+  CHECK(greyed.size() == 8);  // Home and AI (PAGES §4.4), and the memory pages: System and Settings stay usable
   CHECK(greyed["ai.selftest"] == "EldenNet inactive: game build 3.14.15.0 not supported yet");
   CHECK(greyed["home"] == greyed["ai.selftest"]);
   CHECK(greyed.contains("ai.providers"));
@@ -2777,6 +2787,14 @@ TEST_CASE("space: the fixture states' topics.json, which grace-dev previews (tes
     for (const char* topic : kAiTopics) topics[topic] = s.body(topic, f);  // calls and usage among them
     for (const std::string& topic : en::overlay::test::characters_topics(f.characters)) topics[topic] = s.body(topic, f);
     topics["content"] = s.body("content", f);
+    // The memory pages (memory_fixture.hpp): two journeys in the world, the first read only; nothing at the title.
+    for (const char* topic : {"journeys", "nearby", "memory.state", "playthrough/1", "playthrough/2",
+                              "met/1.ferry_warden", "met/1.lantern_keeper", "met/2.lantern_keeper", "conversations/1",
+                              "conversations/2", "conversation/12", "memories/1", "memories/2",
+                              "journal/1.ferry_warden", "journal/1.lantern_keeper", "journal/2.lantern_keeper"}) {
+      const json b = s.body(topic, f);
+      if (!b.empty()) topics[topic] = b;
+    }
     // Docs (bundled): the list, the first document, which a page's dump shows, and About, its slots filled.
     topics["docs.list"] = s.body("docs.list", f);
     topics["docs/getting-started"] = s.body("docs/getting-started", f);

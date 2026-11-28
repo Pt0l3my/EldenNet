@@ -229,6 +229,8 @@ struct Shell {
   bool ai_paused = false;
   // T6's: each step of the core, timed in µs (System › Performance's; en-gal's C13 histogram), T6 alone writing it.
   en::gal::Histogram core_us;
+  // T6's: the memory pages' forgets the space took (memory.cpp), for the core after overlay_tick.
+  std::vector<en::core::CoreInput::Forget> forgets_asked;
 };
 // The one Shell, made on T1 (never destroyed), or null before.
 [[nodiscard]] Shell* shell() noexcept;
@@ -347,6 +349,16 @@ void store_send(Shell& s, std::vector<en::proto::DbRequest>& requests) noexcept;
 [[nodiscard]] std::optional<en::core::CoreInput::StoreBacklog> store_backlog(Shell& s) noexcept;
 // T6, every 10 s: the store's counts in one log line.
 void store_status() noexcept;
+
+// ---- The memory pages (memory.cpp; S12.2.a, S12.2.b; PAGES §4.6.1, §4.6.4, §4.6.5) ----
+// T6, each wake before the space's step: the pages' facts from the core, and the store read again when due.
+void memory_tick(Shell& s, const en::core::Core& core, std::uint64_t now) noexcept;
+// T6: one of T9's answers to the pages' own queries (kPageSeq up), taken into the facts; false for the core's.
+bool memory_result(Shell& s, const en::core::Core& core, en::proto::DbResult& r) noexcept;
+// T6, after the space's step: its forgets for the core (Shell::forgets_asked) and its transcripts for T9.
+void memory_requests(Shell& s, en::overlay::Space& space) noexcept;
+// T6: the pages' facts, or null before the first tick.
+[[nodiscard]] const en::overlay::MemoryFacts* memory_facts() noexcept;
 
 // ---- The profile editor (profiles.cpp; S7.2.b, NPC §4.7) ----
 // The draft helper's request ids, below the conversation's (en-core's kConversationRequests): ai_pump hands their

@@ -607,6 +607,7 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
       fill_space(s, core, latest, tripped, o.graceui_version(), banner_words, facts);
       facts.ai = ai_tick(s, cs.gate_open, space->space);
       facts.characters = profiles_facts(s, core, cs.gate_open);  // Characters › Named NPCs (profiles.cpp)
+      facts.memory = memory_facts();  // the memory pages (memory.cpp), from the store and the core
       // Content packs (PAGES §4.6.9): the loads recorded so far (conversation.cpp, profiles.cpp); none before one.
       facts.content = s.content_view.revision != 0 ? &s.content_view : nullptr;
       // AI › Requests and Home's Model calls (the record, ai.cpp), and Pause AI's state as the core holds it (D15).
@@ -642,6 +643,7 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
       for (en::overlay::ProfileRequest& r : space->space.take_profile_requests()) {
         profiles_request(s, core, space->space, std::move(r));
       }
+      memory_requests(s, space->space);  // the memory pages' forgets, for the core, and their transcripts (memory.cpp)
       (void)o.answer_later(space->space);
       if (step.page_refused != GRACEUI_OK && step.page_refused != link->page_refused) {
         log(Line("page").word("refused", "publish_or_answer").num("status", step.page_refused), LogLevel::Warn);

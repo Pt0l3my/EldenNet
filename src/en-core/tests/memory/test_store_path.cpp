@@ -559,3 +559,32 @@ TEST_CASE("store path: the choice's words: play time, the gap, who, and the coun
   earlier.file_journey = 2;
   CHECK(choice_panel(earlier, 1, {}).lead.rfind("This save is from an earlier journey", 0) == 0);
 }
+
+TEST_CASE("store path: Forget through the core: refused while a conversation is open, then the persona's rows go") {
+  TempDir dir;
+  Session s(dir.path() / "saves");
+  s.boot();
+  s.world(30);
+  REQUIRE(s.core.store().mode() == StorePath::Mode::Open);
+  s.talk("Is the lamp yours?", "Hm. It keeps me as I keep it.");
+  CHECK_FALSE(s.core.can_forget(1));  // the conversation is still open
+  CHECK_FALSE(s.core.can_forget(2));  // never another journey than the open one
+  s.t += 250;
+  (void)s.feed(in(loading(s.t)));  // travel ends it
+  s.world(4);
+  REQUIRE(s.core.can_forget(1));
+  REQUIRE(s.core.store().facts().count("lantern_keeper") == 1);
+  (void)s.feed(CoreInput{CoreInput::Forget{1, "lantern_keeper"}});
+  CHECK(s.core.forgets() == 1);
+  CHECK(s.core.store().facts().count("lantern_keeper") == 0);
+  const bool sent = std::any_of(s.sent.begin(), s.sent.end(), [](const proto::DbRequest& r) {
+    const auto* f = std::get_if<db::Forget>(&r.op);
+    return f != nullptr && f->persona == "lantern_keeper" && f->journey == 1;
+  });
+  CHECK(sent);
+  s.leave();
+  auto d = store::Db::open(live_of(dir.path() / "saves", the_key()), store::FileKind::Playthrough, false);
+  REQUIRE(d.has_value());
+  CHECK(one(*d, "SELECT count(*) FROM conversations") == "0");
+  CHECK(one(*d, "SELECT count(*) FROM forgotten") == "1");
+}

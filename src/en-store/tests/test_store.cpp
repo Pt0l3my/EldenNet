@@ -484,3 +484,57 @@ TEST_CASE("store: random cuts (seeded) leave no row past the cut, no orphaned au
     CHECK(healthy(rig.store.playthrough()->db).value_or(false));
   }
 }
+
+TEST_CASE("store: the pages' reads: journeys, a journey's conversations, a transcript, memory cards, backups") {
+  Rig rig;
+  rig.open_at(kHour);
+  const proto::RowId c1 = rig.conversation("kale", kHour + kMin);
+  rig.line(c1, "PlayerSaid", kHour + kMin + 1000, "Evening.", "kale");
+  rig.line(c1, "NpcSaid", kHour + kMin + 3000, "Evening yourself.", "kale");
+  db::Append fact;
+  fact.event = event(rig.next++, "PersonaSeen", kHour + 2 * kMin, {{"lantern_keeper", How::Direct}});
+  fact.event.subject = "persona:lantern_keeper";
+  fact.facts = {proto::PersonaFacts{"lantern_keeper", {proto::FactRow{"met_count", "1", {}, kHour + 2 * kMin}}}};
+  rig.ok(rig.send(fact));
+  const proto::RowId c2 = rig.conversation("lantern_keeper", kHour + 3 * kMin);
+  const auto page = [&](db::PageQuery q) {
+    const proto::DbResult r = rig.send(q);
+    const auto* rows = std::get_if<db::PageRows>(&r.result);
+    REQUIRE(rows != nullptr);
+    return *rows;
+  };
+  const db::PageRows journeys = page(db::PageQuery{db::PageQuery::What::Journeys});
+  REQUIRE(journeys.journeys.size() == 1);
+  CHECK(journeys.journeys[0].journey == 1);
+  CHECK(journeys.journeys[0].current);
+  CHECK(journeys.journeys[0].conversations == 2);
+  CHECK(journeys.journeys[0].first_pt == kHour);
+  CHECK(journeys.journeys[0].last_pt == kHour + 2 * kMin);
+  const db::PageRows convs = page(db::PageQuery{db::PageQuery::What::Conversations, 1});
+  REQUIRE(convs.conversations.size() == 2);
+  CHECK(convs.conversations[0].id == c2);  // newest first
+  CHECK(convs.conversations[1].persona == "kale");
+  const db::PageRows t = page(db::PageQuery{db::PageQuery::What::Transcript, 1, c1});
+  REQUIRE(t.lines.size() == 2);
+  CHECK(t.lines[0].kind == "PlayerSaid");
+  CHECK(t.lines[1].text == std::optional<std::string>("Evening yourself."));
+  CHECK(t.lines[0].audience.empty());  // no audience row reaches a page
+  CHECK(page(db::PageQuery{db::PageQuery::What::Transcript, 1, 999}).lines.empty());
+  const db::PageRows cards = page(db::PageQuery{db::PageQuery::What::Memories, 1});
+  REQUIRE(cards.cards.size() == 1);
+  CHECK(cards.cards[0].persona == "lantern_keeper");
+  REQUIRE(cards.cards[0].facts.size() == 1);
+  CHECK(cards.cards[0].facts[0].key == "met_count");
+  CHECK_FALSE(cards.cards[0].journal.has_value());
+  CHECK(cards.cards[0].queued == 0);
+  CHECK(page(db::PageQuery{db::PageQuery::What::Memories, 2}).cards.empty());  // another journey's: none
+  // The backups: the start backup of the second open, by count and time alone.
+  rig.ok(rig.send(db::Close{}));
+  rig.open_at(kHour + 10 * kMin);
+  const db::PageRows backups = page(db::PageQuery{db::PageQuery::What::Backups});
+  CHECK(backups.backups == 1);
+  REQUIRE(backups.backup_walls.size() == 1);
+  // Nothing open: refused.
+  rig.ok(rig.send(db::Close{}));
+  CHECK(std::holds_alternative<db::Failed>(rig.send(db::PageQuery{db::PageQuery::What::Journeys}).result));
+}
