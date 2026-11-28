@@ -38,6 +38,10 @@ const char* not_now_word(std::uint32_t why) noexcept {
   }
 }
 
+// The events go into `out` built in place (emplace_back of the alternative): a UiEvent temporary moved into the
+// vector makes GCC 13 at -O2 warn that the variant's move reads the strings of alternatives it never holds
+// (maybe-uninitialized, a false positive of its jump table); built in place, there is no move to read. close_event's
+// is built by a function of its own, which GCC reads as initialised.
 proto::UiEvent close_event(proto::CloseReason reason, std::string draft, std::string detail = {}) {
   return proto::UiEvent{proto::UiEvent::Close{reason, std::move(draft), std::move(detail)}};
 }
@@ -311,14 +315,13 @@ bool Surfaces::take(const GraceUiEvent& e, std::uint64_t now, std::vector<proto:
         const bool chord = (by & GRACEUI_HOTKEY_BY_KEY) == 0 && (by & GRACEUI_HOTKEY_BY_CHORD) != 0;
         pressed_ = now;
         pressed_by_key_ = by == 0 || (by & GRACEUI_HOTKEY_BY_KEY) != 0;
-        out.push_back(proto::UiEvent{proto::UiEvent::OpenChat{chord ? proto::OpenVia::PadChord
-                                                                    : proto::OpenVia::TalkKey}});
+        out.emplace_back(proto::UiEvent::OpenChat{chord ? proto::OpenVia::PadChord : proto::OpenVia::TalkKey});
         return true;
       }
       if (e.hotkey_id != 0 && e.hotkey_id == skip_) {
         const auto& page = lower_.current();
         if (page && page->kind == proto::PageKind::Speech) {
-          out.push_back(proto::UiEvent{proto::UiEvent::Skip{page->id}});
+          out.emplace_back(proto::UiEvent::Skip{page->id});
         }
         return true;
       }
@@ -357,7 +360,7 @@ bool Surfaces::take(const GraceUiEvent& e, std::uint64_t now, std::vector<proto:
         case A::Submit: {
           const std::string line = editor_.text();
           if (!line.empty()) {
-            out.push_back(proto::UiEvent{proto::UiEvent::Submit{line}});
+            out.emplace_back(proto::UiEvent::Submit{line});
             editor_.clear();
           }
           break;
@@ -366,7 +369,7 @@ bool Surfaces::take(const GraceUiEvent& e, std::uint64_t now, std::vector<proto:
         case A::Skip: {
           const auto& page = lower_.current();
           if (page && page->kind == proto::PageKind::Speech) {
-            out.push_back(proto::UiEvent{proto::UiEvent::Skip{page->id}});
+            out.emplace_back(proto::UiEvent::Skip{page->id});
           }
           break;
         }
@@ -425,15 +428,14 @@ void Surfaces::take_choice(const GraceUiEvent& e, std::vector<proto::UiEvent>& o
       break;
     case A::Answer:
       if (last_choice_ && choice_focus_ < n) {
-        out.push_back(proto::UiEvent{proto::UiEvent::Choose{last_choice_->id,
-                                                            static_cast<proto::ChoiceAnswer>(choice_focus_)}});
+        out.emplace_back(proto::UiEvent::Choose{last_choice_->id, static_cast<proto::ChoiceAnswer>(choice_focus_)});
       }
       break;
     case A::Ended:
       choice_holding_ = false;
       hide(choice_);
       if (m.reason && last_choice_) {
-        out.push_back(proto::UiEvent{proto::UiEvent::ChoiceClosed{last_choice_->id, *m.reason, {}}});
+        out.emplace_back(proto::UiEvent::ChoiceClosed{last_choice_->id, *m.reason, std::string()});
       }
       last_choice_.reset();
       break;
@@ -457,7 +459,7 @@ void Surfaces::show_choice(const proto::UiModel& model, std::uint64_t now, std::
       if (choice_.id == 0) {
         if (choice_asked_ != c.id) {
           choice_asked_ = c.id;
-          out.push_back(proto::UiEvent{proto::UiEvent::ChoiceClosed{c.id, proto::CloseReason::NotNow, "not_ready"}});
+          out.emplace_back(proto::UiEvent::ChoiceClosed{c.id, proto::CloseReason::NotNow, "not_ready"});
         }
         return;
       }
@@ -483,7 +485,7 @@ void Surfaces::show_choice(const proto::UiModel& model, std::uint64_t now, std::
   if (choice_holding_ || choice_asked_ == c.id) return;
   choice_asked_ = c.id;
   if (!choice_.shown) {
-    out.push_back(proto::UiEvent{proto::UiEvent::ChoiceClosed{c.id, proto::CloseReason::NotNow, "not_ready"}});
+    out.emplace_back(proto::UiEvent::ChoiceClosed{c.id, proto::CloseReason::NotNow, "not_ready"});
     return;
   }
   // The modal layer's holder, the keyboard and the pad with the holder's events (D176): EldenNet moves its own focus.
@@ -503,11 +505,10 @@ void Surfaces::show_choice(const proto::UiModel& model, std::uint64_t now, std::
   last_choice_.reset();
   if (st == GRACEUI_OK && a.answer == GRACEUI_INPUT_REFUSED) {
     a.holder[sizeof a.holder - 1] = '\0';
-    out.push_back(
-        proto::UiEvent{proto::UiEvent::ChoiceClosed{c.id, proto::CloseReason::Refused, std::string(a.holder)}});
+    out.emplace_back(proto::UiEvent::ChoiceClosed{c.id, proto::CloseReason::Refused, std::string(a.holder)});
   } else {
-    out.push_back(proto::UiEvent{proto::UiEvent::ChoiceClosed{c.id, proto::CloseReason::NotNow,
-                                                              st == GRACEUI_OK ? not_now_word(a.why) : "not_now"}});
+    out.emplace_back(proto::UiEvent::ChoiceClosed{c.id, proto::CloseReason::NotNow,
+                                                  st == GRACEUI_OK ? not_now_word(a.why) : "not_now"});
   }
 }
 
@@ -641,8 +642,7 @@ std::vector<proto::UiEvent> Surfaces::show(const proto::UiModel& model, std::uin
     if (box.view != proto::BoxView::Open) asked_ = false;
     if (model.choice && choice_asked_ != model.choice->id) {
       choice_asked_ = model.choice->id;
-      out.push_back(proto::UiEvent{proto::UiEvent::ChoiceClosed{model.choice->id, proto::CloseReason::NotNow,
-                                                                "not_ready"}});
+      out.emplace_back(proto::UiEvent::ChoiceClosed{model.choice->id, proto::CloseReason::NotNow, "not_ready"});
     }
     return out;
   }
@@ -664,7 +664,7 @@ std::vector<proto::UiEvent> Surfaces::show(const proto::UiModel& model, std::uin
     }
     if (submit(page_, now, false)) {
       if (const auto shown = lower_.submitted(now)) {
-        out.push_back(proto::UiEvent{*shown});
+        out.emplace_back(*shown);
         ++counts_.shown;
       }
     }
@@ -711,7 +711,7 @@ std::vector<proto::UiEvent> Surfaces::show(const proto::UiModel& model, std::uin
         box_edits_ = editor_.edits();
         if (strip_page != nullptr) {
           if (const auto shown = strip_.submitted(now)) {
-            out.push_back(proto::UiEvent{*shown});
+            out.emplace_back(*shown);
             ++counts_.shown;
           }
         }

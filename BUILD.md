@@ -42,10 +42,14 @@ part over `FakeSys`, a process of bytes of the tests' own, in every build.
 ## Windows with MinGW-w64, tested under Wine
 
 ```sh
-cmake -S . -B build-win -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64.cmake -DEN_WITH_CURL=OFF
+cmake -S . -B build-win -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64.cmake -DCMAKE_BUILD_TYPE=Release \
+  -DEN_WITH_CURL=OFF
 cmake --build build-win
 WINEPREFIX=<dir> wine64 build-win/src/en-llm/en_llm_tests.exe     # and each other test program
 ```
+
+Build it as Release: GCC's -O2 warnings (array bounds, maybe-uninitialized) appear only with the optimiser on, and
+the build is to have none.
 
 The MinGW build links its runtime statically, uses WinHTTP (loaded from the system directory by its full path), and
 builds en-gal's portable part (the PE reader, the patterns, `builds.toml` and the layouts) and the derivation kit but not

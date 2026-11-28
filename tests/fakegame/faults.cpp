@@ -16,13 +16,17 @@ volatile bool g_recurse = true;
 volatile int g_sink = 0;  // results kept, so that the optimiser keeps the work that faults
 constexpr UINT kTerminateCode = 0x46470099;  // the code `terminate` ends with, unless --exit-code names another
 
-// SAFETY: reads and writes in the first page, which is never mapped: each is the fault it stands for.
+// SAFETY: reads and writes in the first page, which is never mapped: each is the fault it stands for. The address
+// passes through a volatile object, so that the optimiser cannot know it (GCC -O2 would warn of a read of a null
+// object, -Warray-bounds, where it propagates the constant into the call): the access is made as written.
 __declspec(noinline) void touch_read(std::uintptr_t address) {
-  volatile const int* p = reinterpret_cast<volatile const int*>(address);
+  const volatile std::uintptr_t at = address;
+  volatile const int* p = reinterpret_cast<volatile const int*>(at);
   (void)*p;
 }
 __declspec(noinline) void touch_write(std::uintptr_t address) {
-  volatile int* p = reinterpret_cast<volatile int*>(address);
+  const volatile std::uintptr_t at = address;
+  volatile int* p = reinterpret_cast<volatile int*>(at);
   *p = 1;
 }
 // Both operands unknown to the optimiser: 1 / b alone it turns into a comparison, with no division to trap.
