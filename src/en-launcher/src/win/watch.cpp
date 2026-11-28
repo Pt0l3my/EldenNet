@@ -17,6 +17,36 @@ namespace w = proto::watch;
 
 namespace {
 
+// How the game's window stands, as two flags (the twenty-second read-only round: GraceUI's question, with the
+// owner's word, O151). Asked of Windows from here, outside the game, by ordinary queries of the window: whether it
+// has a frame (0), fills its monitor with none (1: borderless or fullscreen, which only the swap chain could
+// tell apart) or is another kind (2); and whether a display scale above 100% is on, for that monitor or for the
+// window. No size is kept or written.
+struct GameWindow {
+  unsigned mode = 0;
+  bool scaled = false;
+};
+GameWindow game_window_flags(HWND game) noexcept {
+  GameWindow out;
+  const auto style = static_cast<DWORD>(GetWindowLongPtrW(game, GWL_STYLE));
+  RECT window{};
+  MONITORINFOEXW monitor{};
+  monitor.cbSize = sizeof monitor;
+  const bool placed = GetWindowRect(game, &window) != FALSE &&
+                      GetMonitorInfoW(MonitorFromWindow(game, MONITOR_DEFAULTTONEAREST), &monitor) != FALSE;
+  const bool fills = placed && window.left <= monitor.rcMonitor.left && window.top <= monitor.rcMonitor.top &&
+                     window.right >= monitor.rcMonitor.right && window.bottom >= monitor.rcMonitor.bottom;
+  out.mode = (style & WS_CAPTION) == WS_CAPTION ? 0u : fills ? 1u : 2u;
+  // A scale shows in one of three ways, by how this process and the game's stand to it: the window's own DPI, the
+  // system's, or a monitor that has more pixels than the width Windows tells a process that knows of no scale.
+  DEVMODEW mode{};
+  mode.dmSize = sizeof mode;
+  const bool wider = placed && EnumDisplaySettingsW(monitor.szDevice, ENUM_CURRENT_SETTINGS, &mode) != FALSE &&
+                     static_cast<long>(mode.dmPelsWidth) > monitor.rcMonitor.right - monitor.rcMonitor.left;
+  out.scaled = GetDpiForWindow(game) > 96 || GetDpiForSystem() > 96 || wider;
+  return out;
+}
+
 constexpr int kMarkHotkey = 0x454E;  // the Mark's hotkey id ("EN")
 
 std::wstring object_name(std::wstring_view prefix, DWORD pid) { return std::wstring(prefix) + std::to_wstring(pid); }
@@ -151,6 +181,7 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
   std::string panel_footer;
   std::string gathered_line;        // the round's own line for the run, once it has judged every marked task
   std::uint32_t gathered_seen = 0;  // the block's probe_gathered as last read
+  bool window_said = false;         // the tour's plan: the game's window's two flags are in the log
   const auto tell_task = [&](std::uint64_t at) {
     if (tasks->finished()) return;
     const TaskRow row = tasks->rows(at)[tasks->current()];
@@ -245,6 +276,15 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
         // What the round says it gathered, task by task (the owner's wish, 2026-11-24): the done rows carry it, and
         // once every task with a mark is judged its line for the whole run stands under them and in the console.
         const std::uint32_t gathered = b.probe_gathered.load(std::memory_order_acquire);
+        // The tour's plan: once the round has judged the load (the tester stands in the world), how the game's
+        // window stands, as two flags, into the log.
+        if (!window_said && gathered != 0 && b.probe_plan.load(std::memory_order_relaxed) == w::kPlanTour) {
+          if (const HWND game = main_window(pid)) {
+            window_said = true;
+            const GameWindow gw = game_window_flags(game);
+            say("window mode=%u dpi_scaled=%d", gw.mode, gw.scaled ? 1 : 0);
+          }
+        }
         if (gathered != gathered_seen) {
           gathered_seen = gathered;
           tasks->set_gathered(gathered);

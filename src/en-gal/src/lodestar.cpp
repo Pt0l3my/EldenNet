@@ -991,9 +991,8 @@ constexpr auto kKeys = std::to_array<Key>({
     U("part_word"), U("group"), U("copied_times"), U("phases_seen"), AO("patterns"), W("phase_pattern", kPhasePattern),
     U("tried_on"), U("whole_fits"), U("bit_fits"), AO("fits"), U("target_at"), B("whole_field"), B("one_bit"),
     B("off_zero"), B("on_small"),
-    // What the round itself cost and how the game's window stands: EldenNet's own figures and two flags.
-    O("cost"), U("own_mb_start"), U("own_mb_most"), U("own_mb_end"), U("reader_cpu_ms"), U("session_s"),
-    O("game_window"), B("window_seen"), U("window_mode"), B("dpi_scaled"),
+    // What the round itself cost: EldenNet's own figures.
+    O("cost"), U("own_mb_start"), U("own_mb_most"), U("own_mb_end"), U("reader_busy_ms"), U("session_s"),
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
@@ -2148,18 +2147,10 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     w.number("own_mb_start", found.cost->own_mb_start);
     w.number("own_mb_most", found.cost->own_mb_most);
     w.number("own_mb_end", found.cost->own_mb_end);
-    w.number("reader_cpu_ms", found.cost->reader_cpu_ms);
+    w.number("reader_busy_ms", found.cost->reader_busy_ms);
     w.number("session_s", found.cost->session_s);
     w.end_object();
   }
-  if (found.window) {
-    w.begin_object("game_window");
-    w.boolean("window_seen", found.window->seen);
-    w.number("window_mode", found.window->mode);
-    w.boolean("dpi_scaled", found.window->dpi_scaled);
-    w.end_object();
-  }
-
   w.begin_object("table");
   w.word("status", status_word(found.table.status));
   w.number("rva", found.table.rva);

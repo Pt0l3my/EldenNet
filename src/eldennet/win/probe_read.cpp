@@ -251,39 +251,6 @@ class QuietSys final : public en::gal::SysLayer {
 // over. The searches together get kSearchShareUs of a step, each an equal part of it, so that the trial keeps its
 // pace whatever they have to go through; a step in which a search's part ran out is counted. T1 makes a search and
 // publishes it here; T2 only steps it.
-// The game's own top window, as Windows tells of it (plain queries of the window; nothing is sent to it, and
-// nothing is read from the game's memory): whether it has a frame, whether it fills its monitor with none, and
-// whether its display scale is above 100%. No size is kept.
-constinit thread_local HWND t_game_window = nullptr;
-BOOL CALLBACK window_of_the_game(HWND hwnd, LPARAM) noexcept {
-  DWORD pid = 0;
-  GetWindowThreadProcessId(hwnd, &pid);
-  if (pid == GetCurrentProcessId() && IsWindowVisible(hwnd) != FALSE && GetWindow(hwnd, GW_OWNER) == nullptr) {
-    t_game_window = hwnd;
-    return FALSE;
-  }
-  return TRUE;
-}
-lodestar::WindowFound game_window() noexcept {
-  lodestar::WindowFound out;
-  t_game_window = nullptr;
-  EnumWindows(&window_of_the_game, 0);
-  const HWND hwnd = t_game_window;
-  if (hwnd == nullptr) return out;
-  out.seen = true;
-  const auto style = static_cast<DWORD>(GetWindowLongPtrW(hwnd, GWL_STYLE));
-  RECT window{};
-  MONITORINFO monitor{};
-  monitor.cbSize = sizeof monitor;
-  const bool placed = GetWindowRect(hwnd, &window) != FALSE &&
-                      GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &monitor) != FALSE;
-  const bool fills = placed && window.left <= monitor.rcMonitor.left && window.top <= monitor.rcMonitor.top &&
-                     window.right >= monitor.rcMonitor.right && window.bottom >= monitor.rcMonitor.bottom;
-  out.mode = (style & WS_CAPTION) == WS_CAPTION ? 0u : fills ? 1u : 2u;
-  out.dpi_scaled = GetDpiForWindow(hwnd) > 96;
-  return out;
-}
-
 class Body final : public en::gal::TaskBody {
  public:
   Body(en::gal::NativeSys& sys, lodestar::Trial& trial)
@@ -294,6 +261,7 @@ class Body final : public en::gal::TaskBody {
       block::reader_thread(GetCurrentThreadId());
       reader_.bind_thread();
     }
+    const std::uint64_t step_began = quiet_.now_us();
     trial_.run(gt, frame);
     reader_.begin_tick();
     auto* slots = slots_.load(std::memory_order_acquire);
@@ -501,16 +469,12 @@ class Body final : public en::gal::TaskBody {
         world_at_us_ = frame.qpc_now_us;
         world_fields_now_ = world_fields_.load(std::memory_order_acquire) && !world_fields_now_;
         world_frame(backend->world_alone(gt, world_fields_now_));
-        // This thread's own time on the processor, once a second.
-        FILETIME made{}, gone{}, kernel{}, user{};
-        if (GetThreadTimes(GetCurrentThread(), &made, &gone, &kernel, &user) != FALSE) {
-          const auto ticks = [](const FILETIME& t) {
-            return (std::uint64_t{t.dwHighDateTime} << 32) | t.dwLowDateTime;
-          };
-          cpu_ms_.store((ticks(kernel) + ticks(user)) / 10'000, std::memory_order_relaxed);
-        }
+
       }
     }
+    // This step's time at work, by our own clock, added to the thread's sum.
+    busy_us_ += quiet_.now_us() - step_began;
+    busy_ms_.store(busy_us_ / 1000, std::memory_order_relaxed);
     steps_.fetch_add(1, std::memory_order_release);
   }
 
@@ -532,9 +496,10 @@ class Body final : public en::gal::TaskBody {
   void set_survey(lodestar::CharSurvey* survey) noexcept { survey_.store(survey, std::memory_order_release); }
   void set_sheet(lodestar::SheetScan* sheet) noexcept { sheet_.store(sheet, std::memory_order_release); }
   void set_phase(lodestar::PhaseScan* phase) noexcept { phase_.store(phase, std::memory_order_release); }
-  // The reader's thread's own time on the processor so far, in milliseconds (user and kernel), as it last took
-  // it: for the engine's count of what the reader costs (S10.3.a).
-  [[nodiscard]] std::uint64_t cpu_ms() const noexcept { return cpu_ms_.load(std::memory_order_relaxed); }
+  // The time this thread has spent at work in its steps so far, in milliseconds, by our own clock (each step from
+  // its begin to its end): for the engine's count of what the reader costs (S10.3.a). No thread time is asked of
+  // Windows: that would be one import more.
+  [[nodiscard]] std::uint64_t busy_ms() const noexcept { return busy_ms_.load(std::memory_order_relaxed); }
   // EldenNet's own reader: built by T1 over this thread's careful reads, stepped here. A list of flags is handed
   // over by its address; T1 keeps every list it ever handed over.
   struct FlagList {
@@ -591,7 +556,8 @@ class Body final : public en::gal::TaskBody {
   std::atomic<lodestar::CharSurvey*> survey_{nullptr};
   std::atomic<lodestar::SheetScan*> sheet_{nullptr};
   std::atomic<lodestar::PhaseScan*> phase_{nullptr};
-  std::atomic<std::uint64_t> cpu_ms_{0};
+  std::atomic<std::uint64_t> busy_ms_{0};
+  std::uint64_t busy_us_ = 0;
   std::atomic<en::gal::ErBackend*> backend_{nullptr};
   std::atomic<const FlagList*> flag_list_{nullptr};
   en::proto::WorldSnapshot snapshot_;  // the backend's, of which only the flags are filled
@@ -2467,8 +2433,9 @@ class Round {
       }
     }
     if (plan_ == w::kPlanTour && body_ != nullptr) {
-      // What the round itself costs (the engine's question) and how the game's window stands (GraceUI's): both
-      // with the owner's word of 2026-11-28 (O151), and neither read from the game's memory.
+      // What the round itself costs (the engine's question, with the owner's word of 2026-11-28, O151): nothing of
+      // it is read from the game's memory. (GraceUI's question of the game's window is the launcher's to answer,
+      // from outside the game: its log has the line.)
       const std::uint64_t own = own_bytes();
       own_most_ = std::max(own_most_, own);
       lodestar::CostFound cost;
@@ -2476,11 +2443,9 @@ class Round {
       cost.own_mb_start = mb(own_start_);
       cost.own_mb_most = mb(own_most_);
       cost.own_mb_end = mb(own);
-      cost.reader_cpu_ms = body_->cpu_ms();
+      cost.reader_busy_ms = body_->busy_ms();
       cost.session_s = (s_.sys->now_us() - began_us_) / 1'000'000;
       found_.cost = cost;
-      if (!window_.seen) window_ = game_window();
-      found_.window = window_;
     }
     auto text = lodestar::write_report(found_);
     for (int smaller = 0; !text && smaller < 400; ++smaller) {
@@ -2747,7 +2712,6 @@ class Round {
   bool phase_tried_ = false;
   std::uint64_t began_us_ = 0;                      // when the round began
   std::uint64_t own_start_ = 0, own_most_ = 0;      // the DLL's own bytes then, and at their most at a report
-  lodestar::WindowFound window_;                    // the game's window, as first seen
   lodestar::CharSurvey* survey_ = nullptr;          // plan 1
   bool survey_tried_ = false;
   lodestar::SheetScan* sheet_ = nullptr;            // plan 2

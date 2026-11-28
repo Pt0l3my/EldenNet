@@ -1083,22 +1083,15 @@ struct PhaseFound {
   std::vector<PhasePatternFound> patterns;
 };
 
-// What the round itself cost, and how the game's window stands (the twenty-second round; the engine's and
-// GraceUI's questions, with the owner's word, O151). EldenNet's own: the megabytes the DLL holds on its heap and
-// its reader thread's time on the processor. Of the window: its kind and whether a display scale is on, as flags;
-// no size of it or of the screen.
+// What the round itself cost (the twenty-second round; the engine's question, with the owner's word, O151):
+// EldenNet's own megabytes on its heap, and the time its reader thread spent at work in its steps, by EldenNet's
+// own clock (no thread time is asked of Windows).
 struct CostFound {
-  std::uint32_t own_mb_start = 0;   // the DLL's own heap, in MB, when the round began
+  std::uint32_t own_mb_start = 0;    // the DLL's own heap, in MB, when the round began
   std::uint32_t own_mb_most = 0;
-  std::uint32_t own_mb_end = 0;     // at this report
-  std::uint64_t reader_cpu_ms = 0;  // the reader thread's time on the processor so far
-  std::uint64_t session_s = 0;      // since the round began
-};
-struct WindowFound {
-  bool seen = false;                // the game's window was found
-  std::uint32_t mode = 0;           // 0 a window with a frame, 1 one that fills its monitor with no frame
-                                    // (borderless or fullscreen: no telling without the swap chain), 2 another
-  bool dpi_scaled = false;          // the window's display scale is above 100%
+  std::uint32_t own_mb_end = 0;      // at this report
+  std::uint64_t reader_busy_ms = 0;  // the reader thread's steps, begin to end, summed
+  std::uint64_t session_s = 0;       // since the round began
 };
 
 struct Found {
@@ -1127,7 +1120,6 @@ struct Found {
   std::optional<SheetFound> sheet;
   std::optional<PhaseFound> phases;
   std::optional<CostFound> cost;
-  std::optional<WindowFound> window;
   std::vector<InvariantFound> invariants;
 };
 

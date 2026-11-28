@@ -71,9 +71,10 @@ EldenNet's own reader now also reads your focus, your stamina and the count of y
 a second. It writes how often each was there and how often it changed, and never the numbers.
 
 For the engine and for GraceUI, as you allowed: how many megabytes EldenNet's own memory holds (at the start, at
-its most, at the end) and how much processor time its reader thread has used; and of the game's window, whether it
-has a frame, whether it fills its monitor without one, and whether Windows display scaling is above 100%. No size
-of the window or of the screen, and nothing of your PC's hardware. None of this is read from the game's memory.
+its most, at the end) and how long its reader thread was at work, by EldenNet's own clock; and of the game's window,
+whether it has a frame, whether it fills its monitor without one, and whether Windows display scaling is above
+100%. The launcher asks Windows about the window from outside the game and writes one line into its own log. No
+size of the window or of the screen, and nothing of your PC's hardware. None of this is read from the game's memory.
 
 As in the last two rounds, by your choice then: the sheet scan reads the 64 KiB from where the save data's object
 begins and the 64 KiB from where your sheet begins. It writes NUMBERS OF YOUR CHARACTER, in this round only the
@@ -400,10 +401,11 @@ What it does
     rising and at what pace: the second reading of the time of day and of the play time. Of the save data's first 512
     bytes it also writes, as of every object it watches, in how many readings each 32-bit half changed and rose: the
     second reading of the count of deaths.
-  - What the round cost and how the game's window stands, at every report: the megabytes EldenNet's own memory holds
-    (at the start, at its most, now), its reader thread's time on the processor, the seconds since the round began;
-    and of the game's window, by ordinary questions to Windows about that window: whether it has a frame, whether it
-    fills its monitor with none, whether its display scale is above 100%.
+  - What the round cost, at every report: the megabytes EldenNet's own memory holds (at the start, at its most, now),
+    the time its reader thread spent at work in its steps, by EldenNet's own clock, and the seconds since the round
+    began. And once, from the launcher and not from inside the game: of the game's window, by ordinary questions to
+    Windows about that window, whether it has a frame, whether it fills its monitor with none, and whether a display
+    scale above 100% is on. That is one line of launcher.log ("window mode=... dpi_scaled=..."), with no size in it.
   - What it gathered, for the panel: the round tells the launcher one of two things for each of your twelve
     confirmations and timed ends. The load: a save was loaded and your character was there. The menu open, the menu
     closed, mounted, the other grace, back, locked on: the scan by phases made its copies in that state (told once

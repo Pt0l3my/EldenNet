@@ -5786,15 +5786,18 @@ def check_read_tour(result):
          all(len(o["numbers"]) <= 512 and o["numbers_cut"] is True for o in objects.values()),
          "the sheet scan in the tour's plan: %s rose %s" %
          ({k: v for k, v in sheet.items() if not isinstance(v, list)}, sorted(rose.items())[:4]), failures)
-    # What the round cost itself, and the game's window: EldenNet's own megabytes, its reader's time, two flags.
-    cost, window = d.get("cost") or {}, d.get("game_window") or {}
+    # What the round cost itself: EldenNet's own megabytes, and its reader's time at work. And the game's window,
+    # which the launcher asks Windows about from outside the game: two flags in its log, once, and no size.
+    cost = d.get("cost") or {}
     need(1 <= cost.get("own_mb_start", 0) <= cost.get("own_mb_most", 0) < 512 and
-         cost.get("own_mb_end", 0) <= cost.get("own_mb_most", 0) and cost.get("reader_cpu_ms", 0) >= 100 and
-         cost.get("session_s", 0) >= 120,
+         cost.get("own_mb_end", 0) <= cost.get("own_mb_most", 0) and cost.get("reader_busy_ms", 0) >= 100 and
+         cost.get("session_s", 0) >= 120 and cost.get("reader_busy_ms", 0) < cost.get("session_s", 0) * 1000,
          "the round's own cost: %s" % cost, failures)
-    need(window.get("window_seen") is True and window.get("window_mode") in (0, 1, 2) and
-         window.get("dpi_scaled") in (True, False) and set(window) == {"window_seen", "window_mode", "dpi_scaled"},
-         "the game's window: %s" % window, failures)
+    windows = [e for e in result.events("LAUNCHER", "window") if "mode" in e]  # (not the "window shown" line)
+    need(len(windows) == 1 and windows[0].get("mode") in ("0", "1", "2") and
+         windows[0].get("dpi_scaled") in ("0", "1") and set(windows[0]) <= {"mode", "dpi_scaled", "t", "_rest"},
+         "the launcher's line of the game's window: %s" % windows, failures)
+    need("game_window" not in d, "the report holds the game's window", failures)
     size = os.path.getsize(report)
     need(size < 1024 * 1024, "the report: %d bytes" % size, failures)
     failures += any_line(result, "LAUNCHER", "read", report="lodestar-found.json", lint="clean")
