@@ -729,6 +729,10 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 704 | 2026-11-28 | The rollback panel, as built | DECIDED | #engine #overlay #memory |
 | 705 | 2026-11-28 | The memory pages, as built | DECIDED | #engine #pages #memory |
 | 706 | 2026-11-28 | The default keyboard layout: what the wiki says, and where the game keeps it | LIKELY | #input #hotkeys #research |
+| 707 | 2026-11-28 | The focus and the stamina beside the health | FACT | #lodestar #l6 |
+| 708 | 2026-11-28 | The clock's minute and the play time confirmed; the hour waits for both readings | FACT | #lodestar #l6 #gal |
+| 709 | 2026-11-28 | A long exclusive scan starved the shared searches | METHOD | #lodestar #tests |
+| 710 | 2026-11-28 | "Rose by one, once" needs the thing done once | METHOD | #lodestar |
 
 ## Entries
 
@@ -10328,3 +10332,55 @@ GraceUI D254, D274, engine 889f763
 - Consequence for EldenNet: T, masked whenever it is bound (WHY§438's rule holds for the talk key too), would take
   keyboard sorting away from the inventory (the right button still sorts). The default stays until the game's tables
   are read; then the talk and skip keys are chosen from keys free in the field and the menus alike.
+
+### 707. The focus and the stamina beside the health
+
+`2026-11-28` · FACT · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, O136
+
+- The focus and the stamina lie in a character's part of health as the health does: now, at most, and a third number
+  that reads as the most, 12 bytes a group from 0x138 (health), 0x148 (focus) and 0x154 (stamina). Found by holding
+  the main player's part against its sheet's numbers in 104 passes; the known health fields came out of the same
+  search, which is the search's own check. Leads in the layout on 2.7.2.0 WW, the main player's only.
+
+### 708. The clock's minute and the play time confirmed; the hour waits for both readings
+
+`2026-11-28` · FACT · `#lodestar` `#l6` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§614
+
+- `world_clock.minute` and `save_data.play_time` are confirmed (WHY§614): EldenNet's reader and the watch read the same
+  places in one run and agree, and both moved as a clock and a play time do. Thirty fields are confirmed.
+- **Ruling (Engine, 2026-11-28): `world_clock.hour` stays a lead.** The reader read it with the minute, but the hour's
+  rise across each hour's end is the reader's own consistency, not a second reading, and the watch saw no hour in this
+  run; readings in other runs (the seventh and eighth rounds') do not meet WHY§614's "in the same run". It is confirmed
+  by the first run in which the watch reads the hour beside the reader across an hour's end.
+- **Ruling: `save_data.player_data` is confirmed.** The reader went through it in 364 of 364 frames, and the sheet it
+  reached read the same as the main player's own part found through the characters' manager, a path that owes nothing
+  to the save data's word, in 99 to 104 of 104 passes, changing with it: an independent reading, and the behaviour
+  (the health moving) seen.
+- **Ruling: `player_data.level` stays a lead.** Its meaning rests on a status screen read in another run and a number
+  that never changed. It is confirmed in a run where the tester notes the level on the status screen and levels up
+  once at a Site of Grace, and the reader's number matches both.
+- **Ruling: `player_data.name`'s length stays a lead; the rule for a text's length.** The letters are the reader's and
+  the scan's alike; the bound (sixteen units) is the design's guess. A text field's length is confirmed when the field
+  after its bound is confirmed and every unit from the text's end to the bound reads as the end of a text in every
+  frame of a run, or when a text of the game's longest allowed length is read whole. Until then the reader stops at the
+  first end within the bound, so a shorter name reads right.
+
+### 709. A long exclusive scan starved the shared searches
+
+`2026-11-28` · METHOD · `#lodestar` `#tests` · refs: docs/ops/probes/2026-11-22-l5.md
+
+- Every step the exclusive scans yield goes to the next exclusive branch in the chain, not to the shared searches,
+  unless that branch yields too: the flags' tree's walk took every yielded step from the 27th second to the 333rd, the
+  watch made no pass, and the stay's verdict ("not gathered", then "got it" ten seconds after the timer) followed the
+  report as it was written. The tree's walk now yields as well (engine a47b845).
+- A fake-game case must hold each long-running part at a length that outlasts the round, or the sharing is never tried:
+  the fake game's tree had four records. The next round's case has one that outlasts it.
+
+### 710. "Rose by one, once" needs the thing done once
+
+`2026-11-28` · METHOD · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md
+
+- A count is named by "rose by one, once" only if the tester does the thing once; the tester died more than once, so
+  no field qualified. The rule that survives a repeat is "every change a rise by one". A round's tasks must not say a
+  repeat does no harm unless its rules bear it. `save_data.death_count` at 0x94 is entered as a lead: the scan dropped
+  it as text beside its neighbour, and the watch saw it change once, a rise.

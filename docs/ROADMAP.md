@@ -1292,6 +1292,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     play time's second reading, the count of deaths, the player's death by its health, the sheet through the reader,
     and a character's focus and stamina (O136, O137, O138). The read-state and read-clock cases mended. Awaiting the
     owner's run.
+    The twenty-first round ran (2026-11-28; engine a47b845, merged at 73289d5; WHY§707 to §710): the clock's minute
+    and the play time confirmed (30 fields), the save data's player data confirmed by the Engine's ruling, the focus
+    and the stamina placed as leads (O136), the sheet read through the reader; the count of deaths has a candidate,
+    and the hour, the level, the name's length and the player's own death bit wait. The tree's walk starved the watch
+    and now yields. Next: the reader on the new leads, then the menus' screen and the loading counter (WHY§460 step 3).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
