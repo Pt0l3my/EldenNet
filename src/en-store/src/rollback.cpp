@@ -225,14 +225,10 @@ Result<std::uint64_t> trim(Playthrough& pt, const CutPlan& plan) {
       if (!*r) break;
       jobs.push_back(Job{s->i64(0), s->text(1), s->i64(2), s->i64(3), s->i64(4) != 0});
     }
-    auto left = Stmt::prepare(
-        pt.db,
-        "SELECT max(e.id), max(e.conv_id) FROM events e JOIN event_audience a ON a.event_id = e.id AND a.persona = ?1 "
-        "AND a.journey = ?2 WHERE e.journey = ?2 AND e.id <= ?3 AND e.id > coalesce((SELECT v.upto_event_id FROM "
-        "npc_journal v WHERE v.journey = ?2 AND v.persona = ?1 ORDER BY v.version DESC LIMIT 1), 0) AND (?4 = 0 OR "
-        "e.conv_id IN (SELECT c.id FROM conversations c WHERE c.persona = ?1 AND c.player_lines >= 2 AND "
-        "c.committed_lines >= 4))");
-    if (!left) return Unexpected{left.error()};
+    auto watermark = Stmt::prepare(pt.db,
+                                   "SELECT coalesce((SELECT upto_event_id FROM npc_journal WHERE journey = ?1 AND "
+                                   "persona = ?2 ORDER BY version DESC LIMIT 1), 0)");
+    if (!watermark) return Unexpected{watermark.error()};
     auto drop = Stmt::prepare(pt.db, "DELETE FROM memory_jobs WHERE id = ?1");
     if (!drop) return Unexpected{drop.error()};
     auto lower = Stmt::prepare(pt.db,
@@ -247,20 +243,22 @@ Result<std::uint64_t> trim(Playthrough& pt, const CutPlan& plan) {
     if (!merge) return Unexpected{merge.error()};
     std::map<std::pair<std::int64_t, std::string>, RowId> open_job;  // (journey, persona): the job kept open
     for (const Job& g : jobs) {
-      left->reset();
-      left->bind(1, std::string_view(g.persona)).bind(2, g.journey).bind(3, g.upto);
-      left->bind(4, std::int64_t{g.conversation ? 1 : 0});
-      auto r = left->step();
-      if (!r) return Unexpected{r.error()};
-      if (!*r || left->null(0)) {
+      watermark->reset();
+      watermark->bind(1, g.journey).bind(2, std::string_view(g.persona));
+      auto w = watermark->step();
+      if (!w) return Unexpected{w.error()};
+      auto left = events::job_left(pt.db, static_cast<std::uint16_t>(g.journey), g.persona, *w ? watermark->i64(0) : 0,
+                                   g.upto, g.conversation);
+      if (!left) return Unexpected{left.error()};
+      if (!*left) {
         drop->reset();
         drop->bind(1, g.id);
         if (auto d = drop->run(); !d) return Unexpected{d.error()};
         ++rows;
         continue;
       }
-      const std::int64_t last = left->i64(0);
-      const std::optional<std::int64_t> conv = left->opt_i64(1);
+      const std::int64_t last = (*left)->last;
+      const std::optional<std::int64_t> conv = (*left)->conv;
       if (const auto k = open_job.find({g.journey, g.persona}); k != open_job.end()) {
         merge->reset();
         merge->bind(1, k->second).bind(2, last).bind(3, std::int64_t{g.conversation ? 1 : 0}).bind(4, conv);

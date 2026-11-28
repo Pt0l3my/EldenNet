@@ -4,7 +4,8 @@
    `visible_to` and writes its audience through `stored_audience`. The tests and the scenario tool's assertions may
    look; so may the F11 view, a developer's view of counts and the first row's numbers (PAGES SP8), and en-store's
    events file, which keeps the rows.
-2. No SQL outside en-store's `events.cpp` names `event_audience` (its migrations and its tests may).
+2. No SQL outside en-store's `events.cpp` names `event_audience` (its migrations and its tests may, and so may the
+   core-level oracle's test in en-tools, which compares a trimmed file's tables whole with a replay's, MEM §9.6).
 
 Run: python3 -I audience_grep.py --root <repository>. Exit 0 when clean, 1 with each finding on its own line.
 """
@@ -30,6 +31,7 @@ READERS_SCOPE = [
 TABLE_ALLOWED = {
     "src/en-store/src/events.cpp",
     "src/en-store/src/migrations/pt/0001_init.sql",
+    "src/en-tools/tests/test_oracle.cpp",  # the oracle reads every table whole, as a test (MEM §9.6)
 }
 
 
