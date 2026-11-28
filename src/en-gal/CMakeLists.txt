@@ -57,6 +57,7 @@ set(EN_GAL_GAME_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/lodestar_trial.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/lodestar_chars.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/lodestar_parts.cpp src/lodestar_survey.cpp
+  src/lodestar_phase.cpp
   src/lodestar_sheet.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/probe.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_memory.cpp)

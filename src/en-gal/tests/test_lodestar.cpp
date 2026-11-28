@@ -327,7 +327,7 @@ TEST_CASE("the report is numbers, words and labels: it lints clean, and its voca
   }
   CHECK(linted.has_value());
   CHECK(text->find("\"report\": \"lodestar\"") != std::string::npos);
-  CHECK(text->find("\"schema\": 22") != std::string::npos);
+  CHECK(text->find("\"schema\": 23") != std::string::npos);
   CHECK(text->size() < report::kMaxReportBytes);
   // The read round's report may be up to 1 MiB (the owner's word, 2026-11-24): with the sheet scan's numbers at
   // their most, two objects of 2,048 each and every number as long as it can be, it is far past 256 KiB, is
@@ -365,7 +365,7 @@ TEST_CASE("the report is numbers, words and labels: it lints clean, and its voca
   // fixed words, labels, and objects and arrays of those.
   const report::Vocabulary& v = lodestar::vocabulary();
   CHECK(v.kind == "lodestar");
-  CHECK(v.schema == 22);
+  CHECK(v.schema == 23);
   for (const report::Key& k : v.keys) {
     CAPTURE(k.name);
     CHECK(k.type != report::Type::Pattern);

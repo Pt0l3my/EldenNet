@@ -1017,6 +1017,50 @@ struct InvariantFound {
   std::vector<std::uint32_t> witnesses;
 };
 
+
+// The scan by phases (in game; the twenty-second read-only round). A set of objects is copied in each of the
+// tester's phases, and for every 32-bit field it is kept, a phase at a time, which bits never changed in it. A
+// pattern of the round's names phases in which a field is to hold one value and phases in which it is to hold
+// another (the game's menu open against closed; mounted against on foot), or phases across which a count is to
+// have gone up by so many (the loading screens so far). What is told is where a field or a bit fits: never a
+// value of it.
+struct PhaseHit {
+  std::uint32_t target = 0;   // which of `targets`
+  std::uint32_t offset = 0;   // the 32-bit field, from the object's start
+  bool whole = false;         // the whole field fits; else one bit of it does
+  std::uint32_t bit = 0;      // that bit; with `whole`, the one bit the two values differ in, where `one_bit`
+  bool one_bit = false;       // whole: the two values differ in one bit only
+  bool off_zero = false;      // whole: the value outside the pattern's phases is nothing
+  bool on_small = false;      // whole: the value inside them is 1 to 255
+};
+struct PhasePatternFound {
+  std::uint32_t pattern = 0;      // which of the round's patterns (its word)
+  std::uint32_t targets = 0;      // targets it could be tried on: of its group, copied in every phase it names
+  std::uint32_t wholes = 0;       // fields that fit as a whole, in all
+  std::uint32_t bits = 0;         // bits that fit where the whole field does not
+  std::vector<PhaseHit> hits;     // the first of them, by target and offset
+};
+struct PhaseTarget {
+  std::uint32_t kind = 0;         // 0 a static's object, 1 the main player's object, 2 one of its parts
+  std::uint32_t id = 0;           // the catalogue's number, where the static has one
+  std::uint32_t rva = 0;          // the static
+  std::uint32_t part = 0;         // the part's place in the holder, in words
+  std::uint32_t group = 0;        // the round's: which patterns are tried on it
+  std::uint32_t bytes = 0;        // the least a copy held
+  std::uint32_t copies = 0;
+  std::uint32_t phases_seen = 0;  // a bit a phase in which it was copied
+};
+struct PhaseFound {
+  std::uint32_t passes = 0;
+  std::uint32_t absent = 0;       // passes with no main player
+  std::uint32_t phase = 0;
+  std::uint32_t targets_total = 0;
+  std::uint32_t targets_copied = 0;
+  std::vector<PhaseTarget> targets;  // those copied once at least and named by the round (a static with a number,
+                                     // the player, its parts), and any target with a hit
+  std::vector<PhasePatternFound> patterns;
+};
+
 struct Found {
   ImageFound image;
   AccessorFound accessor;
@@ -1041,6 +1085,7 @@ struct Found {
   std::optional<WorldRead> world;
   std::optional<SurveyFound> survey;
   std::optional<SheetFound> sheet;
+  std::optional<PhaseFound> phases;
   std::vector<InvariantFound> invariants;
 };
 

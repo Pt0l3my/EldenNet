@@ -4759,7 +4759,7 @@ def check_read(result, by_flag=False, events=False, marks=False):
     with open(table) as f:
         draft = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 22, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
+    need(d["report"] == "lodestar" and d["schema"] == 23, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
          failures)
     # Numbers and the catalogue's labels: no name of the fake game's, in either file.
     for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["SaveLedger", "FG::", "Imp", "task_loom", "Fg_"]:
@@ -5323,7 +5323,7 @@ def check_read_survey(result):
     need(code == 0, "lint --report lodestar-found.json: exit %s %s" % (code, out[-400:]), failures)
     with open(report) as f:
         d = json.load(f)
-    need(d["report"] == "lodestar" and d["schema"] == 22,
+    need(d["report"] == "lodestar" and d["schema"] == 23,
          "the report's kind: %s %s" % (d.get("report"), d.get("schema")), failures)
     need(all(k not in d for k in ("state", "pair", "chars", "parts")),
          "the survey's report holds an earlier round's section: %s" % sorted(d.keys()), failures)
@@ -5450,7 +5450,7 @@ def check_read_sheet(result):
     need(code == 0, "lint --report lodestar-found.json: exit %s %s" % (code, out[-400:]), failures)
     with open(report) as f:
         d = json.load(f)
-    need(d["report"] == "lodestar" and d["schema"] == 22,
+    need(d["report"] == "lodestar" and d["schema"] == 23,
          "the report's kind: %s %s" % (d.get("report"), d.get("schema")), failures)
     # The sheet scan. The ledger: the count of deaths rose by one, once, in the death's phase (the third); the play
     # time never keeps still and is left out; its two words to objects are addresses, and left out.
@@ -5588,7 +5588,7 @@ def check_read_stay(result):
     need(code == 0, "lint --report lodestar-found.json: exit %s %s" % (code, out[-400:]), failures)
     with open(report) as f:
         d = json.load(f)
-    need(d["report"] == "lodestar" and d["schema"] == 22,
+    need(d["report"] == "lodestar" and d["schema"] == 23,
          "the report's kind: %s %s" % (d.get("report"), d.get("schema")), failures)
     # EldenNet's own reader. The sheet through the layout in nearly every frame with a player: a level in its range
     # that never changes, a name that is there and keeps its length; neither is told. By the marks (1 the stand, 2

@@ -861,6 +861,10 @@ constexpr std::array<std::string_view, 6> kWordKinds = {"zero", "small", "vtable
 constexpr std::array<std::string_view, 3> kJumpAs = {"fraction", "whole", "hour"};
 constexpr std::array<std::string_view, 3> kTreeMatch = {"start", "index", "address"};
 constexpr std::array<std::string_view, 2> kSheetOf = {"save_data", "sheet"};
+// The scan by phases: what a target is, and the round's patterns (the twenty-second round's, in its order).
+constexpr std::array<std::string_view, 3> kPhaseTarget = {"static", "player", "part"};
+constexpr std::array<std::string_view, 8> kPhasePattern = {"menu_open", "mounted", "locked_on", "loadings",
+                                                           "place", "other_5", "other_6", "other_7"};
 constexpr std::array<std::string_view, 7> kCheck = {"is",         "equal",   "with_player", "block",
                                                     "bits_equal", "changed", "bit_at_zero"};
 constexpr std::array<std::string_view, 9> kRefusal = {"unreadable",    "static_section", "static_alignment",
@@ -978,10 +982,15 @@ constexpr auto kKeys = std::to_array<Key>({
     U("agree_alive"), U("agree_dead"), U("against"), U("screen_total"), AO("screen_bits"), U("look"),
     U("flipped_in"), AO("checks"), W("check", kCheck), U("player_holds"), U("player_of"), U("sheet_same"),
     U("sheet_other"), U("sheet_none"),
+    // The scan by phases (in game): where a field or a bit fits a pattern of the tester's phases; no value.
+    O("phase_scan"), U("targets_total"), U("targets_copied"), AO("phase_targets"), W("target_is", kPhaseTarget),
+    U("part_word"), U("group"), U("copied_times"), U("phases_seen"), AO("patterns"), W("phase_pattern", kPhasePattern),
+    U("tried_on"), U("whole_fits"), U("bit_fits"), AO("fits"), U("target_at"), B("whole_field"), B("one_bit"),
+    B("off_zero"), B("on_small"),
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 22, kKeys, report::kMaxLargeReportBytes};
+constexpr report::Vocabulary kVocabulary{"lodestar", 23, kKeys, report::kMaxLargeReportBytes};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -2050,6 +2059,54 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
         w.number("offset", r.offset);
         w.number("phases", r.phases);
         w.boolean("from_nothing", r.from_nothing);
+        w.end_object();
+      }
+      w.end_array();
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
+
+  if (found.phases) {
+    const PhaseFound& f = *found.phases;
+    w.begin_object("phase_scan");
+    w.number("passes", f.passes);
+    w.number("absent", f.absent);
+    w.number("phase", f.phase);
+    w.number("targets_total", f.targets_total);
+    w.number("targets_copied", f.targets_copied);
+    w.begin_array("phase_targets");
+    for (const PhaseTarget& t : f.targets) {
+      w.begin_object();
+      w.word("target_is", kPhaseTarget[std::min<std::size_t>(t.kind, kPhaseTarget.size() - 1)]);
+      w.number("id", t.id);
+      w.number("rva", t.rva);
+      w.number("part_word", t.part);
+      w.number("group", t.group);
+      w.number("bytes", t.bytes);
+      w.number("copied_times", t.copies);
+      w.number("phases_seen", t.phases_seen);
+      w.end_object();
+    }
+    w.end_array();
+    w.begin_array("patterns");
+    for (const PhasePatternFound& p : f.patterns) {
+      w.begin_object();
+      w.word("phase_pattern", kPhasePattern[std::min<std::size_t>(p.pattern, kPhasePattern.size() - 1)]);
+      w.number("tried_on", p.targets);
+      w.number("whole_fits", p.wholes);
+      w.number("bit_fits", p.bits);
+      w.begin_array("fits");
+      for (const PhaseHit& h : p.hits) {
+        w.begin_object();
+        w.number("target_at", h.target);
+        w.number("offset", h.offset);
+        w.boolean("whole_field", h.whole);
+        w.number("bit", h.bit);
+        w.boolean("one_bit", h.one_bit);
+        w.boolean("off_zero", h.off_zero);
+        w.boolean("on_small", h.on_small);
         w.end_object();
       }
       w.end_array();

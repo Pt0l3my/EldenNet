@@ -757,4 +757,63 @@ class SheetScan {
   std::unique_ptr<Impl> impl_;
 };
 
+// The scan by phases (lodestar.hpp's PhaseFound; the twenty-second round). Its targets are a static's object, the
+// main player's object, or one of the main player's parts; each is copied only in the phases the round names for
+// it, in the seconds just after the phase's mark (the tester has then done what the task asked and not yet what
+// the next one asks), at most once every kEveryUs, or once a phase where the round says so. For each field and
+// phase it keeps the bits that were always set and the bits that were ever set: a bit kept still in a phase where
+// the two agree. The round's patterns are tried when a pass ends. Everything is allocated when it is made.
+class PhaseScan {
+ public:
+  static constexpr std::uint32_t kPhases = 16;
+  static constexpr std::size_t kMaxTargets = 320, kMaxPatterns = 8, kListed = 256, kMaxParts = 32;
+  static constexpr std::uint32_t kMaxSpan = 0x2000;
+  static constexpr std::uint64_t kEveryUs = 2'000'000;
+  static constexpr std::uint64_t kWindowFromUs = 1'500'000, kWindowToUs = 9'000'000;  // after a phase's mark
+  enum : std::uint32_t { kStatic = 0, kPlayer = 1, kPart = 2 };
+  enum : std::uint32_t { kLevel = 0, kCount = 1 };
+
+  struct Target {
+    std::uint32_t kind = kStatic;
+    std::uint32_t id = 0;       // the catalogue's number, where the static has one
+    std::uint32_t rva = 0;      // kStatic: the static
+    std::uint32_t part = 0;     // kPart: the part's place in the holder, in words (0 to kMaxParts - 1)
+    std::uint32_t group = 0;
+    std::uint32_t span = 0x400; // bytes copied, a multiple of 4 up to kMaxSpan; shortened where memory ends sooner
+    std::uint32_t phases = 0;   // a bit a phase in which it is copied
+    bool once = false;          // one copy a phase
+  };
+  struct Pattern {
+    std::uint32_t kind = kLevel;
+    std::uint32_t group = 0;    // tried on the targets of this group
+    std::uint32_t on = 0;       // kLevel: the phases with the one value; kCount: the phases it is tried over
+    std::uint32_t off = 0;      // kLevel: the phases with the other
+    std::array<std::uint8_t, kPhases> count{};  // kCount: what the count is to have gone up by, by phase
+    bool whole_only = false;    // kLevel: no bit by itself (a number is looked for, as a place's id, not a flag)
+  };
+  struct Options {
+    std::uint64_t base = 0;
+    std::uint64_t image_size = 0;
+    const ByteSource* image = nullptr;
+    std::uint32_t manager_slot = 0;       // the characters manager's static
+    std::uint32_t main_player_word = 0;   // in the manager's object
+    std::uint32_t parts_at = 0;           // in a character: the holder of its parts (0: no part is copied)
+    std::vector<Target> targets;          // kMaxTargets at most
+    std::vector<Pattern> patterns;        // kMaxPatterns at most
+  };
+  explicit PhaseScan(Options options);
+  ~PhaseScan();
+  PhaseScan(const PhaseScan&) = delete;
+  PhaseScan& operator=(const PhaseScan&) = delete;
+
+  void mark(std::uint64_t now_us) noexcept;  // the next phase begins (the first mark begins phase 0); one thread
+  [[nodiscard]] bool due(std::uint64_t now_us) const noexcept;  // the stepping thread's
+  bool step(const proto::GameThread& gt, GuardedReader& reader, std::uint64_t now_us);  // whether a pass ended
+  [[nodiscard]] PhaseFound found() const;
+
+ private:
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
+};
+
 }  // namespace en::gal::lodestar

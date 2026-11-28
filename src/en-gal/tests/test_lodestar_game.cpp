@@ -3452,3 +3452,144 @@ TEST_CASE("in game: the watch takes for a clock's hours only a run that steps as
   CHECK(c.bits[0].hour_steps == 2);
 }
 
+TEST_CASE("in game: the scan by phases tells where a field or a bit fits the tester's phases, and never a value") {
+  // Invented objects. A menus' object with a field that is 1 while the menu is open, and a flags' word of which
+  // one bit is set then while its low bits never keep still. A part of the main player with a field that reads 3
+  // while it is mounted. A loading object with a count that is one more after each loading screen. And an object
+  // behind a static with no number, copied once in four phases, with a field that reads one thing at the first
+  // place and another at the second.
+  FakeWorld w;
+  w.world();
+  const auto rva = [&](std::uint64_t at) { return static_cast<std::uint32_t>(at - w.base); };
+  const std::uint64_t manager = w.mem.alloc(0x100), hero = w.mem.alloc(0x800), holder = w.mem.alloc(0x100);
+  const std::uint64_t part0 = w.mem.alloc(0x400), part1 = w.mem.alloc(0x200);  // the second ends sooner
+  const std::uint64_t menus = w.mem.alloc(0x1000), loading = w.mem.alloc(0x1000), area = w.mem.alloc(0x2000);
+  w.mem.put<std::uint64_t>(w.at("st_characters"), manager);
+  w.mem.put<std::uint64_t>(manager + 0x10, hero);
+  w.mem.put<std::uint64_t>(hero + 0x30, holder);
+  w.mem.put<std::uint64_t>(holder + 0x0, part0);
+  w.mem.put<std::uint64_t>(holder + 0x8, part1);
+  w.mem.put<std::uint64_t>(w.at("st_menus"), menus);
+  w.mem.put<std::uint64_t>(w.at("st_hud"), loading);
+  w.mem.put<std::uint64_t>(w.at("st_camera"), area);
+  using Scan = lodestar::PhaseScan;
+  Scan::Options o;
+  o.base = w.base;
+  o.image_size = w.sys->image().size();
+  o.image = &w.sys->image();
+  o.manager_slot = rva(w.at("st_characters"));
+  o.main_player_word = 0x10;
+  o.parts_at = 0x30;
+  // Phases: 0 the stand, 1 the menu open, 2 closed, 3 mounted, 4 on foot, 5 at the second place, 6 back.
+  const std::uint32_t all = 0x7F;
+  o.targets.push_back({Scan::kStatic, 1010, rva(w.at("st_menus")), 0, 1, 0x1000, all, false});
+  o.targets.push_back({Scan::kStatic, 1011, rva(w.at("st_hud")), 0, 1, 0x1000, all, false});
+  o.targets.push_back({Scan::kPlayer, 0, 0, 0, 2, 0x800, all, false});
+  o.targets.push_back({Scan::kPart, 0, 0, 0, 2, 0x400, all, false});
+  o.targets.push_back({Scan::kPart, 0, 0, 1, 2, 0x400, all, false});
+  o.targets.push_back({Scan::kPart, 0, 0, 2, 2, 0x400, all, false});  // no such part: never copied
+  o.targets.push_back({Scan::kStatic, 0, rva(w.at("st_camera")), 0, 3, 0x2000, 0b1110001, true});
+  Scan::Pattern menu{Scan::kLevel, 1, 0b0000010, 0b0000101, {}};
+  Scan::Pattern mounted{Scan::kLevel, 2, 0b0001000, 0b0010100, {}};
+  Scan::Pattern loadings{Scan::kCount, 1, 0b1110000, 0, {}};
+  loadings.count[5] = 1;
+  loadings.count[6] = 2;
+  Scan::Pattern place{Scan::kLevel, 3, 0b0100000, 0b1010001, {}, true};  // a number: no bit by itself
+  o.patterns = {menu, mounted, loadings, place};
+  Scan scan(o);
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  std::uint64_t now = 10'000'000;
+  std::uint32_t churn = 0;
+  const auto state = [&](std::uint32_t phase) {
+    w.mem.put<std::uint32_t>(menus + 0x20, phase == 1 ? 1 : 0);
+    w.mem.put<std::uint32_t>(part1 + 0x18, phase == 3 ? 3 : 0);
+    w.mem.put<std::uint32_t>(loading + 0x8, 7 + (phase >= 5 ? 1 : 0) + (phase >= 6 ? 1 : 0));
+    w.mem.put<std::uint32_t>(area + 0x1F00, phase == 5 ? 6'102'000 : 6'100'004);
+    w.mem.put<std::uint32_t>(area + 0x10, 500 + phase);  // changes with every phase: fits nothing
+  };
+  // One second of the round: the low bits of the flags' word change every second, bit 5 with the menu.
+  const auto second = [&](std::uint32_t phase) {
+    now += 1'000'000;
+    churn = churn * 1'103'515'245u + 12'345u;  // (a plain count read every other second keeps its lowest bit)
+    w.mem.put<std::uint32_t>(menus + 0x40, ((churn >> 16) & 7) | (phase == 1 ? 0x20u : 0u));
+    for (int steps = 0; steps < 40 && scan.due(now); ++steps) {
+      reader.begin_tick();
+      (void)scan.step(gt, reader, now);
+    }
+  };
+  CHECK_FALSE(scan.due(now));  // no mark yet
+  for (std::uint32_t phase = 0; phase < 7; ++phase) {
+    state(phase);
+    scan.mark(now);
+    CHECK_FALSE(scan.due(now + 1'000'000));  // the first second and a half after a mark is left alone
+    for (int s = 0; s < 8; ++s) second(phase);
+    // The tester does what the next task asks before its mark: the scan's window is over by then.
+    now += 4'000'000;
+    CHECK_FALSE(scan.due(now));
+    state(phase + 1);
+    second(phase);
+  }
+  const lodestar::PhaseFound f = scan.found();
+  CHECK(f.phase == 6);
+  CHECK(f.absent == 0);
+  CHECK(f.passes >= 21);  // three passes or more in each phase's window
+  CHECK(f.targets_total == 7);
+  CHECK(f.targets_copied == 6);
+  REQUIRE(f.patterns.size() == 4);
+  const auto target = [&](const lodestar::PhaseHit& h) { return f.targets.at(h.target); };
+  // The menu: the field as a whole (nothing outside, 1 inside, one bit apart), and the one bit of the flags' word.
+  const lodestar::PhasePatternFound& m = f.patterns[0];
+  CHECK(m.targets == 2);
+  CHECK(m.wholes == 1);
+  CHECK(m.bits == 1);
+  REQUIRE(m.hits.size() == 2);
+  CHECK(target(m.hits[0]).id == 1010);
+  CHECK(m.hits[0].offset == 0x20);
+  CHECK(m.hits[0].whole);
+  CHECK(m.hits[0].one_bit);
+  CHECK(m.hits[0].bit == 0);
+  CHECK(m.hits[0].off_zero);
+  CHECK(m.hits[0].on_small);
+  CHECK(m.hits[1].offset == 0x40);
+  CHECK_FALSE(m.hits[1].whole);
+  CHECK(m.hits[1].bit == 5);
+  // Mounted: the part's field, in the part that ends sooner than was asked for.
+  const lodestar::PhasePatternFound& r = f.patterns[1];
+  CHECK(r.targets == 3);
+  REQUIRE(r.hits.size() == 1);
+  CHECK(target(r.hits[0]).kind == Scan::kPart);
+  CHECK(target(r.hits[0]).part == 1);
+  CHECK(target(r.hits[0]).bytes == 0x200);
+  CHECK(r.hits[0].offset == 0x18);
+  CHECK(r.hits[0].whole);
+  CHECK_FALSE(r.hits[0].one_bit);
+  CHECK(r.hits[0].on_small);
+  // The loading screens: the count, and nothing else.
+  const lodestar::PhasePatternFound& l = f.patterns[2];
+  REQUIRE(l.hits.size() == 1);
+  CHECK(target(l.hits[0]).id == 1011);
+  CHECK(l.hits[0].offset == 0x8);
+  // The place: one copy in each of four phases, and the one field that is the same three times and another once.
+  const lodestar::PhasePatternFound& a = f.patterns[3];
+  CHECK(a.targets == 1);
+  REQUIRE(a.hits.size() == 1);
+  CHECK(target(a.hits[0]).kind == Scan::kStatic);
+  CHECK(target(a.hits[0]).id == 0);
+  CHECK(target(a.hits[0]).copies == 4);
+  CHECK(target(a.hits[0]).phases_seen == 0b1110001);
+  CHECK(a.hits[0].offset == 0x1F00);
+  CHECK(a.hits[0].whole);
+  CHECK_FALSE(a.hits[0].off_zero);
+  CHECK_FALSE(a.hits[0].on_small);
+  // The report holds the section, and lints.
+  lodestar::Found found;
+  found.phases = f;
+  const auto text = lodestar::write_report(found);
+  REQUIRE(text.has_value());
+  CHECK(text->find("\"phase_scan\": {") != std::string::npos);
+  CHECK(text->find("\"phase_pattern\": \"menu_open\"") != std::string::npos);
+  CHECK(text->find("6102000") == std::string::npos);
+  CHECK(text->find("6100004") == std::string::npos);
+}
+
