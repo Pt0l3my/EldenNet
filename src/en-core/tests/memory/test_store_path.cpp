@@ -13,6 +13,7 @@
 
 #include "../snapshots.hpp"
 #include "../test_files.hpp"
+#include "en/core/choice.hpp"
 #include "en/core/core.hpp"
 #include "en/core/facts.hpp"
 #include "en/core/stubs.hpp"
@@ -431,4 +432,130 @@ TEST_CASE("store path: StageChanged carries the stages' ids; JourneyChanged star
   CHECK(journey.journey == 2);
   CHECK(p.journey() == 2);
   CHECK(p.facts().empty());
+}
+
+TEST_CASE("store path: the shell's spill ring: behind toasts as it turns on; a full ring holds the reply's pages") {
+  TempDir dir;
+  Session s(dir.path() / "saves");
+  s.boot();
+  s.world(30);
+  REQUIRE(s.core.store().mode() == StorePath::Mode::Open);
+  (void)s.feed(CoreInput{CoreInput::StoreBacklog{true, false}});
+  (void)s.feed(CoreInput{CoreInput::StoreBacklog{true, false}});  // no change: no second toast
+  s.world(1);
+  const auto behind = [](const proto::Toast& x) { return x.text == kMemoryBehind; };
+  CHECK(std::count_if(s.toasts.begin(), s.toasts.end(), behind) == 1);
+  // The ring full: the reply's page waits, never shown or committed, until the ring drains.
+  (void)s.feed(CoreInput{CoreInput::StoreBacklog{true, true}});
+  const auto said = [&] {
+    return std::count_if(s.sent.begin(), s.sent.end(), [](const proto::DbRequest& r) {
+      const auto* a = std::get_if<db::Append>(&r.op);
+      return a != nullptr && a->event.kind == "NpcSaid";
+    });
+  };
+  s.talk("Is the lamp yours?", "Hm. It keeps me as I keep it.");
+  CHECK(said() == 0);
+  (void)s.feed(CoreInput{CoreInput::StoreBacklog{false, false}});
+  s.world(20);
+  CHECK(said() == 1);
+}
+
+TEST_CASE("store path: no account found: memory off for the session, one toast at the first playthrough") {
+  TempDir dir;
+  Session s(dir.path() / "saves", 600000, false);
+  (void)s.feed(CoreInput{CoreInput::Account{0}});
+  CHECK_FALSE(s.toasted(kNoAccount));  // nothing before a playthrough
+  s.boot();
+  s.world(4);
+  CHECK(s.core.state().phase == Phase::InWorld);
+  CHECK(s.sent.empty());
+  CHECK(s.toasted(kNoAccount));
+  s.t += 250;
+  (void)s.feed(in(loading(s.t)));
+  s.world(4);
+  const auto none = [](const proto::Toast& x) { return x.text == kNoAccount; };
+  CHECK(std::count_if(s.toasts.begin(), s.toasts.end(), none) == 1);
+}
+
+TEST_CASE("store path: the choice's panel: up when calm, asked again after a close, answered by the player alone") {
+  TempDir dir;
+  const fs::path saves = dir.path() / "saves";
+  {
+    Session first(saves, 2 * 3600000);
+    first.boot();
+    first.world(40);
+    first.talk("Is the lamp yours?", "It keeps me as I keep it.");
+    first.leave();
+  }
+  Session s(saves, 600000);
+  s.boot();
+  s.world(40);
+  REQUIRE(s.core.store().mode() == StorePath::Mode::Choice);
+  REQUIRE(s.last.ui.choice.has_value());
+  const proto::ChoicePanel panel = *s.last.ui.choice;
+  CHECK(panel.answers == std::vector<std::string>{std::string(kChoiceForget), std::string(kChoiceKeep),
+                                                  std::string(kChoiceNew)});
+  REQUIRE(panel.bullets.size() >= 3);
+  CHECK(panel.bullets[0].tone == proto::ChoiceTone::Save);
+  CHECK(panel.bullets[0].text == "This save: journey 1, 0:10 of play.");
+  CHECK(panel.bullets[1].tone == proto::ChoiceTone::Memory);
+  CHECK(panel.lead.find("1 h 50 min older") != std::string::npos);
+  // A conversation with the test persona, by its name as the content gives it; no chat text anywhere in it.
+  bool named = false;
+  for (const proto::ChoiceBullet& b : panel.bullets) {
+    CHECK(b.text.find("lamp") == std::string::npos);
+    if (b.tone == proto::ChoiceTone::Undone && b.text.rfind("A conversation with ", 0) == 0) {
+      named = b.text.find("someone") == std::string::npos;
+    }
+  }
+  CHECK(named);
+  // Closed without an answer: down, and not asked again for 10 s.
+  (void)s.feed(CoreInput{proto::UiEvent{proto::UiEvent::ChoiceClosed{panel.id, proto::CloseReason::InputLost, {}}}});
+  CHECK_FALSE(s.last.ui.choice.has_value());
+  s.world(20);  // 5 s
+  CHECK_FALSE(s.last.ui.choice.has_value());
+  s.world(24);  // past 10 s
+  REQUIRE(s.last.ui.choice.has_value());
+  CHECK(s.last.ui.choice->id != panel.id);
+  // An answer for an older panel is no answer.
+  (void)s.feed(CoreInput{proto::UiEvent{proto::UiEvent::Choose{panel.id, proto::ChoiceAnswer::Keep}}});
+  CHECK(s.core.store().mode() == StorePath::Mode::Choice);
+  (void)s.feed(
+      CoreInput{proto::UiEvent{proto::UiEvent::Choose{s.last.ui.choice->id, proto::ChoiceAnswer::Forget}}});
+  s.world(4);
+  CHECK(s.core.store().mode() == StorePath::Mode::Open);
+  CHECK_FALSE(s.last.ui.choice.has_value());
+}
+
+TEST_CASE("store path: the choice's words: play time, the gap, who, and the counts") {
+  CHECK(play_time_words(0) == "0:00");
+  CHECK(play_time_words(42 * 60000 + 59000) == "0:42");
+  CHECK(play_time_words(12 * 3600000 + 5 * 60000) == "12:05");
+  db::RollbackSummary sum;
+  sum.save_pt = 600000;
+  sum.file_pt = 600000 + 2 * 3600000 + 14 * 60000;
+  sum.turns = 1;
+  sum.memories = 2;
+  sum.last = {db::RollbackItem{db::RollbackItem::Kind::Addressed, "", std::nullopt, 900000},
+              db::RollbackItem{db::RollbackItem::Kind::Witnessed, "stranger", std::nullopt, 800000}};
+  sum.stages_undone = {db::StageUndone{"lantern_keeper", "s0", "s1", 700000}};
+  const proto::ChoicePanel c = choice_panel(sum, 7, [](std::string_view p) -> std::optional<std::string> {
+    if (p == "lantern_keeper") return std::string("Oswin the Lamplighter");
+    return std::nullopt;
+  });
+  CHECK(c.id == 7);
+  CHECK(c.lead.rfind("This save is 2 h 14 min older", 0) == 0);
+  std::vector<std::string> texts;
+  for (const proto::ChoiceBullet& b : c.bullets) texts.push_back(b.text);
+  CHECK(std::find(texts.begin(), texts.end(), "Someone spoke to you, at 0:15 of play.") != texts.end());
+  CHECK(std::find(texts.begin(), texts.end(), "Someone you know saw something happen, at 0:13 of play.") !=
+        texts.end());
+  CHECK(std::find(texts.begin(), texts.end(),
+                  "Oswin the Lamplighter's story would go back to where it stood before 0:11 of play.") != texts.end());
+  CHECK(std::find(texts.begin(), texts.end(), "After this save, in all: 1 line of conversation and 2 memories.") !=
+        texts.end());
+  db::RollbackSummary earlier;
+  earlier.save_journey = 1;
+  earlier.file_journey = 2;
+  CHECK(choice_panel(earlier, 1, {}).lead.rfind("This save is from an earlier journey", 0) == 0);
 }

@@ -17,7 +17,9 @@ add_library(en_shell STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/src/names.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/record.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/spikerun.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/workshop.cpp)
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/workshop.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/steamid.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/spill.cpp)
 en_dll_module(en_shell)
 target_include_directories(en_shell PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(en_shell PUBLIC en_core en_gal en_proto PRIVATE en_third_party)
@@ -30,7 +32,9 @@ if(EN_BUILD_TESTS)
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_rings.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_record.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_spikerun.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_workshop.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_workshop.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_steamid.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_spill.cpp)
   target_link_libraries(en_shell_tests PRIVATE en_shell en_doctest)
   add_test(NAME en_shell_tests COMMAND en_shell_tests)
 endif()
@@ -53,6 +57,7 @@ set(EN_DLL_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/win/shell.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/overlay.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/conversation.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/win/store.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/ai.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/profiles.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/workshop.cpp
@@ -73,10 +78,10 @@ function(en_dll target gal special)
   en_dll_module(${target})
   set_target_properties(${target} PROPERTIES OUTPUT_NAME eldennet)
   target_compile_definitions(${target} PRIVATE EN_DLL_VERSION_LABEL="${EN_VERSION_LABEL}")
-  # en_llm: the AI pages' model client (its WinHTTP loaded by its full path, never imported); advapi32 for secrets.toml's
-  # access list (write_private).
-  target_link_libraries(${target} PRIVATE en_shell ${gal} en_core en_gal en_overlay en_llm en_proto en_third_party
-    advapi32)
+  # en_llm: the AI pages' model client (its WinHTTP loaded by its full path, never imported); en_store: T9 and the
+  # playthrough files (SQLite); advapi32 for secrets.toml's access list (write_private).
+  target_link_libraries(${target} PRIVATE en_shell ${gal} en_core en_store en_gal en_overlay en_llm en_proto
+    en_third_party advapi32)
 endfunction()
 en_dll(eldennet en_gal_game OFF)
 if(EN_BUILD_TESTS OR EN_PROBE)

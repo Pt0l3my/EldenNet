@@ -103,6 +103,26 @@ const char* to_string(CloseReason v) {
   return "escape";
 }
 
+const char* to_string(ChoiceTone v) {
+  switch (v) {
+    case ChoiceTone::Save: return "save";
+    case ChoiceTone::Memory: return "memory";
+    case ChoiceTone::Undone: return "undone";
+    case ChoiceTone::Stage: return "stage";
+    case ChoiceTone::Note: return "note";
+  }
+  return "note";
+}
+
+const char* to_string(ChoiceAnswer v) {
+  switch (v) {
+    case ChoiceAnswer::Forget: return "forget";
+    case ChoiceAnswer::Keep: return "keep";
+    case ChoiceAnswer::NewCharacter: return "new_character";
+  }
+  return "forget";
+}
+
 // ---- Readers ----
 
 namespace detail {
@@ -118,18 +138,24 @@ void read(const json& j, const At& at, HintVerb& out);
 void read(const json& j, const At& at, ToastLevel& out);
 void read(const json& j, const At& at, OpenVia& out);
 void read(const json& j, const At& at, CloseReason& out);
+void read(const json& j, const At& at, ChoiceTone& out);
+void read(const json& j, const At& at, ChoiceAnswer& out);
 void read(const json& j, const At& at, PageId& out);
 void read(const json& j, const At& at, PageView& out);
 void read(const json& j, const At& at, HistoryLine& out);
 void read(const json& j, const At& at, ChatBox& out);
 void read(const json& j, const At& at, TalkHint& out);
 void read(const json& j, const At& at, Toast& out);
+void read(const json& j, const At& at, ChoiceBullet& out);
+void read(const json& j, const At& at, ChoicePanel& out);
 void read(const json& j, const At& at, UiModel& out);
 void read(const json& j, const At& at, UiEvent::OpenChat& out);
 void read(const json& j, const At& at, UiEvent::Submit& out);
 void read(const json& j, const At& at, UiEvent::PageShown& out);
 void read(const json& j, const At& at, UiEvent::Close& out);
 void read(const json& j, const At& at, UiEvent::Skip& out);
+void read(const json& j, const At& at, UiEvent::Choose& out);
+void read(const json& j, const At& at, UiEvent::ChoiceClosed& out);
 void read(const json& j, const At& at, UiEvent& out);
 
 constexpr std::array kConvStates = {ConvState::Closed,    ConvState::Open, ConvState::Awaiting, ConvState::Streaming,
@@ -144,6 +170,9 @@ constexpr std::array kOpenVias = {OpenVia::TalkKey, OpenVia::PadChord};
 constexpr std::array kCloseReasons = {CloseReason::Escape,  CloseReason::FocusLost, CloseReason::InputLost,
                                       CloseReason::Refused, CloseReason::NotNow,    CloseReason::Fault,
                                       CloseReason::Shut};
+constexpr std::array kChoiceTones = {ChoiceTone::Save, ChoiceTone::Memory, ChoiceTone::Undone, ChoiceTone::Stage,
+                                     ChoiceTone::Note};
+constexpr std::array kChoiceAnswersAll = {ChoiceAnswer::Forget, ChoiceAnswer::Keep, ChoiceAnswer::NewCharacter};
 
 void read(const json& j, const At& at, ConvState& out) { read_enum(j, at, kConvStates, out); }
 void read(const json& j, const At& at, PageKind& out) { read_enum(j, at, kPageKinds, out); }
@@ -154,6 +183,8 @@ void read(const json& j, const At& at, HintVerb& out) { read_enum(j, at, kHintVe
 void read(const json& j, const At& at, ToastLevel& out) { read_enum(j, at, kToastLevels, out); }
 void read(const json& j, const At& at, OpenVia& out) { read_enum(j, at, kOpenVias, out); }
 void read(const json& j, const At& at, CloseReason& out) { read_enum(j, at, kCloseReasons, out); }
+void read(const json& j, const At& at, ChoiceTone& out) { read_enum(j, at, kChoiceTones, out); }
+void read(const json& j, const At& at, ChoiceAnswer& out) { read_enum(j, at, kChoiceAnswersAll, out); }
 
 void read(const json& j, const At& at, PageId& out) {
   out = PageId{};
@@ -190,6 +221,17 @@ void read(const json& j, const At& at, Toast& out) {
   Fields(j, at)("id", out.id)("level", out.level)("text", out.text).done();
 }
 
+void read(const json& j, const At& at, ChoiceBullet& out) {
+  out = ChoiceBullet{};
+  Fields(j, at)("tone", out.tone)("text", out.text).done();
+}
+
+void read(const json& j, const At& at, ChoicePanel& out) {
+  out = ChoicePanel{};
+  Fields(j, at)("id", out.id)("title", out.title)("lead", out.lead)("bullets", out.bullets)("answers", out.answers)
+      .done();
+}
+
 namespace {
 
 // The version a top-level form must carry: there, and kUiVersion.
@@ -209,7 +251,9 @@ void read(const json& j, const At& at, UiModel& out) {
   out = UiModel{};
   check_version(j, at);
   std::uint32_t version = 0;
-  Fields(j, at)("version", version)("page", out.page)("chat", out.chat)("hint", out.hint)("toasts", out.toasts).done();
+  Fields(j, at)("version", version)("page", out.page)("chat", out.chat)("hint", out.hint)("toasts", out.toasts)(
+      "choice", out.choice)
+      .done();
 }
 
 void read(const json& j, const At& at, UiEvent::OpenChat& out) {
@@ -237,6 +281,16 @@ void read(const json& j, const At& at, UiEvent::Skip& out) {
   Fields(j, at)("page", out.page).done();
 }
 
+void read(const json& j, const At& at, UiEvent::Choose& out) {
+  out = UiEvent::Choose{};
+  Fields(j, at)("panel", out.panel)("answer", out.answer).done();
+}
+
+void read(const json& j, const At& at, UiEvent::ChoiceClosed& out) {
+  out = UiEvent::ChoiceClosed{};
+  Fields(j, at)("panel", out.panel)("reason", out.reason)("detail", out.detail).done();
+}
+
 void read(const json& j, const At& at, UiEvent& out) {
   check_version(j, at);
   std::uint32_t version = 0;
@@ -245,13 +299,17 @@ void read(const json& j, const At& at, UiEvent& out) {
   std::optional<UiEvent::PageShown> page_shown;
   std::optional<UiEvent::Close> close;
   std::optional<UiEvent::Skip> skip;
+  std::optional<UiEvent::Choose> choose;
+  std::optional<UiEvent::ChoiceClosed> choice_closed;
   Fields(j, at)("version", version)("open_chat", open_chat)("submit", submit)("page_shown", page_shown)(
-      "close", close)("skip", skip)
+      "close", close)("skip", skip)("choose", choose)("choice_closed", choice_closed)
       .done();
   const int kinds = int{open_chat.has_value()} + int{submit.has_value()} + int{page_shown.has_value()} +
-                    int{close.has_value()} + int{skip.has_value()};
+                    int{close.has_value()} + int{skip.has_value()} + int{choose.has_value()} +
+                    int{choice_closed.has_value()};
   if (kinds != 1) {
-    fail(at, "needs exactly one of \"open_chat\", \"submit\", \"page_shown\", \"close\" and \"skip\"");
+    fail(at, "needs exactly one of \"open_chat\", \"submit\", \"page_shown\", \"close\", \"skip\", \"choose\" "
+             "and \"choice_closed\"");
   }
   if (open_chat) {
     out.event = *open_chat;
@@ -261,8 +319,12 @@ void read(const json& j, const At& at, UiEvent& out) {
     out.event = *page_shown;
   } else if (close) {
     out.event = std::move(*close);
-  } else {
+  } else if (skip) {
     out.event = *skip;
+  } else if (choose) {
+    out.event = *choose;
+  } else {
+    out.event = std::move(*choice_closed);
   }
 }
 
@@ -302,6 +364,14 @@ json write(const TalkHint& v) { return {{"verb", to_string(v.verb)}, {"name", v.
 
 json write(const Toast& v) { return {{"id", v.id}, {"level", to_string(v.level)}, {"text", v.text}}; }
 
+json write(const ChoiceBullet& v) { return {{"tone", to_string(v.tone)}, {"text", v.text}}; }
+
+json write(const ChoicePanel& v) {
+  json bullets = json::array();
+  for (const ChoiceBullet& b : v.bullets) bullets.push_back(write(b));
+  return {{"id", v.id}, {"title", v.title}, {"lead", v.lead}, {"bullets", std::move(bullets)}, {"answers", v.answers}};
+}
+
 json write(const UiModel& v) {
   json toasts = json::array();
   for (const Toast& t : v.toasts) toasts.push_back(write(t));
@@ -309,7 +379,8 @@ json write(const UiModel& v) {
           {"page", v.page ? write(*v.page) : json(nullptr)},
           {"chat", write(v.chat)},
           {"hint", v.hint ? write(*v.hint) : json(nullptr)},
-          {"toasts", std::move(toasts)}};
+          {"toasts", std::move(toasts)},
+          {"choice", v.choice ? write(*v.choice) : json(nullptr)}};
 }
 
 json write(const UiEvent::OpenChat& v) { return {{"via", to_string(v.via)}}; }
@@ -319,6 +390,10 @@ json write(const UiEvent::Close& v) {
   return {{"reason", to_string(v.reason)}, {"draft", v.draft}, {"detail", v.detail}};
 }
 json write(const UiEvent::Skip& v) { return {{"page", write(v.page)}}; }
+json write(const UiEvent::Choose& v) { return {{"panel", v.panel}, {"answer", to_string(v.answer)}}; }
+json write(const UiEvent::ChoiceClosed& v) {
+  return {{"panel", v.panel}, {"reason", to_string(v.reason)}, {"detail", v.detail}};
+}
 
 json write(const UiEvent& v) {
   json out = {{"version", kUiVersion}};
@@ -330,8 +405,12 @@ json write(const UiEvent& v) {
     out["page_shown"] = write(*page_shown);
   } else if (const auto* close = std::get_if<UiEvent::Close>(&v.event)) {
     out["close"] = write(*close);
+  } else if (const auto* skip = std::get_if<UiEvent::Skip>(&v.event)) {
+    out["skip"] = write(*skip);
+  } else if (const auto* choose = std::get_if<UiEvent::Choose>(&v.event)) {
+    out["choose"] = write(*choose);
   } else {
-    out["skip"] = write(std::get<UiEvent::Skip>(v.event));
+    out["choice_closed"] = write(std::get<UiEvent::ChoiceClosed>(v.event));
   }
   return out;
 }
@@ -356,6 +435,10 @@ void to_json(json& j, OpenVia v) { j = to_string(v); }
 void from_json(const json& j, OpenVia& v) { detail::read_root(j, "OpenVia", v); }
 void to_json(json& j, CloseReason v) { j = to_string(v); }
 void from_json(const json& j, CloseReason& v) { detail::read_root(j, "CloseReason", v); }
+void to_json(json& j, ChoiceTone v) { j = to_string(v); }
+void from_json(const json& j, ChoiceTone& v) { detail::read_root(j, "ChoiceTone", v); }
+void to_json(json& j, ChoiceAnswer v) { j = to_string(v); }
+void from_json(const json& j, ChoiceAnswer& v) { detail::read_root(j, "ChoiceAnswer", v); }
 
 void to_json(json& j, const PageId& v) { j = write(v); }
 void from_json(const json& j, PageId& v) { detail::read_root(j, "PageId", v); }
@@ -369,6 +452,10 @@ void to_json(json& j, const TalkHint& v) { j = write(v); }
 void from_json(const json& j, TalkHint& v) { detail::read_root(j, "TalkHint", v); }
 void to_json(json& j, const Toast& v) { j = write(v); }
 void from_json(const json& j, Toast& v) { detail::read_root(j, "Toast", v); }
+void to_json(json& j, const ChoiceBullet& v) { j = write(v); }
+void from_json(const json& j, ChoiceBullet& v) { detail::read_root(j, "ChoiceBullet", v); }
+void to_json(json& j, const ChoicePanel& v) { j = write(v); }
+void from_json(const json& j, ChoicePanel& v) { detail::read_root(j, "ChoicePanel", v); }
 void to_json(json& j, const UiModel& v) { j = write(v); }
 void from_json(const json& j, UiModel& v) { detail::read_root(j, "UiModel", v); }
 void to_json(json& j, const UiEvent::OpenChat& v) { j = write(v); }
@@ -381,6 +468,10 @@ void to_json(json& j, const UiEvent::Close& v) { j = write(v); }
 void from_json(const json& j, UiEvent::Close& v) { detail::read_root(j, "Close", v); }
 void to_json(json& j, const UiEvent::Skip& v) { j = write(v); }
 void from_json(const json& j, UiEvent::Skip& v) { detail::read_root(j, "Skip", v); }
+void to_json(json& j, const UiEvent::Choose& v) { j = write(v); }
+void from_json(const json& j, UiEvent::Choose& v) { detail::read_root(j, "Choose", v); }
+void to_json(json& j, const UiEvent::ChoiceClosed& v) { j = write(v); }
+void from_json(const json& j, UiEvent::ChoiceClosed& v) { detail::read_root(j, "ChoiceClosed", v); }
 void to_json(json& j, const UiEvent& v) { j = write(v); }
 void from_json(const json& j, UiEvent& v) { detail::read_root(j, "UiEvent", v); }
 

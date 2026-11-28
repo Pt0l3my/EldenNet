@@ -234,8 +234,14 @@ DWORD WINAPI core_main(void* param) noexcept {
       for (const en::augur::Event& e : out.events) overlay_event(e);  // Augur's events, for the F11 view's list
       workshop_events(s, out.events);  // and every one of them, unfiltered, for Tools › Workshop while it is on
       conversation_out(s, out);  // its requests to the model client, its cancels, its commits logged as numbers
+      store_send(s, out.db);     // its requests to the store (T9), through the spill ring
       ui_model = std::move(out.ui);
     };
+    // The store (store.cpp): T9 started, and the account the core opens each playthrough's file under.
+    std::vector<en::core::CoreInput> store_in;
+    std::vector<en::proto::DbResult> db_in;
+    store_start(s, store_in);
+    for (en::core::CoreInput& i : store_in) step(std::move(i), mono_ms());
     // Pause AI (D15): the pages' ask (ai_pause) or the tests' switch, taken by the core at once: the ladder to L2, or
     // back to what the rest of the state gives.
     const auto take_pause = [&](std::uint64_t now) {
@@ -269,6 +275,11 @@ DWORD WINAPI core_main(void* param) noexcept {
           tripped |= 1ull << static_cast<unsigned>(g->group);
           log(Line("tripped").word("group", en::proto::to_string(g->group)), LogLevel::Warn);
         }
+        if (std::holds_alternative<en::proto::Lifecycle::PlaythroughReady>(life.payload)) {
+          store_in.clear();
+          store_account(s, store_in);  // MEM §8.2 again: a save written since the game started names its folder
+          for (en::core::CoreInput& i : store_in) step(std::move(i), now);
+        }
         step(en::core::CoreInput{life}, now);
       }
       if (io.snaps.take(*latest)) {
@@ -288,6 +299,11 @@ DWORD WINAPI core_main(void* param) noexcept {
       llm_in.clear();
       ai_pump(s, core->state().gate_open, llm_in);
       for (en::proto::LlmEvent& e : llm_in) step(en::core::CoreInput{std::move(e)}, now);
+      // The store's answers (C8), in order, then the spill ring drained and its state, when it changed.
+      db_in.clear();
+      store_poll(s, db_in);
+      for (en::proto::DbResult& r : db_in) step(en::core::CoreInput{std::move(r)}, now);
+      if (const auto backlog = store_backlog(s)) step(en::core::CoreInput{*backlog}, now);
       if (now - last_tick >= 100) {
         last_tick = now;
         step(en::core::CoreInput{en::core::CoreInput::Tick{}}, now);
@@ -383,6 +399,7 @@ DWORD WINAPI core_main(void* param) noexcept {
           f.word("mode", en::gal::to_string(task->status().mode.load())).flag("throttled", task->status().throttled.load());
           log(f);
         }
+        store_status();          // the store's counts
         spike_tick(s, tripped);  // an S0 run's report, with the reader's counts (spike.cpp)
       }
       if (rec.on() && now - last_flush >= 1000) {

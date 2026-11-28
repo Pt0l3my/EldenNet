@@ -10,7 +10,8 @@
 #   hook (R12, GraceUI invariant 16), and never en-core or en-gal (ARCH §2.3: it can never reach game memory).
 set(EN_OVERLAY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/view.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/world.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/space.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/space_data.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/surfaces.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/characters.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/surfaces.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/choice.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/characters.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/docs_data.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/workshop.cpp)
 if(WIN32)
   list(APPEND EN_OVERLAY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/overlay.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/chat.cpp)

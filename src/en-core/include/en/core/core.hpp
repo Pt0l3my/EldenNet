@@ -125,9 +125,16 @@ struct CoreInput {
     bool on = false;
   };
   // The account the shell found under the saves folder (MEM §8.2): with it, each playthrough opens its file. It names
-  // the player's account, so it is never recorded or logged.
+  // the player's account, so it is never recorded or logged. 0: the shell looked and found none (MEM §8.2 step 4):
+  // memory is off for the session, with a toast at the first playthrough.
   struct Account {
     std::uint64_t steamid64 = 0;
+  };
+  // The shell's spill ring (MEM §8.6) when it changes: `behind`, events not being saved (a toast as it turns on);
+  // `pages_held`, the ring full, so the chat shows no new page until it drains (they wait, as for a hidden overlay).
+  struct StoreBacklog {
+    bool behind = false;
+    bool pages_held = false;
   };
   // The player's answer to the rollback choice (MEM §9.1); the panel that asks is slice 3's.
   struct MemoryChoice {
@@ -135,9 +142,9 @@ struct CoreInput {
   };
   // C1's snapshot, C2's lifecycle message, T1's banner, the tick; then the surfaces' event (C7), the model client's
   // event (C10) and the model client's health, which the shell passes when it changes; and the player's Pause AI.
-  // Then the store's answers (C8, in order), the account, and the answer to the choice.
+  // Then the store's answers (C8, in order), the account, the answer to the choice and the spill ring's state.
   std::variant<std::unique_ptr<proto::WorldSnapshot>, proto::Lifecycle, BootBanner, Tick, proto::UiEvent,
-               proto::LlmEvent, proto::NetHealth, Pause, proto::DbResult, Account, MemoryChoice>
+               proto::LlmEvent, proto::NetHealth, Pause, proto::DbResult, Account, MemoryChoice, StoreBacklog>
       payload;
 };
 
@@ -320,6 +327,7 @@ class Core {
   void run_conversation(Mono at, bool fresh, const proto::UiEvent* ui, const proto::LlmEvent* llm, Outputs& out);
   void speech_events(const std::vector<Commit>& commits, Mono at, Outputs& out);
   void on_store(const proto::DbResult& r, Mono now, Outputs& out);
+  void choice_model(Mono now, Outputs& out);
   void run_memory(Mono at, Outputs& out);
   void on_job_input(const proto::db::JobInputResult& r, Mono at, Outputs& out);
   void send_memory(Mono at, Outputs& out);
@@ -355,6 +363,15 @@ class Core {
   Conversation conversation_;
   Directory directory_;
   bool content_loaded_ = false;
+  bool no_account_ = false;        // the shell found no account (MEM §8.2): toasted once, at the first playthrough
+  bool no_account_told_ = false;
+  CoreInput::StoreBacklog backlog_;  // the shell's spill ring
+  // The rollback choice's panel (choice.hpp): up in the model now, its id, when it closed with no answer, and the talk
+  // key pressed while it waits.
+  bool choice_up_ = false;
+  std::uint32_t choice_id_ = 0;
+  std::optional<Mono> choice_closed_at_;
+  bool choice_wanted_ = false;
   std::vector<LayerFinding> layer_findings_;
   std::vector<ContentError> content_warnings_;
   MemoryLog log_;

@@ -632,3 +632,78 @@ TEST_CASE("surfaces: the box's input: Enter, Esc, Tab, the pad, the holder's end
     CHECK(m.map(ended(why), 0).reason == proto::CloseReason::InputLost);
   }
 }
+
+TEST_CASE("surfaces: the rollback choice: centred on the modal layer, its bullets in their tones, three answers") {
+  const GraceUiPanelDesc c = choice_panel(kHd);
+  CHECK(c.layer == GRACEUI_LAYER_MODAL);
+  CHECK(c.anchor == GRACEUI_ANCHOR_CENTRE);
+  CHECK((c.flags & GRACEUI_PANEL_TAKES_INPUT) != 0);
+  CHECK(c.x == 0);
+  CHECK(c.y == 0);
+  CHECK(c.width <= 1920);
+  CHECK(c.height <= 1080);
+  FakeFace ff;
+  const Faces faces = ff.faces();
+  proto::ChoicePanel panel;
+  panel.id = 3;
+  panel.title = "An invented title";
+  panel.lead = "An invented lead that runs on.";
+  panel.bullets = {proto::ChoiceBullet{proto::ChoiceTone::Save, "This save: journey 1, 0:10 of play."},
+                   proto::ChoiceBullet{proto::ChoiceTone::Stage, "A story would go back."}};
+  panel.answers = {"Forget what came after", "Keep everything", "This is a new character"};
+  Painter p;
+  p.reset(c.width, c.height, kWhite, 0.5f, 0.5f);
+  paint_choice(p, faces, kHd, panel, 1);
+  std::string why;
+  CHECK_MESSAGE(valid(p, c.width, c.height, why), why);
+  CHECK(p.glyphs() > 40);
+  // Each tone's square in its own colour.
+  const auto has = [&](std::uint32_t colour) {
+    for (const GraceUiDrawVert& v : p.vertices()) {
+      if (v.colour == colour) return true;
+    }
+    return false;
+  };
+  CHECK(has(tone_colour(proto::ChoiceTone::Save)));
+  CHECK(has(tone_colour(proto::ChoiceTone::Stage)));
+  CHECK_FALSE(has(tone_colour(proto::ChoiceTone::Undone)));
+  CHECK(has(kChoiceFocus));  // the focused answer's fill
+  // More bullets than fit: only whole ones, the answers' row kept.
+  panel.bullets.assign(200, proto::ChoiceBullet{proto::ChoiceTone::Undone, "A conversation, at 0:12 of play."});
+  p.reset(c.width, c.height, kWhite, 0.5f, 0.5f);
+  paint_choice(p, faces, kHd, panel, 0);
+  CHECK_MESSAGE(valid(p, c.width, c.height, why), why);
+  for (const GraceUiDrawVert& v : p.vertices()) {
+    CHECK(v.y <= c.height + 0.5f);  // the ground's fringe, half a pixel out, as every rounded shape's
+  }
+}
+
+TEST_CASE("surfaces: the rollback choice's input: arrows and the D-pad move, Enter and A answer, Esc does nothing") {
+  using A = ChoiceInput::Action;
+  CHECK(ChoiceInput::map(key(0x27, true)).action == A::Next);      // Right
+  CHECK(ChoiceInput::map(key(0x28, true)).action == A::Next);      // Down
+  CHECK(ChoiceInput::map(key(0x09, true)).action == A::Next);      // Tab
+  CHECK(ChoiceInput::map(key(0x25, true)).action == A::Previous);  // Left
+  CHECK(ChoiceInput::map(key(0x26, true, true)).action == A::Previous);  // Up, held
+  CHECK(ChoiceInput::map(key(0x25, false)).action == A::None);
+  CHECK(ChoiceInput::map(key(0x0D, true)).action == A::Answer);
+  CHECK(ChoiceInput::map(key(0x0D, true, true)).action == A::None);  // Enter's repeat answers nothing
+  CHECK(ChoiceInput::map(key(0x1B, true)).action == A::None);        // no answer of EldenNet's own
+  CHECK(ChoiceInput::map(character(U'x')).action == A::None);
+  GraceUiEvent pad{};
+  pad.size = sizeof pad;
+  pad.kind = GRACEUI_EVENT_PAD;
+  pad.pressed = 1;
+  pad.button = 0x1000;  // A
+  CHECK(ChoiceInput::map(pad).action == A::Answer);
+  pad.button = 0x2000;  // B
+  CHECK(ChoiceInput::map(pad).action == A::None);
+  pad.button = 0x0008;  // D-pad right
+  CHECK(ChoiceInput::map(pad).action == A::Next);
+  pad.button = 0x0001;  // D-pad up
+  CHECK(ChoiceInput::map(pad).action == A::Previous);
+  const auto end = ChoiceInput::map(ended(GRACEUI_CLOSED_FOCUS_LOST));
+  CHECK(end.action == A::Ended);
+  CHECK(end.reason == proto::CloseReason::FocusLost);
+  CHECK_FALSE(ChoiceInput::map(ended(GRACEUI_CLOSED_RELEASED)).reason.has_value());
+}

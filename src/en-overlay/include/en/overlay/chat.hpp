@@ -126,6 +126,9 @@ class Surfaces {
   [[nodiscard]] bool plain_text_now() const noexcept { return plain_now_; }
   [[nodiscard]] std::uint32_t plain_text_changes() const noexcept { return plain_changes_; }
   [[nodiscard]] bool holding() const noexcept { return holding_; }
+  // The rollback choice's panel (MEM §9.1, O144): whether it holds input now, and the focused answer.
+  [[nodiscard]] bool choice_holding() const noexcept { return choice_holding_; }
+  [[nodiscard]] std::size_t choice_focus() const noexcept { return choice_focus_; }
   [[nodiscard]] std::uint32_t talk_hotkey() const noexcept { return talk_; }
   [[nodiscard]] std::uint32_t skip_hotkey() const noexcept { return skip_; }
   [[nodiscard]] const std::string& key_words() const noexcept { return key_words_; }
@@ -161,6 +164,11 @@ class Surfaces {
   void hide(Panel& p);
   void describe_talk();
   void release(std::vector<proto::UiEvent>* out, std::optional<proto::CloseReason> reason);
+  // The rollback choice's panel: made at its first use (so that a session without a choice makes no panel for it),
+  // shown, given input as GRACEUI_HOLDER_MODAL with the holder's events, and its answer or its close sent back.
+  void show_choice(const proto::UiModel& model, std::uint64_t now, std::vector<proto::UiEvent>& out);
+  void take_choice(const GraceUiEvent& e, std::vector<proto::UiEvent>& out);
+  void release_choice();
   void caret(const surfaces::Caret& c);
   [[nodiscard]] bool due(const Panel& p, std::uint64_t now) const noexcept;
 
@@ -207,6 +215,14 @@ class Surfaces {
   bool hotkey_by_ = false;      // GraceUI says what pressed a hotkey (has_cap("hotkey-by"), ABI 1.7, D243)
   std::optional<Opened> opened_;
   Counts counts_;
+  // The rollback choice.
+  Panel choice_;
+  surfaces::Display choice_for_;    // the display its panel was made for
+  bool choice_holding_ = false;
+  std::uint32_t choice_asked_ = 0;  // the panel id input was last asked for
+  std::size_t choice_focus_ = 0;
+  bool choice_dirty_ = false;       // the focus moved: drawn again
+  std::optional<proto::ChoicePanel> last_choice_;
 };
 
 }  // namespace en::overlay

@@ -25,6 +25,18 @@
 # renders templates from the content pack in memory), brings SetEndOfFile.
 # The first conversation (S11.3, part C): WaitForMultipleObjects, T6's wait on its own wake signal and GraceUI's wait
 # handle (ABI 1.5, D212) together.
+# The store (v0.3, en-store on T9) links SQLite's Windows VFS, reviewed: its file locks (LockFileEx, UnlockFileEx), its
+# shared-memory index for the WAL (CreateFileMappingW, FlushViewOfFile, UnmapViewOfFile; mmap_size 0 maps no database),
+# its paths and attributes (GetFullPathNameW, GetFileAttributesExW, SetFileAttributesW, GetDiskFreeSpaceExW's sector
+# size, AreFileApisANSI), its overlapped reads' result (GetOverlappedResult), its mutexes (InitializeCriticalSection,
+# TryEnterCriticalSection), its own heap's checks (HeapCompact, HeapDestroy, HeapValidate), GetSystemInfo's page size
+# and FormatMessageW's error words; and the C++ runtime's std::filesystem, for the playthrough files, their backups and
+# archive (CopyFileW, CreateDirectoryExW, FindFirstFileW, GetFileInformationByHandle, GetFinalPathNameByHandleW,
+# DeviceIoControl's reparse-point reads, SetFileTime, InitializeSRWLock), whose object also names CreateHardLinkW,
+# GetCurrentDirectoryW, SetCurrentDirectoryW and GetDriveTypeW, which no code of EldenNet's calls. Ours: GetProcessTimes
+# (when the game's process started, MEM §8.2's "a save changed since the game started") and GetDiskFreeSpaceExW (the
+# 200 MB warning at open, MEM §8.6). All on EldenNet's own files and this process: no network, no hook, no other
+# process.
 [advapi32.dll]
 AddAccessAllowedAce
 GetLengthSid
@@ -38,15 +50,20 @@ SetSecurityDescriptorDacl
 [kernel32.dll]
 AcquireSRWLockExclusive
 AcquireSRWLockShared
+AreFileApisANSI
 CloseHandle
 CloseThreadpoolTimer
 CloseThreadpoolWait
 CompareStringEx
 CompareStringW
+CopyFileW
+CreateDirectoryExW
 CreateDirectoryW
 CreateEventExW
 CreateEventW
+CreateFileMappingW
 CreateFileW
+CreateHardLinkW
 CreateMutexW
 CreateProcessW
 CreateSemaphoreExW
@@ -58,6 +75,7 @@ CreateToolhelp32Snapshot
 DecodePointer
 DeleteCriticalSection
 DeleteFileW
+DeviceIoControl
 DisableThreadLibraryCalls
 EncodePointer
 EnterCriticalSection
@@ -67,11 +85,14 @@ ExitThread
 FindClose
 FindFirstFileExA
 FindFirstFileExW
+FindFirstFileW
 FindNextFileA
 FindNextFileW
 FlushFileBuffers
 FlushProcessWriteBuffers
+FlushViewOfFile
 FormatMessageA
+FormatMessageW
 FreeEnvironmentStringsW
 FreeLibrary
 FreeLibraryAndExitThread
@@ -82,6 +103,7 @@ GetCommandLineA
 GetCommandLineW
 GetConsoleCP
 GetConsoleMode
+GetCurrentDirectoryW
 GetCurrentProcess
 GetCurrentProcessId
 GetCurrentProcessorNumber
@@ -89,13 +111,19 @@ GetCurrentThread
 GetCurrentThreadId
 GetCurrentThreadStackLimits
 GetDateFormatW
+GetDiskFreeSpaceExW
+GetDriveTypeW
 GetEnvironmentStringsW
 GetEnvironmentVariableW
 GetExitCodeThread
+GetFileAttributesExW
 GetFileAttributesW
+GetFileInformationByHandle
 GetFileInformationByHandleEx
 GetFileSizeEx
 GetFileType
+GetFinalPathNameByHandleW
+GetFullPathNameW
 GetLastError
 GetLocalTime
 GetLocaleInfoEx
@@ -106,12 +134,15 @@ GetModuleHandleExW
 GetModuleHandleW
 GetNativeSystemInfo
 GetOEMCP
+GetOverlappedResult
 GetProcAddress
 GetProcessHeap
+GetProcessTimes
 GetStartupInfoW
 GetStdHandle
 GetStringTypeW
 GetSystemDirectoryW
+GetSystemInfo
 GetSystemTimeAsFileTime
 GetTempPathW
 GetTickCount64
@@ -119,17 +150,22 @@ GetTimeFormatW
 GetTimeZoneInformation
 GetUserDefaultLCID
 HeapAlloc
+HeapCompact
 HeapCreate
+HeapDestroy
 HeapFree
 HeapQueryInformation
 HeapReAlloc
 HeapSize
+HeapValidate
 InitOnceBeginInitialize
 InitOnceComplete
 InitOnceExecuteOnce
+InitializeCriticalSection
 InitializeCriticalSectionAndSpinCount
 InitializeCriticalSectionEx
 InitializeSListHead
+InitializeSRWLock
 InterlockedFlushSList
 InterlockedPushEntrySList
 IsDebuggerPresent
@@ -141,6 +177,7 @@ LCMapStringW
 LeaveCriticalSection
 LoadLibraryExW
 LocalFree
+LockFileEx
 MapViewOfFile
 Module32FirstW
 Module32NextW
@@ -168,12 +205,15 @@ RtlUnwind
 RtlUnwindEx
 RtlVirtualUnwind
 SetConsoleCtrlHandler
+SetCurrentDirectoryW
 SetEndOfFile
 SetEnvironmentVariableA
 SetEnvironmentVariableW
 SetEvent
+SetFileAttributesW
 SetFileInformationByHandle
 SetFilePointerEx
+SetFileTime
 SetLastError
 SetStdHandle
 SetThreadpoolTimer
@@ -189,7 +229,10 @@ TlsGetValue
 TlsSetValue
 TryAcquireSRWLockExclusive
 TryAcquireSRWLockShared
+TryEnterCriticalSection
 UnhandledExceptionFilter
+UnlockFileEx
+UnmapViewOfFile
 VirtualAlloc
 VirtualProtect
 VirtualQuery

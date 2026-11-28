@@ -629,6 +629,16 @@ void Augur::resolve_audience(Event& ev, const AugurCtx& ctx) const {
     origin = world_.position(ActorRef::player());
     origin_block = world_.block(ActorRef::player());
   }
+  // The addressee of speech hears it directly, wherever the Tarnished's place reads (MEM §1.1: "direct for the
+  // addressee"): a conversation's partner is spoken to, whatever block the snapshot gives the Tarnished.
+  if (ev.radius == Radius::Speech && ev.object && ev.object->kind == ActorRef::Kind::Persona) {
+    for (const Tracker& t : world_.trackers()) {
+      if (!t.present || t.chr.dead || t.subject.kind != Subject::Kind::Persona) continue;
+      if (!(ActorRef::of(t.subject, t.handle) == *ev.object) || !ctx.persona_may_perceive(t.subject.persona)) continue;
+      ev.audience.push_back(AudienceEntry{t.subject.persona, How::Direct});
+      break;
+    }
+  }
   if (!origin || !origin_block) return;
   const float radius = radius_m(ev.radius);
   struct Cand {

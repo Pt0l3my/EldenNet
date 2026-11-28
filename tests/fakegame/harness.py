@@ -41,11 +41,18 @@ class Case:
     folder the program starts in (relative paths in its arguments are read from there); else the harness's own.
     `during`, a function of the case's paths and a dictionary, runs on a thread of its own while the program runs (a
     browser of the tests' own that joins GraceUI's server, say); what it puts in the dictionary is the result's
-    `during` for the check."""
+    `during` for the check. `again`, a launcher case's later sessions: each a list of arguments for the same program
+    in the same case folder (the same %APPDATA%, game and files), run in order once the one before has ended, with
+    `between(paths, n)` called before session n (1 for the second); the check gets the last session's result, its
+    `runs` every session's in order, each with its own lines of the DLL's log. `exit` is the last session's; an
+    earlier one may be killed or crash (`again_exits`, by session, None for any)."""
 
     def __init__(self, name, args, exit=0, expect=(), forbid=(), check=None, env=None, toolchains=("clang-cl", "mingw"),
                  timeout=60, kill_after=None, what="", program="{exe}", needs=(), prepare=None, settle=False, cwd=None,
-                 during=None):
+                 during=None, again=(), between=None, first_exit=0):
+        self.again = [list(a) for a in again]
+        self.between = between
+        self.first_exit = first_exit
         self.name = name
         self.during = during
         self.cwd = cwd
@@ -3390,6 +3397,262 @@ case("launcher-eldennet-graceui-talk", LGAME + ["--dll", "{eldennetdll}", "--con
           "realm, the talk key opening the chat box within 50 ms, a line typed and sent with the key's own character "
           "swallowed, a scripted reply from a local model server shown in the lower third, acknowledged on its first "
           "frame and committed on display, and Esc closing the box; no chat text in the log")
+# ---- The store in the DLL (v0.3; MEM §8.2, §8.6, §9.1; ARCH §1.2's T9) -----------------------------------------------
+# The talk case's conversation, with a folder of the case's own standing for %APPDATA%\EldenRing (ELDENNET_TEST_SAVES,
+# a probe build's switch): two invented account folders, the newer save's chosen (MEM §8.2), its playthrough file made
+# under the case's %APPDATA%\EldenNet\saves\<SteamID64>\, the conversation's rows in it, and nothing of the account,
+# the file or the chat in the log. The prefix's own account folder (setup's) is not read.
+STORE_ACCOUNTS = ("76561190000000021", "76561190000000022")  # invented: the older save's, the newer's
+STORE_PLAY_S = 3600  # the save's play time when it loads: an hour in
+STORE_TYPED = "Back again"  # the second session's line
+STORE_REPLY = ["Back, are you. ", "The lamp remembers ", "your face."]
+STORE_ENV = dict(GRACE_ENV, ELDENNET_TEST_REALM="eval", ELDENNET_TEST_SAVES="{eldenring}")
+
+
+def install_talk_with(paths, scripted):
+    """install_talk's files, with the fake model server's replies the case's own, in order."""
+    install_graceui(paths)
+    server = fake_models.FakeModels("fk-invented-" + os.urandom(12).hex(), [], open_prefix="/own/",
+                                    open_models=["invented-lantern-a"], scripted=scripted)
+    TALK_RUNS[paths["case"]] = server
+    cfg = os.path.join(paths["appdata"], "EldenNet", "config")
+    with open(os.path.join(cfg, "providers.toml"), "w") as f:
+        f.write('schema = 1\npreset = "custom"\n\n[[provider]]\nid = "lantern-box"\nflavor = "openai"\n'
+                'kind = "local"\nbase_url = "http://127.0.0.1:%d/own/v1"\n\n'
+                '[slots.dialogue]\nprovider = "lantern-box"\nmodel = "invented-lantern-a"\n' % server.port)
+    install_overrides(paths)
+
+
+def install_store(scripted):
+    def install(paths):
+        install_talk_with(paths, scripted)
+        folder = os.path.join(paths["case"], "eldenring")
+        now = time.time()
+        make_account(folder, STORE_ACCOUNTS[0], mtime=now - 7200)
+        make_account(folder, STORE_ACCOUNTS[1], name="invented.co2", mtime=now - 60)
+        os.makedirs(os.path.join(folder, "GraphicsConfig"), exist_ok=True)  # not an account: not 17 digits
+        paths["eldenring"] = folder
+    return install
+
+
+def store_files(r, account=STORE_ACCOUNTS[1]):
+    """The playthrough files (MEM §8.1) under an account's folder of the case's %APPDATA%\\EldenNet\\saves."""
+    folder = os.path.join(r.paths["appdata"], "EldenNet", "saves", account)
+    if not os.path.isdir(folder):
+        return []
+    return sorted(os.path.join(folder, n) for n in os.listdir(folder) if re.match(r"^pt-s\d+-[0-9a-f]{8}\.sqlite$", n))
+
+
+def store_query(path, sql):
+    """Rows of `sql` over a copy of the playthrough file and its WAL (the DLL never closes it at exit, R14): our own
+    test output, read with the standard library's SQLite."""
+    import sqlite3
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        copy = os.path.join(tmp, "pt.sqlite")
+        shutil.copy2(path, copy)
+        if os.path.exists(path + "-wal"):
+            shutil.copy2(path + "-wal", copy + "-wal")
+        con = sqlite3.connect(copy)
+        try:
+            return con.execute(sql).fetchall()
+        finally:
+            con.close()
+
+
+def store_log_is_clean(r, typed=(TALK_TYPED,)):
+    """No account, path, file name or chat in the DLL's log."""
+    failures = en_log_is_clean(r)
+    text = "\n".join(l for l in r.lines if l.startswith("ELDENNET "))
+    for account in STORE_ACCOUNTS + (PREFIX_ACCOUNT,):
+        need(account not in text, "the DLL's log names an account", failures)
+    need(".sqlite" not in text and "pt-s" not in text, "the DLL's log names a playthrough file", failures)
+    for words in typed:
+        need(words.split()[0] not in text.split(), "the log holds chat text: %s" % words.split()[0], failures)
+    return failures
+
+
+def check_store_open(r):
+    server = TALK_RUNS.pop(r.paths["case"], None)
+    if server is not None:
+        server.close()
+    failures = check_lines(("ELDENNET", "store", {"state": "started"}),
+                           ("ELDENNET", "account", {"why": "newest", "folders": 2}),
+                           ("ELDENNET", "store_open", {"rollback": "clean", "journey": 1, "created": 1,
+                                                       "restored_backup": 0, "low_disk": 0, "closed": 0}),
+                           ("ELDENNET", "content_load", {"ok": 1, "personas": 1, "bound": 1}),
+                           ("LAUNCHER", "end", {"kind": "clean"}))(r)
+    need(not r.events("ELDENNET", "store_failed") and not r.events("ELDENNET", "store_tripped"),
+         "the store failed: %s" % (r.events("ELDENNET", "store_failed") + r.events("ELDENNET", "store_tripped")),
+         failures)
+    failures += any_line(r, "ELDENNET", "commit", kind="player_said", chars=len(TALK_TYPED))
+    failures += any_line(r, "ELDENNET", "commit", kind="npc_said", page=0)
+    files = store_files(r)
+    need(len(files) == 1, "playthrough files under the newer account: %s" % files, failures)
+    need(not store_files(r, STORE_ACCOUNTS[0]), "a file under the older account", failures)
+    if len(files) == 1:
+        need(store_query(files[0], "SELECT count(*) FROM conversations") == [(1,)], "not one conversation", failures)
+        said = store_query(files[0], "SELECT text FROM events WHERE kind = 'PlayerSaid'")
+        need(said == [(TALK_TYPED,)], "the Tarnished's line in the file: %s" % said, failures)
+        reply = store_query(files[0], "SELECT text FROM events WHERE kind = 'NpcSaid'")
+        need(len(reply) == 1 and reply[0][0].startswith(TALK_REPLY[0].strip()), "the reply in the file: %s" % reply,
+             failures)
+        meta = dict(store_query(files[0], "SELECT k, v FROM meta"))
+        need(meta.get("steamid64") == STORE_ACCOUNTS[1] and meta.get("slot") == "2",
+             "the file's meta: %s" % {k: meta.get(k) for k in ("steamid64", "slot")}, failures)
+        need("Wanderer" not in json.dumps(meta), "the file's meta holds the character's name", failures)
+    return failures + store_log_is_clean(r)
+
+
+case("launcher-eldennet-graceui-store", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--calm", "--play-time-s", str(STORE_PLAY_S), "--press-keys", TALK_KEYS,
+          "--type-at", "1560:" + TALK_TYPED, "--grace-report", TALK_REPORTS, frames=2700),
+     program="{launcher}", needs=GRACE_NEEDS + ("eldennet_probe",), toolchains=("clang-cl",), env=STORE_ENV,
+     timeout=240, prepare=install_eldennet(TALK_SETTINGS, probe=True, then=install_store([TALK_REPLY])),
+     check=check_store_open,
+     what="The store in the DLL: T9 started, the account of the newer save chosen among two (MEM 8.2), the "
+          "playthrough's file made under it at the first playthrough and opened clean, the conversation's line and "
+          "reply written to it as they show; no account, file or chat in the log")
+
+
+# Two sessions of the same save: the first's conversation, then a second session an hour and a bit in, its file found
+# again (not made), the first conversation closed by the open's recovery (the game left with it open), and the second
+# conversation's prompt holding the first's lines (block 6a, the previous conversation's tail): memory across sessions.
+def check_store_sessions(r):
+    server = TALK_RUNS.pop(r.paths["case"], None)
+    prompts = server.prompts_seen() if server is not None else []
+    if server is not None:
+        server.close()
+    first, second = r.runs[0], r.runs[-1]
+    failures = check_lines(("ELDENNET", "store_open", {"rollback": "clean", "created": 1}))(first)
+    failures += check_lines(("ELDENNET", "store_open", {"rollback": "clean", "created": 0, "journey": 1}),
+                            ("LAUNCHER", "end", {"kind": "clean"}))(second)
+    failures += any_line(second, "ELDENNET", "commit", kind="player_said", chars=len(STORE_TYPED))
+    files = store_files(r)
+    need(len(files) == 1, "playthrough files: %s" % files, failures)
+    if len(files) == 1:
+        need(store_query(files[0], "SELECT count(*) FROM conversations") == [(2,)], "not two conversations", failures)
+        said = store_query(files[0], "SELECT text FROM events WHERE kind = 'PlayerSaid' ORDER BY id")
+        need(said == [(TALK_TYPED,), (STORE_TYPED,)], "the Tarnished's lines in the file: %s" % said, failures)
+        ends = store_query(files[0], "SELECT end_reason FROM conversations ORDER BY id")
+        need(ends and ends[0][0] is not None, "the first conversation not closed: %s" % ends, failures)
+        backups = os.path.join(os.path.dirname(files[0]), "backups")
+        need(os.path.isdir(backups) and any(n.endswith(".1.sqlite") for n in os.listdir(backups)),
+             "no start backup at the second session", failures)
+    need(len(prompts) >= 2, "the model server saw %d prompts" % len(prompts), failures)
+    if len(prompts) >= 2:
+        need(TALK_TYPED in prompts[-1], "the second session's prompt lacks the first's line: %d prompts, the last "
+             "%s" % (len(prompts), prompts[-1][-1500:]), failures)
+    for run in r.runs:
+        failures += store_log_is_clean(run, (TALK_TYPED, STORE_TYPED))
+    return failures
+
+
+case("launcher-eldennet-graceui-store-sessions", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--calm", "--play-time-s", str(STORE_PLAY_S), "--press-keys", TALK_KEYS,
+          "--type-at", "1560:" + TALK_TYPED, frames=2700),
+     again=[LGAME + ["--dll", "{eldennetdll}", "--console"] +
+            game("--d3d12", "--calm", "--play-time-s", str(STORE_PLAY_S + 300), "--press-keys", TALK_KEYS,
+                 "--type-at", "1560:" + STORE_TYPED, frames=2700)],
+     program="{launcher}", needs=GRACE_NEEDS + ("eldennet_probe",), toolchains=("clang-cl",), env=STORE_ENV,
+     timeout=240, prepare=install_eldennet(TALK_SETTINGS, probe=True, then=install_store([TALK_REPLY, STORE_REPLY])),
+     check=check_store_sessions,
+     what="Two sessions of one save: the file made in the first and found in the second, its start backup taken, the "
+          "first conversation closed at the open, and the second conversation's prompt holding the first's line")
+
+
+# A crash with the conversation open, its line and reply already shown: both were written as they showed (a shown line
+# is never lost), and the next session's open closes the conversation as crashed (MEM §3.8).
+def check_store_crash(r):
+    server = TALK_RUNS.pop(r.paths["case"], None)
+    if server is not None:
+        server.close()
+    first, second = r.runs[0], r.runs[-1]
+    failures = want(first, "LAUNCHER", "end", kind="crash")
+    failures += any_line(first, "ELDENNET", "commit", kind="npc_said", page=0)
+    failures += check_lines(("ELDENNET", "store_open", {"rollback": "clean", "created": 0, "closed": 1}),
+                            ("LAUNCHER", "end", {"kind": "clean"}))(second)
+    files = store_files(r)
+    need(len(files) == 1, "playthrough files: %s" % files, failures)
+    if len(files) == 1:
+        rows = store_query(files[0], "SELECT end_reason FROM conversations")
+        need(rows == [("crash",)], "the conversation after the crash: %s" % rows, failures)
+        said = store_query(files[0], "SELECT kind FROM events WHERE kind IN ('PlayerSaid', 'NpcSaid') ORDER BY id")
+        need(said == [("PlayerSaid",), ("NpcSaid",)], "the shown lines after the crash: %s" % said, failures)
+    for run in r.runs:
+        failures += store_log_is_clean(run)
+    return failures
+
+
+case("launcher-eldennet-graceui-store-crash", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--calm", "--play-time-s", str(STORE_PLAY_S), "--press-keys", "1500:t,1700:return",
+          "--type-at", "1560:" + TALK_TYPED, "--crash", "av-read", "--crash-at", "2100", frames=2700),
+     again=[LGAME + ["--dll", "{eldennetdll}", "--console"] +
+            game("--d3d12", "--calm", "--play-time-s", str(STORE_PLAY_S + 300), frames=900)],
+     program="{launcher}", needs=GRACE_NEEDS + ("eldennet_probe",), toolchains=("clang-cl",), env=STORE_ENV,
+     timeout=240, prepare=install_eldennet(TALK_SETTINGS, probe=True, then=install_store([TALK_REPLY])),
+     check=check_store_crash,
+     what="The game crashes with a conversation open, its line and reply shown: both are in the file, and the next "
+          "session's open closes the conversation as crashed")
+
+
+# The rollback choice's panel (MEM §9.1, O144; WHY§690), driven with keys: a first session an hour in talks, and a
+# second loads a save from a minute in, so what came after matters (a conversation's turns): the store asks, and
+# EldenNet's own panel comes up centred on GraceUI's modal layer, holding input as the modal holder (kind 3). → moves
+# its focus to Keep and ← back; the player's exit (the menu key twice) closes it with no answer; it is asked again 10 s
+# later, its focus on Forget again, and Enter answers Forget: the conversation is forgotten, as if not yet happened.
+ROLLBACK_KEYS = "1500:right,1560:left,1620:f5,1640:f5,2460:return"
+ROLLBACK_REPORTS = "1440,1530,1590,1720,2400,2520"
+
+
+def check_store_rollback(r):
+    server = TALK_RUNS.pop(r.paths["case"], None)
+    if server is not None:
+        server.close()
+    first, second = r.runs[0], r.runs[-1]
+    failures = check_lines(("ELDENNET", "store_open", {"rollback": "clean", "created": 1}))(first)
+    failures += check_lines(("ELDENNET", "store_open", {"rollback": "choice", "created": 0}),
+                            ("ELDENNET", "store_resolved", {"rollback": "trimmed"}),
+                            ("LAUNCHER", "end", {"kind": "clean"}))(second)
+    shown = [e for e in second.events("ELDENNET", "choice") if e.get("what") == "shown"]
+    need(len(shown) == 2 and shown[0].get("panel") != shown[1].get("panel"),
+         "the panel shown %s, wanted twice with two ids" % shown, failures)
+    focus = [e.get("focus") for e in second.events("ELDENNET", "choice") if e.get("what") == "focus"]
+    need(focus[:2] == ["1", "0"], "the panel's focus moved %s, wanted 1 then 0" % focus, failures)
+    failures += any_line(second, "ELDENNET", "choice", what="closed", reason="input_lost")
+    answers = [e for e in second.events("ELDENNET", "choice") if e.get("what") == "answer"]
+    need(len(answers) == 1 and answers[0].get("answer") == "forget" and shown and
+         answers[0].get("panel") == shown[-1].get("panel"), "the answers: %s" % answers, failures)
+    # The modal holder while it is up, none after the player's exit and after the answer.
+    failures += want_grace(second, 1440, holder=2, holder_kind=3)  # EldenNet's, on the modal layer
+    failures += want_grace(second, 1720, holder=0)
+    failures += want_grace(second, 2400, holder=2, holder_kind=3)
+    failures += want_grace(second, 2520, holder=0)
+    files = store_files(r)
+    need(len(files) == 1, "playthrough files: %s" % files, failures)
+    if len(files) == 1:
+        need(store_query(files[0], "SELECT count(*) FROM conversations") == [(0,)],
+             "the conversation after Forget: %s" % store_query(files[0], "SELECT count(*) FROM conversations"),
+             failures)
+    for run in r.runs:
+        failures += store_log_is_clean(run)
+    return failures
+
+
+case("launcher-eldennet-graceui-store-rollback", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--calm", "--play-time-s", str(STORE_PLAY_S), "--press-keys", TALK_KEYS,
+          "--type-at", "1560:" + TALK_TYPED, frames=2700),
+     again=[LGAME + ["--dll", "{eldennetdll}", "--console"] +
+            game("--d3d12", "--calm", "--play-time-s", "60", "--press-keys", ROLLBACK_KEYS,
+                 "--grace-report", ROLLBACK_REPORTS, frames=2700)],
+     program="{launcher}", needs=GRACE_NEEDS + ("eldennet_probe",), toolchains=("clang-cl",), env=STORE_ENV,
+     timeout=240, prepare=install_eldennet(TALK_SETTINGS, probe=True, then=install_store([TALK_REPLY])),
+     check=check_store_rollback,
+     what="The rollback choice with keys: an older save loaded after a conversation, EldenNet's panel centred on the "
+          "modal layer holding input, its focus moved by the arrows, closed by the player's exit and asked again 10 s "
+          "later, and Forget answered with Enter: the conversation forgotten")
+
+
 # No input leaks across the box, GraceUI's menu and F11's view (GraceUI's invariants 7, 8 and 17): the box takes the
 # typing and F11 while it holds input, and the game's window gets none of it; the player's exit (the menu key twice)
 # ends the box's holder with its draft kept, which the box opened again gives back; Esc closes the box and never reaches
@@ -5984,6 +6247,37 @@ SETUP_STEPS = (
 )
 
 
+# MEM §8.2: a PC with the game installed has its save folder, %APPDATA%\EldenRing\<SteamID64>\. The prefix's own holds
+# one invented account folder with a sparse save file of the size that counts (10 × 0x280000 bytes, nothing in it), so
+# that every case with a playthrough opens its file as a player's game would; the store's cases name folders of their
+# own (ELDENNET_TEST_SAVES, a probe build's switch).
+PREFIX_ACCOUNT = "76561190000000017"
+SAVE_FILE_BYTES = 10 * 0x280000
+
+
+def make_account(folder, account=PREFIX_ACCOUNT, name="ER0000.sl2", mtime=None):
+    """An invented account folder under `folder` (standing for %APPDATA%\\EldenRing) with a sparse save file."""
+    path = os.path.join(folder, account)
+    os.makedirs(path, exist_ok=True)
+    save = os.path.join(path, name)
+    with open(save, "wb") as f:
+        f.truncate(SAVE_FILE_BYTES)
+    if mtime is not None:
+        os.utime(save, (mtime, mtime))
+    return path
+
+
+def prefix_account(args):
+    users = os.path.join(args.prefix, "drive_c", "users")
+    made = 0
+    for user in sorted(os.listdir(users)) if os.path.isdir(users) else []:
+        roaming = os.path.join(users, user, "AppData", "Roaming")
+        if user != "Public" and os.path.isdir(roaming):
+            make_account(os.path.join(roaming, "EldenRing"))
+            made += 1
+    return made
+
+
 def cmd_setup(args):
     env = wine_env(args)
     if args.native:
@@ -5994,7 +6288,10 @@ def cmd_setup(args):
         if code != 0:
             print("setup step %s failed with %s\n%s\n%s" % (" ".join(argv[:3]), code, out, err))
             return 1
-    print("prefix ready: no crash dialog, no JIT debugger")
+    if prefix_account(args) == 0:
+        print("setup: the prefix has no user's AppData\\Roaming for the invented account folder")
+        return 1
+    print("prefix ready: no crash dialog, no JIT debugger, an invented account folder")
     return 0
 
 
@@ -6794,29 +7091,55 @@ def cmd_run(args):
     cwd = re.sub(r"\{(\w+)\}", lambda m: paths[m.group(1)], c.cwd) if c.cwd else None  # Wine maps it to its drive
     during = {}
     beside = (lambda: c.during(paths, during)) if c.during is not None else None
-    code, out, err, killed = launch(args, argv, env, c.timeout, c.kill_after, c.settle, cwd, beside)
+    logs_at = {}  # each log's size before a session: a later session reads its own lines alone
+
+    def read_from(path):
+        if not os.path.exists(path):
+            return ""
+        with open(path, encoding="utf-8", errors="replace") as f:
+            f.seek(logs_at.get(path, 0))
+            text = f.read()
+        logs_at[path] = os.path.getsize(path)
+        return text
+
+    def session(argv_n, beside_n):
+        if os.path.exists(paths["status"]):
+            os.remove(paths["status"])
+        code_n, out_n, err_n, killed_n = launch(args, argv_n, env, c.timeout, c.kill_after, c.settle, cwd, beside_n)
+        status_text = ""
+        if os.path.exists(paths["status"]):
+            with open(paths["status"], encoding="utf-8", errors="replace") as f:
+                status_text = f.read()
+        if "case" in paths:  # a watcher started by the case writes its lines to its log only
+            log = os.path.join(paths["appdata"], "EldenNet", "logs", "launcher.log")
+            if c.settle:
+                status_text += read_from(log)
+            # eldennet.dll's (part 6)
+            status_text += read_from(os.path.join(paths["appdata"], "EldenNet", "logs", "eldennet.log"))
+        r_n = Result(code_n, out_n, err_n, killed_n, status_text)
+        r_n.during = during
+        r_n.truth = truth
+        r_n.paths = paths
+        r_n.args = args
+        r_n.env = env
+        r_n.as_win = lambda p: windows_path(p, args.native)
+        return r_n
+
+    runs = [session(argv, beside)]
+    for n, more in enumerate(c.again, 1):
+        if c.between is not None:
+            c.between(paths, n)
+        runs.append(session([argv[0]] + [re.sub(r"\{(\w+)\}", as_windows, a) for a in more], None))
     elapsed = time.monotonic() - start
-    status_text = ""
-    if os.path.exists(paths["status"]):
-        with open(paths["status"], encoding="utf-8", errors="replace") as f:
-            status_text = f.read()
-    if "case" in paths:  # a watcher started by the case writes its lines to its log only
-        log = os.path.join(paths["appdata"], "EldenNet", "logs", "launcher.log")
-        if c.settle and os.path.exists(log):
-            with open(log, encoding="utf-8", errors="replace") as f:
-                status_text += f.read()
-        en_log = os.path.join(paths["appdata"], "EldenNet", "logs", "eldennet.log")  # eldennet.dll's (part 6)
-        if os.path.exists(en_log):
-            with open(en_log, encoding="utf-8", errors="replace") as f:
-                status_text += f.read()
-    result = Result(code, out, err, killed, status_text)
-    result.during = during
-    result.truth = truth
-    result.paths = paths
-    result.args = args
-    result.env = env
-    result.as_win = lambda p: windows_path(p, args.native)
+    result = runs[-1]
+    result.runs = runs
+    code, out, err, killed = result.code, result.out, result.err, result.killed
     failures = []
+    for n, earlier in enumerate(runs[:-1], 1):
+        need(not earlier.killed, "session %d timed out" % n, failures)
+        if c.first_exit is not None:
+            want_n = c.first_exit if args.native else c.first_exit & 0xFF
+            need(earlier.code == want_n, "session %d exit %s, wanted %s" % (n, earlier.code, want_n), failures)
     if c.kill_after is not None:
         need(killed, "it ended by itself; it should have hung", failures)
     elif killed:

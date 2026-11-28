@@ -54,6 +54,9 @@ inline constexpr std::string_view kChoicePending = "(Not yet: EldenNet is waitin
 inline constexpr std::string_view kBackupRestored =
     "EldenNet's memory file was damaged, so its newest backup was restored.";
 inline constexpr std::string_view kLowDisk = "Less than 200 MB of disk is free: EldenNet may stop saving memories.";
+// The shell's spill ring past its non-speech part (MEM §8.6), and no account found under the saves folder (§8.2).
+inline constexpr std::string_view kMemoryBehind = "Memory is behind; recent events are not being saved.";
+inline constexpr std::string_view kNoAccount = "Memory is off for this session: no Elden Ring save folder was found.";
 // "Memory is off for this session: " and the cause's words.
 [[nodiscard]] std::string memory_off_text(proto::db::Fault cause);
 

@@ -334,6 +334,20 @@ bool content_tick(Shell& s, en::core::Core& core) noexcept;
 // words and numbers.
 void conversation_out(Shell& s, en::core::Outputs& out) noexcept;
 
+// ---- The store (store.cpp; ARCH §1.2's T9, §1.3's C8; MEM §8.2, §8.6) ----
+// T6 at its start: T9 started on <data>\saves (kept for the process, R14), and the account looked for (store_account).
+void store_start(Shell& s, std::vector<en::core::CoreInput>& to_core) noexcept;
+// T6, at its start and at each PlaythroughReady: MEM §8.2's account, for the core when it changed (never logged).
+void store_account(Shell& s, std::vector<en::core::CoreInput>& to_core) noexcept;
+// T6, each wake: T9's answers in order, each logged by its kind and numbers, for the core.
+void store_poll(Shell& s, std::vector<en::proto::DbResult>& out) noexcept;
+// T6, after each step: the core's requests (Outputs::db) through the spill ring; `requests` is emptied.
+void store_send(Shell& s, std::vector<en::proto::DbRequest>& requests) noexcept;
+// T6, each wake: the spill ring drained into C8, and its state for the core when it changed.
+[[nodiscard]] std::optional<en::core::CoreInput::StoreBacklog> store_backlog(Shell& s) noexcept;
+// T6, every 10 s: the store's counts in one log line.
+void store_status() noexcept;
+
 // ---- The profile editor (profiles.cpp; S7.2.b, NPC §4.7) ----
 // The draft helper's request ids, below the conversation's (en-core's kConversationRequests): ai_pump hands their
 // events to profiles_llm_event.

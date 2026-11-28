@@ -148,6 +148,29 @@ struct Toast {
   bool operator==(const Toast&) const = default;
 };
 
+// ---- The rollback choice (MEM §9.1, O144; WHY§690): EldenNet's own panel, on GraceUI's modal layer ----
+
+// A bullet's colour: the save's side, EldenNet's memory's side, what the cut would undo, a quest stage it would undo,
+// and a note.
+enum class ChoiceTone : std::uint8_t { Save, Memory, Undone, Stage, Note };
+struct ChoiceBullet {
+  ChoiceTone tone = ChoiceTone::Note;
+  std::string text;  // our own words, names as the game shows them, or words such as "someone you know"
+
+  bool operator==(const ChoiceBullet&) const = default;
+};
+enum class ChoiceAnswer : std::uint8_t { Forget, Keep, NewCharacter };
+inline constexpr std::size_t kChoiceAnswers = 3;
+struct ChoicePanel {
+  std::uint32_t id = 0;  // a new one each time it is asked: an answer or a close names it
+  std::string title;
+  std::string lead;
+  std::vector<ChoiceBullet> bullets;
+  std::vector<std::string> answers;  // in ChoiceAnswer's order; the first has the focus when it opens
+
+  bool operator==(const ChoicePanel&) const = default;
+};
+
 // ---- What the core publishes after each step (C6) ----
 
 struct UiModel {
@@ -157,6 +180,8 @@ struct UiModel {
   // The toasts up now, oldest first: the core keeps NPC §10.5's policy (at most two, six seconds each, the queue, the
   // rate limit, held during a boss fight), so a surface shows what is listed and lets go of what is no longer.
   std::vector<Toast> toasts;
+  // The rollback choice, while it waits and the moment is safe (MEM §9.1); the surfaces hold input for it.
+  std::optional<ChoicePanel> choice;
 
   bool operator==(const UiModel&) const = default;
 };
@@ -218,8 +243,25 @@ struct UiEvent {
     friend bool operator==(const Skip&, const Skip&) = default;
   };
 
+  // The rollback choice's answer: Enter or A on a focused answer (there is no answer of EldenNet's own).
+  struct Choose {
+    std::uint32_t panel = 0;
+    ChoiceAnswer answer = ChoiceAnswer::Forget;
+
+    friend bool operator==(const Choose&, const Choose&) = default;
+  };
+  // The choice's panel closed with no answer (danger, a load, the player's exit) or never took input: the core asks
+  // again at the next safe moment.
+  struct ChoiceClosed {
+    std::uint32_t panel = 0;
+    CloseReason reason = CloseReason::InputLost;
+    std::string detail;  // Refused: the holder GraceUI named; NotNow: GraceUI's reason
+
+    friend bool operator==(const ChoiceClosed&, const ChoiceClosed&) = default;
+  };
+
   // A default UiEvent is an OpenChat by the talk key, as a default Lifecycle is a DataReady.
-  std::variant<OpenChat, Submit, PageShown, Close, Skip> event;
+  std::variant<OpenChat, Submit, PageShown, Close, Skip, Choose, ChoiceClosed> event;
 
   bool operator==(const UiEvent&) const = default;
 };
@@ -235,13 +277,16 @@ const char* to_string(HintVerb v);     // speak, answer, next
 const char* to_string(ToastLevel v);   // info, warning, error
 const char* to_string(OpenVia v);      // talk_key, pad_chord
 const char* to_string(CloseReason v);  // escape, focus_lost, input_lost, refused, not_now, fault, shut
+const char* to_string(ChoiceTone v);   // save, memory, undone, stage, note
+const char* to_string(ChoiceAnswer v);  // forget, keep, new_character
 
 // ---- JSON forms (ui_json.cpp) ----
 //
 // As the model client's messages (llm.hpp): every field under its own name, an absent optional as null; read strictly,
 // with a field left out keeping its default and anything else refused with ProtoError, naming the path and the
 // problem. A UiModel and a UiEvent also carry "version", which must be there and be kUiVersion; a UiEvent holds
-// exactly one of "open_chat", "submit", "page_shown", "close" and "skip". A handle is an integer.
+// exactly one of "open_chat", "submit", "page_shown", "close", "skip", "choose" and "choice_closed". A handle is an
+// integer.
 //
 //   {"version": 1, "page_shown": {"page": {"conv": 3, "reply": 2, "index": 0}, "t_ms": 81234}}
 
@@ -263,6 +308,10 @@ void to_json(nlohmann::json& j, OpenVia v);
 void from_json(const nlohmann::json& j, OpenVia& v);
 void to_json(nlohmann::json& j, CloseReason v);
 void from_json(const nlohmann::json& j, CloseReason& v);
+void to_json(nlohmann::json& j, ChoiceTone v);
+void from_json(const nlohmann::json& j, ChoiceTone& v);
+void to_json(nlohmann::json& j, ChoiceAnswer v);
+void from_json(const nlohmann::json& j, ChoiceAnswer& v);
 
 void to_json(nlohmann::json& j, const PageId& v);
 void from_json(const nlohmann::json& j, PageId& v);
@@ -276,6 +325,10 @@ void to_json(nlohmann::json& j, const TalkHint& v);
 void from_json(const nlohmann::json& j, TalkHint& v);
 void to_json(nlohmann::json& j, const Toast& v);
 void from_json(const nlohmann::json& j, Toast& v);
+void to_json(nlohmann::json& j, const ChoiceBullet& v);
+void from_json(const nlohmann::json& j, ChoiceBullet& v);
+void to_json(nlohmann::json& j, const ChoicePanel& v);
+void from_json(const nlohmann::json& j, ChoicePanel& v);
 void to_json(nlohmann::json& j, const UiModel& v);
 void from_json(const nlohmann::json& j, UiModel& v);
 void to_json(nlohmann::json& j, const UiEvent::OpenChat& v);
@@ -288,6 +341,10 @@ void to_json(nlohmann::json& j, const UiEvent::Close& v);
 void from_json(const nlohmann::json& j, UiEvent::Close& v);
 void to_json(nlohmann::json& j, const UiEvent::Skip& v);
 void from_json(const nlohmann::json& j, UiEvent::Skip& v);
+void to_json(nlohmann::json& j, const UiEvent::Choose& v);
+void from_json(const nlohmann::json& j, UiEvent::Choose& v);
+void to_json(nlohmann::json& j, const UiEvent::ChoiceClosed& v);
+void from_json(const nlohmann::json& j, UiEvent::ChoiceClosed& v);
 void to_json(nlohmann::json& j, const UiEvent& v);
 void from_json(const nlohmann::json& j, UiEvent& v);
 
