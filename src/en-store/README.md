@@ -41,7 +41,8 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHYÂ
   take its place. `locate` finds a key's file in MEM Â§8.3's order: the live file; a live file in the slot whose meta
   matches the name's hash and the archetype with gifts equal or unread (0xFF) on either side, renamed while closed
   after a TRUNCATE checkpoint; this file set aside as corrupt in an earlier session, with its newest backup restored
-  (MEM Â§8.6); an archived file of this fingerprint, restored; else a new file. In the last three the slot's other live
+  (MEM Â§8.6); the newest archived file of this fingerprint (by its stamp, then its counter within a second),
+  restored; else a new file. In the last three the slot's other live
   files are archived, never deleted. The store reads no name: the key carries its hash
   (`identity_of`, `soft_match`). File names' times are UTC, made without a clock or a locale (`utc_stamp`). Paths
   never leave en-store; `backups_of` answers the count and times alone, for the Memories page.
@@ -161,7 +162,8 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHYÂ
   six-line tail and pending count, direct lines only; a job's evidence; lived versions, a refold replacing every fact
   the events give and keeping a claim's proof, and the fold's every row;
 - the files (`test_files.cpp`): names and UTC stamps, the soft match's rules, a key's live file, a new file with the
-  slot's other character archived and restored when that character comes back, another slot untouched, a renamed
+  slot's other character archived and restored when that character comes back, of a character archived twice in one
+  second the later file restored, another slot untouched, a renamed
   file with no WAL left, three rotating backups with the newest in `.1`, a migration's last two, and a corrupt file
   set aside for the newest backup (never taken for another character);
 - the faults (`test_faults.cpp`, through `fault_vfs.hpp`, a shim over SQLite's default VFS registered by the tests

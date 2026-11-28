@@ -3,7 +3,10 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <system_error>
+#include <utility>
+#include <vector>
 
 namespace en::store {
 
@@ -140,6 +143,25 @@ bool soft_match(const FileIdentity& file, const proto::PlaythroughKey& key) noex
   return g == key.gift || g == 0xFF || key.gift == 0xFF;
 }
 
+namespace {
+
+// The newest of a character's archived files, `<stem>-<utc>.sqlite` and, archived again within the same second,
+// `<stem>-<utc>-<n>.sqlite` (archive_file): by the stamp, then the counter (the first of a second is 1). By name alone
+// "-2" sorts before ".sqlite", so a file archived second in a second would pass for the older one.
+const fs::path& newest_archive(const std::vector<fs::path>& archived) {
+  const auto key = [](const fs::path& p) {
+    const std::string stem = p.stem().string();  // ...-<utc> or ...-<utc>-<n>
+    const std::size_t z = stem.rfind('Z');
+    int n = 1;
+    if (z != std::string::npos && z + 2 < stem.size() && stem[z + 1] == '-') n = std::atoi(stem.c_str() + z + 2);
+    return std::make_pair(z == std::string::npos ? stem : stem.substr(0, z + 1), n);
+  };
+  return *std::max_element(archived.begin(), archived.end(),
+                           [&](const fs::path& a, const fs::path& b) { return key(a) < key(b); });
+}
+
+}  // namespace
+
 bool archive_file(const SaveFolder& folder, const fs::path& live, std::int64_t wall) {
   std::error_code ec;
   fs::create_directories(folder.archive(), ec);
@@ -195,7 +217,7 @@ Result<Located> locate(const SaveFolder& folder, const proto::PlaythroughKey& ke
     return out;
   }
   if (!archived.empty()) {
-    if (!rename_with_sidecars(archived.back(), out.path)) return Unexpected{Fault::IoErr};
+    if (!rename_with_sidecars(newest_archive(archived), out.path)) return Unexpected{Fault::IoErr};
     out.restored_archive = true;
     return out;
   }
