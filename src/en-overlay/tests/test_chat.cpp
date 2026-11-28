@@ -138,12 +138,12 @@ TEST_CASE("chat: connect registers the surfaces' texture, faces, hotkeys and wai
   CHECK(g.faces[2].pixel_height == 30);
   CHECK(g.faces[2].flags == GRACEUI_FACE_SCALED);
   CHECK(g.faces[2].bytes == kItalic.size());
-  // The hotkeys by their stable ids and players' names (§48): talk on T with the pad chord, D-pad Up then View (§47),
-  // and skip on Tab.
+  // The hotkeys by their stable ids and players' names (§48): talk on V (O152) with the pad chord, D-pad Up then View
+  // (§47), and skip on Tab.
   REQUIRE(g.hotkeys.size() == 2);
   CHECK(g.hotkeys[0].action == "talk");
   CHECK(g.hotkeys[0].name == "Talk");
-  CHECK(g.hotkeys[0].key == 0x54);
+  CHECK(g.hotkeys[0].key == 0x56);  // V (O152)
   CHECK(g.hotkeys[0].chord == GRACEUI_PAD_CHORD(0x0001, 0x0020));
   CHECK(g.hotkeys[1].action == "skip-page");
   CHECK(g.hotkeys[1].key == 0x09);
@@ -153,7 +153,7 @@ TEST_CASE("chat: connect registers the surfaces' texture, faces, hotkeys and wai
   CHECK(r.surfaces.wake);
   REQUIRE(o->wake() != nullptr);
   CHECK(WaitForSingleObject(static_cast<HANDLE>(o->wake()), 0) == WAIT_OBJECT_0);
-  CHECK(o->surfaces()->key_words() == "T");  // describe_hotkey's words
+  CHECK(o->surfaces()->key_words() == "V");  // describe_hotkey's words
   CHECK(g.panels.empty());  // no panel until the display is known
 }
 
@@ -334,7 +334,7 @@ TEST_CASE("chat: older GraceUIs: no chord without the cap, and no surfaces witho
   CHECK(g.hotkeys[0].chord == 0);
   CHECK_FALSE(r.surfaces.wake);
   CHECK(o->wake() == nullptr);
-  CHECK(o->surfaces()->key_words() == "T");  // no describe_hotkey: the default
+  CHECK(o->surfaces()->key_words() == "V");  // no describe_hotkey: the default (O152)
   fake::Grace h;
   h.caps = {"notices", "panels", "textures", "faces", "input", "world-state", "hotkeys", "display"};
   auto p = connect(h, options(), r);
@@ -368,7 +368,7 @@ TEST_CASE("chat: the talk key opens the box: its panel shown, then input asked f
   REQUIRE_FALSE(s.g.carets.empty());
   CHECK(s.g.carets.back().panel == s.g.holder_panel);
   CHECK(s.g.carets.back().height > 0);
-  // Hotkeys are silent while the box holds input: T types.
+  // Hotkeys are silent while the box holds input: V types.
   s.g.press("talk");
   CHECK(s.poll().empty());
 }
@@ -377,7 +377,7 @@ TEST_CASE("chat: typing: the talk key's character swallowed, the caret moves, En
   Session s;
   s.open();
   const std::size_t carets = s.g.carets.size();
-  s.g.type("t");  // the T that opened the box, as its WM_CHAR follows
+  s.g.type("v");  // the V that opened the box, as its WM_CHAR follows
   s.now += 20;
   CHECK(s.poll().empty());
   CHECK(s.o->surfaces()->counts().swallowed == 1);
@@ -592,7 +592,7 @@ TEST_CASE("chat: toasts as notices under EldenNet's keys, withdrawn when no long
 }
 
 TEST_CASE("chat: what pressed the talk hotkey (ABI 1.7): the chord alone opens by the chord, with no swallow") {
-  // GraceUI 0.2.38's hotkey_by (D243). The chord: OpenChat by the pad chord, and a T typed at once is the player's.
+  // GraceUI 0.2.38's hotkey_by (D243). The chord: OpenChat by the pad chord, and a V typed at once is the player's.
   const auto typed_after = [](fake::Grace& g, std::unique_ptr<Overlay>& o, std::uint64_t& now, std::uint32_t by,
                               proto::OpenVia& via) {
     g.press("talk", 1, by);
@@ -602,7 +602,7 @@ TEST_CASE("chat: what pressed the talk hotkey (ABI 1.7): the chord alone opens b
     via = open->via;
     REQUIRE(o->show(open_box(), now).empty());
     REQUIRE(g.holding);
-    g.type("t");  // within 100 ms of the open, as the key's own WM_CHAR would come
+    g.type("v");  // within 100 ms of the open, as the key's own WM_CHAR would come
     g.key(0x0D, true);
     now += 20;
     const auto sent = find<proto::UiEvent::Submit>(o->step(status(), nullptr, nullptr, now).ui);
@@ -611,7 +611,7 @@ TEST_CASE("chat: what pressed the talk hotkey (ABI 1.7): the chord alone opens b
   {
     Session s;
     proto::OpenVia via{};
-    CHECK(typed_after(s.g, s.o, s.now, GRACEUI_HOTKEY_BY_CHORD, via) == "t");
+    CHECK(typed_after(s.g, s.o, s.now, GRACEUI_HOTKEY_BY_CHORD, via) == "v");
     CHECK(via == proto::OpenVia::PadChord);
     CHECK(s.o->surfaces()->counts().swallowed == 0);
   }
@@ -648,7 +648,7 @@ TEST_CASE("chat: the hint's key words from describe_hotkey, again on a change; t
   proto::UiModel m;
   m.hint = proto::TalkHint{proto::HintVerb::Speak, "Lantern-Keeper", proto::ChrHandle{0x500}};
   (void)s.show(m);
-  CHECK(s.o->surfaces()->key_words() == "T");
+  CHECK(s.o->surfaces()->key_words() == "V");
   s.g.rebind("talk", 0x4B);  // K
   (void)s.poll();
   CHECK(s.o->surfaces()->key_words() == "K");

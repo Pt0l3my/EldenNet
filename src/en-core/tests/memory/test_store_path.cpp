@@ -81,7 +81,7 @@ struct Session {
   explicit Session(const fs::path& saves, proto::Pt play = 600000, bool attach = true)
       : store(config(saves)), play0(play) {
     REQUIRE(core.load_content(content_with_overrides(), Realm::Eval).empty());
-    if (attach) (void)feed(CoreInput{CoreInput::Account{kAccount}});
+    if (attach) (void)feed(CoreInput{CoreInput::Account{kAccount, "newest"}});
   }
   stubs::StubSpeech speech;
   Core core{speech.parts()};
@@ -201,6 +201,7 @@ TEST_CASE("store path: the world waits for Opened; speech goes out in its step; 
   REQUIRE(!s.sent.empty());
   CHECK(std::holds_alternative<db::Open>(s.sent.front().op));
   CHECK(std::get<db::Open>(s.sent.front().op).key == the_key());
+  CHECK(std::get<db::Open>(s.sent.front().op).account_pick == "newest");  // MEM §8.2's reason, for the file's meta
   s.answering = true;
   s.answer();
   CHECK(s.core.state().phase == Phase::InWorld);
@@ -240,6 +241,25 @@ TEST_CASE("store path: the world waits for Opened; speech goes out in its step; 
   CHECK(one(*d, "SELECT json_extract(payload, '$.reason') FROM events WHERE kind = 'ConversationEnded'") == "travel");
   CHECK(one(*d, "SELECT json_extract(payload, '$.stage') FROM events WHERE kind = 'ConversationEnded'") != "");
   CHECK(one(*d, "SELECT value FROM npc_facts WHERE persona = 'lantern_keeper' AND key = 'met_count'") == "1");
+}
+
+TEST_CASE("store path: a reply's pages end where their text does, counted as SQLite counts it (code points)") {
+  // The trim cuts a reply across the cut at its last kept page's end with SQLite's substr() (MEM §9.6's T1), so each
+  // end, the first page's included, is the text's length in code points to that page: an accent counts once.
+  TempDir dir;
+  Session s(dir.path() / "saves");
+  s.boot();
+  s.world(30);
+  REQUIRE(s.core.state().gate_open);
+  s.talk("Is the lamp yours?", "Hé. It keeps me as I keep it.");
+  s.leave();
+  auto d = store::Db::open(live_of(dir.path() / "saves", the_key()), store::FileKind::Playthrough, false);
+  REQUIRE(d.has_value());
+  const std::string said = " FROM events WHERE kind = 'NpcSaid'";
+  REQUIRE(one(*d, "SELECT json_array_length(payload, '$.pages')" + said) == "2");
+  CHECK(one(*d, "SELECT json_extract(payload, '$.pages[0].end')" + said) == "3");
+  CHECK(one(*d, "SELECT substr(text, 1, json_extract(payload, '$.pages[0].end'))" + said) == "Hé.");
+  CHECK(one(*d, "SELECT json_extract(payload, '$.pages[1].end') = length(text)" + said) == "1");
 }
 
 TEST_CASE("store path: other writes are coalesced and go out within 250 ms; speech takes the queue with it") {

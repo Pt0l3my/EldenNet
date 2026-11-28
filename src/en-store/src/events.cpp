@@ -315,6 +315,22 @@ Result<std::uint64_t> cut_events(const Db& db, const CutPlan& plan) {
   return rows;
 }
 
+Result<std::optional<JobLeft>> job_left(const Db& db, std::uint16_t journey, const std::string& persona,
+                                        proto::EventId after, proto::EventId upto, bool conversations_only) {
+  auto s = Stmt::prepare(db,
+                         "SELECT max(e.id), max(e.conv_id) FROM events e JOIN event_audience a ON a.event_id = e.id "
+                         "AND a.persona = ?1 AND a.journey = ?2 WHERE e.journey = ?2 AND e.id > ?3 AND e.id <= ?4 AND "
+                         "(?5 = 0 OR e.conv_id IN (SELECT c.id FROM conversations c WHERE c.persona = ?1 AND "
+                         "c.player_lines >= 2 AND c.committed_lines >= 4))");
+  if (!s) return Unexpected{s.error()};
+  s->bind(1, std::string_view(persona)).bind(2, std::int64_t{journey}).bind(3, after).bind(4, upto);
+  s->bind(5, std::int64_t{conversations_only ? 1 : 0});
+  auto r = s->step();
+  if (!r) return Unexpected{r.error()};
+  if (!*r || s->null(0)) return std::optional<JobLeft>{};
+  return std::optional<JobLeft>{JobLeft{s->i64(0), s->opt_i64(1)}};
+}
+
 Result<std::uint64_t> forget_persona(const Db& db, std::uint16_t journey, const std::string& persona) {
   std::uint64_t rows = 0;
   auto a = Stmt::prepare(db, "DELETE FROM event_audience WHERE persona = ?1 AND journey = ?2");

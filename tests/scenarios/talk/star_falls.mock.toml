@@ -1,0 +1,42 @@
+# The scripted model for star_falls.toml (mockllm): invented replies in our own words, one per request.
+schema = 1
+
+[[reply]]
+text = "Quiet enough. The castle road is another matter, by all accounts."
+first_token_ms = 700
+chunk_ms = 40
+
+[[reply]]
+text = "The red general? You'll forgive me if I take that with a pinch of salt."
+first_token_ms = 700
+chunk_ms = 40
+
+[[reply]]
+text = "Well, I have heard stranger things this week. Much stranger."
+first_token_ms = 700
+chunk_ms = 40
+
+[[reply]]
+text = "Sit, by all means. And tell me again about that general of yours."
+first_token_ms = 700
+chunk_ms = 40
+
+[[reply]]
+text = "Stranger? Perhaps. Come in out of the wind all the same."
+first_token_ms = 700
+chunk_ms = 40
+
+# The memory job's reply (slot memory): E's journal v1. The claim cites the Tarnished's line; the star's keepsake cites
+# only the world's context lines, and the validator leaves it to the world model.
+[[reply]]
+slot = "memory"
+text = [
+  "{\"summary\": \"A traveller called in at dusk and asked after the road. Later they came back and claimed to",
+  "have brought down the red general themselves.\", \"keep\": [], \"keepsakes\": [{\"id\": null, \"text\":",
+  "\"They claim to have brought down the red general themselves.\", \"basis\": \"said\", \"weight\": 0.6,",
+  "\"about\": \"tarnished\", \"refs\": [\"L3\"], \"check_key\": \"slew:radahn\"}, {\"id\": null, \"text\":",
+  "\"A star came down out of the sky.\", \"basis\": \"seen\", \"weight\": 0.5, \"about\": \"world\",",
+  "\"refs\": [\"C2\"], \"check_key\": null}], \"told_name\": null, \"disposition_delta\": 0}",
+]
+first_token_ms = 900
+chunk_ms = 20

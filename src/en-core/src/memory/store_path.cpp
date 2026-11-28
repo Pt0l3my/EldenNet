@@ -24,6 +24,15 @@ struct Overloaded : F... {
 template <class... F>
 Overloaded(F...) -> Overloaded<F...>;
 
+// A text's length as SQLite's length() counts it, in code points: a page's `end` in an NpcSaid's `pages` is where the
+// trim's substr() cuts the text, so it is counted the same way (MEM §9.6's T1: a cut between two pages keeps the
+// first).
+std::size_t sql_length(std::string_view text) noexcept {
+  std::size_t n = 0;
+  for (const char c : text) n += (static_cast<unsigned char>(c) & 0xC0u) != 0x80u ? 1u : 0u;
+  return n;
+}
+
 std::string hex(std::span<const std::uint8_t> bytes) {
   static constexpr char kDigits[] = "0123456789abcdef";
   std::string out;
@@ -145,7 +154,7 @@ json payload_of(const augur::Event& ev, const Directory& cast, const KnowledgeVi
             j["to"] = e.to ? json(actor_key(*e.to, cast)) : json(nullptr);
             j["motive"] = "reply";
             j["cue"] = nullptr;
-            j["pages"] = json::array({json{{"end", 0}, {"pt", ev.t_play_ms}}});
+            j["pages"] = json::array({json{{"end", 0}, {"pt", ev.t_play_ms}}});  // its end set at the commit, below
           },
           [&](const augur::JourneyChanged& e) { j["ng_lvl"] = e.ng_lvl; },
           [&](const auto&) {},
@@ -225,7 +234,7 @@ void StorePath::open(const proto::PlaythroughKey& key, proto::Pt pt_now, std::ui
   mode_ = Mode::Opening;
   waiting_open_ = true;
   open_seq_ = ++seq_;
-  queued_.push_back(proto::DbRequest{open_seq_, db::Open{key, pt_now, journey}});
+  queued_.push_back(proto::DbRequest{open_seq_, db::Open{key, pt_now, journey, account_why_}});
   urgent_ = true;
 }
 
@@ -492,7 +501,7 @@ void StorePath::tick(Mono now) {
   if (!retry_at_ || now < *retry_at_ || !key_ || mode_ != Mode::Opening) return;
   retry_at_.reset();
   open_seq_ = ++seq_;
-  queued_.push_back(proto::DbRequest{open_seq_, db::Open{*key_, open_pt_, open_journey_}});
+  queued_.push_back(proto::DbRequest{open_seq_, db::Open{*key_, open_pt_, open_journey_, account_why_}});
   urgent_ = true;
 }
 
@@ -521,7 +530,7 @@ void StorePath::add(Op op) {
         it->event.text = it->event.text.value_or("") + " " + op.text;
         json p = json::parse(it->event.payload, nullptr, false);
         if (p.is_object() && p["pages"].is_array()) {
-          p["pages"].push_back(json{{"end", it->event.text->size()}, {"pt", op.pt}});
+          p["pages"].push_back(json{{"end", sql_length(*it->event.text)}, {"pt", op.pt}});
           it->event.payload = p.dump();
         }
         it->event.t_play_end_ms = op.pt;
@@ -713,12 +722,13 @@ void StorePath::commit(const Commit& c, const augur::Event* ev, const Directory&
   op.event.text = c.kind == Commit::Kind::Ended ? std::nullopt : std::optional<std::string>(c.text);
   if (c.kind == Commit::Kind::NpcSaid) {
     op.event.t_play_end_ms = op.event.t_play_ms;
-    if (!c.cue.empty()) {
-      json p = json::parse(op.event.payload, nullptr, false);
-      if (p.is_object()) {
-        p["cue"] = c.cue;
-        op.event.payload = p.dump();
-      }
+    json p = json::parse(op.event.payload, nullptr, false);
+    if (p.is_object()) {
+      // The first page ends where its text does, as each later page's end is its text's (a trim between the two keeps
+      // it whole: MEM §9.6's T1, which the core-level oracle found at 0).
+      if (p["pages"].is_array() && !p["pages"].empty()) p["pages"][0]["end"] = sql_length(c.text);
+      if (!c.cue.empty()) p["cue"] = c.cue;
+      op.event.payload = p.dump();
     }
   }
   if (c.kind == Commit::Kind::Ended) {

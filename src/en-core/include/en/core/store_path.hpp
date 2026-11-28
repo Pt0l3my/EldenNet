@@ -74,8 +74,12 @@ class StorePath {
   static constexpr int kBusyRetries = 3;
   static constexpr Mono kBusyRetryMs = 1000;
 
-  // The account the shell found (MEM §8.2): from then on a playthrough opens its file. Never logged.
-  void attach(std::uint64_t steamid64) noexcept { steamid_ = steamid64; }
+  // The account the shell found (MEM §8.2): from then on a playthrough opens its file. Never logged. `why` is the
+  // reason for the pick, which each Open carries for the file's meta (the reason words alone, never the SteamID).
+  void attach(std::uint64_t steamid64, std::string why = {}) {
+    steamid_ = steamid64;
+    account_why_ = std::move(why);
+  }
   // features.memory (behaviour.hpp): off closes an open file and opens none.
   void set_enabled(bool on);
   [[nodiscard]] bool available() const noexcept { return steamid_ != 0 && enabled_; }
@@ -165,6 +169,7 @@ class StorePath {
   void fail(proto::db::Fault cause, Effect& e);
 
   std::uint64_t steamid_ = 0;
+  std::string account_why_;
   bool enabled_ = true;
   Mode mode_ = Mode::Off;
   bool waiting_open_ = false;  // the lifecycle waits for this open's answer

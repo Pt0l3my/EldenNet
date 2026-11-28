@@ -178,6 +178,9 @@ struct Open {
   PlaythroughKey key;
   Pt pt_now = 0;
   std::uint16_t journey = 1;  // ng_lvl + 1
+  // MEM §8.2: why the shell picked this account's folder (one, newest, changed), kept in meta as `account_pick`; the
+  // reason words alone, never the SteamID. Empty: not recorded.
+  std::string account_pick = {};
 };
 // The player's answer to the rollback choice (MEM §9.1).
 enum class Choice : std::uint8_t { Forget, Keep, NewCharacter };
@@ -216,8 +219,8 @@ struct CommitLived {
   LivedVersion version;
   std::optional<RowId> job;
 };
-// The journey's facts, refolded by the core (WHY§689): every persona's facts in the journey are replaced, and
-// `meta.facts_stale` is cleared, in one transaction.
+// The journey's facts, refolded by the core (WHY§689): every persona's facts in the journey that the events give are
+// replaced (a fact no event gives, a claim's proof, stays), and `meta.facts_stale` is cleared, in one transaction.
 struct PutFacts {
   std::uint16_t journey = 1;
   std::vector<PersonaFacts> personas;

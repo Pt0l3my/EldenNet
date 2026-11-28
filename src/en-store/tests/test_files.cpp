@@ -111,6 +111,31 @@ TEST_CASE("files: a key finds its live file; else a new one is made, and the slo
   CHECK(fs::exists(back->path));
 }
 
+TEST_CASE("files: of a character archived twice in one second, the later file comes back, never the earlier") {
+  // New character archives the old file and starts another under the same fingerprint (MEM §8.3); another character
+  // in the slot, within the same second, archives that one too: "-2" sorts before ".sqlite" by name, and must not
+  // pass for the older file.
+  TempDir dir;
+  const SaveFolder f = save_folder(dir.path(), 76561190000000001ull);
+  const auto a = key(2, "aaaaaaaa", "na", 3, 1);
+  auto first = locate(f, a, kWall);
+  REQUIRE(first);
+  make_file(first->path, a, "old");
+  REQUIRE(archive_file(f, first->path, kWall));
+  make_file(first->path, a, "new");  // New character: a new file in the old one's place
+  auto other = locate(f, key(2, "bbbbbbbb", "nb", 7, 1), kWall);
+  REQUIRE(other);
+  CHECK(other->archived_other);
+  CHECK(fs::exists(f.archive() / "pt-s2-aaaaaaaa-20251127T000000Z.sqlite"));
+  CHECK(fs::exists(f.archive() / "pt-s2-aaaaaaaa-20251127T000000Z-2.sqlite"));
+  make_file(other->path, key(2, "bbbbbbbb", "nb", 7, 1), "other");
+  auto back = locate(f, a, kWall);
+  REQUIRE(back);
+  CHECK(back->restored_archive);
+  CHECK(tag_of(back->path) == "new");
+  CHECK(fs::exists(f.archive() / "pt-s2-aaaaaaaa-20251127T000000Z.sqlite"));  // the old one stays archived
+}
+
 TEST_CASE("files: the same character under a new fingerprint is renamed while closed, with no WAL left behind") {
   TempDir dir;
   const SaveFolder f = save_folder(dir.path(), 76561190000000001ull);

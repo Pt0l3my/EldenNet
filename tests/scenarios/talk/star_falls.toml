@@ -1,0 +1,193 @@
+# MEM §12.11's acceptance scenario, Kalé's steps (v0.3; DESIGN §16.3), in the eval runner's TOML. The castle's lord is
+# dead when the Tarnished first meets Kalé (A); the red general falls (B) and the star comes down (C) far from him; the
+# Tarnished tells him of the general (D), his memory job files it as a claim that the flags prove (E), and the next
+# chat carries the cue for the Tarnished's part (E2). An older save from before the general's fall takes it all back
+# (F), and NG+ starts the next journey (G). Blaidd's steps wait for his profile (v0.5). Our own scenario, invented
+# data. Run: eldennet-engine eval <this file> --llm mock.
+schema = 1
+name = "star_falls"
+persona = "kale"
+overrides = "pilot-overrides"
+mock = "star_falls.mock.toml"
+store = true
+character = "Wren"
+
+[world]
+param = 81200
+distance_m = 2.5
+bearing_deg = 4.0
+clock = [18, 0]
+subtitles = true
+flags = "after_godrick"
+
+# A: the first meeting. His block 5b holds his road and his own line for the castle's fall, a rumour by his ground.
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Evening. Quiet road?"
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "expect"
+prompt_has = ["Travellers off the castle road say its lord is dead"]
+prompt_lacks = ["Since you last spoke", "red general", "out of the sky"]
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 1000
+
+[[step]]
+do = "expect"
+fact = { persona = "kale", key = "world_seen", value = "[[\"w:castle_fallen\",\"rumour\"]]" }
+
+# B, four and a half minutes on: the red general falls, far off. C, two seconds later: the star comes down.
+[[step]]
+do = "wait"
+ms = 270000
+
+[[step]]
+do = "flags"
+flags = "general_fell"
+
+[[step]]
+do = "wait"
+ms = 2000
+
+[[step]]
+do = "flags"
+flags = "after_radahn"
+
+[[step]]
+do = "wait"
+ms = 8000
+
+# D: the Tarnished claims the general. The since-line names the star and the general's fall, and A's tail follows; no
+# reaction cue yet (no claim proved, nothing on his ground). MEM's header "(things have moved on since)" is for a
+# persona whose stage then differs from now (§4.3): Kalé's stays the same.
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "I brought down the red general myself."
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "expect"
+prompt_has = ["Since you last spoke with the Tarnished, you have learned of", "the fall of the red general",
+  "a star come down out of the sky", "Earlier, when you last spoke with the Tarnished:"]
+prompt_lacks = ["On your mind:", "(things have moved on since)"]
+
+[[step]]
+do = "say"
+text = "Thought you would want to hear it."
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "esc"
+
+# E: his memory job. The claim is filed with slew:radahn, which the flags prove at its commit; a keepsake of the star
+# that cites only the world's line is the world model's, and dropped.
+[[step]]
+do = "wait_jobs"
+
+[[step]]
+do = "expect"
+fact = { persona = "kale", key = "verified:slew:radahn", value = "1" }
+
+# E2, five minutes on: nothing new since D, so no since-line; block 7 opens with the cue for the Tarnished's part in the
+# general's fall, and the reply that shows it carries the cue.
+[[step]]
+do = "wait"
+ms = 300000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Mind if I sit a while?"
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "expect"
+prompt_has = ["On your mind: the fall of the red general, because of what the Tarnished told you of it."]
+prompt_lacks = ["Since you last spoke"]
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 1000
+
+# F: an older save, from before the general's fall, with its world: the choice, and Forget. What he knew goes back to
+# A's, and the cue's item is cue-able again.
+[[step]]
+do = "load"
+pt = 870000
+flags = "after_godrick"
+
+[[step]]
+do = "expect"
+mode = "choice"
+
+[[step]]
+do = "choose"
+choice = "forget"
+
+[[step]]
+do = "expect"
+mode = "open"
+fact = { persona = "kale", key = "world_seen", value = "[[\"w:castle_fallen\",\"rumour\"]]" }
+
+[[step]]
+do = "expect"
+fact = { persona = "kale", key = "world_cued", value = "<none>" }
+
+# G: NG+. His block 5b shows his road alone, and nothing of the last journey is new to him: no since-line.
+[[step]]
+do = "ng_plus"
+
+[[step]]
+do = "flags"
+flags = "fresh"
+
+[[step]]
+do = "wait"
+ms = 3000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Hello again, stranger."
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "expect"
+prompt_lacks = ["Since you last spoke", "Travellers off the castle road", "red general", "out of the sky"]
+
+[[step]]
+do = "esc"

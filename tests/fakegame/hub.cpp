@@ -403,8 +403,10 @@ using fakegame::status;
 
 namespace {
 // SAFETY: a read of an address in the first page, which is never mapped: the fault a game given bad input would meet.
+// The address passes through a volatile object, unknown to the optimiser (no -Warray-bounds at -O2), read as written.
 __declspec(noinline) void fault_in_game() {
-  volatile const std::uint32_t* bad = reinterpret_cast<volatile const std::uint32_t*>(std::uintptr_t{0x10});
+  const volatile std::uintptr_t at = 0x10;
+  volatile const std::uint32_t* bad = reinterpret_cast<volatile const std::uint32_t*>(at);
   (void)*bad;
 }
 }  // namespace

@@ -7,7 +7,7 @@
 // - **The Journey** (the space's scope, GraceUI D254): `journeys`, {choices: [{id, label, read_only}], current}, every
 //   journey the file holds, an earlier one read only; empty before a playthrough is loaded.
 // - **Characters › Playthrough** (`characters.playthrough`): `playthrough/<journey>`, the people met on that journey
-//   (met at least once, SP4, SP5), each with its status word from perception alone (SP7: Here now, Fell, Alive when
+//   (met at least once, SP4, SP5), each with its status word from perception alone (SP7: Here now, Fallen, Alive when
 //   last met), when last met and how often; `met/<journey>.<persona>`, the chosen one's Status card (times met, when
 //   first and last, the disposition word, the facts in words). Never a stage, a story line or a count of what is left
 //   (SP1, SP5): their story lines and World now come with S12.4 (0.5).
@@ -101,6 +101,15 @@ struct LineFacts {
   bool operator==(const LineFacts&) const = default;
 };
 
+// A time as the PC's clock shows it (its own time zone): the DLL converts a wall time with Win32's own conversion
+// (WHY§696: no zoned_time in DLL modules); the tests give their own.
+struct LocalTime {
+  int year = 1970, month = 1, day = 1, hour = 0, minute = 0;  // month 1 to 12
+  bool operator==(const LocalTime&) const = default;
+};
+// "27 November 2026, 14:05": the day, the month's English name, the year, the 24-hour time; no zone (O148).
+[[nodiscard]] std::string time_words(const LocalTime& t);
+
 struct JourneyFacts {
   std::uint16_t journey = 1;
   bool current = false;
@@ -117,7 +126,7 @@ struct MemoryFacts {
   std::vector<JourneyFacts> journeys;  // in order
   std::map<std::uint64_t, std::vector<LineFacts>> transcripts;  // the conversations read, by id
   std::uint32_t backups = 0;
-  std::vector<std::int64_t> backup_walls;  // newest first, seconds since the epoch
+  std::vector<LocalTime> backup_times;  // newest first, in the PC's own time zone (the DLL converts them, O148)
   [[nodiscard]] const JourneyFacts* journey(std::uint16_t j) const noexcept;
 };
 

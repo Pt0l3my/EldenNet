@@ -49,13 +49,14 @@ extern "C" {
 
 /* The ABI major this header describes, and its minor: the number of the newest appends (0: the first table). */
 #define GRACEUI_ABI_MAJOR 1u
-#define GRACEUI_ABI1_MINOR 9u /* 1: a holder's events and set_caret (GraceUI 0.2.1, D176); 2: the display and scaled
+#define GRACEUI_ABI1_MINOR 10u /* 1: a holder's events and set_caret (GraceUI 0.2.1, D176); 2: the display and scaled
                                  faces (GraceUI 0.2.2, D180); 3: pad chords (GraceUI 0.2.14, D204); 4: a hotkey's
                                  binding as the player set it (GraceUI 0.2.16, D210); 5: a wait handle for the mod's
                                  events (GraceUI 0.2.17, D212); 6: an uploaded file with its command (GraceUI 0.2.26,
                                  D226); 7: what pressed a hotkey, its key or its pad chord (GraceUI 0.2.38, D243); 8: a
                                  panel's drawing each frame, on the present thread (GraceUI 0.2.52, D259); 9: Plain
-                                 text, at connect and with the display (GraceUI 0.2.61, D268) */
+                                 text, at connect and with the display (GraceUI 0.2.61, D268); 10: Steam's floating
+                                 keyboard for the holder's field (GraceUI 0.2.69, D276) */
 
 /*
  * GraceUI's own version (GRACEUI_VERSION_PACK). Needs no start: callable from any thread, at any time after the DLL is
@@ -98,6 +99,9 @@ typedef uint32_t GraceUiStatus;
 #define GRACEUI_UNBOUND 11u      /* register_hotkey: the hotkey is registered, with its id, but its default is taken (by
                                     another hotkey or the menu key) or it has none: it fires nothing until the player
                                     binds it (D164) */
+#define GRACEUI_UNAVAILABLE 12u  /* pad_keyboard: this game has no Steam floating keyboard to show now (Steam's library
+                                    or its exports missing, Steam not started, or Steam declining: it opens on a Steam
+                                    Deck or in Big Picture); GraceUI's log says which (ABI 1.10, D276) */
 
 /* Why connect answered GRACEUI_INACTIVE. */
 #define GRACEUI_INACTIVE_ANTI_CHEAT 1u  /* an anti-cheat was found before GraceUI hooked: notices only (D88) */
@@ -163,6 +167,7 @@ typedef uint32_t GraceUiStatus;
 #define GRACEUI_CAP_ON_PRESENT "on-present" /* set_on_present: since 0.2.52, ABI 1.8 (D259) */
 #define GRACEUI_CAP_PLAIN_TEXT "plain-text" /* connect's and GRACEUI_EVENT_DISPLAY's plain_text: since 0.2.61, ABI 1.9
                                                (D268) */
+#define GRACEUI_CAP_PAD_KEYBOARD "pad-keyboard" /* pad_keyboard: since 0.2.69, ABI 1.10 (D276) */
 
 /* A connected mod's handle, which every slot after connect takes; 0 is none. */
 typedef uint64_t GraceUiConsumer;
@@ -470,6 +475,29 @@ typedef struct GraceUiCaret {
   float height;       /* its height; 0: no caret */
   float reserved2;    /* 0 */
 } GraceUiCaret;
+
+/* ---- Steam's floating keyboard for the holder's field (ABI 1.10, D276; GraceUI's own fields since D275).
+ *
+ * The mod that holds input, whose field begins editing from the pad (the holder's pad events say so), asks GraceUI to
+ * open Steam's floating keyboard beside the field, so that the mod makes no call into Steam of its own: GraceUI opens it
+ * through the steam_api64.dll the game has already loaded, never loads it, and calls no game code. The keyboard types
+ * into the game's window as keys do, so the mod's field takes its characters as the holder's other key events. A null
+ * keyboard closes the one GraceUI opened for the mod; and GraceUI closes it itself when the mod's holder ends, whatever
+ * ends it (invariant 7). Steam shows it on a Steam Deck or in Big Picture only. */
+#define GRACEUI_PAD_KEYBOARD_LINE 0u    /* one line: Enter ends it */
+#define GRACEUI_PAD_KEYBOARD_LINES 1u   /* several lines */
+#define GRACEUI_PAD_KEYBOARD_EMAIL 2u   /* an e-mail address */
+#define GRACEUI_PAD_KEYBOARD_NUMERIC 3u /* digits */
+
+typedef struct GraceUiPadKeyboard {
+  uint32_t size;
+  uint32_t mode;   /* GRACEUI_PAD_KEYBOARD_* */
+  uint64_t panel;  /* the mod's panel that holds the field (create_panel's id) */
+  float x;         /* the field's left edge in the panel */
+  float y;         /* its top */
+  float width;     /* its width, more than 0 */
+  float height;    /* its height, more than 0 */
+} GraceUiPadKeyboard;
 
 /* ---- Hotkeys (D77, D155): an action with a default key and modifiers or a pad chord; GraceUI's Hotkeys page rebinds it.
  *
@@ -795,6 +823,16 @@ typedef struct GraceUiApi1 {
    * session's). Setting one closes the mod's registration window, as its first submit does. It may wait for the frame
    * being drawn to end; GraceUI's present thread never waits for it. Since GraceUI 0.2.52 (GRACEUI_CAP_ON_PRESENT). */
   GraceUiStatus (*set_on_present)(GraceUiConsumer consumer, uint64_t panel_id, const GraceUiPresentHook* hook);
+
+  /* ---- ABI 1.10 (GraceUI 0.2.69, D276). */
+
+  /* Opens Steam's floating keyboard beside the field of the mod's that holds input (above), or with a null keyboard
+   * closes the one GraceUI opened for it: GRACEUI_OK (shown, or closed or none to close); _UNAVAILABLE (no keyboard to
+   * show here: GraceUI's log says why); _REFUSED (the mod does not hold input, a panel not the mod's, a mode not
+   * above, a field not finite or not more than 0 wide and high, a keyboard below its size, or called from inside a
+   * callback). It may take a moment, as Steam's call does: call it from the mod's own thread. Since GraceUI 0.2.69
+   * (GRACEUI_CAP_PAD_KEYBOARD). */
+  GraceUiStatus (*pad_keyboard)(GraceUiConsumer consumer, const GraceUiPadKeyboard* keyboard);
 } GraceUiApi1;
 
 /* Whether `api`'s size covers `slot` (a member of GraceUiApi1): call a slot only then. */

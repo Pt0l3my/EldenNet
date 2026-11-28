@@ -43,6 +43,20 @@ namespace {
 constinit MemoryLink* g_memory = nullptr;  // T6's alone
 constexpr std::uint64_t kRefreshMs = 5000;
 
+// A wall time (seconds since the epoch) as the PC's clock shows it, by Win32's own conversion with the time zone's
+// rule for that date (O148; WHY§696: no zoned_time in DLL modules). en-overlay formats it; its tests give their own.
+ov::LocalTime local_of(std::int64_t wall) {
+  ULARGE_INTEGER u;
+  u.QuadPart = static_cast<std::uint64_t>(wall + 11644473600ll) * 10000000ull;
+  FILETIME ft;
+  ft.dwLowDateTime = u.LowPart;
+  ft.dwHighDateTime = u.HighPart;
+  SYSTEMTIME utc;
+  SYSTEMTIME local;
+  if (!FileTimeToSystemTime(&ft, &utc) || !SystemTimeToTzSpecificLocalTime(nullptr, &utc, &local)) return {};
+  return ov::LocalTime{local.wYear, local.wMonth, local.wDay, local.wHour, local.wMinute};
+}
+
 void ask(Shell& s, MemoryLink& m, db::PageQuery q) {
   const std::uint64_t seq = m.next_seq++;
   m.pending[seq] = q;
@@ -244,7 +258,8 @@ bool memory_result(Shell& s, const en::core::Core& core, en::proto::DbResult& r)
       }
       case W::Backups:
         f.backups = rows->backups;
-        f.backup_walls = rows->backup_walls;
+        f.backup_times.clear();
+        for (const std::int64_t w : rows->backup_walls) f.backup_times.push_back(local_of(w));
         break;
     }
     // The journeys gathered so far, in order, the members' perceived state kept (memory_tick sets it each wake).

@@ -250,12 +250,14 @@ const char* mode_word(core::StorePath::Mode m) {
 // The run's own folder for the store, removed after it.
 class RunFolder {
  public:
-  RunFolder() {
+  explicit RunFolder(const std::optional<fs::path>& kept) : keep_(kept.has_value()) {
     std::random_device rd;
-    path_ = fs::temp_directory_path() / ("en-eval-store-" + std::to_string(rd()) + "-" + std::to_string(rd()));
+    path_ = kept ? *kept
+                 : fs::temp_directory_path() / ("en-eval-store-" + std::to_string(rd()) + "-" + std::to_string(rd()));
     fs::create_directories(path_);
   }
   ~RunFolder() {
+    if (keep_) return;  // the oracle's: the caller reads it, and removes it
     std::error_code ec;
     fs::remove_all(path_, ec);
   }
@@ -265,6 +267,7 @@ class RunFolder {
 
  private:
   fs::path path_;
+  bool keep_ = false;
 };
 
 class Runner {
@@ -293,7 +296,7 @@ class Runner {
     if (!speech) return proto::Unexpected{"the content does not load: " + core::describe(speech.error().front())};
     tap_ = std::make_unique<SpeechTap>(speech->lint, speech->prompt);
     if (s_.store) {
-      folder_ = std::make_unique<RunFolder>();
+      folder_ = std::make_unique<RunFolder>(options_.store_dir);
       new_store();
     }
     extra_dist_.clear();
@@ -337,8 +340,10 @@ class Runner {
       if (!events) return proto::Unexpected{"the recorded events: " + events.error()};
       model_.emplace<RecordedModel>(std::move(*events));
     }
+    if (options_.start_pt) pt_base_ = static_cast<proto::Pt>(*options_.start_pt);
     if (auto booted = boot(); !booted.empty()) return proto::Unexpected{std::move(booted)};
     for (const EvalStep& st : s_.steps) {
+      run_.step_pt.push_back(static_cast<std::int64_t>(play_ms()));
       if (st.kind == EvalStep::Kind::Restart) {
         if (auto loaded = fresh_core(); !loaded.empty()) return proto::Unexpected{std::move(loaded)};
         if (auto booted = boot(); !booted.empty()) return proto::Unexpected{std::move(booted)};
@@ -353,6 +358,12 @@ class Runner {
         if (st.kind == EvalStep::Kind::Load) {
           pt_base_ = st.pt;  // the same character, an older save: the core opens the same file
           t_base_ = t_;
+          if (!st.flags.empty()) {  // and its world as that save holds it
+            auto f = flag_state(st.flags);
+            if (!f) return proto::Unexpected{f.error()};
+            flags_ = std::move(*f);
+            flags_name_ = st.flags;
+          }
         } else {
           new_store();
           if (auto loaded = fresh_core(); !loaded.empty()) return proto::Unexpected{std::move(loaded)};
@@ -418,7 +429,7 @@ class Runner {
     const Mono from = t_;
     feed(core::CoreInput{proto::Lifecycle{proto::Lifecycle::DataReady{proto::BuildKey{0}, all_caps()}}});
     feed(core::CoreInput{proto::NetHealth{true}});
-    if (store_) feed(core::CoreInput{core::CoreInput::Account{kEvalAccount}});
+    if (store_) feed(core::CoreInput{core::CoreInput::Account{kEvalAccount, "one"}});
     proto::Lifecycle::PlaythroughReady p;
     p.slot = 2;
     (void)p.name.try_assign(s_.character);  // invented; it stays in the core

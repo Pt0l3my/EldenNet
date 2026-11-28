@@ -129,6 +129,7 @@ struct CoreInput {
   // memory is off for the session, with a toast at the first playthrough.
   struct Account {
     std::uint64_t steamid64 = 0;
+    std::string why = {};  // MEM §8.2's reason, as the shell names it (one, newest, changed): recorded in meta
   };
   // History › Memories' Forget (MEM §9.5; PAGES §4.6.5), through the space's one command path: one persona of the
   // journey, or the whole journey when `persona` is empty. Refused while a conversation is open (Core::can_forget).
@@ -295,7 +296,7 @@ class Core {
   // Whether a forget may go now: the file open on the journey, and no conversation open (its rows would go under it).
   [[nodiscard]] bool can_forget(std::uint16_t journey) const noexcept;
   // The personas perceived in the newest snapshot (SP7), alive, by profile id: Home's Nearby and Playthrough's "Here
-  // now"; and whether a perceived one lies dead (Playthrough's "Fell").
+  // now"; and whether a perceived one lies dead (Playthrough's "Fallen").
   [[nodiscard]] std::vector<std::pair<std::string, bool>> present() const;
   // How many forgets the core has sent the store (the shell reads the pages' data again after each).
   [[nodiscard]] std::uint64_t forgets() const noexcept { return forgets_; }

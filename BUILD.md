@@ -42,10 +42,14 @@ part over `FakeSys`, a process of bytes of the tests' own, in every build.
 ## Windows with MinGW-w64, tested under Wine
 
 ```sh
-cmake -S . -B build-win -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64.cmake -DEN_WITH_CURL=OFF
+cmake -S . -B build-win -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64.cmake -DCMAKE_BUILD_TYPE=Release \
+  -DEN_WITH_CURL=OFF
 cmake --build build-win
 WINEPREFIX=<dir> wine64 build-win/src/en-llm/en_llm_tests.exe     # and each other test program
 ```
+
+Build it as Release: GCC's -O2 warnings (array bounds, maybe-uninitialized) appear only with the optimiser on, and
+the build is to have none.
 
 The MinGW build links its runtime statically, uses WinHTTP (loaded from the system directory by its full path), and
 builds en-gal's portable part (the PE reader, the patterns, `builds.toml` and the layouts) and the derivation kit but not
@@ -63,7 +67,8 @@ the group table, so the harness checks each of them end to end.
 Both Windows builds build en-overlay's connection to GraceUI (part 12) and Dear ImGui 1.93.0's core for its F11 view,
 which the top-level `CMakeLists.txt` downloads at configure time at GraceUI's own pin (tag v1.93.0's commit, each file
 by its SHA-256; THIRD_PARTY.md). GraceUI's `graceui-sys` headers are vendored in `third_party/graceui-sys` from GraceUI
-at 7c26477 (GraceUI 0.2.68, protocol 1.21, ABI 1.9; EldenNet uses neither its uploads nor its on_present), all five from
+at 5702fae (GraceUI 0.2.70, protocol 1.22, ABI 1.10; EldenNet uses neither its uploads, its on_present nor its
+pad_keyboard), all five from
 that one commit, each checked against its SHA-256 when the build is configured. `en_overlay_tests.exe` runs the
 connection's tests against a fake GraceUI table of our own under Wine; on Linux, `en_overlay_tests` runs the view's
 lines (Augur's events and en-core's changes among them), its rings and the world-state claims.
@@ -155,11 +160,11 @@ cmake --build build-cl
   launcher's pre-flight checks GraceUI's own version file. Without `EN_GRACEUI_DIR` (or with a folder that holds no
   `graceui.dll` and `graceui.toml`) they are left out, with a line saying so. They need Mesa's lavapipe
   (`mesa-vulkan-drivers`) for Wine's Direct3D 12, as GraceUI's harness does. Build GraceUI at the commit
-  third_party/graceui-sys comes from (7c26477, GraceUI 0.2.68), so the space and the surfaces meet the checks they will
+  third_party/graceui-sys comes from (5702fae, GraceUI 0.2.70), so the space and the surfaces meet the checks they will
   meet. The page lint and the preview are pinned to the same commit (`tests/pages/lint.py`): the page data is protocol
-  1.21's since v0.3's memory pages: History › Memories' Forget waits 1 s before its second press counts and the
-  conversations' and journals' topics are private (GraceUI D274), which an older registration refuses, so the GraceUI
-  floor is 0.2.67 and the page data's minor its floor's (before them, 1.20's pc_only for Workshop, D264).
+  1.22's since the rail's icons (the owner's O149, GraceUI D277), which an older registration refuses, so the GraceUI
+  floor is 0.2.70 and the page data's minor its floor's (before them, 1.21's memory pages: History › Memories' Forget
+  waits 1 s before its second press counts and the conversations' and journals' topics are private, D274).
   `launcher-eldennet-graceui-pages` drives EldenNet's pages through that GraceUI, Content
   packs, Docs, Bug report and Logs drawn in game among them, `-pause` Pause AI by its quick switch's command and by
   Home's header switch's, `-talk-calls` AI › Requests after a reply and `-talk-traces` System › Traces and Performance
@@ -218,9 +223,9 @@ cmake --build build-cl
 - **EldenNet's pages** (`src/en-overlay/pages/space.toml`, its JSON beside it and `src/space_data.cpp`, all written by
   `python3 -I tools/pages/build.py`) have four CTest checks of their own: `en_pages_build` (`--check`: the outputs are
   what the source builds), in every build with Python; `en_pages_lint`, GraceUI's own page lint, with
-  `-DEN_GRACEUI_SOURCE=<a GraceUI checkout at 7c26477>` (`tests/pages/lint.py` checks the lint's files against their
+  `-DEN_GRACEUI_SOURCE=<a GraceUI checkout at 5702fae>` (`tests/pages/lint.py` checks the lint's files against their
   SHA-256 first); and, in a Linux build, `en_pages_preview` with `-DEN_GRACE_DEV=<grace-dev of a Linux build of GraceUI
-  at 7c26477>`: grace-dev serves each fixture state of `tests/pages/` and the browser reads every topic back and sends
+  at 5702fae>`: grace-dev serves each fixture state of `tests/pages/` and the browser reads every topic back and sends
   commands, and each page's in-game structure (`grace-dev --dump`) matches `tests/pages/golden/`. The fixture states'
   `topics.json` are what en_overlay_tests builds (`EN_UPDATE_FIXTURES=1` writes them anew; `EN_UPDATE_GOLDENS=1` the
   dumps). Every dump passes grace-dev's check of a mod's draw list: since GraceUI 0.2.49 (D256) what is out of view

@@ -78,7 +78,8 @@ void StoreCore::close() noexcept {
   pt_.reset();  // the file closes with its Db
 }
 
-Result<void> StoreCore::init_file(const proto::PlaythroughKey& key, proto::Pt pt_now, std::uint16_t journey) {
+Result<void> StoreCore::init_file(const proto::PlaythroughKey& key, proto::Pt pt_now, std::uint16_t journey,
+                                  const std::string& account_pick) {
   auto tx = Transaction::immediate(pt_->db);
   if (!tx) return Unexpected{tx.error()};
   const std::pair<std::string_view, std::string> rows[] = {
@@ -98,6 +99,9 @@ Result<void> StoreCore::init_file(const proto::PlaythroughKey& key, proto::Pt pt
   };
   for (const auto& [k, v] : rows) {
     if (auto r = meta_set(pt_->db, k, v); !r) return r;
+  }
+  if (!account_pick.empty()) {  // MEM §8.2: the reason words alone
+    if (auto r = meta_set(pt_->db, "account_pick", account_pick); !r) return r;
   }
   pt_->next_event_id = 1;
   pt_->next_conv_id = 1;
@@ -171,7 +175,7 @@ db::Opened StoreCore::do_open(const db::Open& o, std::optional<Fault>& fault) {
   opened.migrated = m->from != 0 && m->to != m->from;
   pt_ = std::move(pt);
   if (create || m->from == 0) {
-    if (auto r = init_file(o.key, o.pt_now, o.journey); !r) {
+    if (auto r = init_file(o.key, o.pt_now, o.journey, o.account_pick); !r) {
       fault = r.error();
       close();
       return opened;
@@ -180,6 +184,7 @@ db::Opened StoreCore::do_open(const db::Open& o, std::optional<Fault>& fault) {
   } else {
     auto tx = Transaction::immediate(pt_->db);
     Result<void> r = tx ? meta_set(pt_->db, "last_opened_by", cfg_.build) : Result<void>(Unexpected{tx.error()});
+    if (r && !o.account_pick.empty()) r = meta_set(pt_->db, "account_pick", o.account_pick);  // MEM §8.2
     if (r && loc->renamed) r = meta_set(pt_->db, "fp8", o.key.fp8);
     if (r && loc->renamed) r = meta_set(pt_->db, "gift", number_text(o.key.gift));
     if (r) r = tx->commit();
@@ -245,7 +250,7 @@ db::Opened StoreCore::do_open(const db::Open& o, std::optional<Fault>& fault) {
     db::Rollback rb{db::Rollback::Kind::Choice, delta, cut, lower, 0, std::move(*summary)};
     if ((lower || delta > kSilentTrimMs) && rb.summary.matters()) {
       // The choice: nothing is trimmed, and nothing recovered, until the player answers.
-      choice_ = Choice{cut, o.pt_now, o.journey, rb};
+      choice_ = Choice{cut, o.pt_now, o.journey, rb, o.account_pick};
       opened.rollback = rb;
       opened.next_event_id = pt_->next_event_id;
       opened.next_conv_id = pt_->next_conv_id;
@@ -360,7 +365,7 @@ db::Opened StoreCore::do_resolve(const db::Resolve& r, std::optional<Fault>& fau
         return opened;
       }
       pt_ = std::move(pt);
-      if (auto i = init_file(key, choice.pt_now, choice.journey); !i) {
+      if (auto i = init_file(key, choice.pt_now, choice.journey, choice.account_pick); !i) {
         fault = i.error();
         close();
         return opened;

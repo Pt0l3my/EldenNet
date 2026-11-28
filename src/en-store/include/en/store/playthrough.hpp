@@ -120,6 +120,16 @@ namespace events {
 // The events a cut removes, deleted (their audience rows and intents cascade); an NpcSaid that straddles the cut keeps
 // the pages shown at or before it. The rows removed.
 [[nodiscard]] Result<std::uint64_t> cut_events(const Db& db, const CutPlan& plan);
+// What a memory job has left to do after a trim (MEM §3.1, §9.6's T1): the newest event the persona perceived in
+// (after, upto] of the journey, and the newest conversation among them; with `conversations_only`, only the lines of
+// the persona's conversations that still have 2 of the Tarnished's lines and 4 committed. None: nothing is left.
+struct JobLeft {
+  proto::EventId last = 0;
+  std::optional<proto::RowId> conv;
+};
+[[nodiscard]] Result<std::optional<JobLeft>> job_left(const Db& db, std::uint16_t journey, const std::string& persona,
+                                                      proto::EventId after, proto::EventId upto,
+                                                      bool conversations_only);
 // One persona's audience rows in a journey, then the speech and the persona's own events left with no row (MEM §9.5).
 [[nodiscard]] Result<std::uint64_t> forget_persona(const Db& db, std::uint16_t journey, const std::string& persona);
 

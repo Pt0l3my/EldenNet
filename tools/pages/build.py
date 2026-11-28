@@ -33,8 +33,8 @@ PAGES_JSON = ROOT / "src" / "en-overlay" / "pages" / "pages.json"
 SETTINGS_JSON = ROOT / "src" / "en-overlay" / "pages" / "settings.json"
 SPACE_CPP = ROOT / "src" / "en-overlay" / "src" / "space_data.cpp"
 
-PROTOCOL_MINOR = 21  # the floor's (GraceUI 0.2.67 refuses page data of a newer minor, D264): 1.21's confirm_after_ms
-#                     and private topics (D274), 1.20's pages and topics
+PROTOCOL_MINOR = 22  # the floor's (GraceUI 0.2.70 refuses page data of a newer minor, D264): 1.22's category icons
+#                     (D277), 1.21's confirm_after_ms and private topics (D274), 1.20's pages and topics
 #                     on this PC alone (pc_only, D264), on 1.19's report preview's share (D263), 1.18's filter's own
 #                     choices on a bar GraceUI filters itself (D262), 1.17's page in the browser alone, shown with a
 #                     setting, gated and ribboned (D258), 1.16's

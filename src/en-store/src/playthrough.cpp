@@ -392,7 +392,9 @@ Result<void> commit_lived(Playthrough& pt, const proto::db::CommitLived& c) {
 }
 
 Result<void> put_facts(Playthrough& pt, const proto::db::PutFacts& f) {
-  auto d = Stmt::prepare(pt.db, "DELETE FROM npc_facts WHERE journey = ?1");
+  // The journey's fold replaces the facts the events give; a fact no event gives (src_event NULL: a claim's proof,
+  // MEM §3.6 step 7) is not in the fold and stays, as the trim left it.
+  auto d = Stmt::prepare(pt.db, "DELETE FROM npc_facts WHERE journey = ?1 AND src_event IS NOT NULL");
   if (!d) return Unexpected{d.error()};
   d->bind(1, std::int64_t{f.journey});
   if (auto r = d->run(); !r) return r;

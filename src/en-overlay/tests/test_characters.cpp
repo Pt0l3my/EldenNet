@@ -84,7 +84,7 @@ TEST_CASE("characters: the page data: Named NPCs' master list, its families, the
   CHECK(pages["sensitive_commands"] == json{"providers.add", "providers.remove", "providers.key", "profile.save",
                                             "profile.reset", "profile.restore", "recording.set", "memory.forget_npc",
                                             "memory.forget_journey"});
-  CHECK(pages["minor"] == 21);  // the floor's (GraceUI 0.2.67, D274), on 1.20's to 1.8's marks
+  CHECK(pages["minor"] == 22);  // the floor's (GraceUI 0.2.70, D277), on 1.21's to 1.8's marks
   for (const char* c : {"profile.check", "profile.save", "profile.reset", "profile.restore", "profile.draft"}) {
     CHECK(std::find(pages["commands"].begin(), pages["commands"].end(), c) != pages["commands"].end());
   }

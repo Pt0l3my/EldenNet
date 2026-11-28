@@ -3,29 +3,126 @@ fill    scrim           0,   0 1920x1080
 fill    ground.1        0,   0 1920x1080
 fill    ground.0        0,   0  300x1080
 text    gold           30,  30  114x35   glyphs 8 "EldenNet"
-text    ink.mute       30,  95   42x30   glyphs 4 "Home"
+segment ink.faint      33, 102    8x8    w2 ^
+segment ink.faint      42, 102    8x8    r1 w2 v
+segment ink.faint      36, 109    0x10   w2 v
+segment ink.faint      36, 119   12x0    r1 w2 v
+segment ink.faint      47, 109    0x10   r1 w2 ^
+segment ink.faint      40, 113    0x6    w2 ^
+segment ink.faint      40, 113    4x0    r1 w2 v
+segment ink.faint      43, 113    0x6    r1 w2 v
+text    ink.mute       68,  95   42x30   glyphs 4 "Home"
 line    rule           30, 135  240x1   
-text    ink.hi         30, 145   21x30   glyphs 2 "AI"
+segment gold.hi        42, 152    0x18   w2 v
+segment gold.hi        33, 160   18x0    w2 v
+segment gold.hi        37, 156    2x2    w2 v
+segment gold.hi        44, 163    2x2    w2 v
+segment gold.hi        44, 156    2x2    w2 ^
+segment gold.hi        37, 163    2x2    w2 ^
+text    ink.hi         68, 145   21x30   glyphs 2 "AI"
 fill    tint.select     0, 185  300x40  
 fill    gold            0, 185    3x40  
-text    gold.hi        50, 193   76x25   glyphs 9 "Providers"
-text    ink.mute       50, 233   51x25   glyphs 6 "Models"
-text    ink.mute       50, 273   76x25   glyphs 9 "Self-test"
-text    ink.mute       50, 313   68x25   glyphs 8 "Requests"
+text    gold.hi        68, 193   76x25   glyphs 9 "Providers"
+text    ink.mute       68, 233   51x25   glyphs 6 "Models"
+text    ink.mute       68, 273   76x25   glyphs 9 "Self-test"
+text    ink.mute       68, 313   68x25   glyphs 8 "Requests"
 line    rule           30, 345  240x1   
-text    ink.mute       30, 355  106x30   glyphs 10 "Characters"
+segment ink.faint      33, 377    0x1    w2 ^
+segment ink.faint      33, 376    1x1    r1 w2 ^
+segment ink.faint      33, 375    1x1    r1 w2 ^
+segment ink.faint      34, 374    1x1    r1 w2 ^
+segment ink.faint      35, 373    1x1    r1 w2 ^
+segment ink.faint      37, 373    1x0    r1 w2 ^
+segment ink.faint      38, 373    1x0    r1 w2 v
+segment ink.faint      40, 373    1x1    r1 w2 v
+segment ink.faint      41, 374    1x1    r1 w2 v
+segment ink.faint      42, 375    1x1    r1 w2 v
+segment ink.faint      43, 376    1x1    r1 w2 v
+segment ink.faint      44, 377    0x1    r1 w2 v
+segment ink.faint      44, 375    1x1    w2 ^
+segment ink.faint      45, 374    1x0    r1 w2 ^
+segment ink.faint      46, 374    1x0    r1 w2 ^
+segment ink.faint      47, 374    1x0    r1 w2 v
+segment ink.faint      48, 375    1x0    r1 w2 v
+segment ink.faint      49, 375    1x1    r1 w2 v
+segment ink.faint      50, 376    1x1    r1 w2 v
+segment ink.faint      51, 377    0x1    r1 w2 v
+stroke  ink.faint      34, 363    8x8    r4 w2
+stroke  ink.faint      43, 364    7x7    r4 w2
+text    ink.mute       68, 355  106x30   glyphs 10 "Characters"
 line    rule           30, 395  240x1   
-text    ink.mute       30, 405   74x30   glyphs 7 "History"
+segment ink.faint      42, 416    0x4    w2 v
+segment ink.faint      42, 420    3x2    r1 w2 v
+segment ink.faint      33, 413    1x4    w2 v
+segment ink.faint      34, 416    4x1    r1 w2 ^
+segment ink.faint      34, 415    1x2    w2 ^
+segment ink.faint      36, 413    2x1    r1 w2 ^
+segment ink.faint      37, 412    2x1    r1 w2 ^
+segment ink.faint      39, 412    2x0    r1 w2 ^
+segment ink.faint      42, 412    2x0    r1 w2 v
+segment ink.faint      44, 412    2x1    r1 w2 v
+segment ink.faint      46, 413    2x1    r1 w2 v
+segment ink.faint      47, 415    1x2    r1 w2 v
+segment ink.faint      49, 416    1x2    r1 w2 v
+segment ink.faint      50, 418    0x2    r1 w2 v
+segment ink.faint      50, 420    0x2    r1 w2 ^
+segment ink.faint      49, 423    1x2    r1 w2 ^
+segment ink.faint      47, 425    1x2    r1 w2 ^
+segment ink.faint      46, 426    2x1    r1 w2 ^
+segment ink.faint      44, 428    2x1    r1 w2 ^
+segment ink.faint      42, 429    2x0    r1 w2 ^
+segment ink.faint      39, 429    2x0    r1 w2 v
+segment ink.faint      37, 428    2x1    r1 w2 v
+segment ink.faint      36, 426    2x1    r1 w2 v
+segment ink.faint      34, 425    1x2    r1 w2 v
+text    ink.mute       68, 405   74x30   glyphs 7 "History"
 line    rule           30, 445  240x1   
-text    ink.mute       30, 455   64x30   glyphs 6 "System"
+segment ink.faint      33, 470    4x0    w2 v
+segment ink.faint      37, 464    3x6    r1 w2 ^
+segment ink.faint      40, 464    4x13   r1 w2 v
+segment ink.faint      43, 470    3x6    r1 w2 ^
+segment ink.faint      46, 470    4x0    r1 w2 v
+text    ink.mute       68, 455   64x30   glyphs 6 "System"
 line    rule           30, 495  240x1   
-text    ink.mute       30, 505   53x30   glyphs 5 "Tools"
+segment ink.faint      34, 520    8x8    w2 ^
+segment ink.faint      47, 517    3x0    w2 v
+segment ink.faint      45, 515    1x1    r1 w2 v
+segment ink.faint      45, 512    0x3    r1 w2 ^
+segment ink.faint      50, 517    0x1    w2 ^
+segment ink.faint      49, 518    0x1    r1 w2 ^
+segment ink.faint      48, 519    1x1    r1 w2 ^
+segment ink.faint      48, 520    1x1    r1 w2 ^
+segment ink.faint      46, 521    1x0    r1 w2 ^
+segment ink.faint      45, 521    1x0    r1 w2 ^
+segment ink.faint      44, 521    1x0    r1 w2 v
+segment ink.faint      43, 521    1x0    r1 w2 v
+segment ink.faint      42, 520    1x1    r1 w2 v
+segment ink.faint      41, 519    1x1    r1 w2 v
+segment ink.faint      41, 518    0x1    r1 w2 v
+segment ink.faint      41, 517    0x1    r1 w2 v
+segment ink.faint      41, 516    0x1    r1 w2 ^
+segment ink.faint      41, 514    0x1    r1 w2 ^
+segment ink.faint      41, 514    1x1    r1 w2 ^
+segment ink.faint      42, 513    1x1    r1 w2 ^
+segment ink.faint      43, 512    1x0    r1 w2 ^
+segment ink.faint      44, 512    1x0    r1 w2 ^
+text    ink.mute       68, 505   53x30   glyphs 5 "Tools"
 line    rule           30, 900  240x1   
-text    ink.mute       30, 910   85x30   glyphs 8 "Settings"
+segment ink.faint      49, 926    3x0    w2 v
+segment ink.faint      46, 930    2x2    w2 v
+segment ink.faint      42, 933    0x3    w2 v
+segment ink.faint      35, 930    2x2    w2 ^
+segment ink.faint      32, 926    3x0    w2 v
+segment ink.faint      35, 919    2x2    w2 v
+segment ink.faint      42, 916    0x3    w2 ^
+segment ink.faint      46, 919    2x2    w2 ^
+stroke  ink.faint      37, 921    8x8    r4 w2
+stroke  ink.faint      34, 918   16x16   r8 w2
+text    ink.mute       68, 910   85x30   glyphs 8 "Settings"
 line    rule           30, 950  240x1   
-text    ink.mute       30, 960   42x30   glyphs 4 "Docs"
+text    ink.mute       68, 960   42x30   glyphs 4 "Docs"
 line    rule           30,1000  240x1   
-text    ink.mute       30,1010  138x30   glyphs 12 "Content packs"
+text    ink.mute       68,1010  138x30   glyphs 12 "Content packs"
 fill    ground.well   340,  10  350x35   r3
 text    ink.faint     353,  15   51x25   glyphs 6 "Search"
 text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
@@ -163,4 +260,4 @@ stroke  edge          687,1044   42x28   r3 w1
 text    ink.body      695,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     736,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi      1502, 597  356x44   r5 w3 clip1
-# 123 items, 5032 vertices, 10602 indices, 4 commands; check_draw_list: passes
+# 220 items, 7872 vertices, 22110 indices, 4 commands; check_draw_list: passes

@@ -2,6 +2,10 @@
 // Each function runs inside the caller's transaction; the event log's own SQL is events.cpp's.
 #include <algorithm>
 #include <map>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "en/store/playthrough.hpp"
 
@@ -34,6 +38,14 @@ Result<std::int64_t> one_number(const Db& db, const std::string& sql) {
   auto r = s->step();
   if (!r) return Unexpected{r.error()};
   return *r && !s->null(0) ? s->i64(0) : std::int64_t{0};
+}
+
+// The first event of the epoch a cut is in, or 0 when the cut lies before every epoch: what the cut takes of the memory
+// job's work is written from evidence at or after it (a version of an earlier epoch, kept by Keep, has a timeline of
+// its own).
+Result<std::int64_t> first_event_cut(const Db& db, const CutPlan& plan) {
+  if (!plan.partial) return std::int64_t{0};
+  return one_number(db, "SELECT start_event_id FROM epochs WHERE epoch = " + number_text(*plan.partial));
 }
 
 }  // namespace
@@ -97,14 +109,21 @@ Result<proto::db::RollbackSummary> summarise(const Playthrough& pt, const CutPla
   if (auto r = events::summarise_cut(pt.db, plan, out); !r) return Unexpected{r.error()};
   // What the memory job wrote after the cut: journal and lived versions (with the claims among the journal's
   // keepsakes), and recall memories (reserved, empty in v1).
+  // The same rows the trim takes (below).
+  auto from = first_event_cut(pt.db, plan);
+  if (!from) return Unexpected{from.error()};
   auto j = Stmt::prepare(pt.db,
                          "SELECT persona, as_of_pt, (SELECT count(*) FROM json_each(keepsakes) k "
-                         "WHERE json_extract(k.value, '$.basis') = 'said') FROM npc_journal WHERE as_of_pt > ?1 "
-                         "UNION ALL SELECT persona, as_of_pt, 0 FROM npc_lived WHERE as_of_pt > ?1 "
-                         "UNION ALL SELECT persona, t_play_ms, 0 FROM memories WHERE t_play_ms > ?1 "
+                         "WHERE json_extract(k.value, '$.basis') = 'said') FROM npc_journal WHERE as_of_pt > ?1 AND "
+                         "upto_event_id >= ?2 "
+                         "UNION ALL SELECT l.persona, l.as_of_pt, 0 FROM npc_lived l WHERE EXISTS (SELECT 1 FROM "
+                         "npc_journal v WHERE v.journey = l.journey AND v.persona = l.persona AND v.version = "
+                         "l.journal_version AND v.as_of_pt > ?1 AND v.upto_event_id >= ?2) "
+                         "UNION ALL SELECT persona, t_play_ms, 0 FROM memories WHERE t_play_ms > ?1 AND "
+                         "coalesce(last_event_id, ?2) >= ?2 "
                          "ORDER BY 2 DESC");
   if (!j) return Unexpected{j.error()};
-  j->bind(1, plan.cut);
+  j->bind(1, plan.cut).bind(2, *from);
   std::vector<Item> memory_items;
   for (;;) {
     auto r = j->step();
@@ -162,45 +181,98 @@ Result<std::uint64_t> trim(Playthrough& pt, const CutPlan& plan) {
             p + " AND started_pt <= " + cut + " AND (ended_pt IS NULL OR ended_pt > " + cut + ")");
     if (!add(straddling)) return Unexpected{straddling.error()};
   }
-  // Journal and lived versions written from evidence after the cut, and the rows timed after it.
-  for (const char* sql : {"DELETE FROM npc_journal WHERE as_of_pt > ", "DELETE FROM npc_lived WHERE as_of_pt > ",
-                          "DELETE FROM decisions WHERE t_play_ms > ", "DELETE FROM memories WHERE t_play_ms > ",
-                          "DELETE FROM npc_intents WHERE t_play_ms > "}) {
-    auto r = run_counting(pt.db, sql + cut);
+  // Journal versions written from evidence after the cut, in the epoch cut into or a later one: a version of an
+  // earlier epoch kept by Keep (MEM §9.3) has its own timeline, often timed after the cut, and stays, as do its lived
+  // versions; a lived version goes with its journal version. Then the rows timed after the cut (a recall memory or an
+  // intent of an earlier epoch's events stays too).
+  auto from_event = first_event_cut(pt.db, plan);
+  if (!from_event) return Unexpected{from_event.error()};
+  const std::string from = number_text(*from_event);
+  for (const std::string& sql :
+       {"DELETE FROM npc_journal WHERE as_of_pt > " + cut + " AND upto_event_id >= " + from,
+        std::string("DELETE FROM npc_lived WHERE NOT EXISTS (SELECT 1 FROM npc_journal v WHERE v.journey = "
+                    "npc_lived.journey AND v.persona = npc_lived.persona AND v.version = npc_lived.journal_version)"),
+        "DELETE FROM decisions WHERE t_play_ms > " + cut,
+        "DELETE FROM memories WHERE t_play_ms > " + cut + " AND coalesce(last_event_id, " + from + ") >= " + from,
+        "DELETE FROM npc_intents WHERE t_play_ms > " + cut + " AND coalesce(event_id, " + from + ") >= " + from}) {
+    auto r = run_counting(pt.db, sql);
     if (!add(r)) return Unexpected{r.error()};
   }
-  // Jobs: those of a removed conversation go; a journal job's range comes down to its last kept event, or the job goes
-  // with none left; a lived job whose journal version was removed goes; a running job is queued again.
+  // Jobs (MEM §3.1, §3.7): a journal job the trim took work from (one not done, or a done one whose version went) keeps
+  // what is still to do, the persona's evidence after its watermark (the current version's `upto`) up to the job's
+  // end, and, for a conversation's job, only the lines of conversations that still have 2 of the Tarnished's lines and
+  // 4 committed (MEM §9.6's T1: a conversation cut below that takes its job with it, never an earlier one merged in).
+  // With nothing left the job goes; else it ends at its last such event, is queued again and is timed no later than the
+  // cut, and two left over the same evidence are one, the older (the core keeps one open job per persona). A lived job
+  // whose journal version went, goes; a running job is queued again.
   {
-    auto r = run_counting(pt.db,
-                          "DELETE FROM memory_jobs WHERE conv_id IS NOT NULL AND conv_id NOT IN "
-                          "(SELECT id FROM conversations)");
-    if (!r) return Unexpected{r.error()};
-  }
-  {
-    struct Range {
+    struct Job {
       RowId id = 0;
-      std::int64_t from = 0, upto = 0;
+      std::string persona;
+      std::int64_t journey = 1, upto = 0;
+      bool conversation = false;
     };
-    std::vector<Range> ranges;
+    std::vector<Job> jobs;
     auto s = Stmt::prepare(pt.db,
-                           "SELECT id, coalesce(from_event_id, 0), upto_event_id FROM memory_jobs WHERE kind = "
-                           "'journal' AND upto_event_id IS NOT NULL AND state <> 'done'");
+                           "SELECT j.id, j.persona, j.journey, j.upto_event_id, coalesce(j.cause = 'conversation', 0) "
+                           "FROM memory_jobs j WHERE j.kind = 'journal' AND j.upto_event_id IS NOT NULL AND (j.state "
+                           "<> 'done' OR NOT EXISTS (SELECT 1 FROM npc_journal v WHERE v.job_id = j.id)) "
+                           "ORDER BY j.id");
     if (!s) return Unexpected{s.error()};
     for (;;) {
       auto r = s->step();
       if (!r) return Unexpected{r.error()};
       if (!*r) break;
-      ranges.push_back(Range{s->i64(0), s->i64(1), s->i64(2)});
+      jobs.push_back(Job{s->i64(0), s->text(1), s->i64(2), s->i64(3), s->i64(4) != 0});
     }
-    for (const Range& g : ranges) {
-      auto last = one_number(pt.db, "SELECT coalesce(max(id), 0) FROM events WHERE id >= " + number_text(g.from) +
-                                        " AND id <= " + number_text(g.upto));
-      if (!last) return Unexpected{last.error()};
-      const std::string sql = *last == 0 ? "DELETE FROM memory_jobs WHERE id = " + number_text(g.id)
-                                         : "UPDATE memory_jobs SET upto_event_id = " + number_text(*last) +
-                                               " WHERE id = " + number_text(g.id);
-      if (auto r = exec(pt.db, sql); !r) return Unexpected{r.error()};
+    auto watermark = Stmt::prepare(pt.db,
+                                   "SELECT coalesce((SELECT upto_event_id FROM npc_journal WHERE journey = ?1 AND "
+                                   "persona = ?2 ORDER BY version DESC LIMIT 1), 0)");
+    if (!watermark) return Unexpected{watermark.error()};
+    auto drop = Stmt::prepare(pt.db, "DELETE FROM memory_jobs WHERE id = ?1");
+    if (!drop) return Unexpected{drop.error()};
+    auto lower = Stmt::prepare(pt.db,
+                               "UPDATE memory_jobs SET upto_event_id = ?2, conv_id = CASE WHEN ?3 THEN ?4 ELSE conv_id "
+                               "END, state = CASE WHEN state IN ('done', 'running') THEN 'queued' ELSE state END, "
+                               "attempts = CASE WHEN state = 'done' THEN 0 ELSE attempts END, created_pt = "
+                               "min(created_pt, ?5) WHERE id = ?1");
+    if (!lower) return Unexpected{lower.error()};
+    auto merge = Stmt::prepare(pt.db,
+                               "UPDATE memory_jobs SET upto_event_id = max(upto_event_id, ?2), conv_id = CASE WHEN ?3 "
+                               "THEN coalesce(?4, conv_id) ELSE conv_id END WHERE id = ?1");
+    if (!merge) return Unexpected{merge.error()};
+    std::map<std::pair<std::int64_t, std::string>, RowId> open_job;  // (journey, persona): the job kept open
+    for (const Job& g : jobs) {
+      watermark->reset();
+      watermark->bind(1, g.journey).bind(2, std::string_view(g.persona));
+      auto w = watermark->step();
+      if (!w) return Unexpected{w.error()};
+      auto left = events::job_left(pt.db, static_cast<std::uint16_t>(g.journey), g.persona, *w ? watermark->i64(0) : 0,
+                                   g.upto, g.conversation);
+      if (!left) return Unexpected{left.error()};
+      if (!*left) {
+        drop->reset();
+        drop->bind(1, g.id);
+        if (auto d = drop->run(); !d) return Unexpected{d.error()};
+        ++rows;
+        continue;
+      }
+      const std::int64_t last = (*left)->last;
+      const std::optional<std::int64_t> conv = (*left)->conv;
+      if (const auto k = open_job.find({g.journey, g.persona}); k != open_job.end()) {
+        merge->reset();
+        merge->bind(1, k->second).bind(2, last).bind(3, std::int64_t{g.conversation ? 1 : 0}).bind(4, conv);
+        if (auto m = merge->run(); !m) return Unexpected{m.error()};
+        drop->reset();
+        drop->bind(1, g.id);
+        if (auto d = drop->run(); !d) return Unexpected{d.error()};
+        ++rows;
+        continue;
+      }
+      open_job[{g.journey, g.persona}] = g.id;
+      lower->reset();
+      lower->bind(1, g.id).bind(2, last).bind(3, std::int64_t{g.conversation ? 1 : 0}).bind(4, conv).bind(5, plan.cut);
+      if (auto u = lower->run(); !u) return Unexpected{u.error()};
     }
   }
   for (const char* sql :
@@ -210,16 +282,30 @@ Result<std::uint64_t> trim(Playthrough& pt, const CutPlan& plan) {
     auto r = run_counting(pt.db, sql);
     if (!r) return Unexpected{r.error()};
   }
-  // The watermark is the current version's (MEM §3.7), 0 with none left.
-  auto w = run_counting(pt.db,
-                        "UPDATE memory_progress SET watermark = coalesce((SELECT v.upto_event_id FROM npc_journal v "
-                        "WHERE v.journey = memory_progress.journey AND v.persona = memory_progress.persona ORDER BY "
-                        "v.version DESC LIMIT 1), 0)");
-  if (!w) return Unexpected{w.error()};
+  // The watermark is the current version's, timed as it is (MEM §3.7); with no version left there is none, as before
+  // the persona's first commit.
+  for (const char* sql :
+       {"DELETE FROM memory_progress WHERE NOT EXISTS (SELECT 1 FROM npc_journal v WHERE v.journey = "
+        "memory_progress.journey AND v.persona = memory_progress.persona)",
+        "UPDATE memory_progress SET (watermark, updated_pt) = (SELECT v.upto_event_id, v.as_of_pt FROM npc_journal v "
+        "WHERE v.journey = memory_progress.journey AND v.persona = memory_progress.persona ORDER BY v.version DESC "
+        "LIMIT 1)"}) {
+    auto r = run_counting(pt.db, sql);
+    if (!r) return Unexpected{r.error()};
+  }
+  // The facts no event gives (a claim's proof, written with the version that promoted it: MEM §3.6 step 7) go when
+  // timed after the cut; the core refolds the rest from the events (below).
+  {
+    auto r = run_counting(pt.db, "DELETE FROM npc_facts WHERE src_event IS NULL AND updated_pt > " + cut);
+    if (!add(r)) return Unexpected{r.error()};
+  }
   // The epochs that started after the cut; the current one is the epoch cut into.
   if (!plan.whole.empty()) {
     auto e = run_counting(pt.db, "DELETE FROM epochs WHERE epoch IN (" + id_list(plan.whole) + ")");
     if (!add(e)) return Unexpected{e.error()};
+    // A journey with no epoch left goes whole: its facts too, which the core's refold of the current journey leaves.
+    auto f = run_counting(pt.db, "DELETE FROM npc_facts WHERE journey NOT IN (SELECT journey FROM epochs)");
+    if (!add(f)) return Unexpected{f.error()};
   }
   if (plan.partial) {
     if (auto r = meta_set(pt.db, "current_epoch", number_text(*plan.partial)); !r) return Unexpected{r.error()};

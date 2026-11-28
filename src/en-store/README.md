@@ -41,7 +41,8 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHY�
   take its place. `locate` finds a key's file in MEM §8.3's order: the live file; a live file in the slot whose meta
   matches the name's hash and the archetype with gifts equal or unread (0xFF) on either side, renamed while closed
   after a TRUNCATE checkpoint; this file set aside as corrupt in an earlier session, with its newest backup restored
-  (MEM §8.6); an archived file of this fingerprint, restored; else a new file. In the last three the slot's other live
+  (MEM §8.6); the newest archived file of this fingerprint (by its stamp, then its counter within a second),
+  restored; else a new file. In the last three the slot's other live
   files are archived, never deleted. The store reads no name: the key carries its hash
   (`identity_of`, `soft_match`). File names' times are UTC, made without a clock or a locale (`utc_stamp`). Paths
   never leave en-store; `backups_of` answers the count and times alone, for the Memories page.
@@ -53,7 +54,8 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHY�
     goes into its payload's `pages` (`end`, `pt`), and `append_page` adds each later one, the text joined by a space;
   - `conv_open` and `conv_close` (ids the core's); `upsert_job` (ids the store's); `commit_journal` writes a version,
     its watermark (`memory_progress`, which moves only so), the job done and its `verified:*` facts; `commit_lived`;
-    `put_facts` replaces the journey's facts with the core's refold and clears `facts_stale` (WHY§689);
+    `put_facts` replaces the journey's facts the events give with the core's refold, keeping a claim's proof, and clears
+    `facts_stale` (WHY§689);
   - the queries: `bundle` (the newest journal and lived versions, the facts, the last six direct lines of the most
     recent ended conversation, block 6a, and how many events above the watermark the persona perceived);
     `job_input` (the persona's own evidence in (watermark, upto], with the conversations its lines belong to, for their
@@ -101,17 +103,26 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHY�
   - every epoch started after the cut goes whole, and the first at or before it is cut into;
   - a reply shown across the cut keeps its pages shown at or before it;
   - conversations started after the cut go, and one across it ends `trimmed` at its last kept line, its counts redone;
-  - journal and lived versions, decisions, recall memories and intents after the cut go;
-  - a journal job's range comes down to its last kept event, or the job goes; a lived job of a removed version goes,
-    and a running job is queued again;
-  - the watermark is the current version's;
+  - journal versions written from evidence after the cut, in the epoch cut into or a later one, go (a version of an
+    earlier epoch that Keep kept has its own timeline and stays), lived versions with their journal versions, and
+    decisions, recall memories and intents timed after the cut (a memory or an intent of an earlier epoch's events
+    stays); the choice's summary counts the same rows;
+  - a journal job the trim took work from (not done, or done with its version gone) keeps the persona's evidence after
+    its watermark up to its end, a conversation's job only the lines of conversations still with 2 of the Tarnished's
+    lines and 4 committed (MEM §3.1, §9.6's T1); it ends at its last such event, queued again and timed no later than
+    the cut, or goes with none left, and two left over the same evidence are one; a lived job of a removed version
+    goes, and a running job is queued again;
+  - the watermark is the current version's, timed as it is, and goes with no version left;
+  - a fact no event gives (a claim's proof, `src_event` NULL) goes when timed after the cut, and a journey with no
+    epoch left takes its facts with it;
   - `facts_stale` is set for the core's refold, and the event counter stays, so no id is reused.
 - **`0001_init.sql`**: MEM §8.7's schema as written, with the reserved recall tables (`memories`, `memory_actors`,
-  `memories_fts` on FTS5, `embeddings`) and the seams (`npc_intents`, `decisions`). Ours on top of it: `meta` also
-  holds `next_conv_id` (conversations' ids, the core's, never reused) and `facts_stale` (set by a trim until the core's
-  refold is written, WHY§689); every table whose rows a reader may hold an id of is AUTOINCREMENT, so a trim never
-  hands a removed id to a new row (ARCH §2.2's store rules); `events.payload` and `conversations.shown_context` must be
-  valid JSON.
+  `memories_fts` on FTS5, `embeddings`) and the seams (`npc_intents`, `decisions`). Ours on top of it: `meta` also holds
+  `next_conv_id` (conversations' ids, the core's, never reused), `facts_stale` (set by a trim until the core's refold is
+  written, WHY§689) and `account_pick` (MEM §8.2's reason for the account's folder, `one`, `newest` or `changed`, as
+  each open gives it: the reason's word alone); every table whose rows a reader may hold an id of is AUTOINCREMENT, so a
+  trim never hands a removed id to a new row (ARCH §2.2's store rules); `events.payload` and
+  `conversations.shown_context` must be valid JSON.
 
 - **The pages' reads** (`page()` in `playthrough.cpp`, `lines_of` in `events.cpp`; S12.2): `PageQuery` answers
   `PageRows` of one kind: the journeys the file holds (each one's first play time, newest event and conversations), a
@@ -133,25 +144,27 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHY�
   comma (the C++ global locale always; a C locale when the system has one), a batch with an apostrophe in a comment, a
   semicolon in a string and a trigger, a transaction dropped or committed, a constraint, the fault classes, and a
   backup that never overwrites;
-- the store's core (`test_store.cpp`): a new file and its start backup; refusal with nothing open; a silent trim
-  within 5 min with the counter kept; O144's two sides (an hour holding only unwitnessed events trimmed silently, one
-  witnessed event asking, with its summary); the summary's every kind and the stages undone; Keep, and a later crash
-  trim touching only its epoch; a new character archived; crash recovery; a reply's pages and a conversation across a
-  cut; journal, lived, jobs and the watermark after a trim; forgetting an NPC and a journey; NG+ and a save from the
-  earlier journey; a newer file refused before its backups are touched; a corrupt file restored from its backup; 12
-  seeded random cuts (no row past the cut, no orphaned audience, the counter as it was, both checks clean); and the
-  pages' reads (journeys, conversations, a transcript, memory cards, backups, refused with nothing open); and the trim
-  oracle (MEM §9.6): for 8 seeded streams, each cut by the silent trim and by Forget after the choice, the trimmed
-  file's events, audience rows and conversations equal a replay of the same requests up to the cut, the conversation
-  open at the cut ended `trimmed`;
+- the store's core (`test_store.cpp`): a new file and its start backup; refusal with nothing open; a silent trim within
+  5 min with the counter kept; O144's two sides (an hour holding only unwitnessed events trimmed silently, one witnessed
+  event asking, with its summary); the summary's every kind and the stages undone; Keep, and a later crash trim touching
+  only its epoch, the old timeline's journal and lived versions included; a new character archived; crash recovery; a
+  reply's pages and a conversation across a cut; journal, lived, jobs and the watermark after a trim; a done job queued
+  again when its version goes, and a conversation cut too short taking its job; forgetting an NPC and a journey; NG+ and
+  a save from the earlier journey; a newer file refused before its backups are touched; a corrupt file restored from its
+  backup; 12 seeded random cuts (no row past the cut, no orphaned audience, the counter as it was, both checks clean);
+  and the pages' reads (journeys, conversations, a transcript, memory cards, backups, refused with nothing open); and
+  the trim oracle (MEM §9.6): for 8 seeded streams, each cut by the silent trim and by Forget after the choice, the
+  trimmed file's events, audience rows and conversations equal a replay of the same requests up to the cut, the
+  conversation open at the cut ended `trimmed`;
 - the requests (`test_playthrough.cpp`): an event with its audience, each persona reading its own row alone and
   nothing of another journey, a lower id that never takes the counter back; an NpcSaid's pages with their ends and pts;
   the schema's caps (text, payload, JSON, a kind); a JourneyChanged's epoch; conversations with ids past 2^53; a job's
   life and a journal version's commit with its watermark, job and facts, a duplicate version refused; the bundle's
-  six-line tail and pending count, direct lines only; a job's evidence; lived versions, a refold replacing every fact,
-  and the fold's every row;
+  six-line tail and pending count, direct lines only; a job's evidence; lived versions, a refold replacing every fact
+  the events give and keeping a claim's proof, and the fold's every row;
 - the files (`test_files.cpp`): names and UTC stamps, the soft match's rules, a key's live file, a new file with the
-  slot's other character archived and restored when that character comes back, another slot untouched, a renamed
+  slot's other character archived and restored when that character comes back, of a character archived twice in one
+  second the later file restored, another slot untouched, a renamed
   file with no WAL left, three rotating backups with the newest in `.1`, a migration's last two, and a corrupt file
   set aside for the newest backup (never taken for another character);
 - the faults (`test_faults.cpp`, through `fault_vfs.hpp`, a shim over SQLite's default VFS registered by the tests

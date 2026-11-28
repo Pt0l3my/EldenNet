@@ -84,7 +84,7 @@ def main(argv):
     for name, state, panel in FOLDERS:
         folder = args.work / name
         folder.mkdir(parents=True)
-        # GraceUI 0.2.68's check:space welcomes every space at increment 0.2 (its FixtureSpace's default; no flag sets
+        # GraceUI 0.2.70's check:space welcomes every space at increment 0.2 (its FixtureSpace's default; no flag sets
         # another), so a page of 0.3 would be absent (D173): the copy marks EldenNet's 0.3 pages 0.2, the one change
         # made to the page data under test (a point for GraceUI: v0.3's notes).
         pages = json.loads((args.pages / "pages.json").read_text(encoding="utf-8"))

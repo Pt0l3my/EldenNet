@@ -35,8 +35,9 @@
 # DeviceIoControl's reparse-point reads, SetFileTime, InitializeSRWLock), whose object also names CreateHardLinkW,
 # GetCurrentDirectoryW, SetCurrentDirectoryW and GetDriveTypeW, which no code of EldenNet's calls. Ours: GetProcessTimes
 # (when the game's process started, MEM §8.2's "a save changed since the game started") and GetDiskFreeSpaceExW (the
-# 200 MB warning at open, MEM §8.6). All on EldenNet's own files and this process: no network, no hook, no other
-# process.
+# 200 MB warning at open, MEM §8.6); and, for History › Memories' backups shown in the PC's own time (O148),
+# FileTimeToSystemTime and SystemTimeToTzSpecificLocalTime. All on EldenNet's own files and this process: no
+# network, no hook, no other process.
 [advapi32.dll]
 AddAccessAllowedAce
 GetLengthSid
@@ -82,6 +83,7 @@ EnterCriticalSection
 EnumSystemLocalesW
 ExitProcess
 ExitThread
+FileTimeToSystemTime
 FindClose
 FindFirstFileExA
 FindFirstFileExW
@@ -222,6 +224,7 @@ SetUnhandledExceptionFilter
 Sleep
 SleepConditionVariableSRW
 SwitchToThread
+SystemTimeToTzSpecificLocalTime
 TerminateProcess
 TlsAlloc
 TlsFree

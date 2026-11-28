@@ -8,7 +8,7 @@ game's menu or in the browser view while the game runs. The keys below are the d
 | Key | Pad | What it does | When |
 |---|---|---|---|
 | F5 | None by default | Opens and closes GraceUI's menu | Whenever it is safe; GraceUI's own key |
-| T | D-pad Up, then View | Talk: opens the chat box with the character you are near | Near a character it voices |
+| V | D-pad Up, then View | Talk: opens the chat box with the character you are near | Near a character it voices |
 | Tab | None | Skip the page: shows the next page of a reply at once | While a character's reply shows |
 | F11 | None | Opens and closes EldenNet's debug view | Only with Developer views on |
 | Pause | None | Mark (development): marks a moment, for testers | Only in test runs, or with Developer views on |
@@ -19,7 +19,7 @@ For the pad, hold D-pad Up, then press View. The first press of D-pad Up still r
 
 1. Walk up to a character EldenNet voices. When the talk key would open a conversation, a hint shows it, with the
    character's name.
-2. Press **T**, or hold D-pad Up and press View. The chat box opens, headed with whom you speak to and who hears you.
+2. Press **V**, or hold D-pad Up and press View. The chat box opens, headed with whom you speak to and who hears you.
 3. Type your line, up to 240 characters, and press **Enter**. The character's reply shows a page at a time.
 4. Press **Esc** to close the box. A reply already under way still finishes showing.
 
@@ -52,7 +52,7 @@ from you, on a loading screen and when you die.
 On GraceUI › Hotkeys, each row offers Change key, Change pad chord and Reset, and Reset every hotkey puts all of them
 back. If you choose a key that another hotkey has, GraceUI asks first, then moves it, leaving the other with none.
 
-While a key is bound to one of EldenNet's hotkeys, the game never sees it: T and Tab do nothing in the game. If your
+While a key is bound to one of EldenNet's hotkeys, the game never sees it: V and Tab do nothing in the game. If your
 own layout uses one of them, give EldenNet's hotkey another key.
 
 If another mod registered a key first, EldenNet's hotkey is left with no key, and GraceUI › Hotkeys says which mod

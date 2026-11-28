@@ -329,55 +329,67 @@ pc_only = true
 
 # ---- The rail (PAGES §4.2.1), in its order. Settings, Docs and Content packs are its foot (protocol 1.10, GraceUI
 # D248), pinned to the rail's bottom under a rule in both views, after every other category, as the lint requires.
+# Each of the ten categories has its line icon, the owner's choice of GraceUI's set (O149; protocol 1.22, GraceUI
+# D277); Docs and Content packs have none, so the rail draws their initial where it is collapsed.
 
 [[category]]
 id = "home"
 name = "Home"
+icon = "home"
 pages = ["home"]
 
 [[category]]
 id = "ai"
 name = "AI"
+icon = "spark"
 pages = ["ai.providers", "ai.models", "ai.selftest", "ai.requests"]
 
 [[category]]
 id = "voice"
 name = "Voice"
+icon = "voice"
 pages = []
 
 [[category]]
 id = "characters"
 name = "Characters"
+icon = "people"
 pages = ["characters.playthrough", "characters.named"]
 
 [[category]]
 id = "map"
 name = "Map"
+icon = "map"
 pages = []
 
 [[category]]
 id = "history"
 name = "History"
+icon = "history"
 pages = ["history.conversations", "history.memories"]
 
 [[category]]
 id = "behaviour"
 name = "Behaviour"
+icon = "sliders"
 pages = []
 
 [[category]]
 id = "system"
 name = "System"
+icon = "pulse"
 pages = ["system.status", "system.performance", "system.traces", "system.logs"]
 
 [[category]]
 id = "tools"
 name = "Tools"
+icon = "tools"
 pages = ["tools.report", "tools.workshop"]
 
 [[category]]
 id = "settings"
 name = "Settings"
+icon = "gear"
 pages = ["settings.developer"]
 foot = true
 

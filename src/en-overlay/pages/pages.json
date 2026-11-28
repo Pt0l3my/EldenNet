@@ -1,11 +1,12 @@
 {
   "space": "eldennet",
   "name": "EldenNet",
-  "minor": 21,
+  "minor": 22,
   "categories": [
     {
       "id": "home",
       "name": "Home",
+      "icon": "home",
       "pages": [
         "home"
       ]
@@ -13,6 +14,7 @@
     {
       "id": "ai",
       "name": "AI",
+      "icon": "spark",
       "pages": [
         "ai.providers",
         "ai.models",
@@ -23,11 +25,13 @@
     {
       "id": "voice",
       "name": "Voice",
+      "icon": "voice",
       "pages": []
     },
     {
       "id": "characters",
       "name": "Characters",
+      "icon": "people",
       "pages": [
         "characters.playthrough",
         "characters.named"
@@ -36,11 +40,13 @@
     {
       "id": "map",
       "name": "Map",
+      "icon": "map",
       "pages": []
     },
     {
       "id": "history",
       "name": "History",
+      "icon": "history",
       "pages": [
         "history.conversations",
         "history.memories"
@@ -49,11 +55,13 @@
     {
       "id": "behaviour",
       "name": "Behaviour",
+      "icon": "sliders",
       "pages": []
     },
     {
       "id": "system",
       "name": "System",
+      "icon": "pulse",
       "pages": [
         "system.status",
         "system.performance",
@@ -64,6 +72,7 @@
     {
       "id": "tools",
       "name": "Tools",
+      "icon": "tools",
       "pages": [
         "tools.report",
         "tools.workshop"
@@ -72,6 +81,7 @@
     {
       "id": "settings",
       "name": "Settings",
+      "icon": "gear",
       "pages": [
         "settings.developer"
       ],

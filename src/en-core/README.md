@@ -407,7 +407,8 @@ the conversation part B's (above); the core holds both.
   units with their count, the archetype and the gift; `name_hash` is BLAKE3 over the same code units. The name goes no
   further.
 - **The store path** (`StorePath`, `src/memory/store_path.cpp`). `CoreInput::Account` attaches the account the shell
-  found (never recorded); `features.memory` off, or no account, means no store, and the world follows at once.
+  found (never logged) and the reason for its pick (MEM §8.2: `one`, `newest`, `changed`), which each Open carries
+  for the file's `meta`; `features.memory` off, or no account, means no store, and the world follows at once.
   Otherwise:
   - a playthrough's start sends Open, and the lifecycle waits in Playthrough for its answer. A Busy open is retried
     3 times, 1 s apart (the store's own 2 s busy timeout inside each); then, as after any other failure, memory is off
@@ -421,7 +422,8 @@ the conversation part B's (above); the core holds both.
   - each P event of the step (Augur's own, and the knowledge subscriber's StageChanged with its stages' ids `{from,
     to}`) is an Append with its frozen audience (en-augur's `freeze_into`) and the facts its fold moved. The
     conversation's commits give each conversation's row (ConvOpen, ConvClose with the core's own end word), its lines
-    (PlayerSaid; NpcSaid with its pages' ends and pts) and each later page (AppendPage). Ids come from the file's
+    (PlayerSaid; NpcSaid with its pages' ends and pts, each end the text's length to that page in code points, as
+    SQLite's `length()` and the trim's `substr()` count) and each later page (AppendPage). Ids come from the file's
     counters; a conversation of the session maps to its file row;
   - speech goes out in the step it happens, with whatever was queued before it; other writes go out at most every
     250 ms. A JourneyChanged into a later journey starts that journey's facts;
