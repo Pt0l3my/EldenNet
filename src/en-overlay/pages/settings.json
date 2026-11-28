@@ -1,7 +1,7 @@
 {
   "schema": {
     "number": 2,
-    "hash": "07d816300db22ca0"
+    "hash": "153439f3ff7a9bce"
   },
   "settings": [
     {
@@ -9,7 +9,7 @@
       "type": "bool",
       "default": false,
       "label": "Developer views",
-      "help": "Turns on the F11 debug view in game, for testers. It shows EldenNet's own numbers and words, never story or chat. Takes effect the next time the game starts.",
+      "help": "Turns on the F11 debug view in game from the next start, and Tools › Workshop in the browser at once. Both are for testers; Workshop shows spoilers and the text sent to the model.",
       "synonyms": [
         "debug",
         "F11",

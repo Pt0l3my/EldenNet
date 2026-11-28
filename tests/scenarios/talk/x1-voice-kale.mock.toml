@@ -1,0 +1,266 @@
+# The scripted model for x1-voice-kale.toml (mockllm): the persona's replies to X1's voice set, in his voice. Our own
+# words, one reply per request, in order.
+schema = 1
+repeat_last = false
+
+[[reply]]
+text = "Ah, come in, come in. The wind out there has teeth today. Sit by the stones if you like."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Shop, home and hiding place, all in one ruined church. A pack, a fire and four walls, most of them standing."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Well, rope, lamp oil, a few good boots. Plain things for people who mean to keep walking."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Enough to keep me fed. Most are lost, some are hungry, and a few even pay."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Ah, do that, friend. Advice costs nothing; the rest costs runes."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Ah, follow the road north and keep the cliffs on your right. You'll smell the chimneys before you see them."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Safe as any road, which is to say not very. Keep to the open ground and don't stop for strangers."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Well, woods and mist, mostly. People go in there looking for shortcuts and come out looking for their friends."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "The coast road. Pretty enough in daylight, but I'd not walk it after dark for all the oil in my pack."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Ah, wherever the coin is, and away from wherever the screaming is. That's the whole of my wisdom."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Depends who's asking and how far they mean to climb. For you, friend, a fair price and a bit of news thrown in."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Ah, because the dark is cheap and everywhere. People pay for whatever keeps it off them."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Every day. The ones who haggle I can live with. It's the ones who smile and say nothing I keep an eye on."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Well, good boots, a quiet fire and a short memory for insults. And somewhere to run."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Better than mine, and mine have walked further than most horses. Try them on, they won't bite."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Ah, a little. Travellers say the weather is turning and the wolves are bolder than they were."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Only that its soldiers are bad for trade and worse for travellers. I keep well away from both."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Well, whoever stops to warm their hands. A merchant listens more than he talks, if he wants to stay a merchant."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Half of it. The trick is knowing which half, and I've not mastered it yet."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Ah, don't sleep near the old ruins on the hill. Whatever lives there doesn't keep regular hours."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "A what? Never heard of it, friend. If it's not rope, oil or boots, I don't carry it."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Well, I can tell you plainly. Rope, oil, boots, a few knives and some dried meat I wouldn't trust."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Me, near the castle? Not for any price, Tarnished. My place is here, by the fire and the pack."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Ah, long enough to know which stones are loose. Longer than I'd like, if I'm honest."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Levelling what, the floor? It could use it, but I'm a merchant, not a mason."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = [
+  "Well, that would take more nights than I've got oil for. The short of it is old land, broken roads,",
+  "and everyone hoping for better.",
+]
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = [
+  "Ah, every road? We'd be here till the stones wore through. I've walked most of them once and a few",
+  "of them twice.",
+]
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = [
+  "Someone has a thing, someone else wants it, and I stand in the middle taking a little for my",
+  "trouble. That's all of it.",
+]
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Well, he paid in buttons and swore they were silver. I let him go, because he was bigger than me."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Ah, that's more than enough from me for one evening. A merchant who tells everything has nothing left to sell."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Ah, and you came back with both legs. That's more than most manage."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Was he now. I only pass on what the road tells me, friend. I've never gone looking for him myself."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Well, people say all sorts. A wolf's head on a man's shoulders is the kind of thing that grows in the telling."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "That's your road, not mine. Just don't go back with an empty stomach or an empty purse."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Ah, I hear plenty and know very little. Ask him yourself, if he's in a talking mood."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Well, the fire's smaller and the wind's bigger. Otherwise the same old church and the same old merchant."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "One or two. I told them what I told you, and charged them for the warning."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = [
+  "Ah, nothing, Tarnished. You're a regular now, and regulars get them free. Advice costs nothing; the",
+  "rest costs runes.",
+]
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Only when I have to, and never further than I can run back. Brave men make poor merchants."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Well, soldiers, fire, or a better roof. Whichever comes first, and I'm hoping it's the roof."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Ah, here's as good as anywhere, if you don't mind the draught. The fire's free, the company's cheap."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Not that I'd send a friend to. Mend what you can yourself and save your coin for boots."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Well, I'm no mapmaker. North for the village, east for the mist, south for the sea. That's my map."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Free? A warm fire and a word of sense, friend. Everything else in the pack has a price."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Ah, I'm here most nights anyway. Where else would a man with a pack this heavy go?"
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Well, a jar of teeth. He swore they were lucky. I'm still waiting for the luck."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "I believe in boots and walls. Luck's for people who can afford to lose."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Ah, a quiet road, honest customers and a roof that keeps the rain off. Simple wants, rarely met."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Well, it's cheaper than the rope. Come back when your purse is heavier, Tarnished."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Ah, mind the stones on your way out. And mind the road."
+first_token_ms = 600
+chunk_ms = 40

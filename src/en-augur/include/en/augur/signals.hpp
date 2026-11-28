@@ -55,8 +55,9 @@ enum class SignalId : std::uint8_t {
   NativeTalk,
   BossActive,
   Lifecycle,
+  TalkingWith,
 };
-inline constexpr std::size_t kSignalCount = static_cast<std::size_t>(SignalId::Lifecycle) + 1;
+inline constexpr std::size_t kSignalCount = static_cast<std::size_t>(SignalId::TalkingWith) + 1;
 
 struct SignalInfo {
   SignalId id;
@@ -103,6 +104,9 @@ inline constexpr std::array<SignalInfo, kSignalCount> kSignals = {{
     {SignalId::NativeTalk, "native_talk", SignalType::Bool, kWorld, true},
     {SignalId::BossActive, "boss_active", SignalType::Bool, kWorld, true},
     {SignalId::Lifecycle, "lifecycle", SignalType::Fact, kWorld, true},
+    // v0.3: the persona a native talk is with, the nearest within 3 m while the popup's talk id, the talk camera or the
+    // HUD's pop-up menu is up (DESIGN §6.5; S3 picks the signals), for the P NativeTalkStarted and Ended with it.
+    {SignalId::TalkingWith, "talking_with", SignalType::Bool, kChr, true},
 }};
 
 [[nodiscard]] constexpr const SignalInfo& signal_info(SignalId id) noexcept {

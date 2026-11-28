@@ -52,13 +52,18 @@ memory and the store come later.
 - **Augur** (part 11; en-augur, ARCH §8). The core links en-augur and runs it on every step, before anything that
   consumes events: the slice judges the input first, and the step's lifecycle changes (DataReady, PlaythroughReady,
   loading started and ended, the title, the gate, the ladder, and each read group's trip, once per group) are Augur's
-  Lifecycle facts on the same step. `AugurView` is what en-core supplies Augur at v0.1: every character classifies as
-  Mute and the Tarnished as Player until personas exist (v0.2); no persona perceives; `rng` is splitmix64's finaliser
-  over the seed root (0 until the store). `world_facts()` gives the game's meanings (teams.toml's hostile set
-  {6, 7, 27, 29}, the victory banners 1 to 4 and 22, the throw states 3 and 4 of a critical hit, the open world's areas
-  60 and 61), each to verify in its spike. The shipped rule files, `content/eldenring/augur/*.toml`, are built in at
-  configure time (`builtin_rule_files()`: v0.1 has no content loader); `load_rules` replaces them, keeping the old set
-  on any error. `Outputs::events` holds the step's events in dispatch order (no subsystem subscribes yet).
+  Lifecycle facts on the same step. `AugurView` is what en-core supplies Augur: the Tarnished classifies as Player, a
+  character bound to a loaded persona (identity.hpp) as that persona at the stage the knowledge's view gives it, and
+  every other character as Mute until cards (v0.4); a persona perceives while it is conscious at its stage and the stage
+  does not mute it (v0.3; MEM §1.2), Augur checking it is alive; `rng` is splitmix64's finaliser over the seed root (0
+  until the store). Since v0.3 the conversation's commits are events too (`speech_events`): ConversationStarted (T),
+  PlayerSaid and NpcSaid (P, at a reply's first page; later pages grow it), ConversationEnded (P, the persona only),
+  each with its audience resolved and frozen by Augur and dispatched after Augur's own (`Outputs::events`).
+  `world_facts()` gives the game's meanings (teams.toml's hostile set {6, 7, 27, 29}, the victory banners 1 to 4 and
+  22, the throw states 3 and 4 of a critical hit, the open world's areas 60 and 61), each to verify in its spike. The
+  shipped rule files, `content/eldenring/augur/*.toml`, are built in at configure time (`builtin_rule_files()`: v0.1
+  has no content loader); `load_rules` replaces them, keeping the old set on any error. `Outputs::events` holds the
+  step's events in dispatch order (no subsystem subscribes yet).
 - **Predicates** (`predicates.hpp`, DESIGN §10.4): the DSL as v0.1 evaluates it for Augur's `requires`: `true`,
   `false`, `!`, `&&`, `||`, parentheses and comparisons of `runes_held` (the runes held) and `journey` (ng_lvl);
   `world()` and `knows()` refused in Augur, and `flag()`, `boss()`, `stage()` and `region()`, which v0.1's predicates
@@ -389,6 +394,110 @@ the conversation part B's (above); the core holds both.
   (`ai_allowed`) stays the gate's: a call already sent ends as it ends. Off, the ladder climbs back to what the rest
   of the state gives (L4, L3 with an optional group tripped, L2 without a healthy model); L1 stays for the session.
 
+## Memory: the store in the core (v0.3 slice 2; MEM §1.5, §2.2, §8.3, §8.6, §9.1; ARCH §9)
+
+- **The facts** (`facts.hpp`, `src/memory/facts.cpp`; MEM §2.2). `fold_fact(facts, event, how)` is the one fold: a
+  meeting (a ConversationEnded with a line of the persona's committed, or a NativeTalkEnded with it; merged within
+  10 min of play), `seen_count`, `times_attacked`, `fought_beside` and its last boss, `seen_player_die` (witnessed),
+  `stage_seen`, `world_seen` (the union of the meetings' `known`, the higher certainty kept: fact, rumour, belief) with
+  `world_seen_pt`, and `world_cued` from an NpcSaid's `cue`. `fold_all(events)` is the recomputation over a journey's
+  events in id order; each perceiver comes from en-augur's `perceivers`, so the core never reads an audience itself.
+- **The key** (`store_path.hpp`, MEM §8.3): `playthrough_key(account, slot, name, archetype, gift)`, BLAKE3's keyed
+  mode under `derive_key("eldennet playthrough fp v1")` over the account (u64 LE), the slot, the name's UTF-16LE code
+  units with their count, the archetype and the gift; `name_hash` is BLAKE3 over the same code units. The name goes no
+  further.
+- **The store path** (`StorePath`, `src/memory/store_path.cpp`). `CoreInput::Account` attaches the account the shell
+  found (never recorded); `features.memory` off, or no account, means no store, and the world follows at once.
+  Otherwise:
+  - a playthrough's start sends Open, and the lifecycle waits in Playthrough for its answer. A Busy open is retried
+    3 times, 1 s apart (the store's own 2 s busy timeout inside each); then, as after any other failure, memory is off
+    for the session with one toast, and the world goes on;
+  - on Opened (or Resolved) the core refolds the journey's facts from EventsForFold, writes them back with PutFacts
+    when the file says they are stale, and only then lifts the writes it held;
+  - a Choice: the world goes on, named chat is refused with a status toast (`kChoicePending`), and writes wait in a
+    buffer of 4,096 (the oldest non-speech dropped first; a later page joins its held reply) until
+    `CoreInput::MemoryChoice` answers; there is no answer of the core's own, and the summary
+    (`store().choice()`, O144's) is for the panel (slice 3);
+  - each P event of the step (Augur's own, and the knowledge subscriber's StageChanged with its stages' ids `{from,
+    to}`) is an Append with its frozen audience (en-augur's `freeze_into`) and the facts its fold moved. The
+    conversation's commits give each conversation's row (ConvOpen, ConvClose with the core's own end word), its lines
+    (PlayerSaid; NpcSaid with its pages' ends and pts) and each later page (AppendPage). Ids come from the file's
+    counters; a conversation of the session maps to its file row;
+  - speech goes out in the step it happens, with whatever was queued before it; other writes go out at most every
+    250 ms. A JourneyChanged into a later journey starts that journey's facts;
+  - a Tripped answer, at any time, leaves memory off for the session, with a toast naming the cause.
+- **Block 8 and block 6 (a)** (`memory.hpp`, `src/memory/journal.cpp`; MEM §2.3, §2.4, §4). A journal version's
+  keepsakes are the core's JSON (`journal_of`, `keepsakes_json`); the protected keepsake is the heaviest about the
+  Tarnished at 0.7 or more, the older on a tie. Each persona's bundle (its journal, the tail of its last ended
+  conversation, its pending count) is asked for at PersonaApproached, at a conversation's start and again after its
+  end; a turn whose bundle is not back goes without it. `tarnished_block` composes block 8 in MEM §4.3's order and
+  words: the told name and the facts in words on one paragraph (MEM §2.2's table; a first meeting's place and a boss
+  without a shown name are left out until their names are known), the disposition (MEM §2.4), the summary, then the
+  keepsakes seen, said and proved, said, each heaviest first, at most 7. It is held to 450 tokens by MEM §4.4's order
+  (the lightest keepsakes down to the protected one, then the facts other than the name, the meetings and the
+  attacks), and the prompt's own trim takes block 8's lightest keepsakes after block 6 (a)'s lines. Block 6 (a) comes
+  from the file while it is open, across sessions, under "(things have moved on since)" when `stage_seen` differs from
+  the active stage; without the store, block 8 is empty and the tail is this session's. Block 6 (c) has no lines
+  before own-initiative lines (v0.4, O147).
+- **News since the last meeting** (`knowledge.hpp`'s `since_line`, `cue`; `news_lint.hpp`; MEM §12.6, §12.7,
+  §12.13; O30, O147). From what the store holds of the persona (`world_seen`, `world_seen_pt`, `world_cued`, the
+  proved claims block 8 renders) and the flag frame:
+  - the since-line, fixed at a conversation's first framed turn, names at most two items known now and absent from
+    `world_seen` (in block 5b's selection order) within 55 tokens, and nothing at a first meeting;
+  - the reaction cue, at each framed turn: own stake, then the Tarnished's part (not for a close persona), then local
+    talk (eager alone, Near alone, within 6 h of play of the meeting that recorded `known`), skipping an item cued
+    within the 60 s news cooldown. It is one of four fixed strings (`kCueStrings`, held to block 7's template word for
+    word), followed by the item's own line under its certainty label when block 5b does not show it;
+  - the reply rendered with a cue carries it on its NpcSaid when its first line shows, and `world_cued` folds it;
+  - each conversation records `shown_context` (block 5b's, the since-line's and the cued items by id with their
+    certainty, the cue marked, and block 9's "just now" lines, within 4,096 bytes) and, when it had a frame, its end's
+    `known` (at most 24 items with their certainties), from which `world_seen` folds.
+  World topic offers in block 7 wait for the knowledge base (v0.5), and greetings carrying a cue for own-initiative
+  lines (v0.4, O147). A short holding a term locked now is not yet left out: the lexicon's locked set comes with v0.5.
+- **The memory job** (`memory_job.hpp`, `src/memory/memory_job.cpp`, `src/memory/validate.cpp`,
+  `prompts/memory/01` to `06`; MEM §2.5, §2.6, §3; DESIGN §10.3):
+  - a conversation's end with at least 2 lines of the Tarnished's and 4 committed queues the persona's job (UpsertJob),
+    or merges into its open one (attempts reset); a running job takes the merge once it ends;
+  - one job at a time, oldest first, after 10 s of calm in a world whose gate is open, with no fight, no rollback
+    choice and memory on (the core knows no provider's kind yet, so a cloud's rules hold), on the `memory` slot with
+    MEM §3.5's schema and request ids of its own (from 2^50);
+  - the input (MEM §3.3): the brief and honesty, the stage's gist and road with the news new at the queued
+    conversation, the journal with the protected keepsake marked, the talk (L, at most 60), the notes (N: MEM §2.6's
+    kinds and words, at most 10, newest first, each with when it happened), the context (C: `shown_context`'s world
+    items as "(knew|heard|believed) short" and its "just now" lines, at most 12), and the checks offered (`slew:<boss>`
+    when the Tarnished named that boss in a line of theirs, `great_runes>=n`, `name`);
+  - the reply (MEM §3.6): parsed (the last balanced object when wrapped), the summary's unfit sentences out and its
+    length held, the keepsakes checked (refs and basis, no gendered pronoun about the Tarnished, the world model's
+    own dropped, unoffered checks removed, weights moved by 0.2 at most, at most 3 new, the protected one kept, 8 at
+    most), claims promoted, the told name taken only from the Tarnished's own lines (verified when it is the save's),
+    the character's name kept out of a journal with no told name, and the feeling moved by one step at most. Then one
+    CommitJournal (the version, the watermark, the job done, the verified facts) and the persona's bundle again;
+  - a failed reply is retried twice, at +5 s and +30 s, with its reminder line; then deferred, parked after 6 attempts;
+  - claims are also promoted at render (`BlockNow::proved`), so a claim proved since the last job shows as proved.
+  The Great Runes are not read in v0.3, so `great_runes>=n` never holds yet; the lexicon's locked terms (MEM §3.6
+  step 4) come with v0.5.
+- **The lived layer** (`lived.hpp`, `src/memory/lived.cpp`, `prompts/lived/01` and `02`; MEM §13; proposal 0004):
+  one versioned record per journey and NPC (`towards`, `aims`, `learned`, `self`, `manner`), in its own words, each
+  part citing the journal's keepsakes. It is due once the journal has gained 3 new or rewritten keepsakes, changed
+  its protected keepsake or moved its disposition (counted at each journal commit, in RAM), and its job runs at a
+  quiet moment only: no journal job waiting, 30 s of calm, no conversation with the NPC open, at most once per NPC
+  per 2 h of play. Its input is what the NPC's own prompt would show it; validation holds each part to its tier
+  (moderate: a cited memory with its person, 2 memories for an aim or a lesson, a lesson on a seen memory or a proved
+  claim, one change each; rare: `self` on 3 memories of 0.7 from 2 scenes, once per 10 h; sustained: `manner` on 3
+  memories with the Tarnished from 3 meetings, once per 5 h), a feeling to its trust's side (the Tarnished's trust
+  being the disposition) and the caps; then one CommitLived. It renders in block 8 after the disposition, under "Since
+  then, in your own words:", the Tarnished's entry first, within 100 tokens. A failure is retried twice, then waits
+  10 min of play; after 4 attempts it waits for the journal to change again. Left for later: the due job kept in the
+  file (`memory_jobs.kind = lived`: here it is held in RAM, so a reload forgets a due update until the journal moves
+  again), what the layer supersedes in block 3, and scenes and meetings read from the cited keepsakes' events (here a
+  keepsake's `since_pt` stands for its scene).
+- **Its words** (drafts for the owner): `kChoicePending` "(Not yet: EldenNet is waiting for your answer about this
+  save.)"; `kBackupRestored` "EldenNet's memory file was damaged, so its newest backup was restored."; `kLowDisk` "Less
+  than 200 MB of disk is free: EldenNet may stop saving memories."; and `memory_off_text(cause)`, "Memory is off for
+  this session: " with "its file is in use by another program.", "the disk is full.", "its file is damaged. The newest
+  backup will be used next time.", "its file was made by a newer EldenNet." or "its file could not be read or
+  written.".
+
 ## Tests
 
 `en_core_tests` (doctest), on Linux with GCC and Clang and under Wine: the predicate's every clause alone, values not
@@ -445,3 +554,20 @@ queue its first request's, a withdrawn line's trace gone, the session's percenti
 pushed out by other calls); through the core, a reply's row with the speaker as shown, the banned word's
 regeneration and deflection, and Pause AI: L2 with the box closed and nothing sent, the ladder's return to L4 or L3 or
 L2, a regeneration refused while paused, and a pause before T1 is ready and at L1.
+Memory (`tests/memory/`): each fact's rule, meetings merged within 10 min,
+`world_seen`'s certainties and `world_cued`, and the live fold equal to the recomputation over 20 seeded runs of
+random events (`test_facts.cpp`); and the core against en-store's StoreCore on a temporary folder
+(`test_store_path.cpp`, the one place en-core's tests link en-store): the key, the world waiting for Opened, a whole
+conversation in the file with the core's own end word and the meeting folded, the 250 ms coalescing and speech taking
+the queue with it, a lock at open retried three times then memory off with its toast, the choice holding named chat and
+the writes until Forget trims and lifts them, memory off and no account opening nothing, a tripped store, and
+StageChanged's and JourneyChanged's stored forms; block 8 (`test_block8.cpp`): the journal's form and the protected
+keepsake, MEM §4.3's example word for word on the shipped templates, the facts' words, the cap's trim order, block 6
+(a)'s header, and T5 (every system part the same with block 8 or without). News (`tests/knowledge/test_news.cpp`):
+T12, the cue equal to `tests/knowledge/cues.toml` at every row for the pilot and the CI fixture persona `test_stake`
+(`tests/fixtures/personas/`); T4's since-line for the pilot's three transitions; and W5's and W7's cue clauses, each
+with a failing fixture. The memory job (`tests/memory/test_memory_job.cpp`): the relative time's words, the input
+assembled and the checks offered, the six prompt parts on the shipped templates and the schema, and the reply's
+validation step by step, each with a fixture that just fails it. The lived layer (`tests/memory/test_lived.cpp`): the
+due count, the record's form, its prompt on the shipped templates, each rule of MEM §13.5 with a fixture that just
+fails it, and block 8's lines within 100 tokens.

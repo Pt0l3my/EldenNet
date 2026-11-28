@@ -92,6 +92,16 @@ J payload_json(const EventKind& kind, const HandleNamer& name) {
                      {"witnesses", w}};
           },
           [&](const CritLanded& e) { return J{{"victim", actor_text(e.victim, name)}}; },
+          [&](const PersonaSeen& e) { return J{{"persona", e.persona.index}}; },
+          [&](const PersonaApproached& e) { return J{{"persona", e.persona.index}}; },
+          [&](const PersonaAttacked& e) { return J{{"persona", e.persona.index}, {"via", to_string(e.via)}}; },
+          [&](const PersonaDied& e) { return J{{"persona", e.persona.index}, {"by_player", e.by_player}}; },
+          [&](const FoughtBeside& e) { return J{{"persona", e.persona.index}, {"boss", e.boss}}; },
+          [&](const KilledNear& e) {
+            J w = J::array();
+            for (const PersonaId p : e.witnesses) w.push_back(p.index);
+            return J{{"victim_card", e.victim_card.index}, {"witnesses", w}};
+          },
           [&](const PlaythroughReady& e) { return J{{"slot", e.key.slot}, {"ordinal", e.key.ordinal}}; },
           [&](const JourneyChanged& e) { return J{{"ng_lvl", e.ng_lvl}}; },
           [&](const GateChanged& e) { return J{{"active", e.active}}; },
@@ -178,6 +188,72 @@ nlohmann::ordered_json event_json(const Event& ev, const HandleNamer& name) {
   j["interrupts"] = ints;
   j["payload"] = payload_json(ev.kind, name);
   return j;
+}
+
+namespace {
+
+struct KindFields {
+  std::string_view kind;
+  std::span<const FieldInfo> fields;
+};
+
+constexpr FieldInfo kPlace[] = {{"place_id", "u32"}, {"prev", "u32 or null"}};
+constexpr FieldInfo kBossStart[] = {{"bars", "bars"}};
+constexpr FieldInfo kBossEnd[] = {{"outcome", "word"}, {"bars", "bars"}};
+constexpr FieldInfo kTalkStart[] = {
+    {"persona", "persona or null"}, {"popup", "bool"}, {"talk_cam", "bool"}, {"popup_menu", "bool"}};
+constexpr FieldInfo kTalkEnd[] = {{"persona", "persona or null"}, {"held_ms", "u32"}};
+constexpr FieldInfo kPlayerDied[] = {{"killer", "actor or null"}, {"in_boss", "bool"}};
+constexpr FieldInfo kMount[] = {{"riding", "bool"}};
+constexpr FieldInfo kStruck[] = {{"att", "actor or null"}, {"vic", "actor"},     {"hard", "bool"},
+                                 {"unseen", "bool"},       {"count", "u32"},     {"frac_total", "number"},
+                                 {"dmg_type", "int"}};
+constexpr FieldInfo kFrac[] = {{"subject", "actor"}, {"frac", "number"}};
+constexpr FieldInfo kEngaged[] = {{"subject", "actor"}, {"opponent", "actor"}, {"via", "word"}, {"squad", "u32"}};
+constexpr FieldInfo kDisengaged[] = {{"subject", "actor"}, {"opponent", "actor"}, {"fled", "bool"}, {"why", "word"}};
+constexpr FieldInfo kAllyDied[] = {{"victim", "actor"}, {"side", "word"}, {"witnesses", "handles"}};
+constexpr FieldInfo kCrit[] = {{"victim", "actor"}};
+constexpr FieldInfo kPersona[] = {{"persona", "persona"}};
+constexpr FieldInfo kPersonaAttacked[] = {{"persona", "persona"}, {"via", "word"}};
+constexpr FieldInfo kPersonaDied[] = {{"persona", "persona"}, {"by_player", "bool"}};
+constexpr FieldInfo kFoughtBeside[] = {{"persona", "persona"}, {"boss", "int"}};
+constexpr FieldInfo kKilledNear[] = {{"victim_card", "u32"}, {"witnesses", "personas"}};
+constexpr FieldInfo kPlaythrough[] = {{"slot", "u32"}, {"ordinal", "u32"}};
+constexpr FieldInfo kJourney[] = {{"ng_lvl", "u32"}};
+constexpr FieldInfo kGate[] = {{"active", "bool"}};
+constexpr FieldInfo kGroup[] = {{"group", "word"}};
+constexpr FieldInfo kLadder[] = {{"to", "word"}};
+
+// The kinds payload_json writes a field of, as it writes them; every other kind's payload is empty.
+constexpr KindFields kKindFields[] = {
+    {"PlaceEntered", kPlace},     {"BossFightStarted", kBossStart}, {"BossFightEnded", kBossEnd},
+    {"NativeTalkStarted", kTalkStart}, {"NativeTalkEnded", kTalkEnd}, {"PlayerDied", kPlayerDied},
+    {"MountChanged", kMount},     {"Struck", kStruck},              {"LowHp", kFrac},
+    {"Healed", kFrac},            {"Engaged", kEngaged},            {"Disengaged", kDisengaged},
+    {"AllyDied", kAllyDied},      {"CritLanded", kCrit},            {"PlaythroughReady", kPlaythrough},
+    {"JourneyChanged", kJourney}, {"GateChanged", kGate},           {"GroupTripped", kGroup},
+    {"LadderChanged", kLadder},   {"PersonaSeen", kPersona},        {"PersonaApproached", kPersona},
+    {"PersonaAttacked", kPersonaAttacked}, {"PersonaDied", kPersonaDied}, {"FoughtBeside", kFoughtBeside},
+    {"KilledNear", kKilledNear},
+};
+
+}  // namespace
+
+std::span<const FieldInfo> kind_fields(std::size_t kind) noexcept {
+  const std::string_view name = kind_name(kind);
+  for (const KindFields& k : kKindFields) {
+    if (k.kind == name) return k.fields;
+  }
+  return {};
+}
+
+std::string fields_text(std::size_t kind) {
+  std::string out;
+  for (const FieldInfo& f : kind_fields(kind)) {
+    if (!out.empty()) out += ", ";
+    out.append(f.name).append(" (").append(f.type).append(")");
+  }
+  return out;
 }
 
 std::string golden_line(const Event& ev, const HandleNamer& name) {

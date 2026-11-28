@@ -31,40 +31,41 @@ text    ink.hi        340,  86  179x45   clip1 glyphs 9 "Developer"
 text    ink.mute      340, 136  472x25   clip1 glyphs 49 "Options for testing EldenNet and reporting its problems."
 line    rule.strong   340, 176 1540x1    clip1
 diamond gold.deep     340, 171   11x11   w1 clip1
-fill    ground.2      340, 201 1540x275  r5 clip1
-stroke  rule          340, 201 1540x275  r5 w1 clip1
+fill    ground.2      340, 201 1540x300  r5 clip1
+stroke  rule          340, 201 1540x300  r5 w1 clip1
 text    gold          365, 221   86x20   clip1 glyphs 9 "Developer"
 text    ink.faint    1842, 221    8x25   clip1 glyphs 1 "-"
 line    rule          365, 256 1490x1    clip1
 text    ink.hi        365, 272  141x28   clip1 glyphs 14 "Developer views"
-text    ink.mute      365, 306 1443x25   clip1 glyphs 141 "Turns on the F11 debug view in game, for testers. It shows EldenNet's own numbers and words, never story or chat. Takes effect the next time the game starts. Default: Off."
+text    ink.mute      365, 306 1460x25   clip1 glyphs 139 "Turns on the F11 debug view in game from the next start, and Tools › Workshop in the browser at once. Both are for testers; Workshop shows spoilers and the text sent to the "
+text    ink.mute      365, 331  169x25   clip1 glyphs 18 "model. Default: Off."
 fill    ground.well  1805, 272   50x28   r14 clip1
 stroke  edge         1805, 272   50x28   r14 w1 clip1
 circle  ink.mute     1809, 276   20x20   clip1
-line    rule          365, 341 1490x1    clip1
-text    ink.hi        365, 357  141x28   clip1 glyphs 14 "Record sessions"
-fill    ground.well  1805, 357   50x28   r14 clip1
-stroke  edge         1805, 357   50x28   r14 w1 clip1
-circle  ink.mute     1809, 361   20x20   clip1
-line    rule          365, 401 1490x1    clip1
-text    ink.hi        365, 417   94x28   clip1 glyphs 9 "Log detail"
-stroke  edge         1505, 412  350x38   r3 w1 clip1
-text    ink.mute     1510, 419   76x25   clip1 glyphs 8 "Errors only"
-text    ink.mute     1603, 419   68x25   clip1 glyphs 8 "Warnings"
-fill    ground.3     1681, 413   86x36   r3 clip1
-text    gold.hi      1699, 419   51x25   clip1 glyphs 6 "Normal"
-text    ink.mute     1778, 419   68x25   clip1 glyphs 8 "Detailed"
-fill    ground.2      340, 496 1540x175  r5 clip1
-stroke  rule          340, 496 1540x175  r5 w1 clip1
-text    gold          365, 516   67x20   clip1 glyphs 7 "Related"
-line    rule          365, 546 1490x1    clip1
-text    ink.hi        380, 560   38x28   clip1 glyphs 4 "Logs"
-text    ink.mute      862, 561  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
-text    gold         1820, 560    9x28   clip1 glyphs 1 "→"
-line    rule          365, 601 1490x1    clip1
-text    ink.hi        380, 615   56x28   clip1 glyphs 6 "Status"
-text    ink.mute      862, 616  599x25   clip1 glyphs 58 "Whether EldenNet is healthy on this PC and game build, and if not, why."
-text    gold         1820, 615    9x28   clip1 glyphs 1 "→"
+line    rule          365, 366 1490x1    clip1
+text    ink.hi        365, 382  141x28   clip1 glyphs 14 "Record sessions"
+fill    ground.well  1805, 382   50x28   r14 clip1
+stroke  edge         1805, 382   50x28   r14 w1 clip1
+circle  ink.mute     1809, 386   20x20   clip1
+line    rule          365, 426 1490x1    clip1
+text    ink.hi        365, 442   94x28   clip1 glyphs 9 "Log detail"
+stroke  edge         1505, 437  350x38   r3 w1 clip1
+text    ink.mute     1510, 444   76x25   clip1 glyphs 8 "Errors only"
+text    ink.mute     1603, 444   68x25   clip1 glyphs 8 "Warnings"
+fill    ground.3     1681, 438   86x36   r3 clip1
+text    gold.hi      1699, 444   51x25   clip1 glyphs 6 "Normal"
+text    ink.mute     1778, 444   68x25   clip1 glyphs 8 "Detailed"
+fill    ground.2      340, 521 1540x175  r5 clip1
+stroke  rule          340, 521 1540x175  r5 w1 clip1
+text    gold          365, 541   67x20   clip1 glyphs 7 "Related"
+line    rule          365, 571 1490x1    clip1
+text    ink.hi        380, 585   38x28   clip1 glyphs 4 "Logs"
+text    ink.mute      862, 586  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
+text    gold         1820, 585    9x28   clip1 glyphs 1 "→"
+line    rule          365, 626 1490x1    clip1
+text    ink.hi        380, 640   56x28   clip1 glyphs 6 "Status"
+text    ink.mute      862, 641  599x25   clip1 glyphs 58 "Whether EldenNet is healthy on this PC and game build, and if not, why."
+text    gold         1820, 640    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 fill    ground.well   340,1044   60x28   r3
 stroke  edge          340,1044   60x28   r3 w1
@@ -79,4 +80,4 @@ stroke  edge          581,1044   42x28   r3 w1
 text    ink.body      589,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     631,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi      1802, 269   56x34   r5 w3 clip1
-# 80 items, 3252 vertices, 8022 indices, 4 commands; check_draw_list: passes
+# 81 items, 3316 vertices, 8118 indices, 4 commands; check_draw_list: passes

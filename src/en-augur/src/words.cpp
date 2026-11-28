@@ -19,19 +19,19 @@ const char* word_of(const std::array<const char*, N>& words, E v) noexcept {
 }
 
 constexpr std::array<const char*, 3> kClasses = {"P", "K", "T"};
-constexpr std::array<const char*, 3> kHows = {"direct", "overheard", "witnessed"};
-constexpr std::array<const char*, 5> kRadii = {"speech", "witness", "death", "combat", "none"};
+constexpr std::array<const char*, 6> kRadii = {"speech", "witness", "death", "combat", "none", "subject"};
 constexpr std::array<const char*, 7> kSources = {"lifecycle", "snapshot_diff", "flag_watch", "pipeline",
                                                  "timer",     "hook",          "subscriber"};
 constexpr std::array<const char*, 4> kActors = {"player", "persona", "card", "mute"};
 constexpr std::array<const char*, 3> kSides = {"tarnished", "card", "team"};
 constexpr std::array<const char*, 3> kOutcomes = {"Victory", "Death", "Left"};
 constexpr std::array<const char*, 4> kVias = {"Hit", "LockClosing", "Near", "LockOnly"};
+constexpr std::array<const char*, 2> kAttackVias = {"HpDrop", "HostilityBit"};
 constexpr std::array<const char*, 2> kWhys = {"Timeout", "Distance"};
 constexpr std::array<const char*, 5> kLevels = {"Starting", "L1", "L2", "L3", "L4"};
 
 static_assert(kSources.size() == static_cast<std::size_t>(SourceId::Subscriber) + 1);
-static_assert(kRadii.size() == static_cast<std::size_t>(Radius::None) + 1);
+static_assert(kRadii.size() == static_cast<std::size_t>(Radius::Subject) + 1);
 static_assert(kLevels.size() == static_cast<std::size_t>(LadderLevel::L4) + 1);
 
 template <class... F>
@@ -47,15 +47,32 @@ constexpr Reason counted(const char* w, std::uint64_t n) noexcept { return Reaso
 }  // namespace
 
 const char* to_string(Class v) noexcept { return word_of(kClasses, v); }
-const char* to_string(How v) noexcept { return word_of(kHows, v); }
 const char* to_string(Radius v) noexcept { return word_of(kRadii, v); }
 const char* to_string(SourceId v) noexcept { return word_of(kSources, v); }
 const char* to_string(ActorRef::Kind v) noexcept { return word_of(kActors, v); }
 const char* to_string(SideId::Kind v) noexcept { return word_of(kSides, v); }
 const char* to_string(BossOutcome v) noexcept { return word_of(kOutcomes, v); }
 const char* to_string(EngageVia v) noexcept { return word_of(kVias, v); }
+const char* to_string(AttackVia v) noexcept { return word_of(kAttackVias, v); }
 const char* to_string(DisengageWhy v) noexcept { return word_of(kWhys, v); }
 const char* to_string(LadderLevel v) noexcept { return word_of(kLevels, v); }
+
+const char* to_string(DetectorKind v) noexcept {
+  switch (v) {
+    case DetectorKind::RisingEdge: return "rising_edge";
+    case DetectorKind::FallingEdge: return "falling_edge";
+    case DetectorKind::ChangedStable: return "changed_stable";
+    case DetectorKind::CrossesBelow: return "crosses_below";
+    case DetectorKind::CrossesAbove: return "crosses_above";
+    case DetectorKind::DropOverWindow: return "drop_over_window";
+    case DetectorKind::RiseOverWindow: return "rise_over_window";
+    case DetectorKind::EnterRadius: return "enter_radius";
+    case DetectorKind::CountIncrement: return "count_increment";
+    case DetectorKind::Engagement: return "engagement";
+    case DetectorKind::Fact: return "fact";
+  }
+  return "?";
+}
 
 const char* kind_word(const EventKind& k) noexcept {
   // kKindNames holds views of string literals, so each name's data is NUL-terminated.

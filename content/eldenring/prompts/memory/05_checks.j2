@@ -1,0 +1,7 @@
+{# Part 5: the checks a "said" keepsake may carry, a closed list for this job (MEM §2.5), each with its meaning in the
+   Tarnished's own terms, so that no boss the player did not name enters the prompt. #}
+[ user ]
+CHECKS YOU MAY ATTACH TO A "said" KEEPSAKE
+{% for ck in checks %}
+- {{ ck.key }}: {{ ck.meaning }}
+{% endfor %}

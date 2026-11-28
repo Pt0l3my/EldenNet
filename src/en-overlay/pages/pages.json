@@ -1,7 +1,7 @@
 {
   "space": "eldennet",
   "name": "EldenNet",
-  "minor": 16,
+  "minor": 20,
   "categories": [
     {
       "id": "home",
@@ -61,7 +61,8 @@
       "id": "tools",
       "name": "Tools",
       "pages": [
-        "tools.report"
+        "tools.report",
+        "tools.workshop"
       ]
     },
     {
@@ -430,7 +431,25 @@
                 "filters": [
                   {
                     "column": "level",
-                    "label": "Level"
+                    "label": "Level",
+                    "choices": [
+                      {
+                        "value": "error",
+                        "label": "Errors"
+                      },
+                      {
+                        "value": "warning",
+                        "label": "Warnings"
+                      },
+                      {
+                        "value": "info",
+                        "label": "Information"
+                      },
+                      {
+                        "value": "debug",
+                        "label": "Details"
+                      }
+                    ]
                   }
                 ],
                 "search": {
@@ -465,14 +484,15 @@
       "help": {
         "purpose": "Turn on what helps EldenNet's testers: the debug view, recordings of each session and a more detailed log.",
         "steps": [
-          "Turn on Developer views for the F11 debug view, from the next start of the game.",
+          "Turn on Developer views for the F11 debug view, from the next start of the game, and for Tools › Workshop in the browser, at once.",
           "Turn on Record sessions to keep each session's numbers for the developers' tools.",
           "Choose how much the log writes; System › Logs shows it."
         ]
       },
       "related": [
         "system.logs",
-        "system.status"
+        "system.status",
+        "tools.workshop"
       ],
       "increment": "0.1",
       "sections": [
@@ -1227,6 +1247,274 @@
       ]
     },
     {
+      "id": "tools.workshop",
+      "category": "tools",
+      "name": "Workshop",
+      "description": "EldenNet's raw workings, for testers: the last prompt and reply, every event, the world view and more.",
+      "help": {
+        "purpose": "See EldenNet's workings unfiltered, to find out why a character said what it said, or nothing.",
+        "steps": [
+          "Turn on Developer views in Settings › Developer to find this page, in the browser alone.",
+          "Confirm once a session: it shows spoilers and the text sent to the model.",
+          "Nothing here changes the game, and nothing is kept once the game closes.",
+          "Select a character's TOML to copy it."
+        ]
+      },
+      "related": [
+        "settings.developer",
+        "tools.report",
+        "system.logs"
+      ],
+      "increment": "0.2",
+      "actions": [
+        {
+          "id": "record",
+          "label": "Record this session",
+          "command": "recording.set",
+          "tone": "secondary",
+          "state": {
+            "topic": "workshop.status",
+            "field": "recording_on"
+          }
+        }
+      ],
+      "sections": [
+        {
+          "id": "exchange",
+          "title": "The last prompt and reply",
+          "description": "The newest call of a conversation or of the profile editor, as sent and as answered. Keys and your character's name are left out.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "workshop.exchange",
+              "props": {
+                "field": "facts",
+                "empty": "No call yet since Developer views came on."
+              }
+            },
+            {
+              "kind": "component",
+              "component": "report_preview",
+              "topic": "workshop.exchange",
+              "props": {
+                "field": "parts"
+              }
+            }
+          ]
+        },
+        {
+          "id": "events",
+          "title": "Every event",
+          "description": "Augur's events as the golden files write them, unfiltered, newest first.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "workshop.status",
+              "props": {
+                "field": "events"
+              }
+            },
+            {
+              "kind": "component",
+              "component": "live_feed",
+              "topic": "workshop.events",
+              "props": {
+                "empty": "No event yet since Developer views came on."
+              },
+              "filter_bar": {
+                "filters": [
+                  {
+                    "column": "kind",
+                    "label": "Kind"
+                  },
+                  {
+                    "column": "class",
+                    "label": "Class"
+                  },
+                  {
+                    "column": "source",
+                    "label": "Source"
+                  }
+                ],
+                "search": {
+                  "columns": [
+                    "line"
+                  ],
+                  "label": "Find in the events"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "world",
+          "title": "World view",
+          "description": "Each world stage and flag as EldenNet reads them now, with their raw bits and verification.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "workshop.world",
+              "props": {
+                "field": "frame"
+              }
+            },
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "workshop.world",
+              "props": {
+                "field": "stages",
+                "empty": "The content has no world stages."
+              }
+            },
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "workshop.world",
+              "props": {
+                "field": "flags",
+                "empty": "The content has no flags."
+              },
+              "filter_bar": {
+                "filters": [
+                  {
+                    "column": "reads",
+                    "label": "Reads"
+                  },
+                  {
+                    "column": "verified_here",
+                    "label": "Verified here"
+                  }
+                ],
+                "search": {
+                  "columns": [
+                    "alias"
+                  ],
+                  "label": "Find a flag"
+                }
+              }
+            },
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "workshop.world",
+              "props": {
+                "field": "tracks",
+                "empty": "The content has no tracks."
+              }
+            }
+          ]
+        },
+        {
+          "id": "known",
+          "title": "What each character knows",
+          "description": "Each character's known set at its active stage, by the path it knows each item, and what its prompt shows.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "workshop.known",
+              "props": {
+                "empty": "No character knows anything yet."
+              },
+              "filter_bar": {
+                "filters": [
+                  {
+                    "column": "persona",
+                    "label": "Character"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "unknown",
+          "title": "Unknown characters",
+          "description": "Characters seen this session that EldenNet has no profile for, with a row of TOML for each.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "workshop.unknown",
+              "props": {
+                "field": "rows",
+                "empty": "No unknown character seen yet."
+              }
+            },
+            {
+              "kind": "component",
+              "component": "report_preview",
+              "topic": "workshop.unknown",
+              "props": {
+                "field": "toml"
+              },
+              "share": {
+                "copy": true
+              }
+            }
+          ]
+        },
+        {
+          "id": "recording",
+          "title": "Recording",
+          "description": "The recording of this session's numbers, for the developers' replay tools. It holds no text and no names.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "workshop.status",
+              "props": {
+                "field": "recording"
+              }
+            },
+            {
+              "kind": "shortcuts",
+              "keys": [
+                "debug.record_sessions"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "kinds",
+          "title": "Event kinds",
+          "description": "Every kind of event Augur knows, what builds it and its payload's fields, and the rules loaded.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "workshop.kinds",
+              "props": {
+                "field": "kinds"
+              }
+            },
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "workshop.kinds",
+              "props": {
+                "field": "rules",
+                "empty": "No rule is loaded."
+              }
+            }
+          ]
+        }
+      ],
+      "live": true,
+      "browser_only": true,
+      "shown_with": "debug.panel",
+      "gate": {
+        "words": "Workshop shows EldenNet's raw workings: the text sent to the model and its replies, every event, and what each character knows. It contains spoilers. Open it for this session?",
+        "confirm": "Open Workshop"
+      },
+      "ribbon": "Spoilers",
+      "pc_only": true
+    },
+    {
       "id": "docs",
       "category": "docs",
       "name": "Docs",
@@ -1414,6 +1702,42 @@
     {
       "id": "report",
       "shape": "state"
+    },
+    {
+      "id": "workshop.exchange",
+      "shape": "state",
+      "pc_only": true
+    },
+    {
+      "id": "workshop.events",
+      "shape": "stream",
+      "ring": 500,
+      "pc_only": true
+    },
+    {
+      "id": "workshop.world",
+      "shape": "state",
+      "pc_only": true
+    },
+    {
+      "id": "workshop.known",
+      "shape": "state",
+      "pc_only": true
+    },
+    {
+      "id": "workshop.unknown",
+      "shape": "state",
+      "pc_only": true
+    },
+    {
+      "id": "workshop.status",
+      "shape": "state",
+      "pc_only": true
+    },
+    {
+      "id": "workshop.kinds",
+      "shape": "state",
+      "pc_only": true
     }
   ],
   "commands": [
@@ -1431,7 +1755,8 @@
     "profile.draft",
     "report.build",
     "report.part",
-    "ai.pause"
+    "ai.pause",
+    "recording.set"
   ],
   "slow_commands": [
     "profile.draft"
@@ -1442,7 +1767,8 @@
     "providers.key",
     "profile.save",
     "profile.reset",
-    "profile.restore"
+    "profile.restore",
+    "recording.set"
   ],
   "quick": [
     {

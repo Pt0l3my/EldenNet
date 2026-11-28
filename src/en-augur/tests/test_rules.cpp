@@ -53,9 +53,9 @@ std::string with(const std::string& from, const std::string& to) {
   return s;
 }
 
-TEST_CASE("the shipped rule files load, and hold v0.1's catalogue") {
+TEST_CASE("the shipped rule files load, and hold v0.1's catalogue and v0.3's persona rules") {
   const auto files = test::shipped_files();
-  REQUIRE(files.size() == 3);
+  REQUIRE(files.size() == 4);
   auto set = RuleSet::load(files, kCompiler);
   for (const RuleError& e : set ? std::vector<RuleError>{} : set.error()) MESSAGE(describe(e));
   REQUIRE(set);
@@ -64,11 +64,16 @@ TEST_CASE("the shipped rule files load, and hold v0.1's catalogue") {
   for (const char* k : {"PlaceEntered", "BossFightStarted", "BossFightEnded", "NativeTalkStarted", "NativeTalkEnded",
                         "PlayerDied", "MountChanged", "Struck", "LowHp", "Healed", "Engaged", "Disengaged",
                         "AllyDied", "CritLanded", "JourneyChanged", "DataReady", "PlaythroughReady", "LoadingStarted",
-                        "LoadingEnded", "TitleReached", "GateChanged", "GroupTripped", "LadderChanged"}) {
+                        "LoadingEnded", "TitleReached", "GateChanged", "GroupTripped", "LadderChanged",
+                        "PersonaSeen", "PersonaApproached", "PersonaAttacked", "PersonaDied", "FoughtBeside",
+                        "KilledNear"}) {
     CAPTURE(k);
     CHECK(kinds.count(k) == 1);
   }
-  CHECK(kinds.size() == 23);
+  CHECK(kinds.size() == 29);  // NativeTalkStarted and Ended are the world's and a persona's: one kind each
+  // O147: the pacing core is v0.4's, so the rules that only arm own-initiative lines wait for it.
+  CHECK(kinds.count("CameNear") == 0);
+  CHECK(kinds.count("AutonomyTick") == 0);
   CHECK((*set)->hash() != 0);
   CHECK(hash_text((*set)->hash()).rfind("fnv1a64:", 0) == 0);
 }
@@ -112,7 +117,7 @@ TEST_CASE("each refusal, with its file and line") {
   CHECK(refused_with(with("class = \"K\"", "class = \"Q\""), "must be P, K or T"));
   CHECK(refused_with(with("{subject}", "{att}"), "names a placeholder its payload does not offer"));
   CHECK(refused_with(with("{subject}", "{subject"), "has a '{' without its '}'"));
-  CHECK(refused_with(with("\"witness\"", "\"far\""), "must be speech, witness, death, combat or none"));
+  CHECK(refused_with(with("\"witness\"", "\"far\""), "must be speech, witness, death, combat, none or subject"));
   CHECK(refused_with(with("[\"ambient\"]", "[\"thunder\"]"), "holds a name that is not an interrupt"));
   CHECK(refused_with(with("\"always\"", "\"world(x)\""), "does not compile: not a test predicate"));
   CHECK(refused_with(with("priority = 30", "priority = 101"), "must be a whole number from 0 to 100"));
@@ -122,7 +127,8 @@ TEST_CASE("each refusal, with its file and line") {
   CHECK(refused_with(with("ttl_s = 20", "ttl_s = 20\ndebounce_ms = 60001"), "from 0 to 60000"));
   CHECK(refused_with(with("ttl_s = 20", "ttl_s = 20\nmerge_ms = 30001"), "from 0 to 30000"));
   CHECK(refused_with(with("id = \"low\"", "id = \"Low Hp\""), "must be a lower-case word"));
-  CHECK(refused_with(with("emits = \"LowHp\"", "emits = \"PersonaSeen\""), "it waits for personas (v0.2)"));
+  CHECK(refused_with(with("emits = \"LowHp\"", "emits = \"CameNear\""), "it waits for speakers to greet"));
+  CHECK(refused_with(with("emits = \"LowHp\"", "emits = \"StageChanged\""), "it waits for the knowledge subscriber"));
   CHECK(refused_with(with("emits = \"LowHp\"", "emits = \"FlagChanged\""), "it waits for flag edges"));
   CHECK(refused_with(with("emits = \"LowHp\"", "emits = \"LowHp\"\npayload = \"struck\""), "builds Struck, not LowHp"));
   CHECK(refused_with("[[rule]]\nid = \"e\"\nemits = \"Engaged\"\nsubjects = { kinds = [\"generic\"] }\nsignal = \"engaged\"\n"

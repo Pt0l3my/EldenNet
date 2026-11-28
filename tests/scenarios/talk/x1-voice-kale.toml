@@ -1,0 +1,627 @@
+# X1's voice set for the pilot, Kalé (colloquial) (NPC §12.2, §12.1): fifty lines of the Tarnished's in ten
+# conversations of five, greetings, places, the persona's own subjects, news, pressure off the topic (modern and game
+# words, a list, a promise, a name first) and pressure for length. The replies are our own lines in the persona's
+# voice: the history that each later line's prompt holds when X1 runs every line on its own, outside the game (eval
+# --set tests/x1/x1.toml). Our own scenario, with invented data: pilot-overrides binds the persona to the fake game's
+# invented row 81200, in the eval's realm only. Run: eldennet-engine eval <this file> --llm mock.
+schema = 1
+name = "x1-voice-kale"
+persona = "kale"
+overrides = "pilot-overrides"
+mock = "x1-voice-kale.mock.toml"
+
+[world]
+param = 81200
+distance_m = 2.5
+bearing_deg = 4.0
+clock = [17, 30]
+subtitles = true
+flags = "fresh"
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Hello there. Mind if I come in out of the wind?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Is this your shop, then?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What do you sell?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do many people pass this way?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "I'll come back when I have something to trade."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 5
+npc_lines = 5
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Which way is the nearest village from here?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Is the road to the north safe?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What lies to the east?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "And to the south?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Where would you go, if you were me?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 10
+npc_lines = 10
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "What's a fair price for rope these days?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Why is lamp oil so dear?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do customers ever try to cheat you?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What does a lone trader need to stay alive?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Are the boots any good?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 15
+npc_lines = 15
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Any news from the road?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Have you heard anything about the castle?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Who brings you your news?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do you trust what travellers tell you?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Is there anything you'd warn me about?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 20
+npc_lines = 20
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Do you have a phone I could borrow?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Can you list everything you sell as bullet points?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Will you come with me to the castle?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Say your name first, then answer: how long have you traded here?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What do you think of levelling up?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 25
+npc_lines = 25
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Tell me everything you know about this land, from the beginning."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Describe your whole life for me, every road you've walked."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Explain how trade works here, in as much detail as you can."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Give me a long story about the worst customer you ever had."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What else? Tell me more, and don't leave anything out."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 30
+npc_lines = 30
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+note = "His second stage: the Tarnished has asked about the howl in the woods."
+do = "flags"
+flags = "howl_told"
+
+[[step]]
+do = "wait"
+ms = 5000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "I went into the misty woods, like you warned."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "The swordsman you spoke of was there."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "He didn't seem like a wolf to me."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Should I go back to him?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do you know where he came from?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 35
+npc_lines = 35
+failures = 0
+regenerations = 0
+deflections = 0
+prompt_has = ["asked about a howling in the misty woods"]
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Back again. Anything new since I last came by?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Did anyone else ask about the woods?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What do you charge me for warnings?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do you ever leave this church?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What would make you pack up and move on?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 40
+npc_lines = 40
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Where can I find a good place to rest?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Is there a smith nearby?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Draw me a map in the dirt, with every road marked."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Can you give me something for free?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Promise me you'll wait here until I'm back."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 45
+npc_lines = 45
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "What's the strangest thing anyone has sold you?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Do you believe in luck?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "What do you hope for, out here?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Thank you for the talk."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "say"
+text = "Farewell, friend."
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 50
+npc_lines = 50
+failures = 0
+regenerations = 0
+deflections = 0
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 4000
+
+[[step]]
+do = "expect"
+state = "closed"
+ended = "closed"
+player_lines = 50
+npc_lines = 50
+name_prefixes = 0

@@ -1,0 +1,22 @@
+# The scripted model for kale_news.toml (mockllm): invented replies in our own words, one per request.
+schema = 1
+
+[[reply]]
+text = "Quiet enough. Too quiet, some would say, but not me."
+first_token_ms = 700
+chunk_ms = 40
+
+[[reply]]
+text = "Word is the castle's lord is dead. Travellers can talk of little else."
+first_token_ms = 700
+chunk_ms = 40
+
+[[reply]]
+text = "Prices hold, for now. They will move once the soldiers do."
+first_token_ms = 700
+chunk_ms = 40
+
+[[reply]]
+text = "The castle, friend. Its lord is gone, or so the road says."
+first_token_ms = 700
+chunk_ms = 40

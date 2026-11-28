@@ -39,287 +39,288 @@ stroke  rule          340, 201 1540x130  r5 w1 clip1
 text    gold          365, 221   29x20   clip1 glyphs 3 "Now"
 text    ink.faint    1842, 221    8x25   clip1 glyphs 1 "-"
 text    ink.body      365, 271  768x25   clip1 glyphs 79 "NPCs speak once a model answers Conversation. The self-test checks your provider meanwhile."
-fill    ground.2      340, 351 1540x155  r5 clip1
-stroke  rule          340, 351 1540x155  r5 w1 clip1
+fill    ground.2      340, 351 1540x180  r5 clip1
+stroke  rule          340, 351 1540x180  r5 w1 clip1
 text    gold          365, 371   58x20   clip1 glyphs 6 "Preset"
 text    ink.faint    1842, 371    8x25   clip1 glyphs 1 "-"
 line    rule          365, 406 1490x1    clip1
 text    ink.hi        365, 422   56x28   clip1 glyphs 6 "Preset"
-text    ink.mute      365, 456 1485x25   clip1 glyphs 147 "Which models do the jobs. Cloud budget, on OpenRouter, suits most players; Custom keeps what your providers file says. A new preset adds its provider to Providers, where its key goes. Default: Cloud budget, on OpenRouter."
+text    ink.mute      365, 456 1468x25   clip1 glyphs 145 "Which models do the jobs. Cloud budget, on OpenRouter, suits most players; Custom keeps what your providers file says. A new preset adds its provider to Providers, where its "
+text    ink.mute      365, 481  397x25   clip1 glyphs 41 "key goes. Default: Cloud budget, on OpenRouter."
 stroke  edge         1505, 417  350x38   r3 w1 clip1
 fill    ground.3     1506, 418  115x36   r3 clip1
 text    gold.hi      1510, 424  101x25   clip1 glyphs 11 "Cloud budget, on OpenRouter"
 text    ink.mute     1627, 424  101x25   clip1 glyphs 10 "Cloud, on NanoGPT"
 text    ink.mute     1771, 424   51x25   clip1 glyphs 6 "Custom"
-fill    ground.2      340, 526 1540x635  r5 clip1
-stroke  rule          340, 526 1540x635  r5 w1 clip1
-text    gold          365, 546  115x20   clip1 glyphs 12 "Conversation"
-text    ink.faint     495, 543   68x25   clip1 glyphs 8 "dialogue"
-text    ink.faint    1842, 546    8x25   clip1 glyphs 1 "-"
-text    ink.body     1778, 543   42x25   clip1 glyphs 5 "Ready"
-circle  moss         1758, 551   10x10   clip1
-text    ink.mute      365, 571  658x25   clip1 glyphs 64 "Replies when you talk to a character. Its limits are the same in every preset."
-line    rule          365, 606 1490x1    clip1
-text    ink.hi        365, 622  216x28   clip1 glyphs 22 "Conversation's provider"
-fill    ground.well  1505, 619  350x35   r3 clip1
-stroke  edge         1505, 619  350x35   r3 w1 clip1
-text    ink.body     1539, 624   59x25   clip1 glyphs 7 "Default"
-text    ink.mute     1518, 624    8x25   clip1 glyphs 1 "←"
-text    ink.mute     1834, 624    8x25   clip1 glyphs 1 "→"
-line    rule          365, 666 1490x1    clip1
-text    ink.hi        365, 682  188x28   clip1 glyphs 19 "Conversation's model"
-fill    ground.well  1505, 679  350x35   r3 clip1
-stroke  edge         1505, 679  350x35   r3 w1 clip1
-text    ink.body     1539, 684   59x25   clip1 glyphs 7 "Default"
-text    ink.mute     1518, 684    8x25   clip1 glyphs 1 "←"
-text    ink.mute     1834, 684    8x25   clip1 glyphs 1 "→"
-line    rule          365, 726 1490x1    clip1
-text    ink.hi        365, 742  300x28   clip1 glyphs 30 "Conversation's fallback provider"
-fill    ground.well  1505, 739  350x35   r3 clip1
-stroke  edge         1505, 739  350x35   r3 w1 clip1
-text    ink.body     1539, 744   59x25   clip1 glyphs 7 "Default"
-text    ink.mute     1518, 744    8x25   clip1 glyphs 1 "←"
-text    ink.mute     1834, 744    8x25   clip1 glyphs 1 "→"
-line    rule          365, 786 1490x1    clip1
-text    ink.hi        365, 802  216x28   clip1 glyphs 22 "Conversation's fallback"
-fill    ground.well  1505, 799  350x35   r3 clip1
-stroke  edge         1505, 799  350x35   r3 w1 clip1
-text    ink.body     1539, 804   59x25   clip1 glyphs 7 "Default"
-text    ink.mute     1518, 804    8x25   clip1 glyphs 1 "←"
-text    ink.mute     1834, 804    8x25   clip1 glyphs 1 "→"
-line    rule          365, 846 1490x1    clip1
-text    ink.hi        365, 862  131x28   clip1 glyphs 13 "Longest answer"
-text    ink.body      862, 864   84x25   clip1 glyphs 9 "140 tokens"
-line    rule          365, 906 1490x1    clip1
-text    ink.hi        365, 922  103x28   clip1 glyphs 11 "Temperature"
-text    ink.body      862, 924   25x25   clip1 glyphs 3 "0.8"
-line    rule          365, 966 1490x1    clip1
-text    ink.hi        365, 982  169x28   clip1 glyphs 16 "First token within"
-text    ink.body      862, 984  228x25   clip1 glyphs 20 "6 s, 10 s on a local server"
-line    rule          365,1026 1490x1    clip1
-text    ink.hi        365,1042  178x28   clip1 glyphs 17 "Whole answer within"
-text    ink.body      862,1044   34x25   clip1 glyphs 3 "20 s"
-line    rule          365,1086 1490x1    clip1
-text    ink.hi        365,1102   66x28   clip1 glyphs 7 "Retries"
-text    ink.body      862,1104   34x25   clip1 glyphs 4 "None"
-fill    ground.2      340,1181 1540x635  r5 clip1
-stroke  rule          340,1181 1540x635  r5 w1 clip1
-text    gold          365,1201  106x20   clip1 glyphs 10 "Quick lines"
-text    ink.faint     486,1198   76x25   clip1 glyphs 9 "bark_live"
-text    ink.faint    1842,1201    8x25   clip1 glyphs 1 "-"
-text    ink.body     1778,1198   42x25   clip1 glyphs 5 "Ready"
-circle  moss         1758,1206   10x10   clip1
-text    ink.mute      365,1226  869x25   clip1 glyphs 83 "Short lines said in the moment, such as a call-out in a fight. Its limits are the same in every preset."
-line    rule          365,1261 1490x1    clip1
-text    ink.hi        365,1277  197x28   clip1 glyphs 19 "Quick lines' provider"
-fill    ground.well  1505,1274  350x35   r3 clip1
-stroke  edge         1505,1274  350x35   r3 w1 clip1
-text    ink.body     1539,1279   59x25   clip1 glyphs 7 "Default"
-text    ink.mute     1518,1279    8x25   clip1 glyphs 1 "←"
-text    ink.mute     1834,1279    8x25   clip1 glyphs 1 "→"
-line    rule          365,1321 1490x1    clip1
-text    ink.hi        365,1337  169x28   clip1 glyphs 16 "Quick lines' model"
-fill    ground.well  1505,1334  350x35   r3 clip1
-stroke  edge         1505,1334  350x35   r3 w1 clip1
-text    ink.body     1539,1339   59x25   clip1 glyphs 7 "Default"
-text    ink.mute     1518,1339    8x25   clip1 glyphs 1 "←"
-text    ink.mute     1834,1339    8x25   clip1 glyphs 1 "→"
-line    rule          365,1381 1490x1    clip1
-text    ink.hi        365,1397  281x28   clip1 glyphs 27 "Quick lines' fallback provider"
-fill    ground.well  1505,1394  350x35   r3 clip1
-stroke  edge         1505,1394  350x35   r3 w1 clip1
-text    ink.body     1539,1399   59x25   clip1 glyphs 7 "Default"
-text    ink.mute     1518,1399    8x25   clip1 glyphs 1 "←"
-text    ink.mute     1834,1399    8x25   clip1 glyphs 1 "→"
-line    rule          365,1441 1490x1    clip1
-text    ink.hi        365,1457  197x28   clip1 glyphs 19 "Quick lines' fallback"
-fill    ground.well  1505,1454  350x35   r3 clip1
-stroke  edge         1505,1454  350x35   r3 w1 clip1
-text    ink.body     1539,1459   59x25   clip1 glyphs 7 "Default"
-text    ink.mute     1518,1459    8x25   clip1 glyphs 1 "←"
-text    ink.mute     1834,1459    8x25   clip1 glyphs 1 "→"
-line    rule          365,1501 1490x1    clip1
-text    ink.hi        365,1517  131x28   clip1 glyphs 13 "Longest answer"
-text    ink.body      862,1519   76x25   clip1 glyphs 8 "32 tokens"
-line    rule          365,1561 1490x1    clip1
-text    ink.hi        365,1577  103x28   clip1 glyphs 11 "Temperature"
-text    ink.body      862,1579   25x25   clip1 glyphs 3 "0.9"
-line    rule          365,1621 1490x1    clip1
-text    ink.hi        365,1637  169x28   clip1 glyphs 16 "First token within"
-text    ink.body      862,1639   42x25   clip1 glyphs 4 "1.5 s"
-line    rule          365,1681 1490x1    clip1
-text    ink.hi        365,1697  178x28   clip1 glyphs 17 "Whole answer within"
-text    ink.body      862,1699   25x25   clip1 glyphs 2 "3 s"
-line    rule          365,1741 1490x1    clip1
-text    ink.hi        365,1757   66x28   clip1 glyphs 7 "Retries"
-text    ink.body      862,1759   34x25   clip1 glyphs 4 "None"
-fill    ground.2      340,1836 1540x635  r5 clip1
-stroke  rule          340,1836 1540x635  r5 w1 clip1
-text    gold          365,1856  134x20   clip1 glyphs 13 "Prepared lines"
-text    ink.faint     514,1853   76x25   clip1 glyphs 9 "bark_pool"
-text    ink.faint    1842,1856    8x25   clip1 glyphs 1 "-"
-text    ink.body     1778,1853   42x25   clip1 glyphs 5 "Ready"
-circle  moss         1758,1861   10x10   clip1
-text    ink.mute      365,1881  945x25   clip1 glyphs 93 "Lines prepared ahead of time, in batches, while nothing waits for them. Its limits are the same in every preset."
-line    rule          365,1916 1490x1    clip1
-text    ink.hi        365,1932  225x28   clip1 glyphs 22 "Prepared lines' provider"
-fill    ground.well  1505,1929  350x35   r3 clip1
-stroke  edge         1505,1929  350x35   r3 w1 clip1
-text    ink.body     1539,1934   59x25   clip1 glyphs 7 "Default"
-text    ink.mute     1518,1934    8x25   clip1 glyphs 1 "←"
-text    ink.mute     1834,1934    8x25   clip1 glyphs 1 "→"
-line    rule          365,1976 1490x1    clip1
-text    ink.hi        365,1992  197x28   clip1 glyphs 19 "Prepared lines' model"
-fill    ground.well  1505,1989  350x35   r3 clip1
-stroke  edge         1505,1989  350x35   r3 w1 clip1
-text    ink.body     1539,1994   59x25   clip1 glyphs 7 "Default"
-text    ink.mute     1518,1994    8x25   clip1 glyphs 1 "←"
-text    ink.mute     1834,1994    8x25   clip1 glyphs 1 "→"
-line    rule          365,2036 1490x1    clip1
-text    ink.hi        365,2052  309x28   clip1 glyphs 30 "Prepared lines' fallback provider"
-fill    ground.well  1505,2049  350x35   r3 clip1
-stroke  edge         1505,2049  350x35   r3 w1 clip1
-text    ink.body     1539,2054   59x25   clip1 glyphs 7 "Default"
-text    ink.mute     1518,2054    8x25   clip1 glyphs 1 "←"
-text    ink.mute     1834,2054    8x25   clip1 glyphs 1 "→"
-line    rule          365,2096 1490x1    clip1
-text    ink.hi        365,2112  225x28   clip1 glyphs 22 "Prepared lines' fallback"
-fill    ground.well  1505,2109  350x35   r3 clip1
-stroke  edge         1505,2109  350x35   r3 w1 clip1
-text    ink.body     1539,2114   59x25   clip1 glyphs 7 "Default"
-text    ink.mute     1518,2114    8x25   clip1 glyphs 1 "←"
-text    ink.mute     1834,2114    8x25   clip1 glyphs 1 "→"
-line    rule          365,2156 1490x1    clip1
-text    ink.hi        365,2172  131x28   clip1 glyphs 13 "Longest answer"
-text    ink.body      862,2174   84x25   clip1 glyphs 9 "600 tokens"
-line    rule          365,2216 1490x1    clip1
-text    ink.hi        365,2232  103x28   clip1 glyphs 11 "Temperature"
-text    ink.body      862,2234    8x25   clip1 glyphs 1 "1"
-line    rule          365,2276 1490x1    clip1
-text    ink.hi        365,2292  169x28   clip1 glyphs 16 "First token within"
-text    ink.body      862,2294   34x25   clip1 glyphs 3 "15 s"
-line    rule          365,2336 1490x1    clip1
-text    ink.hi        365,2352  178x28   clip1 glyphs 17 "Whole answer within"
-text    ink.body      862,2354   34x25   clip1 glyphs 3 "60 s"
-line    rule          365,2396 1490x1    clip1
-text    ink.hi        365,2412   66x28   clip1 glyphs 7 "Retries"
-text    ink.body      862,2414    8x25   clip1 glyphs 1 "1"
-fill    ground.2      340,2491 1540x635  r5 clip1
-stroke  rule          340,2491 1540x635  r5 w1 clip1
-text    gold          365,2511   58x20   clip1 glyphs 6 "Memory"
-text    ink.faint     438,2508   51x25   clip1 glyphs 6 "memory"
-text    ink.faint    1842,2511    8x25   clip1 glyphs 1 "-"
-text    ink.body     1778,2508   42x25   clip1 glyphs 5 "Ready"
-circle  moss         1758,2516   10x10   clip1
-text    ink.mute      365,2536  759x25   clip1 glyphs 76 "Writes what characters remember of what happened. Its limits are the same in every preset."
-line    rule          365,2571 1490x1    clip1
-text    ink.hi        365,2587  159x28   clip1 glyphs 16 "Memory's provider"
-fill    ground.well  1505,2584  350x35   r3 clip1
-stroke  edge         1505,2584  350x35   r3 w1 clip1
-text    ink.body     1539,2589   59x25   clip1 glyphs 7 "Default"
-text    ink.mute     1518,2589    8x25   clip1 glyphs 1 "←"
-text    ink.mute     1834,2589    8x25   clip1 glyphs 1 "→"
-line    rule          365,2631 1490x1    clip1
-text    ink.hi        365,2647  131x28   clip1 glyphs 13 "Memory's model"
-fill    ground.well  1505,2644  350x35   r3 clip1
-stroke  edge         1505,2644  350x35   r3 w1 clip1
-text    ink.body     1539,2649   59x25   clip1 glyphs 7 "Default"
-text    ink.mute     1518,2649    8x25   clip1 glyphs 1 "←"
-text    ink.mute     1834,2649    8x25   clip1 glyphs 1 "→"
-line    rule          365,2691 1490x1    clip1
-text    ink.hi        365,2707  244x28   clip1 glyphs 24 "Memory's fallback provider"
-fill    ground.well  1505,2704  350x35   r3 clip1
-stroke  edge         1505,2704  350x35   r3 w1 clip1
-text    ink.body     1539,2709   59x25   clip1 glyphs 7 "Default"
-text    ink.mute     1518,2709    8x25   clip1 glyphs 1 "←"
-text    ink.mute     1834,2709    8x25   clip1 glyphs 1 "→"
-line    rule          365,2751 1490x1    clip1
-text    ink.hi        365,2767  159x28   clip1 glyphs 16 "Memory's fallback"
-fill    ground.well  1505,2764  350x35   r3 clip1
-stroke  edge         1505,2764  350x35   r3 w1 clip1
-text    ink.body     1539,2769   59x25   clip1 glyphs 7 "Default"
-text    ink.mute     1518,2769    8x25   clip1 glyphs 1 "←"
-text    ink.mute     1834,2769    8x25   clip1 glyphs 1 "→"
-line    rule          365,2811 1490x1    clip1
-text    ink.hi        365,2827  131x28   clip1 glyphs 13 "Longest answer"
-text    ink.body      862,2829   84x25   clip1 glyphs 9 "500 tokens"
-line    rule          365,2871 1490x1    clip1
-text    ink.hi        365,2887  103x28   clip1 glyphs 11 "Temperature"
-text    ink.body      862,2889   25x25   clip1 glyphs 3 "0.3"
-line    rule          365,2931 1490x1    clip1
-text    ink.hi        365,2947  169x28   clip1 glyphs 16 "First token within"
-text    ink.body      862,2949   34x25   clip1 glyphs 3 "20 s"
-line    rule          365,2991 1490x1    clip1
-text    ink.hi        365,3007  178x28   clip1 glyphs 17 "Whole answer within"
-text    ink.body      862,3009   34x25   clip1 glyphs 3 "60 s"
-line    rule          365,3051 1490x1    clip1
-text    ink.hi        365,3067   66x28   clip1 glyphs 7 "Retries"
-text    ink.body      862,3069    8x25   clip1 glyphs 1 "2"
-fill    ground.2      340,3146 1540x695  r5 clip1
-stroke  rule          340,3146 1540x695  r5 w1 clip1
-text    gold          365,3166   86x20   clip1 glyphs 9 "Self-test"
-text    ink.faint     466,3163   67x25   clip1 glyphs 8 "selftest"
-text    ink.faint    1842,3166    8x25   clip1 glyphs 1 "-"
-text    ink.body     1778,3163   42x25   clip1 glyphs 5 "Ready"
-circle  moss         1758,3171   10x10   clip1
-text    ink.mute      365,3191  582x25   clip1 glyphs 58 "What the self-test measures. Its limits are the same in every preset."
-line    rule          365,3226 1490x1    clip1
-text    ink.hi        365,3242  188x28   clip1 glyphs 19 "Self-test's provider"
-fill    ground.well  1505,3239  350x35   r3 clip1
-stroke  edge         1505,3239  350x35   r3 w1 clip1
-text    ink.body     1539,3244   59x25   clip1 glyphs 7 "Default"
-text    ink.mute     1518,3244    8x25   clip1 glyphs 1 "←"
-text    ink.mute     1834,3244    8x25   clip1 glyphs 1 "→"
-line    rule          365,3286 1490x1    clip1
-text    ink.hi        365,3302  159x28   clip1 glyphs 16 "Self-test's model"
-fill    ground.well  1505,3299  350x35   r3 clip1
-stroke  edge         1505,3299  350x35   r3 w1 clip1
-text    ink.body     1539,3304   59x25   clip1 glyphs 7 "Default"
-text    ink.mute     1518,3304    8x25   clip1 glyphs 1 "←"
-text    ink.mute     1834,3304    8x25   clip1 glyphs 1 "→"
-line    rule          365,3346 1490x1    clip1
-text    ink.hi        365,3362  272x28   clip1 glyphs 27 "Self-test's fallback provider"
-fill    ground.well  1505,3359  350x35   r3 clip1
-stroke  edge         1505,3359  350x35   r3 w1 clip1
-text    ink.body     1539,3364   59x25   clip1 glyphs 7 "Default"
-text    ink.mute     1518,3364    8x25   clip1 glyphs 1 "←"
-text    ink.mute     1834,3364    8x25   clip1 glyphs 1 "→"
-line    rule          365,3406 1490x1    clip1
-text    ink.hi        365,3422  188x28   clip1 glyphs 19 "Self-test's fallback"
-fill    ground.well  1505,3419  350x35   r3 clip1
-stroke  edge         1505,3419  350x35   r3 w1 clip1
-text    ink.body     1539,3424   59x25   clip1 glyphs 7 "Default"
-text    ink.mute     1518,3424    8x25   clip1 glyphs 1 "←"
-text    ink.mute     1834,3424    8x25   clip1 glyphs 1 "→"
-line    rule          365,3466 1490x1    clip1
-text    ink.hi        365,3482   56x28   clip1 glyphs 6 "Models"
-text    ink.body      862,3484  169x25   clip1 glyphs 18 "Same as Conversation"
-line    rule          365,3526 1490x1    clip1
-text    ink.hi        365,3542  131x28   clip1 glyphs 13 "Longest answer"
-text    ink.body      862,3544   76x25   clip1 glyphs 8 "32 tokens"
-line    rule          365,3586 1490x1    clip1
-text    ink.hi        365,3602  103x28   clip1 glyphs 11 "Temperature"
-text    ink.body      862,3604    8x25   clip1 glyphs 1 "0"
-line    rule          365,3646 1490x1    clip1
-text    ink.hi        365,3662  169x28   clip1 glyphs 16 "First token within"
-text    ink.body      862,3664   34x25   clip1 glyphs 3 "10 s"
-line    rule          365,3706 1490x1    clip1
-text    ink.hi        365,3722  178x28   clip1 glyphs 17 "Whole answer within"
-text    ink.body      862,3724   34x25   clip1 glyphs 3 "20 s"
-line    rule          365,3766 1490x1    clip1
-text    ink.hi        365,3782   66x28   clip1 glyphs 7 "Retries"
-text    ink.body      862,3784   34x25   clip1 glyphs 4 "None"
-fill    ground.2      340,3861 1540x175  r5 clip1
-stroke  rule          340,3861 1540x175  r5 w1 clip1
-text    gold          365,3881   67x20   clip1 glyphs 7 "Related"
-line    rule          365,3911 1490x1    clip1
-text    ink.hi        380,3925   84x28   clip1 glyphs 9 "Providers"
-text    ink.mute      862,3926  624x25   clip1 glyphs 63 "Where EldenNet's model calls go, with whose key, and whether each answers."
-text    gold         1820,3925    9x28   clip1 glyphs 1 "→"
-line    rule          365,3966 1490x1    clip1
-text    ink.hi        380,3980   84x28   clip1 glyphs 9 "Self-test"
-text    ink.mute      862,3981  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
-text    gold         1820,3980    9x28   clip1 glyphs 1 "→"
+fill    ground.2      340, 551 1540x635  r5 clip1
+stroke  rule          340, 551 1540x635  r5 w1 clip1
+text    gold          365, 571  115x20   clip1 glyphs 12 "Conversation"
+text    ink.faint     495, 568   68x25   clip1 glyphs 8 "dialogue"
+text    ink.faint    1842, 571    8x25   clip1 glyphs 1 "-"
+text    ink.body     1778, 568   42x25   clip1 glyphs 5 "Ready"
+circle  moss         1758, 576   10x10   clip1
+text    ink.mute      365, 596  658x25   clip1 glyphs 64 "Replies when you talk to a character. Its limits are the same in every preset."
+line    rule          365, 631 1490x1    clip1
+text    ink.hi        365, 647  216x28   clip1 glyphs 22 "Conversation's provider"
+fill    ground.well  1505, 644  350x35   r3 clip1
+stroke  edge         1505, 644  350x35   r3 w1 clip1
+text    ink.body     1539, 649   59x25   clip1 glyphs 7 "Default"
+text    ink.mute     1518, 649    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834, 649    8x25   clip1 glyphs 1 "→"
+line    rule          365, 691 1490x1    clip1
+text    ink.hi        365, 707  188x28   clip1 glyphs 19 "Conversation's model"
+fill    ground.well  1505, 704  350x35   r3 clip1
+stroke  edge         1505, 704  350x35   r3 w1 clip1
+text    ink.body     1539, 709   59x25   clip1 glyphs 7 "Default"
+text    ink.mute     1518, 709    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834, 709    8x25   clip1 glyphs 1 "→"
+line    rule          365, 751 1490x1    clip1
+text    ink.hi        365, 767  300x28   clip1 glyphs 30 "Conversation's fallback provider"
+fill    ground.well  1505, 764  350x35   r3 clip1
+stroke  edge         1505, 764  350x35   r3 w1 clip1
+text    ink.body     1539, 769   59x25   clip1 glyphs 7 "Default"
+text    ink.mute     1518, 769    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834, 769    8x25   clip1 glyphs 1 "→"
+line    rule          365, 811 1490x1    clip1
+text    ink.hi        365, 827  216x28   clip1 glyphs 22 "Conversation's fallback"
+fill    ground.well  1505, 824  350x35   r3 clip1
+stroke  edge         1505, 824  350x35   r3 w1 clip1
+text    ink.body     1539, 829   59x25   clip1 glyphs 7 "Default"
+text    ink.mute     1518, 829    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834, 829    8x25   clip1 glyphs 1 "→"
+line    rule          365, 871 1490x1    clip1
+text    ink.hi        365, 887  131x28   clip1 glyphs 13 "Longest answer"
+text    ink.body      862, 889   84x25   clip1 glyphs 9 "140 tokens"
+line    rule          365, 931 1490x1    clip1
+text    ink.hi        365, 947  103x28   clip1 glyphs 11 "Temperature"
+text    ink.body      862, 949   25x25   clip1 glyphs 3 "0.8"
+line    rule          365, 991 1490x1    clip1
+text    ink.hi        365,1007  169x28   clip1 glyphs 16 "First token within"
+text    ink.body      862,1009  228x25   clip1 glyphs 20 "6 s, 10 s on a local server"
+line    rule          365,1051 1490x1    clip1
+text    ink.hi        365,1067  178x28   clip1 glyphs 17 "Whole answer within"
+text    ink.body      862,1069   34x25   clip1 glyphs 3 "20 s"
+line    rule          365,1111 1490x1    clip1
+text    ink.hi        365,1127   66x28   clip1 glyphs 7 "Retries"
+text    ink.body      862,1129   34x25   clip1 glyphs 4 "None"
+fill    ground.2      340,1206 1540x635  r5 clip1
+stroke  rule          340,1206 1540x635  r5 w1 clip1
+text    gold          365,1226  106x20   clip1 glyphs 10 "Quick lines"
+text    ink.faint     486,1223   76x25   clip1 glyphs 9 "bark_live"
+text    ink.faint    1842,1226    8x25   clip1 glyphs 1 "-"
+text    ink.body     1778,1223   42x25   clip1 glyphs 5 "Ready"
+circle  moss         1758,1231   10x10   clip1
+text    ink.mute      365,1251  869x25   clip1 glyphs 83 "Short lines said in the moment, such as a call-out in a fight. Its limits are the same in every preset."
+line    rule          365,1286 1490x1    clip1
+text    ink.hi        365,1302  197x28   clip1 glyphs 19 "Quick lines' provider"
+fill    ground.well  1505,1299  350x35   r3 clip1
+stroke  edge         1505,1299  350x35   r3 w1 clip1
+text    ink.body     1539,1304   59x25   clip1 glyphs 7 "Default"
+text    ink.mute     1518,1304    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,1304    8x25   clip1 glyphs 1 "→"
+line    rule          365,1346 1490x1    clip1
+text    ink.hi        365,1362  169x28   clip1 glyphs 16 "Quick lines' model"
+fill    ground.well  1505,1359  350x35   r3 clip1
+stroke  edge         1505,1359  350x35   r3 w1 clip1
+text    ink.body     1539,1364   59x25   clip1 glyphs 7 "Default"
+text    ink.mute     1518,1364    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,1364    8x25   clip1 glyphs 1 "→"
+line    rule          365,1406 1490x1    clip1
+text    ink.hi        365,1422  281x28   clip1 glyphs 27 "Quick lines' fallback provider"
+fill    ground.well  1505,1419  350x35   r3 clip1
+stroke  edge         1505,1419  350x35   r3 w1 clip1
+text    ink.body     1539,1424   59x25   clip1 glyphs 7 "Default"
+text    ink.mute     1518,1424    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,1424    8x25   clip1 glyphs 1 "→"
+line    rule          365,1466 1490x1    clip1
+text    ink.hi        365,1482  197x28   clip1 glyphs 19 "Quick lines' fallback"
+fill    ground.well  1505,1479  350x35   r3 clip1
+stroke  edge         1505,1479  350x35   r3 w1 clip1
+text    ink.body     1539,1484   59x25   clip1 glyphs 7 "Default"
+text    ink.mute     1518,1484    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,1484    8x25   clip1 glyphs 1 "→"
+line    rule          365,1526 1490x1    clip1
+text    ink.hi        365,1542  131x28   clip1 glyphs 13 "Longest answer"
+text    ink.body      862,1544   76x25   clip1 glyphs 8 "32 tokens"
+line    rule          365,1586 1490x1    clip1
+text    ink.hi        365,1602  103x28   clip1 glyphs 11 "Temperature"
+text    ink.body      862,1604   25x25   clip1 glyphs 3 "0.9"
+line    rule          365,1646 1490x1    clip1
+text    ink.hi        365,1662  169x28   clip1 glyphs 16 "First token within"
+text    ink.body      862,1664   42x25   clip1 glyphs 4 "1.5 s"
+line    rule          365,1706 1490x1    clip1
+text    ink.hi        365,1722  178x28   clip1 glyphs 17 "Whole answer within"
+text    ink.body      862,1724   25x25   clip1 glyphs 2 "3 s"
+line    rule          365,1766 1490x1    clip1
+text    ink.hi        365,1782   66x28   clip1 glyphs 7 "Retries"
+text    ink.body      862,1784   34x25   clip1 glyphs 4 "None"
+fill    ground.2      340,1861 1540x635  r5 clip1
+stroke  rule          340,1861 1540x635  r5 w1 clip1
+text    gold          365,1881  134x20   clip1 glyphs 13 "Prepared lines"
+text    ink.faint     514,1878   76x25   clip1 glyphs 9 "bark_pool"
+text    ink.faint    1842,1881    8x25   clip1 glyphs 1 "-"
+text    ink.body     1778,1878   42x25   clip1 glyphs 5 "Ready"
+circle  moss         1758,1886   10x10   clip1
+text    ink.mute      365,1906  945x25   clip1 glyphs 93 "Lines prepared ahead of time, in batches, while nothing waits for them. Its limits are the same in every preset."
+line    rule          365,1941 1490x1    clip1
+text    ink.hi        365,1957  225x28   clip1 glyphs 22 "Prepared lines' provider"
+fill    ground.well  1505,1954  350x35   r3 clip1
+stroke  edge         1505,1954  350x35   r3 w1 clip1
+text    ink.body     1539,1959   59x25   clip1 glyphs 7 "Default"
+text    ink.mute     1518,1959    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,1959    8x25   clip1 glyphs 1 "→"
+line    rule          365,2001 1490x1    clip1
+text    ink.hi        365,2017  197x28   clip1 glyphs 19 "Prepared lines' model"
+fill    ground.well  1505,2014  350x35   r3 clip1
+stroke  edge         1505,2014  350x35   r3 w1 clip1
+text    ink.body     1539,2019   59x25   clip1 glyphs 7 "Default"
+text    ink.mute     1518,2019    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,2019    8x25   clip1 glyphs 1 "→"
+line    rule          365,2061 1490x1    clip1
+text    ink.hi        365,2077  309x28   clip1 glyphs 30 "Prepared lines' fallback provider"
+fill    ground.well  1505,2074  350x35   r3 clip1
+stroke  edge         1505,2074  350x35   r3 w1 clip1
+text    ink.body     1539,2079   59x25   clip1 glyphs 7 "Default"
+text    ink.mute     1518,2079    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,2079    8x25   clip1 glyphs 1 "→"
+line    rule          365,2121 1490x1    clip1
+text    ink.hi        365,2137  225x28   clip1 glyphs 22 "Prepared lines' fallback"
+fill    ground.well  1505,2134  350x35   r3 clip1
+stroke  edge         1505,2134  350x35   r3 w1 clip1
+text    ink.body     1539,2139   59x25   clip1 glyphs 7 "Default"
+text    ink.mute     1518,2139    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,2139    8x25   clip1 glyphs 1 "→"
+line    rule          365,2181 1490x1    clip1
+text    ink.hi        365,2197  131x28   clip1 glyphs 13 "Longest answer"
+text    ink.body      862,2199   84x25   clip1 glyphs 9 "600 tokens"
+line    rule          365,2241 1490x1    clip1
+text    ink.hi        365,2257  103x28   clip1 glyphs 11 "Temperature"
+text    ink.body      862,2259    8x25   clip1 glyphs 1 "1"
+line    rule          365,2301 1490x1    clip1
+text    ink.hi        365,2317  169x28   clip1 glyphs 16 "First token within"
+text    ink.body      862,2319   34x25   clip1 glyphs 3 "15 s"
+line    rule          365,2361 1490x1    clip1
+text    ink.hi        365,2377  178x28   clip1 glyphs 17 "Whole answer within"
+text    ink.body      862,2379   34x25   clip1 glyphs 3 "60 s"
+line    rule          365,2421 1490x1    clip1
+text    ink.hi        365,2437   66x28   clip1 glyphs 7 "Retries"
+text    ink.body      862,2439    8x25   clip1 glyphs 1 "1"
+fill    ground.2      340,2516 1540x635  r5 clip1
+stroke  rule          340,2516 1540x635  r5 w1 clip1
+text    gold          365,2536   58x20   clip1 glyphs 6 "Memory"
+text    ink.faint     438,2533   51x25   clip1 glyphs 6 "memory"
+text    ink.faint    1842,2536    8x25   clip1 glyphs 1 "-"
+text    ink.body     1778,2533   42x25   clip1 glyphs 5 "Ready"
+circle  moss         1758,2541   10x10   clip1
+text    ink.mute      365,2561  759x25   clip1 glyphs 76 "Writes what characters remember of what happened. Its limits are the same in every preset."
+line    rule          365,2596 1490x1    clip1
+text    ink.hi        365,2612  159x28   clip1 glyphs 16 "Memory's provider"
+fill    ground.well  1505,2609  350x35   r3 clip1
+stroke  edge         1505,2609  350x35   r3 w1 clip1
+text    ink.body     1539,2614   59x25   clip1 glyphs 7 "Default"
+text    ink.mute     1518,2614    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,2614    8x25   clip1 glyphs 1 "→"
+line    rule          365,2656 1490x1    clip1
+text    ink.hi        365,2672  131x28   clip1 glyphs 13 "Memory's model"
+fill    ground.well  1505,2669  350x35   r3 clip1
+stroke  edge         1505,2669  350x35   r3 w1 clip1
+text    ink.body     1539,2674   59x25   clip1 glyphs 7 "Default"
+text    ink.mute     1518,2674    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,2674    8x25   clip1 glyphs 1 "→"
+line    rule          365,2716 1490x1    clip1
+text    ink.hi        365,2732  244x28   clip1 glyphs 24 "Memory's fallback provider"
+fill    ground.well  1505,2729  350x35   r3 clip1
+stroke  edge         1505,2729  350x35   r3 w1 clip1
+text    ink.body     1539,2734   59x25   clip1 glyphs 7 "Default"
+text    ink.mute     1518,2734    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,2734    8x25   clip1 glyphs 1 "→"
+line    rule          365,2776 1490x1    clip1
+text    ink.hi        365,2792  159x28   clip1 glyphs 16 "Memory's fallback"
+fill    ground.well  1505,2789  350x35   r3 clip1
+stroke  edge         1505,2789  350x35   r3 w1 clip1
+text    ink.body     1539,2794   59x25   clip1 glyphs 7 "Default"
+text    ink.mute     1518,2794    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,2794    8x25   clip1 glyphs 1 "→"
+line    rule          365,2836 1490x1    clip1
+text    ink.hi        365,2852  131x28   clip1 glyphs 13 "Longest answer"
+text    ink.body      862,2854   84x25   clip1 glyphs 9 "500 tokens"
+line    rule          365,2896 1490x1    clip1
+text    ink.hi        365,2912  103x28   clip1 glyphs 11 "Temperature"
+text    ink.body      862,2914   25x25   clip1 glyphs 3 "0.3"
+line    rule          365,2956 1490x1    clip1
+text    ink.hi        365,2972  169x28   clip1 glyphs 16 "First token within"
+text    ink.body      862,2974   34x25   clip1 glyphs 3 "20 s"
+line    rule          365,3016 1490x1    clip1
+text    ink.hi        365,3032  178x28   clip1 glyphs 17 "Whole answer within"
+text    ink.body      862,3034   34x25   clip1 glyphs 3 "60 s"
+line    rule          365,3076 1490x1    clip1
+text    ink.hi        365,3092   66x28   clip1 glyphs 7 "Retries"
+text    ink.body      862,3094    8x25   clip1 glyphs 1 "2"
+fill    ground.2      340,3171 1540x695  r5 clip1
+stroke  rule          340,3171 1540x695  r5 w1 clip1
+text    gold          365,3191   86x20   clip1 glyphs 9 "Self-test"
+text    ink.faint     466,3188   67x25   clip1 glyphs 8 "selftest"
+text    ink.faint    1842,3191    8x25   clip1 glyphs 1 "-"
+text    ink.body     1778,3188   42x25   clip1 glyphs 5 "Ready"
+circle  moss         1758,3196   10x10   clip1
+text    ink.mute      365,3216  582x25   clip1 glyphs 58 "What the self-test measures. Its limits are the same in every preset."
+line    rule          365,3251 1490x1    clip1
+text    ink.hi        365,3267  188x28   clip1 glyphs 19 "Self-test's provider"
+fill    ground.well  1505,3264  350x35   r3 clip1
+stroke  edge         1505,3264  350x35   r3 w1 clip1
+text    ink.body     1539,3269   59x25   clip1 glyphs 7 "Default"
+text    ink.mute     1518,3269    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,3269    8x25   clip1 glyphs 1 "→"
+line    rule          365,3311 1490x1    clip1
+text    ink.hi        365,3327  159x28   clip1 glyphs 16 "Self-test's model"
+fill    ground.well  1505,3324  350x35   r3 clip1
+stroke  edge         1505,3324  350x35   r3 w1 clip1
+text    ink.body     1539,3329   59x25   clip1 glyphs 7 "Default"
+text    ink.mute     1518,3329    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,3329    8x25   clip1 glyphs 1 "→"
+line    rule          365,3371 1490x1    clip1
+text    ink.hi        365,3387  272x28   clip1 glyphs 27 "Self-test's fallback provider"
+fill    ground.well  1505,3384  350x35   r3 clip1
+stroke  edge         1505,3384  350x35   r3 w1 clip1
+text    ink.body     1539,3389   59x25   clip1 glyphs 7 "Default"
+text    ink.mute     1518,3389    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,3389    8x25   clip1 glyphs 1 "→"
+line    rule          365,3431 1490x1    clip1
+text    ink.hi        365,3447  188x28   clip1 glyphs 19 "Self-test's fallback"
+fill    ground.well  1505,3444  350x35   r3 clip1
+stroke  edge         1505,3444  350x35   r3 w1 clip1
+text    ink.body     1539,3449   59x25   clip1 glyphs 7 "Default"
+text    ink.mute     1518,3449    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,3449    8x25   clip1 glyphs 1 "→"
+line    rule          365,3491 1490x1    clip1
+text    ink.hi        365,3507   56x28   clip1 glyphs 6 "Models"
+text    ink.body      862,3509  169x25   clip1 glyphs 18 "Same as Conversation"
+line    rule          365,3551 1490x1    clip1
+text    ink.hi        365,3567  131x28   clip1 glyphs 13 "Longest answer"
+text    ink.body      862,3569   76x25   clip1 glyphs 8 "32 tokens"
+line    rule          365,3611 1490x1    clip1
+text    ink.hi        365,3627  103x28   clip1 glyphs 11 "Temperature"
+text    ink.body      862,3629    8x25   clip1 glyphs 1 "0"
+line    rule          365,3671 1490x1    clip1
+text    ink.hi        365,3687  169x28   clip1 glyphs 16 "First token within"
+text    ink.body      862,3689   34x25   clip1 glyphs 3 "10 s"
+line    rule          365,3731 1490x1    clip1
+text    ink.hi        365,3747  178x28   clip1 glyphs 17 "Whole answer within"
+text    ink.body      862,3749   34x25   clip1 glyphs 3 "20 s"
+line    rule          365,3791 1490x1    clip1
+text    ink.hi        365,3807   66x28   clip1 glyphs 7 "Retries"
+text    ink.body      862,3809   34x25   clip1 glyphs 4 "None"
+fill    ground.2      340,3886 1540x175  r5 clip1
+stroke  rule          340,3886 1540x175  r5 w1 clip1
+text    gold          365,3906   67x20   clip1 glyphs 7 "Related"
+line    rule          365,3936 1490x1    clip1
+text    ink.hi        380,3950   84x28   clip1 glyphs 9 "Providers"
+text    ink.mute      862,3951  624x25   clip1 glyphs 63 "Where EldenNet's model calls go, with whose key, and whether each answers."
+text    gold         1820,3950    9x28   clip1 glyphs 1 "→"
+line    rule          365,3991 1490x1    clip1
+text    ink.hi        380,4005   84x28   clip1 glyphs 9 "Self-test"
+text    ink.mute      862,4006  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
+text    gold         1820,4005    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 fill    ground.well   340,1044   55x28   r3
 stroke  edge          340,1044   55x28   r3 w1
@@ -337,4 +338,4 @@ stroke  edge          576,1044   42x28   r3 w1
 text    ink.body      584,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     626,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi      1502, 414  356x44   r5 w3 clip1
-# 115 items, 4144 vertices, 9204 indices, 4 commands; check_draw_list: passes
+# 115 items, 4296 vertices, 9432 indices, 4 commands; check_draw_list: passes

@@ -48,6 +48,7 @@ import browser  # noqa: E402
 # world (the reader's p99 over its limit: a warning; the log's entries); System › Traces over the title (no line yet:
 # the lines' tile alone and each section's own words) and over the world (a conversation's lines, the 90th percentile
 # over its target, a line waiting, two with no page).
+# Tools › Workshop has no golden: it is in the browser alone (GraceUI D258), so its dump is refused in every state.
 PAGES = (("home", "title"), ("system.status", "title"), ("system.logs", "title"), ("settings.developer", "title"),
          ("ai.providers", "title"), ("ai.models", "title"), ("ai.selftest", "title"), ("ai.selftest", "banner"),
          ("ai.providers", "starting"), ("home", "banner"), ("ai.providers", "world"), ("ai.models", "world"),
@@ -176,6 +177,14 @@ def main(argv):
         if not golden.is_file() or golden.read_text(encoding="utf-8") != done.stdout:
             failures.append("--dump %s differs from tests/pages/golden/%s (EN_UPDATE_GOLDENS=1 writes it)" %
                             (page, golden.name))
+    # Tools › Workshop is in the browser alone (GraceUI D258's browser_only): the menu in game has no such page, in
+    # every state, whatever Developer views say, so its dump is refused and it has no golden.
+    for state in states:
+        done = subprocess.run([args.grace_dev, "--dump", "eldennet", "tools.workshop", "--size", SIZE, "--space-dir",
+                               str(args.work / state)], capture_output=True, text=True, encoding="utf-8")
+        if done.returncode == 0 or "it has no page tools.workshop" not in done.stderr:
+            failures.append("--dump tools.workshop over %s: exit %d, %r: it is in game" %
+                            (state, done.returncode, done.stderr.strip()[:200]))
     for f in failures:
         print("preview: " + f, file=sys.stderr)
     if not failures:

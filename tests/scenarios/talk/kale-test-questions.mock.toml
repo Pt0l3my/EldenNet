@@ -1,0 +1,34 @@
+# The scripted model for kale-test-questions.toml (mockllm): a short reply to each test question, to end the scripted
+# run. Our own words, one reply per request, in order.
+schema = 1
+repeat_last = false
+
+[[reply]]
+text = "Ah, caravans break up as roads change, friend. That's all there is to it."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Well, the roads changed and so did we. Now, are you buying or just warming your hands?"
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Ah, people say all sorts. I keep to the road ahead, not the one behind."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Well, soldiers are bad for trade, but I'd rather not talk about wagons. Rope or oil?"
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Ah, the sky does what it likes. My caravan's story stays with me, friend."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Well, here and there, wherever the roads took them. Ask me about the road ahead instead."
+first_token_ms = 600
+chunk_ms = 40

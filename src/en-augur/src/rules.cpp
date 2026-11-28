@@ -15,7 +15,7 @@ namespace en::augur {
 
 namespace {
 
-constexpr std::array<PayloadInfo, 23> kPayloads = {{
+constexpr std::array<PayloadInfo, 29> kPayloads = {{
     {PayloadId::Place, "place", "PlaceEntered", {"place_id", ""}},
     {PayloadId::BossStart, "boss_start", "BossFightStarted", {"fight_id", ""}},
     {PayloadId::BossOutcome, "boss_outcome", "BossFightEnded", {"fight_id", ""}},
@@ -39,6 +39,12 @@ constexpr std::array<PayloadInfo, 23> kPayloads = {{
     {PayloadId::Gate, "gate", "GateChanged", {"active", ""}},
     {PayloadId::Group, "group", "GroupTripped", {"group", ""}},
     {PayloadId::Ladder, "ladder", "LadderChanged", {"to", ""}},
+    {PayloadId::PersonaSeen, "persona_seen", "PersonaSeen", {"", ""}},
+    {PayloadId::PersonaApproached, "persona_approached", "PersonaApproached", {"", ""}},
+    {PayloadId::PersonaAttacked, "persona_attacked", "PersonaAttacked", {"", ""}},
+    {PayloadId::PersonaDied, "persona_died", "PersonaDied", {"", ""}},
+    {PayloadId::FoughtBeside, "fought_beside", "FoughtBeside", {"fight_id", ""}},
+    {PayloadId::KilledNear, "killed_near", "KilledNear", {"", ""}},
 }};
 
 constexpr std::string_view kPriorityKey = "priority";
@@ -58,7 +64,7 @@ constexpr std::array<InterruptName, 8> kInterruptNames = {{
     {"all", kInterruptAll},
 }};
 
-constexpr std::array<std::string_view, 5> kRadiusNames = {"speech", "witness", "death", "combat", "none"};
+constexpr std::array<std::string_view, 6> kRadiusNames = {"speech", "witness", "death", "combat", "none", "subject"};
 
 struct DetectorName {
   std::string_view name;
@@ -621,7 +627,7 @@ void read_rule(const toml::table& t, std::size_t n, const RuleFile& file, const 
       if (const auto radius = aud.text("radius", true)) {
         const auto it = std::find(kRadiusNames.begin(), kRadiusNames.end(), *radius);
         if (it == kRadiusNames.end()) {
-          aud.error(at->get("radius"), "radius", "must be speech, witness, death, combat or none");
+          aud.error(at->get("radius"), "radius", "must be speech, witness, death, combat, none or subject");
           ok = false;
         } else {
           rule.radius = static_cast<Radius>(it - kRadiusNames.begin());
@@ -694,15 +700,12 @@ std::string_view waits_for(std::size_t kind) noexcept {
   const std::string_view k = kind_name(kind);
   if (k == "GraceRested" || k == "RestEnded" || k == "GraceLit" || k == "FlagChanged")
     return "flag edges, which need the flag catalogue and FlagWatch (v0.2)";
-  if (k == "PersonaSeen" || k == "PersonaApproached" || k == "PersonaAttacked" || k == "PersonaDied" ||
-      k == "FoughtBeside" || k == "StageChanged")
-    return "personas (v0.2)";
-  if (k == "KilledNear") return "persona witnesses and cards (v0.2, v0.4)";
+  if (k == "StageChanged") return "the knowledge subscriber, which emits it in code, not a rule (v0.3)";
   if (k == "IdleNear") return "cards with ambient lines (v0.4)";
   if (k == "FoeKilled") return "S7's check of last_hit_by for NPC attackers (v0.4)";
   if (k == "StatusStarted" || k == "StatusEnded" || k == "StatusBurst") return "S8's statuses (v0.4)";
-  if (k == "CameNear") return "speakers to greet: personas and cards (v0.2 to v0.4)";
-  if (k == "AutonomyTick") return "profiled NPCs and cards with autonomy (v0.3, v0.4)";
+  if (k == "CameNear") return "speakers to greet: personas and cards, with the pacing core (v0.4; O147)";
+  if (k == "AutonomyTick") return "profiled NPCs and cards with autonomy, with the pacing core (v0.4; O147)";
   if (k == "PlayerSaid" || k == "NpcSaid" || k == "CalloutSent" || k == "CalloutReplied" ||
       k == "ConversationStarted" || k == "ConversationEnded")
     return "the Pipeline source: conversations and the call-out (v0.2 on)";

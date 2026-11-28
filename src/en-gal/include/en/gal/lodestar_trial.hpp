@@ -685,6 +685,7 @@ class CharSurvey {
     // The round's own checks of places an earlier survey left open (kind, a and b; the counts start at nothing).
     // kMaxChecks at most; a check whose place lies outside a character's copy is not counted for that sighting.
     std::vector<SurveyCheck> checks;
+    std::uint32_t sheet_at = 0;           // where in a character the sheet's address lies (0: not looked for)
   };
   static constexpr std::size_t kMaxChecks = 32;
   explicit CharSurvey(Options options);
@@ -693,6 +694,9 @@ class CharSurvey {
   CharSurvey& operator=(const CharSurvey&) = delete;
 
   void mark(std::uint64_t now_us) noexcept;  // the next phase begins; from one thread
+  // How long after a pass the next is due (kEveryUs at first): the round slows the survey once it has what it is
+  // after, so that the reader's spare time goes to the other searches. From any thread.
+  void set_every(std::uint64_t every_us) noexcept;
   [[nodiscard]] bool due(std::uint64_t now_us) const noexcept;  // the stepping thread's
   bool step(const proto::GameThread& gt, GuardedReader& reader, std::uint64_t now_us);  // whether a pass ended
   [[nodiscard]] SurveyFound found() const;
@@ -710,7 +714,7 @@ class CharSurvey {
 class SheetScan {
  public:
   static constexpr std::uint32_t kSpan = 0x10000, kPiece = 0x4000;
-  static constexpr std::size_t kObjects = 2, kListed = 2048, kListedTexts = 32;
+  static constexpr std::size_t kObjects = 2, kListed = 2048, kListedTexts = 32, kListedRises = 256;
   static constexpr std::uint32_t kPhases = 6;
   static constexpr std::uint32_t kMaxChanges = 8;        // a number that changed in more passes is not listed
   static constexpr std::uint32_t kMost = 99'999'999;     // a number above it is not told (nor is nothing)
@@ -727,13 +731,23 @@ class SheetScan {
     std::uint32_t save_sheet_word = 0;    // or, with sheet_at 0, in the save data's object (the layout's own field)
     std::uint32_t save_first_word = 0;    // in the save data's object: two words the sheet may be behind (leads)
     std::uint32_t save_second_word = 0;
+    // The main player's part of health, read beside the sheet (0x200 bytes) and held against numbers of the
+    // sheet: where the holder of parts lies in a character and the part in the holder (the layout's), and up to
+    // eight places of the sheet (the round's). With `parts_at` 0, or no anchor, the part is not read.
+    std::uint32_t parts_at = 0;
+    std::uint32_t vitals_at = 0;
+    std::array<std::uint32_t, 8> anchors{};
+    std::uint32_t anchor_count = 0;
   };
+  static constexpr std::uint32_t kPartSpan = 0x200;
+  static constexpr std::size_t kListedMatches = 8;  // an anchor
   explicit SheetScan(Options options);
   ~SheetScan();
   SheetScan(const SheetScan&) = delete;
   SheetScan& operator=(const SheetScan&) = delete;
 
   void mark(std::uint64_t now_us) noexcept;  // the next phase begins; from one thread
+  void set_every(std::uint64_t every_us) noexcept;  // as the survey's
   [[nodiscard]] bool due(std::uint64_t now_us) const noexcept;  // the stepping thread's
   bool step(const proto::GameThread& gt, GuardedReader& reader, std::uint64_t now_us);  // whether a pass ended
   [[nodiscard]] SheetFound found() const;

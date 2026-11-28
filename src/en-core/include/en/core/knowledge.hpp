@@ -251,6 +251,26 @@ struct KnownLine {
   std::vector<std::string> supersedes;
 };
 
+// News since the last meeting (MEM §12.6, §12.13; v0.3): what the store recorded of the persona, which the since-line
+// and the reaction cue read. Every input is a record, so a replay gives the same line and the same cue (C12).
+struct NewsRecord {
+  std::vector<Seen> seen;                   // world_seen
+  std::optional<std::int64_t> seen_pt;      // world_seen_pt: a meeting of this journey recorded `known`
+  std::vector<std::pair<std::string, std::int64_t>> cued;  // world_cued: [item, pt of its last cue]
+  std::vector<std::string> told_bosses;     // each b of a proved slew:b keepsake rendered in this prompt's block 8
+  std::int64_t pt_now = 0;
+  std::int64_t cooldown_ms = 60000;         // reactions.news.cooldown_s (O30)
+  std::string temperament = "plain";        // awareness.news: close | plain | eager
+};
+
+enum class CueWhy : std::uint8_t { Own, Told, LocalHere, LocalHome };
+[[nodiscard]] const char* to_string(CueWhy v) noexcept;  // "own", "told", "local_here", "local_home"
+struct Cue {
+  std::string item;
+  CueWhy why = CueWhy::Own;
+  friend bool operator==(const Cue&, const Cue&) = default;
+};
+
 inline constexpr std::size_t kKnownMax = 24;         // MEM §12.5
 inline constexpr std::size_t kStandingLinesMax = 4;  // MEM §12.6
 inline constexpr std::size_t kStandingTokensMax = 200;
@@ -293,6 +313,22 @@ class Knowledge {
   [[nodiscard]] Grounding ground(std::size_t persona, const FlagState& fs, const WorldView& view,
                                  std::span<const Seen> seen = {}) const;
   [[nodiscard]] KnowledgeView view(const FlagState& fs) const;
+
+  // An item's `short`, its boss (`slew:<boss>` links) and regions; empty when it names nothing.
+  [[nodiscard]] std::string short_of(std::string_view item) const;
+  // MEM §12.6: the items known now and absent from world_seen, in block 5b's selection order (own affairs, then tied,
+  // then rank, then id); none unless a meeting of this journey recorded `known`.
+  [[nodiscard]] std::vector<std::string> since_items(std::size_t persona, const FlagState& fs, const WorldView& view,
+                                                     const NewsRecord& news) const;
+  // The since-line, at most 55 tokens: at most two shorts, "and other news besides" when there are more; empty for
+  // none.
+  [[nodiscard]] std::string since_line(std::size_t persona, const FlagState& fs, const WorldView& view,
+                                       const NewsRecord& news) const;
+  // MEM §12.13's cue: own stake, the Tarnished's part (not for a close persona), local talk (eager alone, within 6 h of
+  // play of the meeting that recorded `known`, Near only); an item cued within the cooldown is skipped. None at a first
+  // meeting or without a frame.
+  [[nodiscard]] std::optional<Cue> cue(std::size_t persona, const FlagState& fs, const WorldView& view,
+                                       const NewsRecord& news) const;
 
   // A predicate's value over a flag state and the view (for tests and the debug view); an expression that does not
   // compile against this content is Unknown.

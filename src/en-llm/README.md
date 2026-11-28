@@ -10,7 +10,9 @@ names.
 - **Configuration** (`config.hpp`): `providers.toml`, the presets of `models.toml`, the `budget` table of
   `settings.toml` and the keys of `secrets.toml`, each read strictly (an unknown key or a newer schema is an error
   naming the file and line). Keys stay in memory as `Secret`, which prints `<redacted>`; no error, log line or report
-  carries one. Every slot names its own provider, model and fallback, and a preset may name several providers, so
+  carries one. `redact_credentials` (`secret.hpp`) replaces anything shaped like a key in a text, its spaces and line
+  breaks kept: a server's message goes through it, one line, and so do Tools › Workshop's prompt and reply in the DLL,
+  after the configured keys' own values. Every slot names its own provider, model and fallback, and a preset may name several providers, so
   that each use can have a provider of its own (O88); `actions` and `vision` are reserved.
 - **Shared types** (en-proto's `llm.hpp`): the requests, decision calls, results and events the core and en-llm
   share are en-proto's plain data, with their JSON forms; en-llm's headers keep their names (`en::llm::ChatRequest`,

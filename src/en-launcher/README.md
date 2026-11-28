@@ -68,7 +68,7 @@ loads a DLL that is not ours (a stand-in for another mod, such as the tests' `ve
    GraceUI's own `tools/release/manifest.py` writes it in every GraceUI build's folder (D165): `graceui`, `abi`, and
    `[files]` with each file's size and SHA-256 are read; `protocol`, `caps` and `released` are GraceUI's, accepted
    whatever they hold and never a failure. Every listed file must match (in the order of their names; a name outside the
-   folder refuses the file), its ABI major 1 and its version at least EldenNet's floor, 0.2.3 (en-proto's
+   folder refuses the file), its ABI major 1 and its version at least EldenNet's floor, 0.2.57 (en-proto's
    `graceui_pin.hpp`). The log says `preflight graceui=ok|no_folder|no_manifest|unreadable|
    file_missing|size_differs|hash_differs|abi_major|too_old version=… abi=… files=… checked=…`. What fails is told in
    **E12**, in E08's manner (what is missing or damaged, by its name inside GraceUI's folder, never a path, and what to
@@ -79,8 +79,9 @@ loads a DLL that is not ours (a stand-in for another mod, such as the tests' `ve
    `%APPDATA%\EldenNet\save-backups\<id>\<YYYYMMDD-HHMMSS>\` (each copied to `.tmp`, its size and BLAKE3 hash checked
    against the source, then renamed), with a `manifest.toml` of sizes and hashes; no new backup when every file equals
    the newest's; the newest 10 kept, older ones deleted only after a new one was made; nothing under the save folder
-   ever written. A failure is E07 (continue without a backup?). BLAKE3's hash mode is our own (`blake3.cpp`, from
-   the specification), checked against its published test vectors.
+   ever written. A failure is E07 (continue without a backup?). BLAKE3 is our own, from the specification, in en-proto
+   since v0.3 (`en/proto/blake3.hpp`, which the store's fingerprint uses too), checked there against its published test
+   vectors; `blake3.cpp` here holds the digest's hex form and a file's digest.
 8. **Without EAC** (ARCH §4.5), for each run: the file method writes `1245620` into `steam_appid.txt` beside the
    game if it is absent (recorded in `launcher-state.toml` as ours), uses one that holds the id as it is, and leaves
    one with anything else alone, starting that run with the environment instead; it cannot write: E06. The env
@@ -237,8 +238,8 @@ for the owner's smoke run (the spike package's, docs/design/spikes/README.md), E
 
 ## Tests
 
-`en_launcher_tests` (doctest; Linux with GCC and Clang, and the Windows builds under Wine): BLAKE3 against 16 of its
-published vectors, whole and in pieces of seven sizes, and a file's digest; KeyValues (escapes, comments, conditions,
+`en_launcher_tests` (doctest; Linux with GCC and Clang, and the Windows builds under Wine): a file's BLAKE3 digest
+(the hash's own vectors are en-proto's tests); KeyValues (escapes, comments, conditions,
 case, every refusal and bound); finding the game in invented Steam folders in either form of the library list, with
 manifests that name a path, a missing executable, no list; `--game` as a file or a folder; backups of invented save
 folders (the manifest's hashes, no duplicate, a changed or vanished file, two in one second, the rotation of 3 over 6,

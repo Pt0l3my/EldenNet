@@ -1,0 +1,24 @@
+{# Part 4: what happened since, numbered so every keepsake can cite its source: the talk (L), the other things the
+   persona noticed (N, each with when it happened), and what it was aware of while talking (C). #}
+[ user ]
+WHAT HAPPENED SINCE
+Talk:
+{% if talk_cut %}(the oldest lines are left out)
+{% endif %}
+{% for l in lines %}
+{{ l.id }} {{ l.who }}: {{ quote(l.text) }}
+{% endfor %}
+{% if empty(lines) %}(none)
+{% endif %}
+Other things {{ name }} noticed:
+{% for n in notes %}
+{{ n.id }} {{ n.text }} ({{ n.when }})
+{% endfor %}
+{% if empty(notes) %}(none)
+{% endif %}
+What {{ name }} was aware of while talking:
+{% for c in context %}
+{{ c.id }} {{ c.text }}
+{% endfor %}
+{% if empty(context) %}(none)
+{% endif %}

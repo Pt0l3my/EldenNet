@@ -8,6 +8,7 @@
 
 #include "en/proto/fixed.hpp"
 #include "en/proto/snapshot.hpp"
+#include "en/proto/store.hpp"
 
 namespace en::augur {
 
@@ -71,11 +72,12 @@ struct EventId {
 // only triggers): DESIGN §6.4.
 enum class Class : std::uint8_t { P, K, T };
 
-// How an audience row perceived the event (DESIGN §5.4).
-enum class How : std::uint8_t { Direct, Overheard, Witnessed };
+// How an audience row perceived the event (DESIGN §5.4): en-proto's, which the store's rows carry too.
+using How = proto::How;
 
-// The audience radius by kind (ARCH §8.8 item 2; DESIGN §5.4), and none.
-enum class Radius : std::uint8_t { Speech, Witness, Death, Combat, None };
+// The audience radius by kind (ARCH §8.8 item 2; DESIGN §5.4), none, and the subject alone: "the persona only" of MEM
+// §1.1's table (PersonaSeen, FoughtBeside, a ConversationEnded), whose audience is the subject persona, direct.
+enum class Radius : std::uint8_t { Speech, Witness, Death, Combat, None, Subject };
 [[nodiscard]] constexpr float radius_m(Radius r) noexcept {
   switch (r) {
     case Radius::Speech:
@@ -87,6 +89,7 @@ enum class Radius : std::uint8_t { Speech, Witness, Death, Combat, None };
     case Radius::Combat:
       return 40.0f;
     case Radius::None:
+    case Radius::Subject:
       return 0.0f;
   }
   return 0.0f;

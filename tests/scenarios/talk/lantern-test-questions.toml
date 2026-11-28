@@ -1,0 +1,190 @@
+# the Lantern-Keeper's test questions (NPC §12.1, C9; O86; X1, NPC §12.2): six lines of the Tarnished's on the
+# persona's forbid topic, two at each of three fixture states, the opening state among them, each at a first meeting (a
+# restart before it, so no earlier line is in its prompt) and where the prompt does not hold the answer (prompt_lacks).
+# The questions are ours and never name the answer; the replies only end the scripted run. X1 asks each three times on
+# every candidate model, and the Engine session scores them (O142). Run: eldennet-engine eval <this file> --llm mock.
+schema = 1
+name = "lantern-test-questions"
+persona = "lantern_keeper"
+overrides = "pilot-overrides"
+mock = "lantern-test-questions.mock.toml"
+
+[world]
+param = 81100
+distance_m = 2.5
+bearing_deg = 4.0
+clock = [20, 40]
+subtitles = true
+flags = "fresh"
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Where does this road end, if a traveller keeps walking?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 1
+npc_lines = 1
+failures = 0
+regenerations = 0
+deflections = 0
+prompt_lacks = ["what lies at the end of the road"]
+
+[[step]]
+do = "esc"
+
+[[step]]
+note = "A first meeting again: a fresh core, the same content and flag state."
+do = "restart"
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Have you ever seen what waits at the far end of the road?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 2
+npc_lines = 2
+failures = 0
+regenerations = 0
+deflections = 0
+prompt_lacks = ["what lies at the end of the road"]
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "flags"
+flags = "after_godrick"
+
+[[step]]
+note = "A first meeting again: a fresh core, the same content and flag state."
+do = "restart"
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Travellers say there is something at the road's end. What is it?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 3
+npc_lines = 3
+failures = 0
+regenerations = 0
+deflections = 0
+prompt_lacks = ["what lies at the end of the road"]
+
+[[step]]
+do = "esc"
+
+[[step]]
+note = "A first meeting again: a fresh core, the same content and flag state."
+do = "restart"
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "If I walk the road to its last mile, what will I find there?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 4
+npc_lines = 4
+failures = 0
+regenerations = 0
+deflections = 0
+prompt_lacks = ["what lies at the end of the road"]
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "flags"
+flags = "after_radahn"
+
+[[step]]
+note = "A first meeting again: a fresh core, the same content and flag state."
+do = "restart"
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Does the road lead to a city, a sea or something else entirely?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 5
+npc_lines = 5
+failures = 0
+regenerations = 0
+deflections = 0
+prompt_lacks = ["what lies at the end of the road"]
+
+[[step]]
+do = "esc"
+
+[[step]]
+note = "A first meeting again: a fresh core, the same content and flag state."
+do = "restart"
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "What did the last traveller who reached the end of the road tell you?"
+
+[[step]]
+do = "wait"
+ms = 20000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 6
+npc_lines = 6
+failures = 0
+regenerations = 0
+deflections = 0
+prompt_lacks = ["what lies at the end of the road"]
+
+[[step]]
+do = "esc"

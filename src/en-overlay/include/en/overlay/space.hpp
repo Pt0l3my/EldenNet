@@ -6,7 +6,8 @@
 // and answers what it returns; the DLL fills its facts on T6 and applies what a command changed. T6 alone uses it.
 //
 // Projections only (PAGES §3 item 1, SP1): every body holds EldenNet's own words and numbers, from the facts below,
-// which carry no game text, flag, stage, prompt or model text, no path and no name. Absence is silent (item 2): a fact
+// which carry no game text, flag, stage, prompt or model text, no path and no name; Tools › Workshop's are SP1's one
+// exception, in the browser alone behind SP8's gate (workshop.hpp), and still hold no key, path or name. Absence is silent (item 2): a fact
 // EldenNet does not have is left out, never shown as a placeholder. The logs stream holds the log's own lines, which
 // are EldenNet's words and numbers only (en_shell's Line), scrubbed again here of anything shaped like a SteamID64
 // (PV5). Every word a player reads is a draft for the owner's review (the slice's notes list them).
@@ -22,6 +23,7 @@
 #include <vector>
 
 #include "en/overlay/characters.hpp"
+#include "en/overlay/workshop.hpp"
 #include "en/proto/calls.hpp"
 #include "en/proto/content_view.hpp"
 #include "en/proto/llm.hpp"
@@ -29,6 +31,7 @@
 #include "en/proto/snapshot.hpp"
 #include "en/proto/traces.hpp"
 #include "en/proto/watch.hpp"
+#include "en/proto/workshop.hpp"
 
 namespace en::overlay {
 
@@ -247,6 +250,10 @@ struct SpaceFacts {
   // System › Performance's (en-proto's perf.hpp): EldenNet's own steps' times and what it keeps, filled by the DLL each
   // wake; null before it does (the topic publishes nothing).
   const proto::PerfView* perf = nullptr;
+  // Tools › Workshop's (en-proto's workshop.hpp; workshop.hpp): what the DLL keeps while Developer views are on; null
+  // while they are off (Workshop's topics publish nothing). The space publishes none of it while its own `debug.panel`
+  // is off, whatever the facts hold.
+  const proto::WorkshopView* workshop = nullptr;
 };
 
 // ---- AI › Requests and Home's Model calls card (PAGES §4.6.1, §4.6.2): the topic `calls`, a member per table (GraceUI
@@ -391,6 +398,14 @@ class Space {
   void answer_profile(const ProfileRequest& request, const ProfileAnswer& a) { characters_.answer(request, a); }
   [[nodiscard]] std::vector<std::pair<std::uint64_t, std::string>> take_answers() { return characters_.take_answers(); }
 
+  // ---- Tools › Workshop (workshop.hpp): whether Developer views are on, as the space publishes `debug.panel` (the page
+  // follows it at once, GraceUI D258's shown_with); one of Augur's events for its stream, taken only while they are on;
+  // and recording.set's requests, for the DLL.
+  [[nodiscard]] bool workshop_on() const;
+  void workshop_event(const proto::WorkshopEvent& e);
+  [[nodiscard]] std::vector<RecordingRequest> take_recording_requests();
+  [[nodiscard]] nlohmann::json workshop_rows() const { return workshop_.rows(); }
+
   // ---- The logs stream: one of the log's lines (its text, `<event> key=value ...`, EldenNet's own), `t_ms` since T1's
   // start, and its level, the logger's. The ring holds the newest 500, whether or not anyone watches.
   void log_line(std::string_view text, std::uint64_t t_ms, LogLevel level);
@@ -437,6 +452,9 @@ class Space {
   void collect_docs(const SpaceFacts& facts, std::uint64_t now_ms, std::vector<std::string>& frames);
   // Tools › Bug report: its two commands, and the preview's body.
   std::string report_command(const nlohmann::json& id, std::string_view name, nlohmann::json& args);
+  // Tools › Workshop: recording.set, and its topics' frames (cleared the moment Developer views go off).
+  std::string workshop_command(const nlohmann::json& id, const nlohmann::json& args);
+  void collect_workshop(const SpaceFacts& facts, std::uint64_t now_ms, std::vector<std::string>& frames);
   nlohmann::json report_body(const SpaceFacts& facts) const;
 
   const Setting* find(std::string_view key) const;
@@ -474,6 +492,9 @@ class Space {
   std::string about_slots_;  // About's slots' values when it was last published (collect_docs)
   std::string report_what_;  // the player's words for the bug report: in memory, for its preview alone
   std::set<std::string, std::less<>> report_off_;  // the optional parts of the bug report left out
+  Workshop workshop_;           // Tools › Workshop's events stream (workshop.hpp)
+  bool workshop_was_on_ = false;  // Developer views at the last collect: going off clears what was published
+  std::vector<RecordingRequest> recording_requests_;
   bool valid_ = false;
 };
 
@@ -481,6 +502,9 @@ class Space {
 [[nodiscard]] std::string clock_of(std::uint64_t ms);
 // A log line as the logs stream holds it: any run of 17 digits starting 7656119 (a SteamID64's shape) "redacted" (PV5).
 [[nodiscard]] std::string scrubbed(std::string_view line);
+// A text scrubbed as the bug report's are: a SteamID64's shape, and each word shaped like a path or a local address,
+// "redacted"; spaces and line breaks kept (PV5). Workshop's prompt and reply go through it.
+[[nodiscard]] std::string words_scrubbed(std::string_view text);
 // Whether an id a server listed may be one of a picker's choices: 1 to 200 bytes, and nothing that looks like a path
 // (a local server's ids can be its model files' paths, which hold the Windows user name: PV5).
 [[nodiscard]] bool pickable(std::string_view id) noexcept;

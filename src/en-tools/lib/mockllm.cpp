@@ -80,8 +80,8 @@ proto::Expected<MockScript, std::string> parse_mock_script(std::string_view text
   if (replies == nullptr || !replies->is_array_of_tables() || replies->empty()) {
     return proto::Unexpected{std::string("the script needs at least one [[reply]]")};
   }
-  constexpr std::array<std::string_view, 9> kKeys = {"text",  "think", "trailer", "reset", "first_token_ms",
-                                                     "chunk_ms", "chunk_chars", "end_ms", "error"};
+  constexpr std::array<std::string_view, 10> kKeys = {"text",     "think",       "trailer", "reset", "first_token_ms",
+                                                      "chunk_ms", "chunk_chars", "end_ms",  "error", "slot"};
   for (std::size_t i = 0; i < replies->size(); ++i) {
     const toml::table& t = *replies->get(i)->as_table();
     const std::string where = "reply[" + std::to_string(i) + "]";
@@ -91,7 +91,15 @@ proto::Expected<MockScript, std::string> parse_mock_script(std::string_view text
       }
     }
     MockReply r;
+    r.slot = t["slot"].value_or(std::string("dialogue"));
     r.text = t["text"].value_or(std::string());
+    if (const toml::array* parts = t["text"].as_array()) {  // a long text in pieces, joined by one space
+      for (const toml::node& n : *parts) {
+        const auto s = n.value<std::string>();
+        if (!s || s->empty()) return proto::Unexpected{at_line(n, where + ".text: its pieces must be strings")};
+        r.text += (r.text.empty() ? "" : " ") + *s;
+      }
+    }
     r.think = t["think"].value_or(std::string());
     r.trailer = t["trailer"].value_or(std::string());
     r.reset = t["reset"].value_or(false);
@@ -139,11 +147,20 @@ void MockModel::submit(const proto::LlmRequest& request, core::Mono now) {
   }
   ++served_;
   const MockReply* reply = nullptr;
-  if (next_ < script_.replies.size()) {
-    reply = &script_.replies[next_++];
-  } else if (script_.repeat_last && !script_.replies.empty()) {
-    reply = &script_.replies.back();
+  // The next reply for the request's slot, in the script's order; past the last of its slot, that one again.
+  const std::string slot = std::get<proto::ChatRequest>(request.body).slot;
+  std::size_t& next = next_by_slot_[slot];
+  const MockReply* last = nullptr;
+  for (std::size_t i = 0, k = 0; i < script_.replies.size(); ++i) {
+    if (script_.replies[i].slot != slot) continue;
+    last = &script_.replies[i];
+    if (k++ == next) {
+      reply = last;
+      ++next;
+      break;
+    }
   }
+  if (reply == nullptr && script_.repeat_last) reply = last;
   proto::LlmEvent started = event(proto::EventKind::Started, id);
   started.provider = "mock";
   started.model = "scripted";

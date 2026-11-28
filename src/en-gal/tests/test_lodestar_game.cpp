@@ -2623,6 +2623,11 @@ TEST_CASE("in game: the character survey tells a character's fields by how they 
     w.mem.put<std::int32_t>(c.vitals + 0x8, 500);
     w.mem.put<std::int32_t>(c.vitals + 0xC, 500);
     w.mem.put<std::uint64_t>(c.at + 0x100, w.mem.alloc(0x10));  // an address of its own
+    // A sheet: the main player's, and behind the same place in the others an object of the same class (the odd
+    // ones), of another class (the even ones), or nothing (the ninth).
+    const std::uint64_t sheet = w.mem.alloc(0x20);
+    w.set_vtable(sheet, hero || index % 2 == 1 ? "npc" : "beast");
+    if (index != 9) w.mem.put<std::uint64_t>(c.at + 0x500, sheet);
     w.mem.put<std::uint32_t>(c.at + 0x200, 0x3F80'0000u);       // the same in all: 1.0
     chars.push_back(c);
     return c.at;
@@ -2661,6 +2666,9 @@ TEST_CASE("in game: the character survey tells a character's fields by how they 
   check(Check::kChanged, 0x40, 0);                  // 7: the counter
   check(Check::kChanged, 0x10, 0);                  // 8: the kind's number
   check(Check::kIs, 0x7FE, 0);                      // 9: a place that does not lie whole in the copy
+  check(Check::kBitAtZero, 0x21 * 8 + 5, 0);        // 10: the dead bit while the health reads nothing
+  check(Check::kBitAtZero, 0x21 * 8 + 6, 0);        // 11: a bit that is never set
+  o.sheet_at = 0x500;
   check(Check::kKinds, 0, 0);                       // no check: left out
   lodestar::CharSurvey survey(o);
   GuardedReader reader(*w.sys);
@@ -2747,7 +2755,7 @@ TEST_CASE("in game: the character survey tells a character's fields by how they 
   CHECK(f.pairs[0].holds == 9);
   CHECK(f.pairs[0].of == 9);
   // The round's checks: twenty passes, nine others and the main player in each.
-  REQUIRE(f.checks.size() == 10);
+  REQUIRE(f.checks.size() == 12);
   const auto counts = [&](std::size_t i, std::uint32_t holds, std::uint32_t of, std::uint32_t player_holds,
                           std::uint32_t player_of) {
     CAPTURE(i);
@@ -2769,6 +2777,13 @@ TEST_CASE("in game: the character survey tells a character's fields by how they 
   counts(7, 171, 171, 19, 19);   // a change needs a sighting before
   counts(8, 0, 171, 0, 19);
   counts(9, 0, 0, 0, 0);
+  counts(10, 5, 5, 0, 0);        // the dead one's five sightings with no health: the bit set in each
+  counts(11, 0, 5, 0, 0);
+  // Who has a sheet as the main player has: four of the nine in every pass, four an object of another class,
+  // one nothing there.
+  CHECK(f.sheet_same == 4 * 20);
+  CHECK(f.sheet_other == 4 * 20);
+  CHECK(f.sheet_none == 20);
   // The dead bit: it was set as the one died, clear in every living character at every sighting since, and set
   // in the dead one. The on-screen bit flipped before in the looking phase, so it is no candidate.
   REQUIRE(f.dead_bits.size() == 1);
@@ -3117,6 +3132,12 @@ TEST_CASE("in game: the sheet scan tells the numbers of the save data's object a
   w.mem.put<std::uint64_t>(save + 0x8, sheet_a);
   w.mem.put<std::uint64_t>(save + 0x10, w.mem.alloc(0x10));
   w.mem.put<std::uint32_t>(save + 0x94, 12);       // the deaths so far
+  // A second count, right after a larger number (as the game's lies beside its play time): the two read as text
+  // and neither is told as a number; its rise by one at the death is told all the same. And a flag that goes from
+  // nothing to one at the death, as other objects' do when a world loads again.
+  w.mem.put<std::uint32_t>(save + 0xC0, 0x0123'4567u);
+  w.mem.put<std::uint32_t>(save + 0xC4, 77);
+  w.mem.put<std::uint32_t>(save + 0xD0, 0);
   w.mem.put<std::uint32_t>(save + 0xA0, 1000);     // the play time: never still
   w.mem.put<std::uint32_t>(save + 0x4100, 3);      // in the second piece
   lodestar::SheetScan::Options o;
@@ -3129,6 +3150,21 @@ TEST_CASE("in game: the sheet scan tells the numbers of the save data's object a
   o.sheet_at = 0x580;
   o.save_first_word = 0x8;
   o.save_second_word = 0x10;
+  // The main player's part of health, held against two numbers of the sheet: an attribute that keeps still (two
+  // fields of the part read the same) and the purse (one field follows it through the death; another holds what
+  // it was and stays behind).
+  const std::uint64_t holder = w.mem.alloc(0x40), part = w.mem.alloc(0x200);
+  w.mem.put<std::uint64_t>(hero + 0x30, holder);
+  w.mem.put<std::uint64_t>(holder + 0x0, part);
+  w.mem.put<std::uint32_t>(part + 0x8, 40);
+  w.mem.put<std::uint32_t>(part + 0x30, 40);
+  w.mem.put<std::uint32_t>(part + 0x20, 48'213);
+  w.mem.put<std::uint32_t>(part + 0x24, 48'213);
+  o.parts_at = 0x30;
+  o.vitals_at = 0x0;
+  o.anchors[0] = 0x10;
+  o.anchors[1] = 0x44;
+  o.anchor_count = 2;
   lodestar::SheetScan scan(o);
   GuardedReader reader(*w.sys);
   const auto gt = en::proto::GameThread::issue();
@@ -3154,8 +3190,11 @@ TEST_CASE("in game: the sheet scan tells the numbers of the save data's object a
   // The death: the count rises by one and the purse empties; then the world loads again, with no main player for
   // two passes, and the sheet lies elsewhere after it.
   w.mem.put<std::uint32_t>(save + 0x94, 13);
+  w.mem.put<std::uint32_t>(save + 0xC4, 78);
+  w.mem.put<std::uint32_t>(save + 0xD0, 1);
   w.mem.put<std::uint32_t>(sheet_a + 0x44, 0);
   w.mem.put<std::uint32_t>(sheet_b + 0x44, 0);
+  w.mem.put<std::uint32_t>(part + 0x20, 0);
   pass();
   w.mem.put<std::uint64_t>(manager + 0x10, 0);
   pass();
@@ -3180,6 +3219,21 @@ TEST_CASE("in game: the sheet scan tells the numbers of the save data's object a
   CHECK(f.phase_passes[1] == 6);
   CHECK(f.phase_passes[2] == 5);
   CHECK(f.phase_passes[3] == 4);
+  // The part beside the sheet, in each of the sheet's 18 passes: the two fields that read the attribute, and the
+  // one that followed the purse through its change (the one that stayed behind fell out).
+  CHECK(f.part_passes == 18);
+  REQUIRE(f.matches.size() == 3);
+  CHECK(f.matches[0].anchor == 0x10);
+  CHECK(f.matches[0].offset == 0x8);
+  CHECK(f.matches[0].equal == 18);
+  CHECK(f.matches[0].of == 18);
+  CHECK(f.matches[0].together == 0);
+  CHECK(f.matches[1].anchor == 0x10);
+  CHECK(f.matches[1].offset == 0x30);
+  CHECK(f.matches[2].anchor == 0x44);
+  CHECK(f.matches[2].offset == 0x20);
+  CHECK(f.matches[2].equal == 18);
+  CHECK(f.matches[2].together == 1);
   CHECK(f.sheet_classed);
   CHECK(f.sheet_is_first);
   CHECK_FALSE(f.sheet_is_second);
@@ -3206,6 +3260,20 @@ TEST_CASE("in game: the sheet scan tells the numbers of the save data's object a
   CHECK(field(sd, 0x94)->phases == 0b100);
   CHECK(field(sd, 0xA0) == nullptr);
   CHECK(sd.restless == 1);
+  // The rises by one, once: the count that is told as a number, the count hidden beside a larger number, and the
+  // flag (marked as rising from nothing). The play time rose every pass, by more: not one of them.
+  CHECK(field(sd, 0xC0) == nullptr);
+  CHECK(field(sd, 0xC4) == nullptr);
+  CHECK(sd.rises_total == 3);
+  REQUIRE(sd.rises.size() == 3);
+  CHECK(sd.rises[0].offset == 0x94);
+  CHECK(sd.rises[0].phases == 0b100);
+  CHECK_FALSE(sd.rises[0].from_nothing);
+  CHECK(sd.rises[1].offset == 0xC4);
+  CHECK(sd.rises[1].phases == 0b100);
+  CHECK_FALSE(sd.rises[1].from_nothing);
+  CHECK(sd.rises[2].offset == 0xD0);
+  CHECK(sd.rises[2].from_nothing);
   CHECK(field(sd, 0x8) == nullptr);
   CHECK(field(sd, 0xC) == nullptr);
   CHECK(sd.address_fields == 4);
@@ -3270,3 +3338,117 @@ TEST_CASE("in game: the sheet scan tells the numbers of the save data's object a
     CHECK(r.last <= lodestar::SheetScan::kMost);
   }
 }
+
+TEST_CASE("in game: the sheet scan holds the part of health against the sheet found by the save data's own word") {
+  // The build's layout binds the save data's word to the sheet (as the real game's does since the twentieth
+  // round): the round gives no word of the main player's, and the part must be read all the same.
+  FakeWorld w;
+  w.world();
+  const auto rva = [&](std::uint64_t at) { return static_cast<std::uint32_t>(at - w.base); };
+  const std::uint64_t manager = w.mem.alloc(0x100), hero = w.mem.alloc(0x800), save = w.mem.alloc(0x1000);
+  const std::uint64_t sheet = w.mem.alloc(0x1000), holder = w.mem.alloc(0x40), part = w.mem.alloc(0x200);
+  w.mem.put<std::uint64_t>(w.at("st_characters"), manager);
+  w.mem.put<std::uint64_t>(w.at("st_save_data"), save);
+  w.mem.put<std::uint64_t>(manager + 0x10, hero);
+  w.mem.put<std::uint64_t>(save + 0x8, sheet);
+  w.mem.put<std::uint64_t>(hero + 0x30, holder);
+  w.mem.put<std::uint64_t>(holder + 0x0, part);
+  w.mem.put<std::uint32_t>(sheet + 0x1C, 120);  // what the character has of something just now
+  w.mem.put<std::uint32_t>(sheet + 0x20, 150);  // and at most
+  w.mem.put<std::uint32_t>(part + 0x148, 120);
+  w.mem.put<std::uint32_t>(part + 0x14C, 150);
+  lodestar::SheetScan::Options o;
+  o.base = w.base;
+  o.image_size = w.sys->image().size();
+  o.image = &w.sys->image();
+  o.save_slot = rva(w.at("st_save_data"));
+  o.manager_slot = rva(w.at("st_characters"));
+  o.main_player_word = 0x10;
+  o.save_sheet_word = 0x8;
+  o.save_first_word = 0x8;
+  o.save_second_word = 0x8;
+  o.parts_at = 0x30;
+  o.vitals_at = 0x0;
+  o.anchors[0] = 0x1C;
+  o.anchors[1] = 0x20;
+  o.anchor_count = 2;
+  lodestar::SheetScan scan(o);
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  std::uint64_t now = 10'000'000;
+  const auto pass = [&] {
+    now += 30'000'000;
+    for (int steps = 0; steps < 200; ++steps) {
+      reader.begin_tick();
+      if (scan.step(gt, reader, now)) return;
+    }
+    FAIL("a pass did not end");
+  };
+  // Slowed to a pass every ten seconds: it is not due again until then, and never faster than its own pace.
+  scan.set_every(10'000'000);
+  pass();
+  CHECK_FALSE(scan.due(now + 9'000'000));
+  CHECK(scan.due(now + 10'000'000));
+  scan.set_every(1);
+  pass();
+  CHECK_FALSE(scan.due(now + lodestar::SheetScan::kEveryUs - 1));
+  // It is spent to nothing and comes back: the part's field goes with the sheet's each time.
+  for (const std::uint32_t v : {60u, 0u, 0u, 45u, 120u}) {
+    w.mem.put<std::uint32_t>(sheet + 0x1C, v);
+    w.mem.put<std::uint32_t>(part + 0x148, v);
+    pass();
+  }
+  const lodestar::SheetFound f = scan.found();
+  CHECK(f.passes == 7);
+  CHECK(f.part_passes == 7);
+  // The anchor at nothing reads the same as every empty field of the part in two passes of seven: none of those
+  // comes to nine in ten, and only the field that followed it is told.
+  REQUIRE(f.matches.size() == 2);
+  CHECK(f.matches[0].anchor == 0x1C);
+  CHECK(f.matches[0].offset == 0x148);
+  CHECK(f.matches[0].equal == 7);
+  CHECK(f.matches[0].of == 7);
+  CHECK(f.matches[0].together == 4);
+  CHECK(f.matches[1].anchor == 0x20);
+  CHECK(f.matches[1].offset == 0x14C);
+  CHECK(f.matches[1].together == 0);
+}
+
+TEST_CASE("in game: the watch takes for a clock's hours only a run that steps as the minutes go round") {
+  // A clock as the fake game packs it: the hours 32 bits up, the minutes 16, a count of seconds lowest. Read at a
+  // pace that drifts slowly through the seconds, the seconds' top bits step by one now and then: as often as the
+  // minutes go round, by chance, and never otherwise. They are no hours: they step at other readings than the
+  // minutes go round at. (The two tied, and the lower run in the word won: the fake game's clock in a Debug build.)
+  FakeWorld w;
+  Round r = round_of(w);
+  const lodestar::Namer namer(r.gated.image, w.sys->image(), r.leads, r.ids);
+  lodestar::Watch watch(w.base, r.gated.image.size_of_image, namer.primary_tables(), nullptr);
+  const auto rva = [&](std::uint64_t va) { return static_cast<std::uint32_t>(va - w.base); };
+  const std::uint64_t clock = w.instance("world_clock");
+  lodestar::Watch::Way way{"world_clock", 1012, rva(w.at("st_world_clock")), 0, false, 0, true};
+  REQUIRE(watch.add(way));
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  std::uint32_t hour = 9, minute = 10, seconds = 3;
+  std::uint64_t now = 5'000'000;
+  for (int reading = 0; reading < 150; ++reading) {
+    w.mem.put<std::uint64_t>(clock + 0x10, (std::uint64_t{hour} << 32) | (std::uint64_t{minute} << 16) | seconds);
+    now += 1'000'000;
+    reader.begin_tick();
+    (void)watch.step(gt, reader, 1, now);
+    minute = (minute + 1) % 60;        // a game minute a reading: round at readings 50 and 110
+    if (minute == 0) hour = (hour + 1) % 24;
+    if (reading == 30 || reading == 85) seconds += 16;  // the seconds' top bits: 0, 1, 2
+  }
+  const lodestar::WatchFound found = watch.found();
+  REQUIRE(found.objects.size() == 1);
+  const lodestar::WatchObject& c = found.objects[0];
+  REQUIRE_FALSE(c.bits.empty());
+  CHECK(c.bits[0].offset == 0x10);
+  CHECK(c.bits[0].bit == 16);
+  CHECK(c.bits[0].wraps == 2);
+  CHECK(c.bits[0].has_hour);
+  CHECK(c.bits[0].hour_bit == 32);
+  CHECK(c.bits[0].hour_steps == 2);
+}
+

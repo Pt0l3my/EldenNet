@@ -1,0 +1,10 @@
+# A fixture flag state of X1's own (NPC §12.2): a new journey in which the Tarnished has asked the pilot about the howl
+# in the woods, so that his second stage holds (x1-voice-kale.toml). The eval finds it here before the shared fixture
+# states, which feed the goldens and stay as they are. Invented test data, our own: one catalogue alias, verified by
+# pilot-overrides' catalogue in the eval's realm alone; every other alias reads false.
+schema = 1
+state = "howl_told"
+journey = 1
+
+[flags]
+"kale.howl_told" = true

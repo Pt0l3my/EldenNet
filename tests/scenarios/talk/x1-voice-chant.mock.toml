@@ -1,0 +1,254 @@
+# The scripted model for x1-voice-chant.toml (mockllm): the persona's replies to X1's voice set, in its voice. Our own
+# words, one reply per request, in order.
+schema = 1
+repeat_last = false
+
+[[reply]]
+text = "Ring once for the lost, ring twice for the found. The bell speaks, and I only answer."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "For the ones on the road, for the ones under it. Bell for the walking, bell for the still."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Not at dawn, not at dusk, not while the road is long. The rope wears thin, the hands wear thinner."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Talk is wind, and the bell is iron. Sit, if you must, and let the iron speak."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Go on, go on, the road is waiting. Ring once for the lost."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "West where the smoke is, west where the bread is. Keep to the ruts, keep to the ruts, and do not look back."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Safe for the quick, hard on the slow. The road gives nothing, and the road forgives nothing."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Stones for the ones who had no stones. A roof for the bell, a step for the knees."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hands before my hands, and hands before theirs. Stone on stone, prayer on prayer."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Under the bell, where the dead keep watch. They are quiet neighbours, quiet and kind."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Cracked in the cold, cracked in the grief. It rings truer broken, it rings truer still."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "What the road leaves, what the birds leave. Little is plenty, plenty is little."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "To the long dark and the short light. To whoever listens, if anyone listens."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Seasons upon seasons, rope upon rope. The counting stopped when the counting stopped mattering."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Some come to weep, some come to sleep. All of them leave, and the bell remains."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "The road is restless, the road is loud. More walk east than walk back west."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Castle of banners, castle of crows. The bell rings for its soldiers as it rings for all."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "The wind tells me, the travellers tell me. Half of it true, and all of it sad."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Trouble comes, trouble goes, the bell stays. Ring, and let the rest go by."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Fear the quiet road, fear the empty shrine. Where no bell rings, nobody is mourned."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "No such thing here, no such thing anywhere. Bell and rope, rope and bell."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "The bell has no list, the bell has one word. Ask it plainly, and hear it plainly."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "My feet stay here, my hands stay here. The rope would miss me, and so would the dead."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "No name, no name, only the ringer. Call me by the bell; it is all the name I keep."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Strange words, strange words, carried off by the wind. Speak of the road, or speak of the dead."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Built in sorrow, kept in sorrow, rung in sorrow still. That is its history, and that is its song."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Road and ridge, ridge and sky, and the long grass bowing. Nothing more, and nothing less."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Hands on the rope, breath in the chest, and pull as the light goes. Once, then once again."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "A walker of the road, a lantern in her hand. She walked on, and the bell rang until morning."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "No more, no more, the bell has spoken. Ring once for the lost."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Back on the road, back by the bell. The road returns what it does not keep."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "A pedlar came, a pedlar went. He left a candle, and the candle left a light."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Faces come, faces fade, but footsteps stay. Yours are known, by the way they stop."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Because the dead are many and the ringers are few. Because someone must, and someone is here."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Gently, gently, the iron is old. Ring once for the lost, and mean it."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Wrapped in sacking, wrapped in prayer. The cold takes fingers, and the rest stays."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Between the bells, between the breaths. Short sleep, light sleep, the rope in my hand."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Then the road would forget, and the dead would wander. So the bell rings, and so the ringer stays."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Family of stone, family of rope. The rest are names the bell rings for now."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Lonely is a word for the living. The long quiet keeps me company, and I keep it."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "A spring below the step, cold as the dead. Drink, and give thanks, and drink again."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Wolves at the ridge, wolves at the hollow. The bell keeps them off, or the bell keeps me calm."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "One road east, one road west, one road down. Every one of them meets a bell like mine."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "The pedlar's candle waits on the step. Light it for the lost, and a gift given on is a gift kept."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Every bell is for someone, every someone is rung. Should you fall, the iron knows your step."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "A rope that holds, a bell that sings, a road that brings them home."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Afraid of the silence, afraid of the stillness. Never of the dead, never of the dark."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Remember the bell, remember the stones. Remember that someone rang, when no one else would."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Not my words, the bell's words, and the wind's. Carry them lightly, carry them far."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Farewell, walker, farewell, wanderer. Ring once for the lost."
+first_token_ms = 600
+chunk_ms = 40

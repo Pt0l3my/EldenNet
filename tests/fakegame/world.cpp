@@ -708,11 +708,11 @@ void FG::ClockTask::run(const FrameInfo* frame) {
     }
     // --block-at-s: the player crosses into another block.
     if (w.player != nullptr && crossed(fakegame::options().block_at_s)) w.player->a.block_id = 0x0A1C0000u;
-    // --die-at-s: the player dies. The ledger counts it and the sheet's runes are lost at once; the world loads
-    // again three seconds on (step_phase).
+    // --die-at-s: the player dies. Its health goes to nothing and its dead bit stays clear: the bit is the
+    // world's characters' alone, as the twentieth round found in the game (WHY§656). The ledger counts the death
+    // and the sheet's runes are lost at once; the world loads again three seconds on (step_phase).
     if (w.player != nullptr && crossed(fakegame::options().die_at_s)) {
       w.player->a.parts->vitals->hp = 0;
-      w.player->a.flags = static_cast<std::uint8_t>(w.player->a.flags | (1u << FG::kActorDeadBit));
       if (auto* ledger = static_cast<SaveLedgerImp*>(fg_static_save_ledger)) {
         ++ledger->f.death_count;
         if (ledger->f.hero != nullptr) ledger->f.hero->h.runes = 0;

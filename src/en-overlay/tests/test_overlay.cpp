@@ -46,7 +46,7 @@ TEST_CASE("overlay: connect as eldennet, with EldenNet's floor and the caps it u
   CHECK(r.outcome == Outcome::Connected);
   CHECK(g.id == "eldennet");
   CHECK(g.name == "EldenNet");
-  CHECK(g.floor == GRACEUI_VERSION_PACK(0, 2, 50));  // GraceUI 0.2.50: Logs' filter bar on its stream (D257)
+  CHECK(g.floor == GRACEUI_VERSION_PACK(0, 2, 57));  // GraceUI 0.2.57: Workshop on this PC alone (D264)
   CHECK(g.mod_version == GRACEUI_VERSION_PACK(0, 1, 0));
   CHECK(g.mod_caps == "notices world-state hotkeys");
   CHECK(std::string(r.view) == "off");
@@ -301,7 +301,7 @@ TEST_CASE("overlay: poll passes over the display's event and any kind it does no
   CHECK(s.view_presses == 1);
   CHECK(o->view_open());
   CHECK(g.events.empty());  // everything waiting was taken
-  // Asked at the vendored header's size, ABI 1.8's (the event unchanged since 1.7).
+  // Asked at the vendored header's size, ABI 1.9's (the event grown by Plain text since 1.8, D268).
   CHECK(g.poll_sizes.count(static_cast<std::uint32_t>(sizeof(GraceUiEvent))) == 1);
 
   // A GraceUI without the holder's events is asked at 0.1's size, and never gives the display's.

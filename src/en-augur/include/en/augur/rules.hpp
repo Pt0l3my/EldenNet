@@ -64,6 +64,13 @@ enum class PayloadId : std::uint8_t {
   Gate,
   Group,
   Ladder,
+  // personas (v0.3; MEM §1.1)
+  PersonaSeen,
+  PersonaApproached,
+  PersonaAttacked,
+  PersonaDied,
+  FoughtBeside,
+  KilledNear,
 };
 
 struct PayloadInfo {

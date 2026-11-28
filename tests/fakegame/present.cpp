@@ -9,6 +9,7 @@
 #include <dxgi1_4.h>
 #include <tlhelp32.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -786,13 +787,16 @@ void grace_report(std::uint64_t frame) {
   GraceUiTestServer server{};
   server.size = sizeof server;
   const bool have_server = get_server != nullptr && get_server(&server) != 0;
-  char menu_part[320] = "";
+  char menu_part[360] = "";
   if (have_menu) {
-    // menu_ring: the focus ring drawn (GraceUI 0.2.33's G42; 0 from an older test build, whose struct ends sooner).
+    // menu_ring: the focus ring drawn (GraceUI 0.2.33's G42; 0 from an older test build, whose struct ends sooner);
+    // menu_plain and menu_plain_baked: the menu's Plain text, and its own faces baked at warm-up (0.2.60's D267).
     std::snprintf(menu_part, sizeof menu_part,
-                  " menu_open=%u menu_page=%s menu_focused=%s menu_refusals=%u menu_ring=%u", menu.open,
+                  " menu_open=%u menu_page=%s menu_focused=%s menu_refusals=%u menu_ring=%u menu_plain=%u"
+                  " menu_plain_baked=%u", menu.open,
                   menu.page[0] != 0 ? word_of(menu.page).c_str() : "none",
-                  menu.focused[0] != 0 ? word_of(menu.focused).c_str() : "none", menu.refusals, menu.focus_shown);
+                  menu.focused[0] != 0 ? word_of(menu.focused).c_str() : "none", menu.refusals, menu.focus_shown,
+                  menu.plain_text, menu.plain_baked);
   }
   char server_part[128] = "";
   if (have_server) {
@@ -816,6 +820,28 @@ void grace_report(std::uint64_t frame) {
       text = bar != nullptr ? bar + 1 : nullptr;
     }
     std::snprintf(shows_part, sizeof shows_part, " shows=%s", bits.c_str());
+  }
+  // GraceUI 0.2.62's MenuPage (D269): for each page FAKEGAME_PAGES names by its space and id ('|' between them, each
+  // "space/page", at most four), whether the menu's last layout had it present; `pages` holds each answer in order: 1
+  // present (in its space's rail, its Related links and the search's reach), 0 absent, 2 no such space or page, or no
+  // layout yet.
+  const auto menu_page = export_of<uint32_t (*)(const char*, const char*)>(grace, "GraceUI_Test_MenuPage");
+  char pages_part[16] = "";
+  char asked[512] = "";
+  const DWORD named = GetEnvironmentVariableA("FAKEGAME_PAGES", asked, sizeof asked);
+  if (menu_page != nullptr && named > 0 && named < sizeof asked) {
+    std::string digits;
+    for (char* item = asked; item != nullptr && digits.size() < 4;) {
+      char* bar = std::strchr(item, '|');
+      if (bar != nullptr) *bar = '\0';
+      char* slash = std::strchr(item, '/');
+      if (slash != nullptr) {
+        *slash = '\0';
+        digits += static_cast<char>('0' + std::min<uint32_t>(menu_page(item, slash + 1), 9));
+      }
+      item = bar != nullptr ? bar + 1 : nullptr;
+    }
+    std::snprintf(pages_part, sizeof pages_part, " pages=%s", digits.c_str());
   }
   // The pairing sheet's code while one shows (G9; GraceUI 0.2.25's GraceUI_Test_GetPairingCode): six digits.
   const auto pairing_code = export_of<uint32_t (*)(char*, uint32_t)>(grace, "GraceUI_Test_GetPairingCode");
@@ -841,14 +867,15 @@ void grace_report(std::uint64_t frame) {
   status("grace frame=%llu found=1 host=%u notice_only=%u consumers=%u eldennet=%d caps=%s notices=%u banner=%s "
          "banner_tone=%u badge=%s panels=%u shown=%u submitted=%llu refused=%llu panel_frames=%llu textures=%u "
          "world=0x%X providers=%u window_filter=%u presents=%llu holder=%u holder_kind=%u closes=%u close_reason=%u"
-         " game_keys=%u game_chars=%u%s%s%s%s%s",
+         " game_keys=%u game_chars=%u faces=%u faces_baked=%u uploads=%u atlas=%u%s%s%s%s%s%s",
          static_cast<unsigned long long>(frame), st.host, st.notice_only, st.consumers, owner != 0 ? 1 : 0,
          caps.c_str(), st.notices, banner.c_str(), banner_tone, badge.c_str(), st.panels, st.panels_shown,
          static_cast<unsigned long long>(st.lists_submitted), static_cast<unsigned long long>(st.lists_refused),
          static_cast<unsigned long long>(st.panel_frames), st.textures, st.world_flags, st.providers,
          input.window_filter, static_cast<unsigned long long>(st.presents),
          input.holder_owner == 0 ? 0u : input.holder_owner == owner ? 2u : 1u, input.holder_kind, input.closes,
-         input.last_close_reason, game_keys(), game_chars(), menu_part, server_part, shows_part, pairing_part, tail);
+         input.last_close_reason, game_keys(), game_chars(), st.faces, st.faces_baked, st.texture_uploads,
+         st.atlas_generation, menu_part, server_part, shows_part, pages_part, pairing_part, tail);
 }
 
 void grace_copy(std::uint64_t frame) {

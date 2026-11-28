@@ -359,6 +359,9 @@ typedef struct GraceUiTestMenu {
   uint32_t pad_mode;    /* 1 while the key hints are the pad's: after the pad, until a key or the mouse */
   uint32_t hints_shown; /* 1 while the key hints are drawn (View on a pad turns them off and on) */
   char footer[160];     /* the footer's words as drawn: "A  Toggle    X  Reset    B  Back" in pad mode; "" hidden */
+  /* Appended for Plain text in game (D267): */
+  uint32_t plain_text;  /* 1 while the menu draws its serif and display roles in Noto Sans (ui.menu.plain_text) */
+  uint32_t plain_baked; /* 1 if Plain text's own faces were baked at warm-up; 0, the nearest sans bakes serve it */
 } GraceUiTestMenu;
 
 /* Fills *out as far as out->size reaches (a caller built against an older header gets the fields it knows); answers 1,
@@ -374,6 +377,12 @@ GRACEUI_API uint32_t GraceUI_Test_GetSetting(const char* key, char* out, uint32_
 GRACEUI_API uint32_t GraceUI_Test_GetMenuBounds(const char* name, float* out);
 /* 1 if the menu's last layout draws `text` within one of its texts (a component's words, D184), else 0. */
 GRACEUI_API uint32_t GraceUI_Test_MenuShows(const char* text);
+/* Whether a space's page was present in the menu's last layout (D269), by the space's id and the page's: 1 present, so
+ * in the space's rail and its Related links, and its settings found by search (one rule decides them: its increment,
+ * browser_only and shown_with; the game's search finds settings, not pages by their names); 0 absent; 2 no such space
+ * or page, or no layout yet. A space's shown_with switches are as the menu last took its values, while it was the
+ * open space. Safe while GraceUI is busy. */
+GRACEUI_API uint32_t GraceUI_Test_MenuPage(const char* space, const char* page);
 /* The init thread's step (D220): 0 before it starts; 1 its fonts, 2 waiting for the game's window, 3 Direct3D bound,
  * 4 the hook targets read from a swap chain of GraceUI's own, 5 the input targets, 6 the install, 7 done. Readable from
  * any thread at any time, so that an init that stops says where (GraceUI's log drains on that same thread). */

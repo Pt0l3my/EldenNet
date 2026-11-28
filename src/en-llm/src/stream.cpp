@@ -85,34 +85,11 @@ std::string refusal_text(std::string_view what, en::proto::JsonRefusal refusal) 
   return std::string(what) + " is " + en::proto::describe(refusal);
 }
 
-bool token_char(char c) {
-  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
-}
-
-// Replaces anything shaped like a credential: "sk-…" and "Bearer …" tokens, and any long run of token characters.
+// Replaces anything shaped like a credential (secret.hpp's redact_credentials), its spaces made one line first.
 std::string scrub(std::string_view text) {
-  std::string out;
-  std::size_t i = 0;
-  while (i < text.size()) {
-    if (!token_char(text[i])) {
-      out.push_back(is_space(text[i]) ? ' ' : text[i]);
-      ++i;
-      continue;
-    }
-    std::size_t j = i;
-    while (j < text.size() && token_char(text[j])) ++j;
-    const std::string_view word = text.substr(i, j - i);
-    const bool keyish = word.size() >= 24 || word.rfind("sk-", 0) == 0 || word.rfind("sk_", 0) == 0;
-    out.append(keyish ? std::string(Secret::kRedacted) : std::string(word));
-    i = j;
-  }
-  // "Bearer <token>" with a short token still names a credential.
-  for (std::size_t at = out.find("Bearer "); at != std::string::npos; at = out.find("Bearer ", at + 7)) {
-    std::size_t end = at + 7;
-    while (end < out.size() && !is_space(out[end])) ++end;
-    out.replace(at + 7, end - at - 7, Secret::kRedacted);
-  }
-  return out;
+  std::string flat(text);
+  std::replace_if(flat.begin(), flat.end(), is_space, ' ');
+  return redact_credentials(flat);
 }
 
 std::string error_object_message(const json& error) {

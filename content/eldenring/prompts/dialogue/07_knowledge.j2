@@ -1,6 +1,28 @@
-{# Block 7, what you know now (NPC §7.3): the stage's where, mood and gist. The since-line, the reaction cue and the KB
-   lines come with the store and memory (v0.3). At most 280 tokens. #}
+{# Block 7, what you know now (NPC §7.3; MEM §12.6, §12.13): the since-line first, then at most one reaction cue and the
+   cued item's own line when block 5b does not show it (the cue's four strings are fixed and ours: they live here, as
+   the loader takes one part per block), then the stage's where, mood and gist. The since-line and the cue are never
+   trimmed, together at most 90 tokens. The KB lines wait for the knowledge base (v0.5). At most 280 tokens. #}
 [ user ]
+{% if not (empty(since_line) and empty(cue.why)) %}
+{% if not empty(since_line) %}
+{{ since_line }}
+{% endif %}
+{% if cue.why == "own" %}
+On your mind: {{ cue.short }}, for it touches your own affairs.
+{% endif %}
+{% if cue.why == "told" %}
+On your mind: {{ cue.short }}, because of what the Tarnished told you of it.
+{% endif %}
+{% if cue.why == "local_here" %}
+On your mind: {{ cue.short }}, for it is the talk of these parts.
+{% endif %}
+{% if cue.why == "local_home" %}
+On your mind: {{ cue.short }}, for it is the talk of your home country.
+{% endif %}
+{% if not empty(cue.line) %}
+{{ cue.label }} {{ cue.line }}
+{% endif %}
+{% endif %}
 {% if not (empty(stage.where) and empty(stage.mood) and empty(stage.gist)) %}
 What you know now:
 {% if not empty(stage.where) %}You are {{ stage.where }}.{% endif %}{% if not empty(stage.mood) %} You feel {{ stage.mood }}.{% endif %}

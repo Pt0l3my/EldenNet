@@ -1,14 +1,15 @@
 #pragma once
-// A fake GraceUI of our own for en-overlay's tests (the Windows builds): ABI 1.8's table, as graceui.h declares it at
-// GraceUI 7fa3042, with the calls en-overlay makes answered as GraceUI 0.2.53 answers them (eldennet-changes §14 to
-// §50; not 1.6's uploaded files, D226, since EldenNet's space has no file command, nor 1.8's on_present, D259, which
-// EldenNet does not opt in to: set_on_present is counted and refused) and checked as GraceUI checks them:
+// A fake GraceUI of our own for en-overlay's tests (the Windows builds): ABI 1.9's table, as graceui.h declares it at
+// GraceUI fc2205a, with the calls en-overlay makes answered as GraceUI 0.2.62 answers them (eldennet-changes §14 to
+// §50, §94; not 1.6's uploaded files, D226, since EldenNet's space has no file command, nor 1.8's on_present, D259,
+// which EldenNet does not opt in to: set_on_present is counted and refused) and checked as GraceUI checks them:
 // connect's answers, notices under keys (replaced in place, withdrawn by an empty text, at most four), textures in the
 // registration window, faces before warm-up and the glyph tables after it, panels hidden until shown, hotkeys (a
 // default another mod took registers unbound, GRACEUI_UNBOUND with its id, D164; a pad chord, D204; describe_hotkey and
 // a change, D210), input with a holder's events (one holder, its panel the mod's own, shown and taking input; its
 // events only while it holds; its end once, last; hotkeys silent while it holds; the caret only while it holds; D77,
-// D176), the wait handle (D212), poll's events by the event's size (the display's only to ABI 1.2's, D180) and submit's
+// D176), the wait handle (D212), Plain text at connect and in the display's event with its cap (D268), poll's events
+// by the event's size (the display's only to ABI 1.2's, D180) and submit's
 // draw-list checks (counts, the bounds, every command's ranges and indices, clip rectangles inside the panel, known
 // texture ids, the atlas's generation, the command stride). graceui-sys has no C mock; this is what stands in for one.
 // One fake at a time (the table's functions are plain C pointers).
@@ -48,10 +49,10 @@ struct Grace {
   // How it answers.
   GraceUiStatus connect_status = GRACEUI_OK;
   std::uint32_t connect_reason = 0;
-  std::uint32_t version = GRACEUI_VERSION_PACK(0, 2, 53);
+  std::uint32_t version = GRACEUI_VERSION_PACK(0, 2, 62);
   std::vector<std::string> caps = {"notices", "panels",        "textures", "faces",      "input",           "world-state",
                                    "hotkeys", "pages",         "holder-events", "display", "pad-chords",
-                                   "hotkey-bindings", "wake", "hotkey-by", "on-present"};
+                                   "hotkey-bindings", "wake", "hotkey-by", "on-present", "plain-text"};
   std::uint32_t table_size = sizeof(GraceUiApi1);  // a shorter table: an older GraceUI (D74)
   bool refuse_textures = false;
   GraceUiStatus poll_status = GRACEUI_OK;  // GRACEUI_NOT_CONNECTED: the mod was disconnected
@@ -62,6 +63,9 @@ struct Grace {
   std::uint32_t not_now_why = GRACEUI_NOT_NOW_DANGER;
   std::uint32_t display_width = 0;  // connect's answer (ABI 1.2): 0 until the swap chain is bound
   std::uint32_t display_height = 0;
+  // GraceUI's Plain text (ui.menu.plain_text; ABI 1.9, D268), the player's kept setting: in connect's answer and in
+  // each display event, written only with the "plain-text" cap (an older GraceUI leaves the mod's bytes as they were).
+  std::uint32_t plain_text = 0;
 
   // What it saw.
   std::string id, name, mod_caps;
@@ -136,8 +140,11 @@ struct Grace {
   // Whether the wait handle is set now (it is auto-reset: looking takes it).
   bool woken();
   const Panel* holder() const;
-  // The display's event, as GraceUI 0.2.2 gives it after warm-up and after each change (D180).
+  // The display's event, as GraceUI 0.2.2 gives it after warm-up and after each change (D180), with Plain text as it is
+  // now (0.2.61, D268).
   void display();
+  // The player turns Plain text on or off in the session (GraceUI › Menu): the display's event follows (D268).
+  void set_plain_text(bool on);
   // A view's sub, unsub and cmd, as poll gives them to the space; command answers the reply handle it gave.
   void watch(const std::string& topic);
   void unwatch(const std::string& topic);

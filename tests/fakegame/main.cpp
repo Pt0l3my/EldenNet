@@ -504,7 +504,7 @@ void status_open(const std::wstring& file) {
 
 // Each line ends with t=<milliseconds since the program started>.
 void status(const char* fmt, ...) {
-  char line[1024];
+  char line[1536];  // the grace report's line is the longest (present.cpp)
   int n = std::snprintf(line, sizeof line, "FAKEGAME ");
   va_list args;
   va_start(args, fmt);

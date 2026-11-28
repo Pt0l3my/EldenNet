@@ -13,9 +13,14 @@ cmake -S . -B build -G Ninja                      # GCC; CXX=clang++ for Clang, 
 cmake --build build
 build/src/en-proto/en_proto_tests && build/src/en-prompt/en_prompt_tests && build/src/en-llm/en_llm_tests \
   && build/src/en-gal/en_gal_tests && build/src/en-overlay/en_overlay_tests && build/src/en-augur/en_augur_tests \
-  && build/src/en-core/en_core_tests
+  && build/src/en-core/en_core_tests && build/src/en-store/en_store_tests
 (cd build && ctest -R compile_fail)               # R1's compile-fail tests: they only compile, so every build runs them
 ```
+
+The configure step downloads SQLite 3.54.1's amalgamation from www.sqlite.org into the build tree (`_deps/`), checked
+by the SHA3-256 SQLite publishes and our SHA-256, and builds it as the build's one C target (`en_sqlite`, its warnings
+off; `cmake/sqlite.cmake`, THIRD_PARTY.md). Every toolchain below compiles it: GCC and Clang, MinGW-w64's gcc and
+clang-cl. en-store alone links it.
 
 CTest also runs en-gal's decoder against LLVM's disassembler (`en_gal_x86_objects`: every instruction of the build's own
 `eldennet-engine` and `en_gal_tests`; `en_gal_x86_random`: 20,000 seeded random byte strings, assembled by the build's
@@ -58,7 +63,7 @@ the group table, so the harness checks each of them end to end.
 Both Windows builds build en-overlay's connection to GraceUI (part 12) and Dear ImGui 1.93.0's core for its F11 view,
 which the top-level `CMakeLists.txt` downloads at configure time at GraceUI's own pin (tag v1.93.0's commit, each file
 by its SHA-256; THIRD_PARTY.md). GraceUI's `graceui-sys` headers are vendored in `third_party/graceui-sys` from GraceUI
-at 7fa3042 (GraceUI 0.2.53, protocol 1.17, ABI 1.8; EldenNet uses neither its uploads nor its on_present), all five from
+at fc2205a (GraceUI 0.2.62, protocol 1.20, ABI 1.9; EldenNet uses neither its uploads nor its on_present), all five from
 that one commit, each checked against its SHA-256 when the build is configured. `en_overlay_tests.exe` runs the
 connection's tests against a fake GraceUI table of our own under Wine; on Linux, `en_overlay_tests` runs the view's
 lines (Augur's events and en-core's changes among them), its rings and the world-state claims.
@@ -141,14 +146,20 @@ cmake --build build-cl
   launcher's pre-flight checks GraceUI's own version file. Without `EN_GRACEUI_DIR` (or with a folder that holds no
   `graceui.dll` and `graceui.toml`) they are left out, with a line saying so. They need Mesa's lavapipe
   (`mesa-vulkan-drivers`) for Wine's Direct3D 12, as GraceUI's harness does. Build GraceUI at the commit
-  third_party/graceui-sys comes from (7fa3042, GraceUI 0.2.53), so the space and the surfaces meet the checks they will
+  third_party/graceui-sys comes from (fc2205a, GraceUI 0.2.62), so the space and the surfaces meet the checks they will
   meet. The page lint and the preview are pinned to the same commit (`tests/pages/lint.py`): the page data is protocol
-  1.16's since Logs' filter bar on its log tail (GraceUI D257), which an older GraceUI's registration refuses, so the
-  GraceUI floor is 0.2.50. `launcher-eldennet-graceui-pages` drives EldenNet's pages through that GraceUI, Content
+  1.20's since Workshop's page and topics are marked pc_only (GraceUI D264), which an older GraceUI does not read, so
+  the GraceUI floor is 0.2.57 and the page data's minor its floor's. `launcher-eldennet-graceui-pages` drives EldenNet's pages through that GraceUI, Content
   packs, Docs, Bug report and Logs drawn in game among them, `-pause` Pause AI by its quick switch's command and by
   Home's header switch's, `-talk-calls` AI › Requests after a reply and `-talk-traces` System › Traces and Performance
-  after one: F5's menu and, from Linux, a browser of the tests' own (`tests/pages/browser.py`) on GraceUI's server at
-  the port the fake game's report names. Every
+  after one, `-workshop` Tools › Workshop (its page data, its topics while Developer views are on, Record this session
+  off and on, never in game by its words and by its id, GraceUI 0.2.62's `GraceUI_Test_MenuPage` through the fake
+  game's `FAKEGAME_PAGES`, cleared once the switch is off) and `-talk-workshop` Workshop's request and reply after
+  one, and `-plain` GraceUI's Plain text kept on in GraceUI's own `user\settings.json` before the launch (the subtitles
+  and the chat box in Noto Sans Regular and SemiBold, O134, named by the DLL's `faces` line; turned off from a browser
+  in the session, noted for the next launch, with no face registered or texture uploaded): F5's menu and, from Linux,
+  a browser of the tests' own (`tests/pages/browser.py`) on GraceUI's server at the port the fake game's report names.
+  Every
   GraceUI case sets `GRACEUI_TEST_PORT=free` (GraceUI 0.2.31's D234) in the game's environment, so the test build serves
   the browser view on a loopback port the system has free, never `dashboard.port`'s default (8642), and two trees can
   run these cases at once; GraceUI's settings file is left as it is.
@@ -194,16 +205,27 @@ cmake --build build-cl
   127.0.0.2 (`browser.pair`) and is refused EldenNet's sensitive commands and settings, the editor's save and reset
   among them (the owner's O112 (b): the player's notes are written on the PC alone).
 - **EldenNet's pages** (`src/en-overlay/pages/space.toml`, its JSON beside it and `src/space_data.cpp`, all written by
-  `python3 -I tools/pages/build.py`) have three CTest checks of their own: `en_pages_build` (`--check`: the outputs are
+  `python3 -I tools/pages/build.py`) have four CTest checks of their own: `en_pages_build` (`--check`: the outputs are
   what the source builds), in every build with Python; `en_pages_lint`, GraceUI's own page lint, with
-  `-DEN_GRACEUI_SOURCE=<a GraceUI checkout at 7fa3042>` (`tests/pages/lint.py` checks the lint's files against their
+  `-DEN_GRACEUI_SOURCE=<a GraceUI checkout at fc2205a>` (`tests/pages/lint.py` checks the lint's files against their
   SHA-256 first); and, in a Linux build, `en_pages_preview` with `-DEN_GRACE_DEV=<grace-dev of a Linux build of GraceUI
-  at 7fa3042>`: grace-dev serves each fixture state of `tests/pages/` and the browser reads every topic back and sends
+  at fc2205a>`: grace-dev serves each fixture state of `tests/pages/` and the browser reads every topic back and sends
   commands, and each page's in-game structure (`grace-dev --dump`) matches `tests/pages/golden/`. The fixture states'
   `topics.json` are what en_overlay_tests builds (`EN_UPDATE_FIXTURES=1` writes them anew; `EN_UPDATE_GOLDENS=1` the
   dumps). Every dump passes grace-dev's check of a mod's draw list: since GraceUI 0.2.49 (D256) what is out of view
   costs nothing, so Docs' document, drawn whole in game since 0.2.46 (D253), no longer exits 1 there, and the preview
-  takes no exit for it. Without the variables the last two are left out, with a line saying so. Docs' documents
+  takes no exit for it. And `en_pages_browser`, in a Linux build with `EN_GRACEUI_SOURCE`, GraceUI's space check (D265,
+  GraceUI 0.2.58): the checkout's own browser view, built first in its `web/` (`npm ci --ignore-scripts`, then
+  `npm run build`; it uses the Playwright and Chromium the machine has, and nothing is installed for it), shows two
+  space folders of the world state (Developer views off by default, and on) in Chromium over GraceUI's fake host, and
+  fails on a console error, a CSP violation, an off-origin request or a text under 4.5:1; of its dump, read from its
+  output (whole through a pipe since 0.2.62, D269), each view's rail, each page's presence and the text of Home, the AI
+  pages, Tools › Workshop and Settings › Developer are held to `tests/pages/browser/` (since 0.2.62 a page is read once
+  its every topic has come, so Home's and AI's hold still; `tests/pages/browser_check.py`; `EN_UPDATE_GOLDENS=1` writes
+  them anew). It takes a few minutes, each page about 1.2 s more since 0.2.62. It is skipped while `web/` is not
+  built. By hand: `python3 -I tests/pages/browser_check.py --web <checkout>/web --pages src/en-overlay/pages
+  --fixtures tests/pages --work <a folder of its own>`. Without the variables the last three are left out, with a line
+  saying so. Docs' documents
   (`src/en-overlay/docs/*.md`, converted by `python3 -I tools/docs/build.py` into `src/en-overlay/src/docs_data.cpp`)
   have two more in every build with Python: `en_docs_build` (`--check`: every draft within its Markdown subset and
   GraceUI's limits, its links to documents and headings that exist, and the file what the drafts build) and
@@ -305,6 +327,8 @@ the v0.1 catalogue, the rule files' schema, what ARCH §8 left open and how this
   hand when content, prompts or speech change (ARCH §12.1's eval stage). Its reports hold model text, a local-only
   kind, and stay in the build tree's `src/en-tools/eval-reports/` (ignored by git); live models and the judged sets wait
   for a key (WHY§364 (10)).
+- `en_tools_x1` (every Linux test run) exports X1's set as jobpacks for LLM Jobrunner, checks them against Jobrunner's
+  own rules (mirrored), and imports an invented sample of its results (src/en-tools/README.md, "eval --set").
 
 The three shipped routes are synthetic, written by us. DESIGN's C12 (S10.3.a) asks for golden events over three
 *recorded* routes of the owner's game; each becomes a route the same way, with `golden update <recording>`.

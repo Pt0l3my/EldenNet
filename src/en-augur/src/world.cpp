@@ -100,6 +100,21 @@ void WorldModel::update(const proto::WorldSnapshot& s, const AugurCtx& ctx) {
   trackers_.erase(std::remove_if(trackers_.begin(), trackers_.end(),
                                  [&](const Tracker& tr) { return !tr.present && t - tr.last_seen >= kTrackerDropMs; }),
                   trackers_.end());
+  // The persona a native talk is with: the nearest present, living persona within 3 m while a talk signal is up.
+  talk_with_.reset();
+  const bool talk = s.ui.popup_talk_id.has_value() || s.ui.talk_cam || s.ui.hud == proto::HudState::PopupMenu;
+  if (talk) {
+    float best = kTalkWithM;
+    for (const Tracker& tr : trackers_) {
+      if (!tr.present || tr.chr.dead || tr.subject.kind != Subject::Kind::Persona || !std::isfinite(tr.chr.dist_m)) {
+        continue;
+      }
+      if (tr.chr.dist_m <= best) {
+        best = tr.chr.dist_m;
+        talk_with_ = tr.handle;
+      }
+    }
+  }
   // The combat state (§8.7): damage either way, a critical hit, or any engagement at the gate's confidence.
   bool signal = player_.hp_delta_valid && player_.hp_delta > 0;
   for (const Tracker& tr : trackers_) {
@@ -320,6 +335,7 @@ void WorldModel::loading(std::span<const Rule> rules) {
   trackers_.clear();
   squads_.clear();
   last_combat_signal_.reset();
+  talk_with_.reset();
   for (const Rule& r : rules) {
     if (r.index < player_.det.size()) on_loading(r.detect, player_.det[r.index]);
     if (r.index < world_.det.size()) on_loading(r.detect, world_.det[r.index]);
@@ -361,6 +377,8 @@ Value WorldModel::sample(SignalId id, const Tracker& tr) const noexcept {
       return Value::some(c.throw_state);
     case SignalId::CritByPlayer:
       return Value::of(crit_by_player(tr));
+    case SignalId::TalkingWith:
+      return tr.subject.kind == Subject::Kind::Persona ? Value::of(talk_with_ && *talk_with_ == tr.handle) : Value{};
     default:
       return Value{};  // team_turned (S7), idle_due (v0.4), and the signals that are not a character's
   }

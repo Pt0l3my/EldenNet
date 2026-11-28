@@ -1,0 +1,102 @@
+# The reaction cue in conversation (MEM §12.6, §12.13; T13's core, through the store): Kalé is met once on a fresh
+# journey, and the conversation's end records what he knew. An hour later the castle's lord has fallen: the next
+# conversation opens with the since-line, and, Kalé being eager and the news his own ground's talk within 6 h, its first
+# reply carries the cue. A line 30 s later finds the item in its 60 s news cooldown (no cue; the since-line stays); one
+# 90 s later carries it again. Our own scenario, invented data. Run: eldennet-engine eval <this file> --llm mock.
+schema = 1
+name = "kale_news"
+persona = "kale"
+overrides = "pilot-overrides"
+mock = "kale_news.mock.toml"
+store = true
+character = "Wren"
+
+[world]
+param = 81200
+distance_m = 2.5
+bearing_deg = 4.0
+clock = [17, 30]
+subtitles = true
+flags = "fresh"
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Evening. Quiet road?"
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "expect"
+prompt_lacks = ["Since you last spoke", "On your mind:"]  # a first meeting: nothing of the kind
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 3600000
+
+[[step]]
+do = "flags"
+flags = "after_godrick"
+
+[[step]]
+do = "wait"
+ms = 5000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Back again. Anything new?"
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "expect"
+prompt_has = ["Since you last spoke with the Tarnished, you have learned of", "for it is the talk of these parts."]
+
+[[step]]
+do = "wait"
+ms = 23000
+
+[[step]]
+do = "say"
+text = "And the prices?"
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "expect"
+prompt_has = ["Since you last spoke with the Tarnished, you have learned of"]
+prompt_lacks = ["On your mind:"]
+
+[[step]]
+do = "wait"
+ms = 60000
+
+[[step]]
+do = "say"
+text = "Tell me again, slowly."
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "expect"
+npc_lines = 4
+prompt_has = ["On your mind:"]
+
+[[step]]
+do = "esc"

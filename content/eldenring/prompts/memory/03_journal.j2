@@ -1,0 +1,10 @@
+{# Part 3: the journal so far, the text the model rewrites; each keepsake's id makes "keep" and "change" cheap. The
+   protected keepsake carries a "keep" mark (MEM §2.3). #}
+[ user ]
+THE JOURNAL SO FAR
+Summary: {% if empty(summary) %}(nothing yet){% else %}{{ summary }}{% endif %}
+{% for k in keepsakes %}
+{{ k.id }} [{{ k.basis }}, {{ k.weight }}, about {{ k.about }}{% if k.protected %}, keep{% endif %}] {{ k.text }}
+{% endfor %}
+Feeling toward the Tarnished: {{ disposition_words }} ({{ disposition }})
+Name they gave: {% if empty(told_name) %}none{% else %}{{ told_name }}{% endif %}

@@ -50,7 +50,7 @@ bool letter(std::uint16_t u) { return u >= 0x20 && u < 0xFFFE; }
 }  // namespace
 
 struct SheetScan::Impl {
-  enum class Step : std::uint8_t { Manager, Player, Piece };
+  enum class Step : std::uint8_t { Manager, Player, Holder, Part, PartRead, Piece };
 
   enum : std::uint8_t { kText = 1, kAddress = 2, kSeen = 4 };
   struct Object {
@@ -62,6 +62,7 @@ struct SheetScan::Impl {
     std::vector<std::uint32_t> first;    // by field
     std::vector<std::uint16_t> changes;  // by field: passes in which it differed from the pass before
     std::vector<std::uint8_t> phases;    // by field: bit n, it changed in phase n
+    std::vector<std::uint8_t> rose;      // by field: the changes that were a rise by exactly one (up to 255)
     std::vector<std::uint8_t> marks;     // by field: kText, kAddress, kSeen
   };
   struct Told {
@@ -72,12 +73,18 @@ struct SheetScan::Impl {
     std::size_t field_count = 0;
     std::array<SheetText, kListedTexts> texts{};
     std::size_t text_count = 0;
+    std::uint32_t rises_total = 0;
+    std::array<SheetRise, kListedRises> rises{};
+    std::size_t rise_count = 0;
   };
   struct Summary {
     std::uint32_t passes = 0, absent = 0, phase = 0;
     std::array<std::uint32_t, kPhases> phase_passes{};
     bool sheet_classed = false, sheet_is_first = false, sheet_is_second = false;
     std::array<Told, kObjects> objects{};
+    std::uint32_t part_passes = 0;
+    std::array<SheetMatch, 8 * kListedMatches> matches{};
+    std::size_t match_count = 0;
   };
 
   Options o;
@@ -95,9 +102,20 @@ struct SheetScan::Impl {
   std::uint64_t next_due_us = 0;
   std::uint32_t passes = 0, absent = 0, read_now = 0;
   bool save_now = false;  // the save data's object was read in this pass
+  // The main player's part of health beside the sheet: this pass's copy and the last one's, and, by anchor and
+  // field, the passes in which the two read the same and in which both had changed.
+  static constexpr std::size_t kPartFields = kPartSpan / 4;
+  std::uint64_t holder_at = 0, part_at = 0;
+  std::array<std::byte, kPartSpan> part_now{}, part_before{};
+  bool part_read_now = false, part_tried_now = false, part_had = false;
+  std::uint32_t part_passes = 0;
+  std::array<std::uint32_t, 8> anchor_before{};
+  bool anchors_had = false;
+  std::vector<std::uint16_t> equal, together;  // anchor * kPartFields + field
   std::array<std::uint32_t, kPhases> phase_passes{};
   bool sheet_classed = false, sheet_is_first = false, sheet_is_second = false;
   std::atomic<std::uint32_t> phase{0};
+  std::atomic<std::uint64_t> every_us{kEveryUs};
   mutable std::mutex mutex;
   Summary shared;
 
@@ -108,8 +126,41 @@ struct SheetScan::Impl {
       ob.first.resize(kFields);
       ob.changes.resize(kFields);
       ob.phases.resize(kFields);
+      ob.rose.resize(kFields);
       ob.marks.resize(kFields);
     }
+    o.anchor_count = std::min<std::uint32_t>(o.anchor_count, static_cast<std::uint32_t>(o.anchors.size()));
+    equal.assign(o.anchors.size() * kPartFields, 0);
+    together.assign(o.anchors.size() * kPartFields, 0);
+  }
+
+  // The part's copy of this pass against the sheet's numbers of this pass (the sheet's first piece, just read):
+  // called once both are there.
+  void match(std::span<const std::byte> sheet, std::uint32_t sheet_bytes) {
+    std::array<std::uint32_t, 8> anchor{};
+    for (std::uint32_t a = 0; a < o.anchor_count; ++a) {
+      if (std::uint64_t{o.anchors[a]} + 4 > sheet_bytes) return;  // an anchor outside the copy: nothing is counted
+      anchor[a] = field_at(sheet, o.anchors[a]);
+    }
+    const std::span<const std::byte> now(part_now), before(part_before);
+    for (std::uint32_t a = 0; a < o.anchor_count; ++a) {
+      const bool anchor_changed = anchors_had && anchor[a] != anchor_before[a];
+      for (std::size_t f = 0; f < kPartFields; ++f) {
+        const std::uint32_t v = field_at(now, f * 4);
+        if (v != anchor[a]) continue;
+        std::uint16_t& e = equal[a * kPartFields + f];
+        if (e != 0xFFFF) ++e;
+        if (anchor_changed && part_had && field_at(before, f * 4) != v) {
+          std::uint16_t& t = together[a * kPartFields + f];
+          if (t != 0xFFFF) ++t;
+        }
+      }
+    }
+    anchor_before = anchor;
+    anchors_had = true;
+    part_before = part_now;
+    part_had = true;
+    ++part_passes;
   }
 
   // Where the game's own objects were met so far, as the upper halves of their addresses (the survey's rule): an
@@ -173,7 +224,9 @@ struct SheetScan::Impl {
         ob.first[f] = v;
         continue;
       }
-      if (field_at(before, f * 4) == v) continue;  // seen before, so it lies within what `before` holds
+      const std::uint32_t was = field_at(before, f * 4);  // seen before, so it lies within what `before` holds
+      if (was == v) continue;
+      if (v == was + 1 && was != 0xFFFF'FFFFu && ob.rose[f] != 0xFF) ++ob.rose[f];
       if (ob.changes[f] != 0xFFFF) ++ob.changes[f];
       ob.phases[f] = static_cast<std::uint8_t>(ob.phases[f] | (1u << std::min(phase_now, 7u)));
     }
@@ -196,6 +249,29 @@ struct SheetScan::Impl {
     s.sheet_classed = sheet_classed;
     s.sheet_is_first = sheet_is_first;
     s.sheet_is_second = sheet_is_second;
+    // The part's fields that followed a number of the sheet in nine passes of ten or more: by anchor, those that
+    // changed with it most often first, then those that read the same most often.
+    s.part_passes = part_passes;
+    s.match_count = 0;
+    for (std::uint32_t a = 0; a < o.anchor_count && part_passes >= 3; ++a) {
+      const std::size_t from = s.match_count;
+      for (std::size_t f = 0; f < kPartFields; ++f) {
+        const std::uint32_t e = equal[a * kPartFields + f];
+        if (e * 10 < part_passes * 9) continue;
+        const SheetMatch row{o.anchors[a], static_cast<std::uint32_t>(f * 4), e, part_passes,
+                             together[a * kPartFields + f]};
+        std::size_t at = s.match_count;
+        while (at > from && (s.matches[at - 1].together < row.together ||
+                             (s.matches[at - 1].together == row.together && s.matches[at - 1].equal < row.equal))) {
+          --at;
+        }
+        if (at >= from + kListedMatches) continue;
+        const std::size_t last = std::min(s.match_count, from + kListedMatches - 1);
+        for (std::size_t m = last; m > at; --m) s.matches[m] = s.matches[m - 1];
+        s.matches[at] = row;
+        s.match_count = std::min(s.match_count + 1, from + kListedMatches);
+      }
+    }
     for (std::size_t i = 0; i < kObjects; ++i) {
       const Object& ob = objects[i];
       Told& t = s.objects[i];
@@ -209,10 +285,19 @@ struct SheetScan::Impl {
       t.restless = 0;
       t.field_count = 0;
       t.text_count = 0;
+      t.rises_total = 0;
+      t.rise_count = 0;
       if (ob.passes == 0) continue;
       const std::span<const std::byte> last(ob.before.data(), ob.bytes);  // each part as it was last read
       for (std::size_t f = 0; f < kFields; ++f) {
         if ((ob.marks[f] & kSeen) == 0) continue;
+        // What rose by one once and did nothing else: its place and phase, whatever the field holds.
+        if (ob.changes[f] == 1 && ob.rose[f] == 1) {
+          ++t.rises_total;
+          if (t.rise_count < kListedRises) {
+            t.rises[t.rise_count++] = SheetRise{static_cast<std::uint32_t>(f * 4), ob.phases[f], ob.first[f] == 0};
+          }
+        }
         // An address first: its halves read as letters too, and are no text. Neither is ever told.
         if ((ob.marks[f] & kAddress) != 0) {
           ++t.address_fields;
@@ -253,6 +338,9 @@ SheetScan::SheetScan(Options options) : impl_(std::make_unique<Impl>(options)) {
 SheetScan::~SheetScan() = default;
 
 void SheetScan::mark(std::uint64_t) noexcept { impl_->phase.fetch_add(1, std::memory_order_release); }
+void SheetScan::set_every(std::uint64_t every_us) noexcept {
+  impl_->every_us.store(std::max<std::uint64_t>(every_us, kEveryUs), std::memory_order_relaxed);
+}
 
 bool SheetScan::due(std::uint64_t now_us) const noexcept {
   return impl_->step != Impl::Step::Manager || now_us >= impl_->next_due_us;
@@ -269,7 +357,7 @@ bool SheetScan::step(const proto::GameThread& gt, GuardedReader& reader, std::ui
     }
     ++m.passes;
     m.publish();
-    m.next_due_us = now_us + kEveryUs;
+    m.next_due_us = now_us + m.every_us.load(std::memory_order_relaxed);
     m.step = Step::Manager;
     return true;
   };
@@ -279,6 +367,8 @@ bool SheetScan::step(const proto::GameThread& gt, GuardedReader& reader, std::ui
         m.phase_now = std::min(m.phase.load(std::memory_order_acquire), kPhases - 1);
         m.read_now = 0;
         m.save_now = false;
+        m.part_read_now = false;
+        m.part_tried_now = false;
         m.object_now = 0;
         m.piece_from = 0;
         m.piece_size = kPiece;
@@ -319,8 +409,54 @@ bool SheetScan::step(const proto::GameThread& gt, GuardedReader& reader, std::ui
         if (got == 1) return false;
         break;
       }
+      case Step::Holder: {
+        // The main player's holder of parts, then the part of health, then the part's first 0x200 bytes: three
+        // reads, made just before the sheet's own first piece (after the save data's object, and whichever way
+        // the sheet was found) so that the two are of one moment as nearly as the reader can make them.
+        m.step = Step::Piece;
+        std::array<std::byte, 8> raw{};
+        const int got = m.read(gt, reader, m.player_at + m.o.parts_at, raw);
+        if (got == 2) {
+          m.step = Step::Holder;
+          return false;
+        }
+        m.holder_at = got == 1 && plausible(word_at(raw, 0)) ? word_at(raw, 0) : 0;
+        if (m.holder_at != 0) m.step = Step::Part;
+        if (got == 1) return false;
+        break;
+      }
+      case Step::Part: {
+        m.step = Step::Piece;
+        std::array<std::byte, 8> raw{};
+        const int got = m.read(gt, reader, m.holder_at + m.o.vitals_at, raw);
+        if (got == 2) {
+          m.step = Step::Part;
+          return false;
+        }
+        m.part_at = got == 1 && plausible(word_at(raw, 0)) ? word_at(raw, 0) : 0;
+        if (m.part_at != 0) m.step = Step::PartRead;
+        if (got == 1) return false;
+        break;
+      }
+      case Step::PartRead: {
+        m.step = Step::Piece;
+        const int got = m.read(gt, reader, m.part_at, m.part_now);
+        if (got == 2) {
+          m.step = Step::PartRead;
+          return false;
+        }
+        m.part_read_now = got == 1;
+        if (got == 1) return false;
+        break;
+      }
       case Step::Piece: {
         if (m.object_now >= kObjects) return finish();
+        if (m.object_now == 1 && m.piece_from == 0 && !m.part_tried_now && m.target[1] != 0 && m.player_at != 0 &&
+            m.o.parts_at != 0 && m.o.anchor_count != 0) {
+          m.part_tried_now = true;
+          m.step = Step::Holder;
+          break;
+        }
         Impl::Object& ob = m.objects[m.object_now];
         const std::uint64_t at = m.target[m.object_now];
         const std::uint32_t from = m.piece_from;
@@ -365,6 +501,11 @@ bool SheetScan::step(const proto::GameThread& gt, GuardedReader& reader, std::ui
         }
         // (A piece that had to be asked for smaller leaves the size as it is: what follows is asked for at that
         // size too, and the first failure at 1 KiB ends the object there.)
+        if (m.object_now == 1 && from == 0 && m.part_read_now) {
+          // The part's copy of a moment ago against the sheet's numbers in the piece just read.
+          m.match(std::span<const std::byte>(out), size);
+          m.part_read_now = false;
+        }
         if (m.object_now == 1 && from == 0) {
           // Whether the sheet is an object of a class (its first word lies in the image), and whether it is the
           // object one of the save data's two words leads to (the round's leads), by the copies already made.
@@ -398,6 +539,8 @@ SheetFound SheetScan::found() const {
   out.sheet_classed = s.sheet_classed;
   out.sheet_is_first = s.sheet_is_first;
   out.sheet_is_second = s.sheet_is_second;
+  out.part_passes = s.part_passes;
+  out.matches.assign(s.matches.begin(), s.matches.begin() + static_cast<std::ptrdiff_t>(s.match_count));
   for (std::size_t i = 0; i < kObjects; ++i) {
     const Impl::Told& t = s.objects[i];
     SheetObject ob;
@@ -412,6 +555,8 @@ SheetFound SheetScan::found() const {
     ob.restless = t.restless;
     ob.fields.assign(t.fields.begin(), t.fields.begin() + static_cast<std::ptrdiff_t>(t.field_count));
     ob.texts.assign(t.texts.begin(), t.texts.begin() + static_cast<std::ptrdiff_t>(t.text_count));
+    ob.rises_total = t.rises_total;
+    ob.rises.assign(t.rises.begin(), t.rises.begin() + static_cast<std::ptrdiff_t>(t.rise_count));
     out.objects.push_back(std::move(ob));
   }
   return out;

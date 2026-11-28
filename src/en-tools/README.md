@@ -341,7 +341,7 @@ place, its play time rising.
 ## eval and mockllm: the first conversation, offline (S11.3, part B; WHY§364)
 
 ```sh
-eldennet-engine eval <scenario.toml> --llm mock|recorded [--report FILE]
+eldennet-engine eval <scenario.toml> --llm mock|recorded [--arm FOLDER] [--report FILE]
 eldennet-engine mockllm --script <mock.toml> [--requests N]
 ```
 
@@ -357,9 +357,11 @@ recorded` with its recorded events, each request's from its own start with the l
 A scenario (`tests/scenarios/talk/*.toml`, `lib/eval_run.hpp` has its schema) names its persona, its overrides, its
 script and recording, one invented character (its NpcParam row, distance, bearing; the clock and the subtitles), and
 its steps from when the world is ready and the observer allows chat: `open`, `say`, `wait`, `esc`, `skip`, `move`,
-`flags` and `expect`, whose fields (the state, the box, the lines, the "…" pages, the deflections, the regenerations and
+`flags`, `restart` (a fresh core with the same content and flag state: a first meeting again, with no earlier lines)
+and `expect`, whose fields (the state, the box, the lines, the "…" pages, the deflections, the regenerations and
 the requests cancelled so far, the last ending, the last reply's text, a toast that went up, and texts the last
-dialogue request's messages hold or lack, `prompt_has` and `prompt_lacks`) are each checked. The world's flag state is
+dialogue request's messages hold or lack, `prompt_has` and `prompt_lacks`, and the reply attempts whose "Name:" the
+sanitizer took, `name_prefixes`) are each checked. The world's flag state is
 a fixture state (`[world] flags`, then each `flags` step): the scenario's overrides give a catalogue that a `ci:` record
 verifies in the eval's realm alone, the core sends its watch list, and the runner answers every fourth snapshot with a
 FlagFrame of the state's aliases, as the game task would (S11.3.c). A failed `prompt_has` names its line and index.
@@ -371,10 +373,39 @@ world's frame in its first sentence regenerated once with block 11's reminder; t
 and the persona's deflection) and `lantern-long-reply` (the reply's second sentence fills it past the word cap, and the
 stream is cancelled while it streams).
 
-**The report is local-only.** `--report FILE` writes JSON (schema 1, `kind = "eval-local"`): each line of the
-Tarnished's and the reply shown, as committed, with its pages, words, cut-off, "…" page, deflection, requests and the
-time to its first page; the metrics (replies shown, the share within `reply_words_max`, "…" pages, deflections,
-cut-offs, regenerations, requests, cancels, the first page's median and maximum); the toasts, the endings and the
+**Memory** (v0.3; MEM §2.8, §3.8, §9; Q6: the design's names, the runner's TOML). `store = true` runs the core against
+en-store's StoreCore on a temporary folder of the run's own (removed after it), the account attached, each step's
+store requests answered in order, each answer the core's next input, as T9 would. `character` names the Tarnished
+(invented), and `[[world.extra]]` places more invented characters after the partner. The steps: `native_talk` (the
+game's own talk with the partner), `strike` (the Tarnished's blow), `ng_plus`, `reload` (the title, then a new
+session's core and store thread on the same file), `kill` (the process dies: nothing closed or flushed), `load` (an
+older save at `pt`), `choose` (the rollback's answer), `wait_jobs` (nothing to wait for until the memory job) and
+`move` with `who`; and `expect`'s `mode`, `fact` (the journey's, as the core folds it) and `audience` (the events of a
+kind a persona perceived so, read through en-store's own query). `wren_and_kale` runs MEM §2.8's steps A to F and H on
+scripted replies (`slot = "memory"` replies answer the memory job, each slot in its own order): A's chat and its
+audiences and journal v1 with the told name, C's claim filed with `slew:godrick`, B's native talk as a second meeting,
+D's fall proving the claim at render, E's strike, and F after a reload, whose prompt holds block 8, the tail, the
+since-line and the Tarnished's-part cue; F's job filing the blow and F2's lived version, which the next prompt
+carries; then H's NG+. And `older_save` a hard kill mid-conversation (the next session ends it as crashed, a meeting)
+and an older save an hour back, whose choice refuses named chat with its toast until Forget takes back what came
+after. `kale_news` runs the reaction cue in conversation: a second meeting an hour after the castle's fall opens with
+the since-line and the cue, a line 30 s later finds the item in its news cooldown, and one 90 s later carries it
+again.
+
+**The speech tap** (`lib/speech_tap.hpp`; WHY§410). The core runs the eval's own speech parts (`Core(SpeechParts)`):
+part A's sanitizer, lint and pager over the content's lexicon, each wrapped, so that every reply attempt the
+conversation opens is recorded with its context (the sanitizer's names, the lint's context, the word cap) and counted:
+the sanitizer's removals by step, the "Name:" prefix by class (`name`, one of the speaker's names; `short`, a general
+prefix of at most two words; `long`, which a narrower rule would keep, such as "But know this:"), the lint's soft and
+hard hits, the archaic sentences whatever the register allows (a shadow lint with `archaic = false`, for the
+`archaic-regal` share), the pager's Full and Over, and a trailer or a run-on from the stream's flow. `--arm FOLDER`
+loads an overrides folder after the scenario's (the positive-wording arm's former prompts, `tests/x1/arms/former/`).
+
+**The report is local-only.** `--report FILE` writes JSON (schema 2, `kind = "eval-local"`): each line of the
+Tarnished's and the reply shown, as committed, with its pages, words, cut-off, "…" page, deflection, requests, the
+time to its first page and its first try's speech counts (and its regeneration's); the metrics (replies shown, the
+share within `reply_words_max`, "…" pages, deflections, cut-offs, regenerations, requests, cancels, the first page's
+median and maximum, the first tries' speech counts and the "Name:" prefixes by class); the toasts, the endings and the
 expectations that failed. It holds model text, unlike the numbers-only reports, so it is written only where
 `--report` says, never into the repository (`eval-reports/` is ignored by git) and never uploaded (PV rules); there is
 no default path. What `eval` prints is numbers only, and a failed `last_npc` names its line, not the text. Exit codes:
@@ -388,6 +419,49 @@ text cut into chunks at a pace, its first token's delay, a `<think>` leak with a
 en-llm's error class to end with once en-llm's own retries and fallback are spent; the last repeats unless
 `repeat_last = false`; a cancelled request ends with Cancelled at once. ARCH §12.3's `mockllm` as a local SSE server
 (for en-llm's live path) is not built: the eval and the tests need only the scripted model.
+
+## eval --set: X1 outside the game, through LLM Jobrunner (NPC §12.2; O139 to O142)
+
+```sh
+eldennet-engine eval --set tests/x1/x1.toml --jobpack <folder>
+eldennet-engine eval --set tests/x1/x1.toml --jobrunner-results <results.jsonl> [--jobrunner-results ...]
+                     [--report FILE] [--summary FILE] [--questions FILE]
+```
+
+X1 runs on the owner's own model servers through LLM Jobrunner, which runs a jobpack's items one by one and cannot
+chain turns (O140). So every turn of X1's set (`tests/x1/x1.toml`, `lib/eval_x1.hpp` has its schema) is an item of its
+own, whose messages are the prompt the core renders for that line when the conversation before it went as we wrote it.
+- **The history is ours.** Each scenario runs once through the real core with its scripted model, whose replies are
+  our own lines in the persona's voice; each line's first request is captured as en-llm would send it to a server that
+  takes no cache marks, with the dialogue slot's sampling (140 tokens, temperature 0.8, the two stop sequences,
+  thinking off). A scripted reply that does not show whole, as written (a regeneration, a deflection, a failure, a
+  cut-off, the lint or the pager's caps), refuses the export, since the turns after it would not hold our history.
+- **The set**: five voice sets of fifty turns in ten conversations of five (Kalé, the Lantern-Keeper and X1's three
+  register fixtures, `x1_regal`, `x1_broken` and `x1_chant`, bound in `tests/scenarios/talk/pilot-overrides/`), each
+  in two arms, the prompts as they ship and the positive-wording arm's former wording (`tests/x1/arms/former/`: world
+  frame, contract and the promise reminder, NPC §12.2); and both personas' test questions, six each, at three fixture
+  states, each after a `restart`, run three times on every server. 512 items in three jobpacks (`x1-voice-1`,
+  `x1-voice-2`, `x1-questions`), each within Jobrunner's caps (2 MB, 2,000 items, 5,000 runs for 8 servers up), with
+  `server: "*"` and ids `<arm>-<persona>-<code>-t<NN>` (`-x3` for a repeat).
+- **The import** reads each results.jsonl (unzipped from Jobrunner's Download zip) as untrusted data: at most 64 MB, a
+  line at most 1 MB, each line's keys, types and sizes Jobrunner's own, its id one of the set's, its run within the
+  item's repeat, its messages (when Jobrunner kept them) the item's to the byte, no run read twice; a line that fails
+  is refused by its number and a fixed reason, never quoted. A server's name outside Jobrunner's form, and a model's
+  name beyond its file name or with anything like an address in it, are written as `server-N` or `model-N`. Each
+  reply then runs through the sanitizer, lint and pager on its own (`run_speech`), with its turn's recorded context.
+- **What it writes**, each only where its flag says: `--report`, the local report (`x1-local`, model text: every
+  result with what would show and its counts); `--summary`, numbers and labels only (`x1-summary`: per server and
+  model, the time to first token and tokens per second from Jobrunner's timings, then per persona, arm and kind the
+  share within the word cap, the pager's cuts, hard hits and what they would do, the promise rate, archaic lines and
+  sentences, openers stripped, tics past their cap, contract breaks caught by kind and shown, the "Name:" prefixes by
+  class; C10 on the non-archaic personas' shipped wording, whether the set was whole, the archaic-regal share against
+  25 to 60%, and the arms side by side); `--questions`, the test questions' replies with the prompts they answered
+  (`x1-questions`, model text) for the Engine session's scoring (O142). What it prints is counts and the bounded names.
+
+`en_tools_x1` (`tests/x1_cli_test.py`) exports the set, checks each jobpack against Jobrunner 1.4's own rules for a
+jobpack/1 file, mirrored in our own code from its `llm_jobrunner.py` (Jobrunner is never imported or run), checks that
+a second export gives the same bytes, and imports our invented sample of Jobrunner's results
+(`tests/x1/sample-results.jsonl`, written by us, never from a real run).
 
 CTest runs each scenario's `eval --llm mock`, and `--llm recorded` where it has a recording, as `en_eval.<name>.<llm>`
 with the label `eval`, on demand only (`ctest -C eval -L eval`, BUILD.md), its reports in the build tree's

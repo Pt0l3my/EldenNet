@@ -51,7 +51,9 @@ inline constexpr float kSquadJoinM = 20.0f;
 inline constexpr Mono kCombatSignalMs = 8000;
 inline constexpr Mono kHardWindowMs = 3000;
 inline constexpr float kHardFraction = 0.30f;
-inline constexpr float kWitnessM = 20.0f;   // AllyDied's witnesses; an unseen attack's reach
+inline constexpr float kWitnessM = 20.0f;   // AllyDied's witnesses; an unseen attack's reach; KilledNear's witnesses
+inline constexpr float kTalkWithM = 3.0f;   // a native talk's persona (DESIGN §6.5)
+inline constexpr float kFoughtBesideM = 40.0f;  // FoughtBeside: a persona within the combat radius at a Victory
 inline constexpr float kConfGate = 0.6f;     // gating and barks use only engagements of this confidence or more
 
 // A small ring of the newest N items, oldest first.
@@ -189,6 +191,9 @@ class WorldModel {
   [[nodiscard]] const std::optional<BossFight>& fight() const noexcept { return fight_; }
   [[nodiscard]] const WorldFacts& facts() const noexcept { return facts_; }
   [[nodiscard]] Mono now() const noexcept { return world_.t; }
+  // The persona a native talk is with at the last snapshot: the nearest present, living persona within 3 m while the
+  // popup's talk id, the talk camera or the HUD's pop-up menu is up (DESIGN §6.5; S3 picks the signals).
+  [[nodiscard]] const std::optional<ChrHandle>& talk_with() const noexcept { return talk_with_; }
 
   // The samples of §8.3's derivations at the last processed snapshot.
   [[nodiscard]] Value sample(SignalId id, const Tracker& t) const noexcept;
@@ -231,6 +236,7 @@ class WorldModel {
   std::vector<Squad> squads_;
   SquadId next_squad_ = 1;
   std::optional<Mono> last_combat_signal_;
+  std::optional<ChrHandle> talk_with_;  // the persona a native talk is with (talking_with), at the last snapshot
   std::optional<BossFight> fight_;
   std::uint32_t fights_ = 0;
 };

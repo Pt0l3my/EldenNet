@@ -95,54 +95,49 @@ fill    ink.hi       1159, 701    2x9    clip1
 tri     ink.hi       1153, 709   14x7    clip1 v
 text    ink.mute      390, 744   34x25   clip1 glyphs 4 "Time"
 text    ink.mute      862, 744   25x25   clip1 glyphs 3 "Job"
-text    ink.mute      986, 744   59x25   clip1 glyphs 7 "Purpose"
-text    ink.mute     1110, 744   59x25   clip1 glyphs 7 "Speaker"
-text    ink.mute     1234, 744  101x25   clip1 glyphs 11 "Provider and model"
-text    ink.mute     1374, 744   93x25   clip1 glyphs 10 "First token"
-text    ink.mute     1548, 744   42x25   clip1 glyphs 5 "Total"
-text    ink.mute     1664, 744   51x25   clip1 glyphs 6 "Tokens"
-text    ink.mute     1730, 744   59x25   clip1 glyphs 7 "Outcome"
+text    ink.mute      974, 744   59x25   clip1 glyphs 7 "Purpose"
+text    ink.mute     1095, 744   59x25   clip1 glyphs 7 "Speaker"
+text    ink.mute     1190, 744  152x25   clip1 glyphs 16 "Provider and model"
+text    ink.mute     1467, 744   93x25   clip1 glyphs 10 "First token"
+text    ink.mute     1604, 744   42x25   clip1 glyphs 5 "Total"
+text    ink.mute     1683, 744   51x25   clip1 glyphs 6 "Tokens"
+text    ink.mute     1749, 744   59x25   clip1 glyphs 7 "Outcome"
 line    rule          365, 774 1490x1    clip1
-tri     ink.mute      365, 798   13x13   clip1 >
 text    ink.hi        390, 790   66x28   clip1 glyphs 7 "0:11:45"
-text    ink.body      986, 792   84x25   clip1 glyphs 9 "model list"
-text    ink.body     1234, 792   93x25   clip1 glyphs 11 "lantern-box"
-text    ink.body     1540, 792   51x25   clip1 glyphs 5 "0.14 s"
-text    ink.body     1730, 792   68x25   clip1 glyphs 8 "answered"
+text    ink.body      974, 792   84x25   clip1 glyphs 9 "model list"
+text    ink.body     1190, 792   93x25   clip1 glyphs 11 "lantern-box"
+text    ink.body     1596, 792   51x25   clip1 glyphs 5 "0.14 s"
+text    ink.body     1749, 792   68x25   clip1 glyphs 8 "answered"
 line    rule          365, 834 1490x1    clip1
-tri     ink.mute      365, 858   13x13   clip1 >
 text    ink.hi        390, 850   66x28   clip1 glyphs 7 "0:11:45"
-text    ink.body      986, 852   84x25   clip1 glyphs 9 "model list"
-text    ink.body     1234, 852   84x25   clip1 glyphs 10 "openrouter"
-text    ink.body     1540, 852   51x25   clip1 glyphs 5 "0.61 s"
-text    ink.body     1730, 852   68x25   clip1 glyphs 8 "answered"
+text    ink.body      974, 852   84x25   clip1 glyphs 9 "model list"
+text    ink.body     1190, 852   84x25   clip1 glyphs 10 "openrouter"
+text    ink.body     1596, 852   51x25   clip1 glyphs 5 "0.61 s"
+text    ink.body     1749, 852   68x25   clip1 glyphs 8 "answered"
 line    rule          365, 894 1490x1    clip1
-tri     ink.mute      365, 918   13x13   clip1 >
 text    ink.hi        390, 910   66x28   clip1 glyphs 7 "0:11:30"
 text    ink.body      862, 912   76x25   clip1 glyphs 9 "Self-test"
-text    ink.body      986, 912   76x25   clip1 glyphs 9 "self-test"
-text    ink.body     1234, 912  101x25   clip1 glyphs 12 "talker-small on openrouter"
-text    ink.body     1416, 912   51x25   clip1 glyphs 5 "0.38 s"
-text    ink.body     1540, 912   51x25   clip1 glyphs 5 "1.02 s"
-text    ink.body     1689, 912   25x25   clip1 glyphs 3 "120"
-text    ink.body     1730, 912   68x25   clip1 glyphs 8 "answered"
+text    ink.body      974, 912   76x25   clip1 glyphs 9 "self-test"
+text    ink.body     1190, 912  219x25   clip1 glyphs 24 "talker-small on openrouter"
+text    ink.body     1509, 912   51x25   clip1 glyphs 5 "0.38 s"
+text    ink.body     1596, 912   51x25   clip1 glyphs 5 "1.02 s"
+text    ink.body     1708, 912   25x25   clip1 glyphs 3 "120"
+text    ink.body     1749, 912   68x25   clip1 glyphs 8 "answered"
 line    rule          365, 954 1490x1    clip1
-tri     ink.mute      365, 978   13x13   clip1 >
 text    ink.hi        390, 970   66x28   clip1 glyphs 7 "0:11:30"
 text    ink.body      862, 972   76x25   clip1 glyphs 9 "Self-test"
-text    ink.body      986, 972   76x25   clip1 glyphs 9 "self-test"
-text    ink.body     1234, 972  101x25   clip1 glyphs 12 "talker-small on openrouter"
-text    ink.body     1416, 972   51x25   clip1 glyphs 5 "0.42 s"
-text    ink.body     1540, 972   51x25   clip1 glyphs 5 "0.59 s"
-text    ink.body     1689, 972   25x25   clip1 glyphs 3 "106"
-text    ink.body     1730, 972   68x25   clip1 glyphs 8 "answered"
+text    ink.body      974, 972   76x25   clip1 glyphs 9 "self-test"
+text    ink.body     1190, 972  219x25   clip1 glyphs 24 "talker-small on openrouter"
+text    ink.body     1509, 972   51x25   clip1 glyphs 5 "0.42 s"
+text    ink.body     1596, 972   51x25   clip1 glyphs 5 "0.59 s"
+text    ink.body     1708, 972   25x25   clip1 glyphs 3 "106"
+text    ink.body     1749, 972   68x25   clip1 glyphs 8 "answered"
 line    rule          365,1014 1490x1    clip1
-tri     ink.mute      365,1038   13x13   clip1 >
 text    ink.hi        390,1030   66x28   clip1 glyphs 7 "0:11:30"
-text    ink.body      986,1032   76x25   clip1 glyphs 9 "self-test"
-text    ink.body     1234,1032   84x25   clip1 glyphs 10 "openrouter"
-text    ink.body     1540,1032   51x25   clip1 glyphs 5 "0.30 s"
-text    ink.body     1730,1032   68x25   clip1 glyphs 8 "answered"
+text    ink.body      974,1032   76x25   clip1 glyphs 9 "self-test"
+text    ink.body     1190,1032   84x25   clip1 glyphs 10 "openrouter"
+text    ink.body     1596,1032   51x25   clip1 glyphs 5 "0.30 s"
+text    ink.body     1749,1032   68x25   clip1 glyphs 8 "answered"
 fill    ground.2      340,1109 1540x230  r5 clip1
 stroke  rule          340,1109 1540x230  r5 w1 clip1
 text    gold          365,1129   67x20   clip1 glyphs 7 "Related"
@@ -168,4 +163,4 @@ stroke  edge          466,1044   42x28   r3 w1
 text    ink.body      474,1046   26x25   glyphs 3 "Esc"
 text    ink.faint     515,1045   34x25   glyphs 4 "Back"
 stroke  gold.hi       362, 218 1496x26   r5 w3 clip1
-# 153 items, 4646 vertices, 10047 indices, 4 commands; check_draw_list: passes
+# 149 items, 4738 vertices, 10137 indices, 4 commands; check_draw_list: passes

@@ -33,7 +33,11 @@ PAGES_JSON = ROOT / "src" / "en-overlay" / "pages" / "pages.json"
 SETTINGS_JSON = ROOT / "src" / "en-overlay" / "pages" / "settings.json"
 SPACE_CPP = ROOT / "src" / "en-overlay" / "src" / "space_data.cpp"
 
-PROTOCOL_MINOR = 16  # a stream's filter bar is protocol 1.16's (GraceUI D257), on 1.15's header switch (D256), 1.13's
+PROTOCOL_MINOR = 20  # the floor's (GraceUI 0.2.57 refuses page data of a newer minor, D264): 1.20's pages and topics
+#                     on this PC alone (pc_only, D264), on 1.19's report preview's share (D263), 1.18's filter's own
+#                     choices on a bar GraceUI filters itself (D262), 1.17's page in the browser alone, shown with a
+#                     setting, gated and ribboned (D258), 1.16's
+#                     stream's filter bar (D257), 1.15's header switch (D256), 1.13's
 #                     quick switches and live pages (D252), 1.12's document block, prose field and report preview's
 #                     command (D251), 1.11's filter bar (D250), 1.10's foot (D248), 1.8's sensitive commands and
 #                     settings (D221), 1.7's editor block (D217), 1.6's slow commands (D216), 1.5's topic families and
@@ -41,7 +45,7 @@ PROTOCOL_MINOR = 16  # a stream's filter bar is protocol 1.16's (GraceUI D257), 
 #                     and pickers (D192 to D196)
 SPACE_FIELDS = ("id", "name", "settings_schema", "commands", "slow_commands", "sensitive_commands", "quick")
 PAGE_FIELDS = ("id", "category", "name", "description", "help", "related", "increment", "tag", "actions", "master",
-               "tabs", "sections", "live")
+               "tabs", "sections", "live", "browser_only", "shown_with", "gate", "ribbon", "pc_only")
 SETTING_FIELDS = ("key", "type", "default", "min", "max", "step", "unit", "choices", "choices_from", "third", "label",
                   "help", "synonyms", "home", "effect", "availability", "locked", "sensitive")
 DELIMITER = ")space\""

@@ -1,0 +1,254 @@
+# The scripted model for x1-voice-broken.toml (mockllm): the persona's replies to X1's voice set, in its voice. Our own
+# words, one reply per request, in order.
+schema = 1
+repeat_last = false
+
+[[reply]]
+text = "My dogs. Good dogs. You stay calm."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Bite bad people. You not bad. Maybe."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Seven. Was nine. Winter took two."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Alone with dogs. Enough. People talk too much."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Good. Go slow. Dogs know."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Road west. Past dead tree. Smoke there."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Not at night. Day, maybe. Walk quick."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Field, then marsh. Marsh bad. Stay out."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Edge of woods. Rabbits. Sometimes worse."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Barn. Dry hay. Dogs watch, you sleep."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Rabbit. Scraps. Bones from traders."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Big dog. Long ago. My fault."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Dogs, yes. People, no. People lie."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Grey one. Old, smart. Never barks."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Thunder. Fire. Men with sticks."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Traders quiet. Fewer come. Bad sign."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Castle men, loud. Kick dogs. Hate them."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Traders, sometimes. I listen. Little."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Always. Hackles up. Then trouble."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Quiet birds. Quiet birds mean danger."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Don't know that. Got rope. Got dogs."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "No list. Ask simple. Get simple."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "No. Dogs need me. I stay."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Old enough. Older than dogs."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Don't understand. Talk plain. Talk dogs."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Born here. Dogs always, then scar. That's all."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Barn, well, broken fence. Kennels, grave. That's farm."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Patience, food. Same word, every day. Never hit."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Big boar, three dogs. Long night. We won, barely."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "No more. Words tired. Dogs hungry."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Saw you coming. Dogs told me."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Trader smelled wrong. Dogs growled. He left."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Fear. Lies. Same smell."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Grey one does. Others thinking."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Slow hand. Let him smell. Dogs know."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Straw. Close together. Me in middle."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Market. Once a season. Hate it."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Salt, rope, needle. Nothing else."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Dogs family. Enough family."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Cold took them. Buried by fence. Visit sometimes."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Well behind barn. Bucket there. Drink."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Some. Dogs bigger. Wolves remember."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "No map. Path west, path woods. Stay west."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "No puppies now. Spring, maybe. Ask then."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Always safe. Grey one mine."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Quiet winter. Fat rabbits. No soldiers."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Dogs happy. So me happy."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Fire in barn. Only that."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Talked enough. Ears hurt. Go well."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Bye. Dogs remember you."
+first_token_ms = 600
+chunk_ms = 40

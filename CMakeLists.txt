@@ -83,23 +83,23 @@ endif()
 
 # GraceUI's graceui-sys (its C helper, C++ wrapper and headless Dear ImGui helper), the ABI header it includes, and
 # graceui_test.h, the test build's exports, which the fake game reads in the tests alone: all five vendored unmodified
-# from GraceUI at 7fa3042 (GraceUI 0.2.53, protocol 1.17, ABI 1.8; graceui-sys's three unchanged since beca859,
-# graceui.h and graceui_test.h last changed at 99cc52a) with GraceUI's licence (third_party/graceui-sys,
+# from GraceUI at fc2205a (GraceUI 0.2.62, protocol 1.20, ABI 1.9; graceui-sys's three unchanged since beca859,
+# graceui.h last changed at dc3f68d and graceui_test.h at 825351c) with GraceUI's licence (third_party/graceui-sys,
 # THIRD_PARTY.md).
 # Each file is checked against its SHA-256 here, so that an edit is caught when the build is configured.
 foreach(pin IN ITEMS
     "LICENSE|8cdd091310968c1af65a292fad858fb4a13509d829e4d1e5594f3a391028a4e0"
-    "graceui.h|e66149145c16cf00c4f5f97e323d1bfea0f5e8ac6b381de35f403e6deebae86e"
+    "graceui.h|5db518f90c3119cc907346e33d9b7bc5d41645c841aad7cb7b67800df2ba582d"
     "graceui_sys.h|ceb0caa996291b1d60b0e3b5e7f3d61dda0b1b50db6126d4333a9353dfdd1e0e"
     "graceui_sys.hpp|2b42e2db6d4c8fd35852a22049bd009a05a75f50bb88e7c7870adb57697b548f"
     "graceui_imgui.hpp|4206f176a70cda7a7fe78af0d75b8a1d015f4dd0fb3a1451164320a4e4ac7786"
-    "graceui_test.h|a4b99d9a9237fa514ba08d74456433bbdd3cc0f032279d928b4c135f51986caa")
+    "graceui_test.h|e59067059410c3753acf852b626ce38a71c9e69d5977aa2c8ac31caa265c5a40")
   string(REPLACE "|" ";" pin "${pin}")
   list(GET pin 0 _en_path)
   list(GET pin 1 _en_sha256)
   file(SHA256 ${CMAKE_CURRENT_SOURCE_DIR}/third_party/graceui-sys/${_en_path} _en_have)
   if(NOT _en_have STREQUAL _en_sha256)
-    message(FATAL_ERROR "third_party/graceui-sys/${_en_path} is not GraceUI 7fa3042's (SHA-256 ${_en_have})")
+    message(FATAL_ERROR "third_party/graceui-sys/${_en_path} is not GraceUI fc2205a's (SHA-256 ${_en_have})")
   endif()
 endforeach()
 add_library(en_graceui_sys INTERFACE)
@@ -124,6 +124,7 @@ endif()
 include(cmake/sanitizers.cmake)  # EN_SANITIZE and EN_FUZZ, for Clang on Linux (ARCH §12.1)
 include(cmake/embed_files.cmake)  # en_embed_files: text files built in (Augur's rule files)
 include(cmake/link_rules.cmake)  # en_link_rule: ARCH §2.3's rules on the link graph, checked at configure time
+include(cmake/sqlite.cmake)  # SQLite 3.54.1's amalgamation (O146), en-store's alone: the build's one C target
 
 # The modules the DLL links hold no static object with a dynamic initialiser (it would run under the loader lock) or
 # with a destructor that runs at exit (it would run at DLL_PROCESS_DETACH): ARCH §3.1 and §1.7. Clang checks both.
@@ -144,6 +145,7 @@ add_subdirectory(src/en-proto)
 add_subdirectory(src/en-llm)
 add_subdirectory(src/en-augur)  # Augur, the event engine (part 11): below en-core, game-neutral
 add_subdirectory(src/en-core)   # the core's v0.1 slice: the lifecycle, the gate, L1, L2 and Dormant (part 5)
+add_subdirectory(src/en-store)  # the SQLite files, migrations and the store's request loop (v0.3; ARCH §2.2, MEM §8)
 # en-gal's portable part builds with every compiler; its SEH-guarded copy (__try/__except, ARCH §2.6) only with an
 # MSVC-like one, the clang-cl build (cmake/clang-cl-xwin.cmake): src/en-gal/CMakeLists.txt chooses.
 add_subdirectory(src/en-gal)
