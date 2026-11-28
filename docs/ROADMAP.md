@@ -2015,6 +2015,15 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the wait, greyed until then in both views, so Forget declares 1000; and `private = true` on a topic, which the lint
     keeps out of any status, header switch, filter or setting choices, scope or quick switch. Page data using either
     names minor 21. For v0.3's pages (S12.2.a), at the pin that takes it.
+- cb Steam's floating keyboard for the in-game menu's text fields on a pad (GraceUI 0.2.68) [done]
+  - refs: GraceUI:D275
+  - gives: GraceUI's D275, built on 2026-11-28 (GraceUI main; GraceUI's docs/eldennet-changes.md §101): an edit begun
+    from a pad's press opens Steam's floating keyboard, one line beside the field, through the flat exports of the
+    steam_api64.dll the game has loaded (never loading it, no SDK file, no game code); it closes when the field is let
+    go or the menu closes. Nothing for EldenNet to change. GraceUI's log says once whether it opened; whether it shows
+    over the game, reaches the field and keeps the window's focus is for S4's pad rows on testers' Decks or in Big
+    Picture (the owner tests with keyboard and mouse). GraceUI offers an ABI slot for EldenNet's chat box to open it
+    through GraceUI rather than call Steam itself; accepted for a later minor.
 
 ### S11.3 EldenNet v0.2
 
