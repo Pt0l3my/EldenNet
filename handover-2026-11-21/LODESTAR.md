@@ -98,6 +98,17 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    the rows whose status moved and the header's stamp, add a line under "Changes to this page", sweep the page
    by hand, and publish the edit. Our labels and the layout's own numbers only; nothing of the game, of other
    projects' code or of the owner's character. Refresh it after every round's review.
+   **The twenty-second round** (package 0.1.0-lodestar.29; the record's "What was changed for the twenty-second
+   round"; O151; built, in verification, then Engine's read and the owner's run): plan 4 (`--read-plan 4`, the
+   tour), twenty-one tasks and twelve marks. The reader on the focus, the stamina and the count of deaths; the
+   sheet scan's "every change a rise by one"; the survey's count of the near characters' focus and stamina; the
+   new scan by phases (`PhaseScan`) for the menu's state, the mount, the lock, the count of loading screens and
+   the place's id (where a field or a bit fits the tester's phases, never a value); the engine's and GraceUI's
+   ride-alongs (EldenNet's own megabytes and reader time; the window's two flags); the four keys T, Tab, V, B
+   as a step and the owner's word. A state's verdict is given at the next mark and stays. Engine's rulings on
+   the twenty-first (WHY§708): `save_data.player_data` confirmed (31 fields); the hour waits for the watch
+   beside the reader across an hour's end; the level for a run with one level gained (to ask the owner for a
+   later round); the name's length for its rule. The shared environment needed www.sqlite.org for Engine's head.
    **The twenty-first round, reviewed** (2026-11-28; the record's "The twenty-first round in game"): the report
    whole, the four tasks gathered, the stay's verdict nineteen seconds late (the flags' tree's walk took every
    step the scans yielded until the 333rd second, so the watch read for the last minute only; mended: the walk
