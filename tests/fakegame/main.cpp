@@ -144,7 +144,7 @@ bool parse_keys(const std::wstring& list, std::vector<Options::KeyPress>& out) {
   static constexpr Named kKeys[] = {{L"f5", VK_F5, 0x3F},      {L"next", VK_NEXT, 0x51}, {L"prior", VK_PRIOR, 0x49},
                                     {L"up", VK_UP, 0x48},      {L"down", VK_DOWN, 0x50}, {L"left", VK_LEFT, 0x4B},
                                     {L"right", VK_RIGHT, 0x4D}, {L"return", VK_RETURN, 0x1C},
-                                    {L"escape", VK_ESCAPE, 0x01}, {L"t", 0x54, 0x14},
+                                    {L"escape", VK_ESCAPE, 0x01}, {L"t", 0x54, 0x14}, {L"v", 0x56, 0x2F},
                                     {L"tab", VK_TAB, 0x0F},        {L"f11", VK_F11, 0x57}};
   std::size_t at = 0;
   while (at < list.size()) {

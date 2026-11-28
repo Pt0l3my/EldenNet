@@ -121,8 +121,8 @@ struct ChatBox {
 // ---- The talk hint and the target marker (NPC §5.1, §5.2) ----
 
 enum class HintVerb : std::uint8_t {
-  Speak,   // "[T] Speak — <name>"
-  Answer,  // "[T] Answer — <name>": a persona's line addressed to the Tarnished showed within 10 s (NPC §5.9)
+  Speak,   // "[V] Speak — <name>" (the talk key as bound: V by default, O152)
+  Answer,  // "[V] Answer — <name>": a persona's line addressed to the Tarnished showed within 10 s (NPC §5.9)
   Next,    // "Speak to <name> next": chat armed for the persona in a native talk (NPC §5.2, rule 1)
 };
 

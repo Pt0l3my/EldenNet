@@ -251,7 +251,7 @@ struct Caret {
 Caret paint_box(Painter& p, const Faces& f, const Display& d, const proto::ChatBox& box, const EditView& edit,
                 const proto::PageView* strip_page, float strip_alpha, float& scroll);
 
-// The hint, "[T] Speak — Kalé", "[T] Answer — Kalé" or "Speak to Kalé next", its key boxed (`key`, the words GraceUI's
+// The hint, "[V] Speak — Kalé", "[V] Answer — Kalé" or "Speak to Kalé next", its key boxed (`key`, the words GraceUI's
 // describe_hotkey gives; empty, no key), under the marker's diamond.
 // v0.2's surfaces read no render feed, so both sit where NPC §10.1 puts them without a camera: (0.50 W, 0.68 H).
 void paint_hint(Painter& p, const Faces& f, const Display& d, const proto::TalkHint& hint, std::string_view key);

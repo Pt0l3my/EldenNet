@@ -47,7 +47,7 @@ first conversation.
 7. On **AI › Self-test**, press **Run self-test**. It takes a few seconds and works at the title screen too. Its
    verdict says whether replies will come quickly enough.
 8. Load your character. When Home's state reads **Speaking**, walk up to one of the characters on Characters › Named
-   NPCs. When you are close, a hint shows the talk key: press **T**, type your line and press **Enter**. **Esc**
+   NPCs. When you are close, a hint shows the talk key: press **V**, type your line and press **Enter**. **Esc**
    closes the box.
 
 > **Note.** Model calls wait until EldenNet has confirmed that you are offline and alone in your own world. While you

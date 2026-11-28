@@ -2786,11 +2786,11 @@ def check_graceui_ai(r):
 # The first conversation (S11.3, part C; WHY§364) on the fake game, end to end: the test persona bound to the fake
 # game's invented row 81100 through the tests' overrides folder (tests/scenarios/talk/overrides), in the tests' realm
 # (ELDENNET_TEST_REALM, which only the probe build takes); a calm world (--calm); a local model server of the tests' own
-# (tests/pages/fake_models.py, on its keyless path) with a scripted reply; T pressed, a line typed and sent, the reply
-# shown in the lower third and committed, Esc. Invented words throughout.
+# (tests/pages/fake_models.py, on its keyless path) with a scripted reply; V pressed (the talk key, O152), a line typed
+# and sent, the reply shown in the lower third and committed, Esc. Invented words throughout.
 TALK_REPLY = ["Evening, traveller. ", "The lamp burns low tonight, ", "but it still burns."]
 TALK_TYPED = "Good evening"
-TALK_KEYS = "1500:t,1700:return,2400:escape"
+TALK_KEYS = "1500:v,1700:return,2400:escape"
 TALK_REPORTS = "1440,1530,1680,1760,1800,1840,1880,1920,2460"
 # The lower third's text on the frame (960 by 540, a content scale of 0.5): the page panel, bottom centre, its block's
 # bottom at 0.80 H; the text's ink, #E8E2D0.
@@ -2849,11 +2849,11 @@ def check_talk(r):
                             ("ELDENNET", "content_load", {"ok": 1, "personas": 1, "bound": 1}),
                             ("LAUNCHER", "end", {"kind": "clean"}))(r)
     failures += any_line(r, "ELDENNET", "net", dialogue=1)
-    # T: GraceUI's hotkey, the box opened by the core, its first frame submitted, input held with the holder's events.
+    # V: GraceUI's hotkey, the box opened by the core, its first frame submitted, input held with the holder's events.
     failures += any_line(r, "ELDENNET", "chat", what="open_key", via="talk_key")
     opened = [e for e in r.events("ELDENNET", "chat") if e.get("what") == "opened"]
-    keys = [e for e in r.events("FAKEGAME", "key_down") if e.get("key") == "0x54"]
-    need(opened and keys, "no box opened (%d) or no T pressed (%d)" % (len(opened), len(keys)), failures)
+    keys = [e for e in r.events("FAKEGAME", "key_down") if e.get("key") == "0x56"]
+    need(opened and keys, "no box opened (%d) or no V pressed (%d)" % (len(opened), len(keys)), failures)
     if opened and keys:
         latency = int(opened[0]["submitted_ms"]) - int(keys[0]["qpc_ms"])
         print("talk key to the box's first submitted frame: %d ms (T6's part %s ms)" % (latency, opened[0].get("ms")))
@@ -2893,7 +2893,7 @@ def check_talk(r):
 # which the probe build alone takes, pauses AI from the start, and the first conversation's set-up then sends nothing.
 # The ladder stays at L2 though the model is ready, the talk key reaches EldenNet and opens no box, and the fake model
 # server is asked nothing at all, neither a chat nor a model list.
-PAUSED_KEYS = "1500:t,1700:return"
+PAUSED_KEYS = "1500:v,1700:return"
 
 
 def check_talk_paused(r):
@@ -3589,7 +3589,7 @@ def check_store_crash(r):
 
 
 case("launcher-eldennet-graceui-store-crash", LGAME + ["--dll", "{eldennetdll}", "--console"] +
-     game("--d3d12", "--calm", "--play-time-s", str(STORE_PLAY_S), "--press-keys", "1500:t,1700:return",
+     game("--d3d12", "--calm", "--play-time-s", str(STORE_PLAY_S), "--press-keys", "1500:v,1700:return",
           "--type-at", "1560:" + TALK_TYPED, "--crash", "av-read", "--crash-at", "2100", frames=2700),
      again=[LGAME + ["--dll", "{eldennetdll}", "--console"] +
             game("--d3d12", "--calm", "--play-time-s", str(STORE_PLAY_S + 300), frames=900)],
@@ -3661,7 +3661,7 @@ case("launcher-eldennet-graceui-store-rollback", LGAME + ["--dll", "{eldennetdll
 # typing and F11 while it holds input, and the game's window gets none of it; the player's exit (the menu key twice)
 # ends the box's holder with its draft kept, which the box opened again gives back; Esc closes the box and never reaches
 # the game; after it, typing reaches the game and F11 opens the view.
-LEAK_KEYS = "1500:t,1620:f11,1680:f5,1700:f5,1800:escape,1900:t,1960:return,2000:escape,2200:f11"
+LEAK_KEYS = "1500:v,1620:f11,1680:f5,1700:f5,1800:escape,1900:v,1960:return,2000:escape,2200:f11"
 LEAK_REPORTS = "1440,1540,1660,1690,1760,1860,1940,1990,2040,2160,2260"
 LEAK_SETTINGS = 'schema = 2\ndebug = { panel = true, record_sessions = false, log_level = "debug" }\n'
 
@@ -3677,7 +3677,7 @@ def check_talk_leaks(r):
     failures += check_lines(("ELDENNET", "surfaces", {"state": "ready", "talk": "bound"}),
                             ("ELDENNET", "content_load", {"ok": 1, "bound": 1}),
                             ("LAUNCHER", "end", {"kind": "clean"}))(r)
-    # The box holds input: the T, the typing and F11 reach neither the game's window nor the view.
+    # The box holds input: the V, the typing and F11 reach neither the game's window nor the view.
     failures += want_grace(r, 1540, holder=2) + want_grace(r, 1660, holder=2)
     need(keys(1660) == keys(1440) and chars(1660) == chars(1440),
          "keys or characters reached the game while the box held input: %s %s, %s %s" %
@@ -3711,7 +3711,7 @@ case("launcher-eldennet-graceui-talk-leaks", LGAME + ["--dll", "{eldennetdll}", 
 # The talk hotkey's pad chord (S11.4.c; GraceUI D204, ABI 1.3, "pad-chords"), D-pad Up then View, against GraceUI's real
 # test build: the fake game reads pad 0 through GraceUI's XInput filter once a frame (--pad-chord-at; Wine has no pad):
 # Up alone for 250 ms, then Up and View for 650 ms. The game sees Up (the anchor) and never View; the hotkey fires once,
-# and EldenNet opens the box as for T, by the chord (`via=pad_chord`: GraceUI 0.2.38's hotkey_by, D243, says the chord
+# and EldenNet opens the box as for V, by the chord (`via=pad_chord`: GraceUI 0.2.38's hotkey_by, D243, says the chord
 # alone pressed it; `via=talk_key` from an older GraceUI, whose event does not say); no key is pressed. Then a line
 # typed and sent, and Esc closing the box.
 CHORD_KEYS = "1700:return,2400:escape"
@@ -3733,7 +3733,7 @@ def check_talk_chord(r):
     # The chord as the game read it: the anchor seen, View held 650 ms and never seen, the packet number moved when
     # GraceUI hid both (the fire), so that the game reads the change.
     failures += want(r, "FAKEGAME", "pad_chord", up_seen=(1, 1e9), view_reads=(20, 1e9), packets=(1, 1e9))
-    need(not [e for e in r.events("FAKEGAME", "key_down") if e.get("key") == "0x54"], "T was pressed", failures)
+    need(not [e for e in r.events("FAKEGAME", "key_down") if e.get("key") == "0x56"], "V was pressed", failures)
     # The hotkey's event, by the chord where GraceUI says so: the box opened by the core, input held.
     version, _ = graceui_version(r)
     by_chord = tuple(int(n) for n in version.split(".")) >= (0, 2, 38)
@@ -3772,7 +3772,7 @@ case("launcher-eldennet-graceui-talk-chord", LGAME + ["--dll", "{eldennetdll}", 
 # 1700 to 1900; T during it (1800) reopens the box in the core, whose rules see no danger, and GraceUI answers not now
 # (danger): the conversation ends with no line said, and the draft stays kept (WHY§586); T again after it (2000) gives
 # the draft back, which is sent; nothing typed reaches the game.
-DANGER_KEYS = "1500:t,1800:t,2000:t,2100:return,2400:escape"
+DANGER_KEYS = "1500:v,1800:v,2000:v,2100:return,2400:escape"
 DANGER_REPORTS = "1440,1540,1680,1760,1860,1960,2060,2460"
 
 

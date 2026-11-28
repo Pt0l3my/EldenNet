@@ -580,22 +580,23 @@ TEST_CASE("surfaces: toasts as notices, each id posted once and let go when no l
 TEST_CASE("surfaces: the box's input: Enter, Esc, Tab, the pad, the holder's end and the swallowed character") {
   using A = InputMap::Action;
   InputMap m;
-  m.open(1000, 0x54);  // T
+  m.open(1000, 0x56);  // V, the talk key's default (O152)
+  CHECK(key_char(0x56) == U'v');
   CHECK(key_char(0x54) == U't');
   CHECK(key_char(0x70) == 0);  // F1 types nothing
-  // The T's own character, within 100 ms: swallowed; the next is typed.
-  auto r = m.map(character(U't'), 1030);
+  // The V's own character, within 100 ms: swallowed; the next is typed.
+  auto r = m.map(character(U'v'), 1030);
   CHECK(r.swallowed);
   CHECK(r.action == A::None);
-  CHECK(m.map(character(U't'), 1040).action == A::Edit);
-  // Only the first character is looked at, and only within 100 ms; Shift's 'T' is the key's too.
-  m.open(2000, 0x54);
+  CHECK(m.map(character(U'v'), 1040).action == A::Edit);
+  // Only the first character is looked at, and only within 100 ms; Shift's 'V' is the key's too.
+  m.open(2000, 0x56);
   CHECK(m.map(character(U'h'), 2010).action == A::Edit);
-  CHECK_FALSE(m.map(character(U't'), 2020).swallowed);
-  m.open(3000, 0x54);
-  CHECK_FALSE(m.map(character(U't'), 3101).swallowed);
-  m.open(4000, 0x54);
-  CHECK(m.map(character(U'T'), 4050).swallowed);
+  CHECK_FALSE(m.map(character(U'v'), 2020).swallowed);
+  m.open(3000, 0x56);
+  CHECK_FALSE(m.map(character(U'v'), 3101).swallowed);
+  m.open(4000, 0x56);
+  CHECK(m.map(character(U'V'), 4050).swallowed);
   m.open(5000, 0);  // the pad's chord: nothing to swallow
   CHECK(m.map(character(U't'), 5010).action == A::Edit);
   // The keys the box takes itself, on a fresh press only; the rest go to its editor.

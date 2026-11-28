@@ -7,7 +7,7 @@
 //   faces, GraceUI's own files from its folder as GRACEUI_FACE_SCALED faces, before warm-up (GraceUI
 //   eldennet-changes §33, §69, §94): EB Garamond and Noto Sans, and EB Garamond Italic where GraceUI's folder has it
 //   (0.2.36's D241), or, with GraceUI's Plain text on at connect (O134; ABI 1.9's plain_text, D268), Noto Sans
-//   Regular and SemiBold (surfaces.hpp's faces_of); the hotkeys talk (T, with the pad chord D-pad Up then View
+//   Regular and SemiBold (surfaces.hpp's faces_of); the hotkeys talk (V, O152, with the pad chord D-pad Up then View
 //   behind has_cap("pad-chords"), §47) and skip (Tab), by their stable action ids and players' names (§48, §49).
 // - On T6, each event poll gives it: the talk hotkey opens (OpenChat, by the key or the pad chord as GraceUI's
 //   hotkey_by says, D243), Tab skips the page up; while the box holds input, GraceUI's holder events (D176): keys,
@@ -35,7 +35,7 @@ struct ImGuiContext;
 
 namespace en::overlay {
 
-inline constexpr std::uint32_t kKeyTalk = 0x54;   // VK 'T': the talk key's default (O94; NPC §5.1)
+inline constexpr std::uint32_t kKeyTalk = 0x56;   // VK 'V': the talk key's default (O152, for O94's T; NPC §5.1)
 inline constexpr std::uint32_t kKeySkip = 0x09;   // VK_TAB: the page's skip (NPC §8.6)
 inline constexpr std::string_view kActionTalk = "talk";
 inline constexpr std::string_view kActionSkip = "skip-page";
@@ -187,7 +187,7 @@ class Surfaces {
   std::uint32_t talk_ = 0;
   std::uint32_t skip_ = 0;
   std::uint32_t talk_vk_ = kKeyTalk;
-  std::string key_words_ = "T";
+  std::string key_words_ = "V";
   void* wake_ = nullptr;
   surfaces::Display display_;
   surfaces::Display made_for_;

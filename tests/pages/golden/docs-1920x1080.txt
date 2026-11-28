@@ -257,7 +257,7 @@ text    ink.body      954,1645  422x28   clip1 glyphs 38 "Load your character. W
 text    ink.hi       1376,1645   75x28   clip1 glyphs 8 "Speaking"
 text    ink.body     1451,1645  356x28   clip1 glyphs 29 ", walk up to one of the characters on "
 text    ink.body      954,1672  731x28   clip1 glyphs 63 "Characters › Named NPCs. When you are close, a hint shows the talk key: press "
-text    ink.hi       1685,1672    9x28   clip1 glyphs 1 "T"
+text    ink.hi       1685,1672    9x28   clip1 glyphs 1 "V"
 text    ink.body     1695,1672  159x28   clip1 glyphs 13 ", type your line "
 text    ink.body      954,1700   94x28   clip1 glyphs 8 "and press "
 text    ink.hi       1048,1700   47x28   clip1 glyphs 5 "Enter"

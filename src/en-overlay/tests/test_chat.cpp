@@ -143,7 +143,7 @@ TEST_CASE("chat: connect registers the surfaces' texture, faces, hotkeys and wai
   REQUIRE(g.hotkeys.size() == 2);
   CHECK(g.hotkeys[0].action == "talk");
   CHECK(g.hotkeys[0].name == "Talk");
-  CHECK(g.hotkeys[0].key == 0x54);
+  CHECK(g.hotkeys[0].key == 0x56);  // V (O152)
   CHECK(g.hotkeys[0].chord == GRACEUI_PAD_CHORD(0x0001, 0x0020));
   CHECK(g.hotkeys[1].action == "skip-page");
   CHECK(g.hotkeys[1].key == 0x09);
@@ -153,7 +153,7 @@ TEST_CASE("chat: connect registers the surfaces' texture, faces, hotkeys and wai
   CHECK(r.surfaces.wake);
   REQUIRE(o->wake() != nullptr);
   CHECK(WaitForSingleObject(static_cast<HANDLE>(o->wake()), 0) == WAIT_OBJECT_0);
-  CHECK(o->surfaces()->key_words() == "T");  // describe_hotkey's words
+  CHECK(o->surfaces()->key_words() == "V");  // describe_hotkey's words
   CHECK(g.panels.empty());  // no panel until the display is known
 }
 
@@ -334,7 +334,7 @@ TEST_CASE("chat: older GraceUIs: no chord without the cap, and no surfaces witho
   CHECK(g.hotkeys[0].chord == 0);
   CHECK_FALSE(r.surfaces.wake);
   CHECK(o->wake() == nullptr);
-  CHECK(o->surfaces()->key_words() == "T");  // no describe_hotkey: the default
+  CHECK(o->surfaces()->key_words() == "V");  // no describe_hotkey: the default (O152)
   fake::Grace h;
   h.caps = {"notices", "panels", "textures", "faces", "input", "world-state", "hotkeys", "display"};
   auto p = connect(h, options(), r);
@@ -648,7 +648,7 @@ TEST_CASE("chat: the hint's key words from describe_hotkey, again on a change; t
   proto::UiModel m;
   m.hint = proto::TalkHint{proto::HintVerb::Speak, "Lantern-Keeper", proto::ChrHandle{0x500}};
   (void)s.show(m);
-  CHECK(s.o->surfaces()->key_words() == "T");
+  CHECK(s.o->surfaces()->key_words() == "V");
   s.g.rebind("talk", 0x4B);  // K
   (void)s.poll();
   CHECK(s.o->surfaces()->key_words() == "K");

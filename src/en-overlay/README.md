@@ -94,10 +94,10 @@ The view takes no input (D142): F11 shows it and hides it.
   with a shadow; the card's "…"; no ground, as NPC §10.1 has it), the box (its header "Speak to … — heard by: …", the
   history strip's newest lines, the Tarnished's in the italic where GraceUI has it and upright otherwise, a
   waiting line greyed, the input with its selection and caret, scrolled so the caret shows, or the strip alone), and
-  the hint ("[T] Speak — …", its key boxed in the words describe_hotkey gives, under the
-  marker's diamond, at (0.50 W, 0.68 H): no render feed yet). The fades are stepped at T6's pace (120 ms in, a 120 ms
-  cross-fade, 350 ms out), and a Speech page's first submitted frame, never transparent, is the one PageShown names
-  (WHY§364 (3)). Toasts are GraceUI notices under EldenNet's keys 3 and 4, each id posted once and let go when the
+  the hint ("[V] Speak — …", V the talk key's default since O152, its key boxed in the words describe_hotkey gives,
+  under the marker's diamond, at (0.50 W, 0.68 H): no render feed yet). The fades are stepped at T6's pace (120 ms in, a
+  120 ms cross-fade, 350 ms out), and a Speech page's first submitted frame, never transparent, is the one PageShown
+  names (WHY§364 (3)). Toasts are GraceUI notices under EldenNet's keys 3 and 4, each id posted once and let go when the
   model no longer lists it. The box's input mapping: Enter and the pad's A send, Esc and the pad's B close, Tab skips,
   the rest goes to the editor; the holder's end by its reason; the opening key's own character within 100 ms
   swallowed (NPC §5.1).
