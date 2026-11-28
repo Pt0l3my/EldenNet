@@ -421,7 +421,8 @@ the conversation part B's (above); the core holds both.
   - each P event of the step (Augur's own, and the knowledge subscriber's StageChanged with its stages' ids `{from,
     to}`) is an Append with its frozen audience (en-augur's `freeze_into`) and the facts its fold moved. The
     conversation's commits give each conversation's row (ConvOpen, ConvClose with the core's own end word), its lines
-    (PlayerSaid; NpcSaid with its pages' ends and pts) and each later page (AppendPage). Ids come from the file's
+    (PlayerSaid; NpcSaid with its pages' ends and pts, each end the text's length to that page in code points, as
+    SQLite's `length()` and the trim's `substr()` count) and each later page (AppendPage). Ids come from the file's
     counters; a conversation of the session maps to its file row;
   - speech goes out in the step it happens, with whatever was queued before it; other writes go out at most every
     250 ms. A JourneyChanged into a later journey starts that journey's facts;

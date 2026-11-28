@@ -242,6 +242,25 @@ TEST_CASE("store path: the world waits for Opened; speech goes out in its step; 
   CHECK(one(*d, "SELECT value FROM npc_facts WHERE persona = 'lantern_keeper' AND key = 'met_count'") == "1");
 }
 
+TEST_CASE("store path: a reply's pages end where their text does, counted as SQLite counts it (code points)") {
+  // The trim cuts a reply across the cut at its last kept page's end with SQLite's substr() (MEM §9.6's T1), so each
+  // end, the first page's included, is the text's length in code points to that page: an accent counts once.
+  TempDir dir;
+  Session s(dir.path() / "saves");
+  s.boot();
+  s.world(30);
+  REQUIRE(s.core.state().gate_open);
+  s.talk("Is the lamp yours?", "Hé. It keeps me as I keep it.");
+  s.leave();
+  auto d = store::Db::open(live_of(dir.path() / "saves", the_key()), store::FileKind::Playthrough, false);
+  REQUIRE(d.has_value());
+  const std::string said = " FROM events WHERE kind = 'NpcSaid'";
+  REQUIRE(one(*d, "SELECT json_array_length(payload, '$.pages')" + said) == "2");
+  CHECK(one(*d, "SELECT json_extract(payload, '$.pages[0].end')" + said) == "3");
+  CHECK(one(*d, "SELECT substr(text, 1, json_extract(payload, '$.pages[0].end'))" + said) == "Hé.");
+  CHECK(one(*d, "SELECT json_extract(payload, '$.pages[1].end') = length(text)" + said) == "1");
+}
+
 TEST_CASE("store path: other writes are coalesced and go out within 250 ms; speech takes the queue with it") {
   StorePath p;
   p.attach(kAccount);
