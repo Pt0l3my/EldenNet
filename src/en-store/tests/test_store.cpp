@@ -122,6 +122,8 @@ TEST_CASE("store: a new file is made and opens clean; reopened, its start backup
   CHECK_FALSE(first.low_disk);
   CHECK(rig.value("SELECT v FROM meta WHERE k = 'created_by'") == "test-build");
   CHECK(rig.value("SELECT v FROM meta WHERE k = 'name_hash'") == "hash-of-an-invented-name");
+  CHECK(rig.value("SELECT count(*) FROM meta WHERE k LIKE '%steam%' OR v = '" +
+                  std::to_string(the_key().steamid64) + "'") == "0");  // the account is the folder's name alone
   CHECK(rig.value("SELECT reason || ':' || start_pt FROM epochs") == "open:600000");
   rig.put("PlaceEntered", 11 * kMin);
   rig.ok(rig.send(db::Close{}));
@@ -143,9 +145,11 @@ TEST_CASE("store: the account's pick is kept in meta, by its reason's word alone
   const auto pick = [&] { return rig.value("SELECT v FROM meta WHERE k = 'account_pick'"); };
   rig.ok(rig.send(db::Open{the_key(), kHour, 1, "newest"}));
   CHECK(pick() == "newest");
+  rig.value("INSERT INTO meta VALUES ('steamid64', '76561190000000001')");  // as slices 1 to 4 wrote it
   rig.ok(rig.send(db::Close{}));
   rig.ok(rig.send(db::Open{the_key(), kHour, 1, "changed"}));  // each open records the session's
   CHECK(pick() == "changed");
+  CHECK(rig.value("SELECT count(*) FROM meta WHERE k = 'steamid64'") == "0");  // a later open deletes it
   rig.ok(rig.send(db::Close{}));
   rig.ok(rig.send(db::Open{the_key(), kHour, 1}));  // none given: the last stays
   CHECK(pick() == "changed");

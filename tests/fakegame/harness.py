@@ -3502,8 +3502,9 @@ def check_store_open(r):
         need(len(reply) == 1 and reply[0][0].startswith(TALK_REPLY[0].strip()), "the reply in the file: %s" % reply,
              failures)
         meta = dict(store_query(files[0], "SELECT k, v FROM meta"))
-        need(meta.get("steamid64") == STORE_ACCOUNTS[1] and meta.get("slot") == "2",
-             "the file's meta: %s" % {k: meta.get(k) for k in ("steamid64", "slot")}, failures)
+        need(meta.get("slot") == "2", "the file's meta: slot %s" % meta.get("slot"), failures)
+        need(not any(STORE_ACCOUNTS[1] in v or "steam" in k for k, v in meta.items()),
+             "the file's meta records the account", failures)
         need("Wanderer" not in json.dumps(meta), "the file's meta holds the character's name", failures)
     return failures + store_log_is_clean(r)
 

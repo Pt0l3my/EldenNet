@@ -82,8 +82,8 @@ Result<void> StoreCore::init_file(const proto::PlaythroughKey& key, proto::Pt pt
                                   const std::string& account_pick) {
   auto tx = Transaction::immediate(pt_->db);
   if (!tx) return Unexpected{tx.error()};
+  // No SteamID: it names the player's account, is never recorded (steamid.hpp), and the folder's name holds it.
   const std::pair<std::string_view, std::string> rows[] = {
-      {"steamid64", std::to_string(key.steamid64)},
       {"slot", number_text(key.slot)},
       {"fp_version", "1"},
       {"fp8", key.fp8},
@@ -184,6 +184,7 @@ db::Opened StoreCore::do_open(const db::Open& o, std::optional<Fault>& fault) {
   } else {
     auto tx = Transaction::immediate(pt_->db);
     Result<void> r = tx ? meta_set(pt_->db, "last_opened_by", cfg_.build) : Result<void>(Unexpected{tx.error()});
+    if (r) r = exec(pt_->db, "DELETE FROM meta WHERE k = 'steamid64'");  // written by slices 1 to 4's builds
     if (r && !o.account_pick.empty()) r = meta_set(pt_->db, "account_pick", o.account_pick);  // MEM §8.2
     if (r && loc->renamed) r = meta_set(pt_->db, "fp8", o.key.fp8);
     if (r && loc->renamed) r = meta_set(pt_->db, "gift", number_text(o.key.gift));
