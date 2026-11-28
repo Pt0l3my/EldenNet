@@ -2383,6 +2383,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the pages' data. Personas first get an audience (WHY§688). SQLite 3.54.1 is pinned (O146). The rollback choice
     is asked only when what would be forgotten matters, in a centred panel (O144). The speaking-up settings wait on
     O145.
+    Slice 1 built on 2026-11-28 (engine wip/v03, merged at c64ae54; WHY§691 to §696): personas perceive in Augur with
+    frozen audiences; BLAKE3's keyed modes in en-proto; SQLite 3.54.1; en-store's files, backups, requests, open,
+    rollback by O144's rule with its summary, crash recovery, forgetting, NG+, its thread, queues and breaker, and the
+    fault tests. The fake game's suite under Wine: 150 of 150. Left: memory in the core (slice 2), then the DLL and
+    the pages' data (slice 3).
 - b What each persona has seen of the world, the since-line, and reaction cues
   - refs: MEM§12.13, O28
 - c The pacing core and the autonomous class; the pilot's own-initiative lines, once S3 and S6 allow them [done]

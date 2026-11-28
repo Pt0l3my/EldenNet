@@ -340,6 +340,10 @@ struct Outputs {
   exactly, with `.` as the decimal point and no grouping;
 - the DB tests use realistic ids, above 2³² and above 2⁵³, never only 1, 2 and 3 (§12.2).
 
+*Since 2026-11-28 (WHY§693; built in v0.3's first slice):* `DbRequest` and `DbResult` have no JSON form. They carry
+chat and model text and the player's file keys, cross only between the core and T9, and are never logged, recorded or
+reported; their tests use the structs. Every other message keeps its JSON form.
+
 ### 2.3 Dependency rules
 
 | Module | May depend on | Must not depend on |
@@ -367,6 +371,13 @@ render with no file of those names on disk); the folder source is never reached 
 
 Every third-party library is vendored with its licence, or fetched at configure time from its own project, pinned by
 SHA-256, into the build tree, and listed in `THIRD_PARTY.md` (§12.1).
+
+*Since 2026-11-28 (WHY§692, WHY§696; built in v0.3's first slice):* BLAKE3 is our own, in `en-proto`, with its keyed
+and derive-key modes, checked against BLAKE3's published cases; `en-core` (the playthrough's fingerprint) and
+`en-launcher` (the backups) share it, and no BLAKE3 library is linked. SQLite is 3.54.1's amalgamation (O146), fetched
+from sqlite.org and pinned by its SHA3-256 and SHA-256. Code in the DLL's modules uses no `std::chrono::clock_cast`,
+`zoned_time` or `current_zone`: MSVC's library then pulls in its time-zone database, which reads the registry and links
+`Advapi32`.
 
 **Never, in any module, at any version:** fromsoftware-rs's crates (`eldenring`, `shared`, `fromsoftware-*`),
 `from-singleton`, me3's crates (`me3-*`), `dearxan`, libER, or code copied from any of them. The third-party check

@@ -713,6 +713,12 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 688 | 2026-11-27 | v0.2 never gave personas an audience, so every memory item of v0.3 needs Augur's personas first | FACT | #engine #memory #augur |
 | 689 | 2026-11-27 | v0.3's plan: the readings the Engine settles | DECIDED | #engine #memory #eval |
 | 690 | 2026-11-27 | GraceUI's answers for v0.3's pages: Forget's arm, the rollback panel, chat text, 64-bit keys | FACT | #graceui #pages #memory |
+| 691 | 2026-11-28 | Personas perceive in Augur, with frozen audiences; what O147 left for v0.4 | DECIDED | #engine #augur #memory |
+| 692 | 2026-11-28 | BLAKE3 is our own, in en-proto, with its keyed modes | DECIDED | #engine |
+| 693 | 2026-11-28 | The store's messages carry no JSON form | DECIDED | #engine #privacy |
+| 694 | 2026-11-28 | The store's open and the rollback, as built | DECIDED | #engine #memory |
+| 695 | 2026-11-28 | The store's thread, its breaker and faults; reused event ids found and closed | DECIDED | #engine #memory |
+| 696 | 2026-11-28 | No clock_cast, zoned_time or current_zone in the DLL's modules | FACT | #engine #toolchain |
 
 ## Entries
 
@@ -10054,3 +10060,88 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   out of any later search or title, as a guard.
 - **Row keys** may be a 64-bit id as a string of digits, never a JSON number (the browser loses integers above 2^53):
   `conversation/18446744073709551615` fits GraceUI's 64-byte member id.
+
+### 691. Personas perceive in Augur, with frozen audiences; what O147 left for v0.4
+
+`2026-11-28` · DECIDED · `#engine` `#augur` `#memory` · refs: MEM§1.1, MEM§1.2, MEM§1.3, O147, WHY§688, engine c64ae54
+
+- en-core's `AugurView` classes a character bound to a loaded persona (its NpcParam row, then its entity id) as that
+  persona, at the stage its knowledge view gives; a persona perceives while conscious and not muted by its stage, and a
+  dead persona is in no audience (MEM §1.2's "alive").
+- The rule file `content/eldenring/augur/persona.toml`: PersonaSeen (P, the persona only), PersonaApproached (T),
+  PersonaAttacked (P, witnesses at 20 m), PersonaDied (P, 30 m), FoughtBeside (P, on a Victory), NativeTalkStarted and
+  Ended with a persona (P, the persona only) and KilledNear (K, 120 s, witnesses). A new audience radius, `subject`, is
+  MEM §1.1's "the persona only".
+- Left for v0.4 by O147: CameNear and the Timer's AutonomyTick, which only arm own-initiative lines; the rule loader
+  refuses them, naming the pacing core. Kept with a half that waits: PersonaApproached (the memory bundle's prefetch
+  now, the pre-S3 rule and own lines later) and KilledNear (its witnesses' "just now" lines now, `saw_kill` later).
+- Readings: the native talk's persona is the nearest living persona within 3 m while the talk pop-up, the talk camera
+  or the HUD's pop-up menu is up (a new chr signal, `talking_with`); FoughtBeside counts a persona present, alive, not
+  hostile and within 40 m at a Victory (whether as a summon needs S7); PersonaAttacked folds 2 s of play per persona
+  into one attack.
+- The conversation's commits become events (ConversationStarted T; PlayerSaid and NpcSaid P; ConversationEnded P),
+  each with Augur's audience: speech heard 16 m from the speaker, direct for the addressee, overheard by others.
+  MEM §1.3's `visible_to` is in `en-augur/audience.hpp`, and its two greps run in CTest (`en_augur_audience_grep`).
+- The three routes' goldens changed only their `rules_hash`; none holds a persona.
+
+### 692. BLAKE3 is our own, in en-proto, with its keyed modes
+
+`2026-11-28` · DECIDED · `#engine` · refs: WHY§174, MEM§8.3, ARCH§2.3, engine c64ae54
+
+- The launcher's BLAKE3 moved into en-proto and gained the keyed and derive-key modes, so the playthrough's fingerprint
+  (en-core) and the backups (en-launcher) share one implementation, written from the specification.
+- It is checked against 16 of BLAKE3's published cases in each mode; only those numbers were copied, from its tag
+  1.8.2 (CC0 1.0 or Apache 2.0), and named in THIRD_PARTY.md.
+
+### 693. The store's messages carry no JSON form
+
+`2026-11-28` · DECIDED · `#engine` `#privacy` · refs: ARCH§2.2, PV rules, engine c64ae54
+
+- ARCH §2.2 gives every message that crosses a thread a JSON form. C8's `DbRequest` and `DbResult` have none: they
+  carry chat and model text and the player's file keys, and are never logged, recorded or reported. Their tests use
+  the structs. ARCH §2.2 has a dated note.
+
+### 694. The store's open and the rollback, as built
+
+`2026-11-28` · DECIDED · `#engine` `#memory` · refs: MEM§8.3, MEM§9.1, MEM§9.2, MEM§9.5, O144, WHY§689, engine c64ae54
+
+- O144: with Δ over 5 minutes, or a save from an earlier journey, the store asks only if what the trim removes holds a
+  conversation's turn, an `NpcSaid` to the Tarnished, an event with an audience row (only profiled NPCs get rows), a
+  journal, lived or recall version written after the cut, a `StageChanged`, or a later journey's epoch. Otherwise the
+  trim is silent.
+- The summary (`RollbackSummary`) holds the save's play time and journey against the file's, counts per kind (claims
+  counted apart), the newest 8 items (kind, who as a profile id, place id, play time) and up to 16 stages undone
+  (persona, from, to, play time, from `StageChanged`'s payload, which slice 2's knowledge subscriber writes). No text.
+- Readings: H counts a reply's last page and a conversation's start, so a page shown after the save counts; a save
+  from an earlier journey is cut at the first later-journey epoch's start at the latest; a newer file is refused
+  before its start backup, so that good backups are not rotated out; the pre-forget backup goes in as the newest of the
+  three rotating ones; after Keep the result reads Clean; conversations take their ids from `meta.next_conv_id`.
+
+### 695. The store's thread, its breaker and faults; reused event ids found and closed
+
+`2026-11-28` · DECIDED · `#engine` `#memory` · refs: MEM§8.6, ARCH§1.3, C11, WHY§689, engine c64ae54
+
+- T9's C8 is two bounded queues of our own, 1,024 each way. `send` never blocks and answers `Full`. Each request runs
+  in its own transaction; a run of more than 16 appends shares one and falls back to one by one on a failure.
+- Found while testing: a failed transaction left the open file's counters in RAM ahead of the file, so a split burst
+  never wrote `next_event_id`, and a later session could hand out an id again (MEM's "ids are never reused"). Every
+  write now puts the counters back on a failure; the burst test checks the counter.
+- Found too: after a file was set aside as corrupt mid-session, the next session made a new, empty file. It now
+  restores the newest backup and says so (`restored_backup`, for the toast), as MEM §8.6 asks.
+- Readings: a passive checkpoint on the first quiet 250 ms after writes, at most once in 10 s, its result dropped
+  unless it trips the breaker (then a result with sequence 0 says so); a failed `Checkpoint` is a fault; an `Open`
+  that fails is not counted by the breaker, and a lock held at open answers `Busy` (whether the core retries is slice
+  2's).
+- The hard-kill test runs the test program as its own child (`posix_spawn` and SIGKILL, `CreateProcessW` and
+  `TerminateProcess`), not `fork`, which is unsafe in a process holding threads. The tests' fault VFS (FULL, IOERR, a
+  failed sync, CORRUPT reads) is registered by the tests alone and is never in `en_store`.
+
+### 696. No clock_cast, zoned_time or current_zone in the DLL's modules
+
+`2026-11-28` · FACT · `#engine` `#toolchain` · refs: ARCH§2.3, engine c64ae54
+
+- Found on clang-cl: `std::chrono::clock_cast` from the file clock (the backups' times) pulls MSVC's time-zone
+  database object (`tzdb.obj` in libcpmt), which links `Advapi32` and reads the leap-second table from the registry.
+  The link failed on Linux, and in the game it would be a registry read for nothing.
+- The file time is now converted by the two clocks' distance at that moment (no leap seconds, the same in every
+  library). The rule for every later module the DLL links is in ARCH §2.3's dated note.
