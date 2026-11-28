@@ -98,6 +98,18 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    the rows whose status moved and the header's stamp, add a line under "Changes to this page", sweep the page
    by hand, and publish the edit. Our labels and the layout's own numbers only; nothing of the game, of other
    projects' code or of the owner's character. Refresh it after every round's review.
+   **The twenty-first round, reviewed** (2026-11-28; the record's "The twenty-first round in game"): the report
+   whole, the four tasks gathered, the stay's verdict nineteen seconds late (the flags' tree's walk took every
+   step the scans yielded until the 333rd second, so the watch read for the last minute only; mended: the walk
+   yields too). Confirmed (WHY§614): `world_clock.minute`, `save_data.play_time` (30 fields now). Leads entered:
+   `vitals.fp` 0x148, `max_fp` 0x14C, `stamina` 0x154, `max_stamina` 0x158 (the part against the sheet, 104
+   passes); `save_data.death_count` 0x94 (hidden as text by the scan; one rise seen by the watch; the tester
+   died more than once, so "rose once" could not name it). Still leads: the clock's hour (no second reading in
+   the run), 0x53B bit 4 for the player's death (one sighting). For Engine's ruling: `save_data.player_data`
+   and `player_data.level` as confirmed. O124: a character of the world has an object of another class at
+   0x580. Next round wants: the reader on the four vitals and on the count of deaths, a rule "every change a
+   rise by one", a fake-game case whose tree's walk outlasts the round, and Engine's and Grace's ride-alongs
+   (asked of the owner first).
    **The twenty-first round** (package 0.1.0-lodestar.28, engine 0ce2889; the record's "What was changed for the
    twenty-first round"; built and verified, waiting for Engine's read and then the owner's run): plan 3
    (`--read-plan 3`, the stay): load somewhere quiet, stand 20 s, the tester's own death, 240 s of free play
