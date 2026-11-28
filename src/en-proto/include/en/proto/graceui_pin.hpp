@@ -26,14 +26,15 @@ inline constexpr std::uint32_t kAbiMajor = 1;  // graceui.h's GRACEUI_ABI_MAJOR,
 // editor block (0.2.21, D217) and a save's chosen row (0.2.22, D218), on 0.2.17's wait handle (ABI 1.5, D212), which
 // the chat box's opening within 50 ms needs (NPC §5.1); Docs' search, the filter bar (0.2.43, D250), and the rail's
 // foot (0.2.42, D248); and 0.2.45's quick switches and live pages (D252, protocol 1.13). The headers are GraceUI
-// 0.2.68's (ABI 1.9, protocol 1.21; EldenNet uses neither 1.6's uploads, D226, nor 1.8's on_present, D259), pinned
+// 0.2.70's (ABI 1.10, protocol 1.22; EldenNet uses neither 1.6's uploads, D226, nor 1.8's on_present, D259, nor 1.10's
+// pad_keyboard, D276, until S4), pinned
 // at 0.2.62 for 1.9's Plain text (D268), read behind its has_cap, and for the tests' space check (D265, D269) and page
-// presence (D269), and at 0.2.68 for the menu's fades (D271, D272) and Steam's keyboard (D275), which need nothing of
-// EldenNet's; what came after 0.2.22 but the pages is used only behind its has_cap,
-// or, for 0.2.36's EB Garamond Italic (D241), where GraceUI's folder holds the file: without it the Tarnished's lines
-// are drawn upright.
+// presence (D269), at 0.2.68 for the menu's fades (D271, D272) and Steam's keyboard (D275), which need nothing of
+// EldenNet's, and at 0.2.70 for the pad's keyboard (D276) and the rail's icons (D277); what came after 0.2.22 but the
+// pages is used only behind its has_cap, or, for 0.2.36's EB Garamond Italic (D241), where GraceUI's folder holds the
+// file: without it the Tarnished's lines are drawn upright.
 inline constexpr std::array<std::uint16_t, 3> kFloor = {0, 2, 67};
-inline constexpr std::string_view kCommit = "7c26477";  // GraceUI's main (D169 to D275), GraceUI 0.2.68
+inline constexpr std::string_view kCommit = "5702fae";  // GraceUI's main (D169 to D277), GraceUI 0.2.70
 
 // Whether a GraceUI version (major, minor, patch) is at least the floor.
 [[nodiscard]] constexpr bool at_least_floor(const std::array<std::uint16_t, 3>& v) noexcept {
