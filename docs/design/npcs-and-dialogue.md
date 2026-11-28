@@ -1653,6 +1653,11 @@ Up held first, then View, registered on the talk hotkey behind `has_cap("pad-cho
 replay; the order above is GraceUI's. The Steam floating keyboard is not built in v0.2. The talk hotkey cannot say
 whether the key or the chord fired it, so the opening's swallowed character is armed either way, harmless after a chord.
 
+*2026-11-28 (GraceUI D276, DESIGN R2's dated note):* the box opens the keyboard through GraceUI's `pad_keyboard` with
+mode GRACEUI_PAD_KEYBOARD_LINE, from EldenNet's own thread when the field begins editing from the pad, its holder
+asking for the keyboard; EldenNet calls no Steam function itself. GRACEUI_UNAVAILABLE (off a Deck or Big Picture)
+leaves the box as it is, and GraceUI closes the keyboard whenever the holder ends.
+
 ### 5.7 Ending a conversation (DESIGN §8.6)
 
 | Trigger | Behaviour | Reason |

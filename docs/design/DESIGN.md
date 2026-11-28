@@ -298,6 +298,8 @@ Dormant is drawn here as a state for brevity. It is implemented as a flag orthog
   into a heap object. This is the one documented exception to "game memory only on the game thread", and it ends when
   the task is registered.
 - **R2 No writes, no calls.** No game memory is written and no game function is called after `register_task`. Before it, the only game-code calls are `register_task` itself and the init-only singleton-name getter fallback (§4.2). Text, params and flags are read from memory (§4.5). The one call into third-party code is the S4-gated Steam floating keyboard (`steam_api64.dll`, never game code; §8.1).
+  *2026-11-28 (GraceUI D276):* GraceUI 0.2.69 opens that keyboard for the input holder's field (`pad_keyboard`), so the
+  chat box asks GraceUI and EldenNet makes no call into third-party code of its own, from the pin that takes it.
 - **R3 Guard foreign entries.** No exception crosses into foreign code. Every entry from it (`DllMain`, the C ABI
   exports, the game's task callback, GraceUI's callbacks, and the callbacks Windows or a library calls, such as
   WinHTTP's status callback and libcurl's write callback) is `noexcept` and starts with `ffi_guard`: a catch-all
@@ -1306,6 +1308,8 @@ Every NPC with a profile converses (O45). Where this section says *persona*, rea
   *Since 2026-11-22 (WHY§364 (6), WHY§437; built with the first conversation, S11.4.c):* the chord is GraceUI's D204,
   D-pad Up then View, registered on the talk hotkey behind `has_cap("pad-chords")`; the Steam floating keyboard stays
   unbuilt in v0.2. Where this bullet and NPC §5.6 write "View + D-pad Up", the order is GraceUI's.
+  *2026-11-28 (GraceUI D276):* the keyboard opens through GraceUI's `pad_keyboard`, never `ISteamUtils` from EldenNet
+  (R2's dated note).
 - **Talk hint and header:** "[T] Speak — Kalé" plus a target marker whenever chat is possible. The box header reads "Speak to Kalé — heard by: Kalé" (P2 §5.1, P3 §5.1).
   *2026-11-21, O97:* the header names the conversation's partner, the target the order below chose, and that target is
   the rules' pick for each line the player sends. When a sent line is heard by two or more profiled NPCs that may answer

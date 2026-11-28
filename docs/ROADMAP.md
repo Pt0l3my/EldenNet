@@ -2024,6 +2024,14 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     over the game, reaches the field and keeps the window's focus is for S4's pad rows on testers' Decks or in Big
     Picture (the owner tests with keyboard and mouse). GraceUI offers an ABI slot for EldenNet's chat box to open it
     through GraceUI rather than call Steam itself; accepted for a later minor.
+- cc Steam's floating keyboard for EldenNet's chat box, through GraceUI (GraceUI 0.2.69, ABI 1.10) [done]
+  - refs: GraceUI:D276, DESIGN§2.6, NPC§5.6
+  - gives: GraceUI's D276, built on 2026-11-28 (GraceUI main 0f0f5da; GraceUI's docs/eldennet-changes.md §102), the
+    slot S11.2.cb offered: `pad_keyboard(consumer, &keyboard)` opens the keyboard beside a field of the caller's own
+    panel while its holder asks for the keyboard; GRACEUI_UNAVAILABLE (12, new) off a Deck or Big Picture; GraceUI
+    closes it whenever the holder ends. EldenNet's chat box opens it this way and makes no Steam call of its own, so
+    DESIGN R2's one third-party call goes, at the pin that takes 0.2.69 and the build of the chat box's keyboard.
+    In-game check with Deck testers, as 0.2.68's.
 
 ### S11.3 EldenNet v0.2
 
