@@ -33,11 +33,14 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "en/core/event_log.hpp"
 #include "en/core/gate.hpp"  // Mono
 #include "en/core/identity.hpp"
+#include "en/core/store_path.hpp"
+#include "en/core/toasts.hpp"
 #include "en/core/knowledge.hpp"
 #include "en/core/predicates.hpp"
 #include "en/core/prompt.hpp"
@@ -152,6 +155,14 @@ struct ConversationWorld {
   const KnowledgeView* knowledge = nullptr;
   bool chat = true;
   bool self_awareness = true;
+  // Named chat held (MEM §9.1: the rollback choice waits): the talk key opens nothing and toasts these words.
+  std::string_view chat_held;
+  // Memory (v0.3; MEM §4): the store path while its file is open, whose facts and bundles give block 8 and block 6 (a);
+  // null keeps block 8 empty and takes block 6 (a) from `log`.
+  const StorePath* store = nullptr;
+  // The world model and the flag state the view came from: the since-line and the cue read them (MEM §12.6, §12.13).
+  const Knowledge* world_model = nullptr;
+  const FlagState* flags = nullptr;
 };
 
 struct ConversationInput {
@@ -193,6 +204,8 @@ class Conversation {
   Conversation& operator=(const Conversation&) = delete;
 
   ConversationOutput step(const ConversationInput& in);
+  // A toast of the core's own (the store's, store_path.hpp), under the same policy; shown from the next step.
+  void notice(ToastClass cls, proto::ToastLevel level, std::string text, Mono now);
 
   [[nodiscard]] const SpeechParts& parts() const noexcept { return parts_; }
   // For tests and the debug view.

@@ -40,6 +40,20 @@ std::vector<proto::AudienceRow> stored_audience(const Event& ev, const PersonaNa
   return out;
 }
 
+void freeze_into(proto::StoredEvent& out, const Event& ev, const PersonaNamer& id_of) {
+  out.audience = stored_audience(ev, id_of);
+}
+
+std::vector<std::pair<std::string, How>> perceivers(const proto::StoredEvent& ev, const VisCtx& ctx) {
+  std::vector<std::pair<std::string, How>> out;
+  if (ev.journey != ctx.journey || reserved(ev.kind)) return out;
+  out.reserve(ev.audience.size());
+  for (const proto::AudienceRow& a : ev.audience) {
+    if (!a.persona.empty()) out.emplace_back(a.persona, a.how);
+  }
+  return out;
+}
+
 std::size_t audience_size(const Event& ev) noexcept { return ev.audience.size(); }
 
 }  // namespace en::augur

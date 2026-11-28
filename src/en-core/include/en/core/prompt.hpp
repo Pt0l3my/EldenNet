@@ -19,6 +19,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "en/core/memory.hpp"
 #include "en/core/speech.hpp"  // HardList, for the reminder
 #include "en/proto/expected.hpp"
 #include "en/proto/llm.hpp"
@@ -90,8 +91,18 @@ struct DialogueContext {
   LintTally tally;  // the last reply's: block 11's note for each tic at its max_per_conversation (§3.3)
   Standing tied;    // block 5b: tied to the persona's own road
   Standing land;    // block 5b: the land's
-  // Blocks 7 and 8's other sources (the KB, the journal, keepsakes, facts and disposition, the told name, the
-  // since-line, the lived layer) come with the store and memory (v0.3) and join this context then.
+  // Block 8 from the store (memory.hpp; MEM §4.3), composed by the core; null leaves it empty. Block 6 (a)'s header
+  // says things have moved on when the persona's stage at that conversation differs from now.
+  const TarnishedBlock* tarnished = nullptr;
+  bool earlier_moved_on = false;
+  // Block 7's first lines (MEM §12.6, §12.13): the since-line, then the reaction cue (its reason's word and the item's
+  // short), then the cued item's own line under its certainty label when block 5b does not show it.
+  std::string since_line;
+  std::string cue_why;  // "own", "told", "local_here", "local_home"; empty: no cue
+  std::string cue_short;
+  std::string cue_label;  // "You know:", "You have heard:", "You believe:"
+  std::string cue_line;
+  // Block 7's other sources (the KB, the since-line, the cue) and block 3's lived layer join later commits.
 };
 
 struct RenderedPrompt {

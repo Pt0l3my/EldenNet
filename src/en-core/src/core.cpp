@@ -7,6 +7,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "content/wording.hpp"  // the lexicon's banned words, for the memory job's hygiene
 #include "en/core/profile.hpp"
 #include "en/core/speech_content.hpp"
 #include "en/core/speech_lint.hpp"
@@ -312,6 +313,12 @@ std::vector<ContentError> Core::load_content(std::span<const ContentFile> files,
     builtin_->lint.current = std::move(speech->lint);
     builtin_->prompt.current = std::move(speech->prompt);
   }
+  memory_prompts_.clear();
+  for (const ContentFile& f : pack->others) {
+    if (f.path.rfind("prompts/memory/", 0) == 0 || f.path.rfind("prompts/lived/", 0) == 0) {
+      memory_prompts_.push_back(f);
+    }
+  }
   directory_ = Directory::build(std::move(*pack), realm, predicates_);
   knowledge_ = std::move(*knowledge);
   realm_ = realm;
@@ -331,6 +338,8 @@ std::optional<std::string> Core::set_behaviour(const Behaviour& b) {
 void Core::forget_flags() {
   flags_ = knowledge_.unread();
   known_ = knowledge_.view(flags_);
+  flags_read_ = false;
+  stage_moves_.clear();
 }
 
 // MEM §6.6: the flag state from the newest processed frame of the current watch list; the view only when it changes.
@@ -340,7 +349,19 @@ void Core::on_flags(const proto::WorldSnapshot& s) {
   FlagState next = knowledge_.from_frame(watch_, *s.flags, realm_, journey);
   if (next == flags_) return;
   flags_ = std::move(next);
-  known_ = knowledge_.view(flags_);
+  KnowledgeView view = knowledge_.view(flags_);
+  // The knowledge subscriber (MEM §1.1): a persona whose active stage moved in play gives a StageChanged. The first
+  // frame of a playthrough only says where things stand.
+  if (flags_read_) {
+    for (std::size_t i = 0; i < view.personas.size() && i < known_.personas.size(); ++i) {
+      if (view.personas[i].stage != known_.personas[i].stage) {
+        stage_moves_.push_back({static_cast<std::uint32_t>(i), static_cast<std::uint32_t>(known_.personas[i].stage),
+                                static_cast<std::uint32_t>(view.personas[i].stage)});
+      }
+    }
+  }
+  flags_read_ = true;
+  known_ = std::move(view);
 }
 
 std::vector<augur::RuleError> Core::load_rules(std::span<const augur::RuleFile> files) {
@@ -410,6 +431,27 @@ void Core::run_augur(const proto::WorldSnapshot* s, const proto::Lifecycle* l, M
   }
   augur::EventBatch batch;
   augur_.step(augur::AugurInput{s, facts}, now, view_, batch);
+  for (const auto& [persona, from, to] : stage_moves_) {
+    augur::Event ev;
+    ev.id = augur_.next_id();
+    ev.kind = augur::StageChanged{augur::PersonaId{persona}, static_cast<augur::StageId>(from),
+                                  static_cast<augur::StageId>(to)};
+    ev.event_class = augur::Class::P;
+    ev.t_mono_ms = now;
+    if (last_ && last_->player) {
+      ev.t_play_ms = last_->player->play_time_ms;
+      ev.journey = last_->player->ng_lvl;
+    } else if (s != nullptr && s->player) {
+      ev.t_play_ms = s->player->play_time_ms;
+      ev.journey = s->player->ng_lvl;
+    }
+    ev.source = augur::SourceId::Subscriber;
+    ev.subject = augur::ActorRef{augur::ActorRef::Kind::Persona, {}, persona, 0};
+    ev.radius = augur::Radius::Subject;
+    augur_.resolve_audience(ev, view_);
+    batch.push_back(std::move(ev));
+  }
+  stage_moves_.clear();
   bus_.run(std::move(batch), now, augur_, view_, out.events);
 }
 
@@ -437,11 +479,22 @@ Outputs Core::step(CoreInput input, Mono now) {
                  [&](BootBanner& b) { on_banner(b, now, out); },
                  [&](CoreInput::Tick&) {},
                  [&](proto::UiEvent& e) { ui = &e; },
-                 [&](proto::LlmEvent& e) { llm = &e; },
+                 [&](proto::LlmEvent& e) {
+                   if (e.id >= kMemoryRequests) {
+                     on_memory_event(e, now, out);  // the memory job's: never the conversation's
+                   } else {
+                     llm = &e;
+                   }
+                 },
                  [&](proto::NetHealth& h) { net_ = h; },
                  [&](CoreInput::Pause& p) { state_.ai_paused = p.on; },
+                 [&](proto::DbResult& r) { on_store(r, now, out); },
+                 [&](CoreInput::Account& a) { store_.attach(a.steamid64); },
+                 [&](CoreInput::MemoryChoice& c) { store_.resolve(c.choice); },
              },
              input.payload);
+  store_.set_enabled(behaviour_.features.memory);
+  store_.tick(now);
   if (watch_pending_) {  // the watch list of the last load (MEM §6.2): sent once, shared, never copied
     out.game.push_back(proto::GameCommand{proto::GameCommand::SetWatchFlags{
         watch_.version, std::make_shared<const std::vector<std::uint32_t>>(watch_.ids)}});
@@ -457,6 +510,7 @@ Outputs Core::step(CoreInput input, Mono now) {
     last_ = std::move(held);  // the newest, which the conversation reads until the next one
   }
   run_conversation(at, snapshot != nullptr, ui, llm, out);
+  run_memory(at, out);
   return out;
 }
 
@@ -509,11 +563,21 @@ void Core::run_conversation(Mono at, bool fresh, const proto::UiEvent* ui, const
   w.knowledge = content_loaded_ ? &known_ : nullptr;
   w.chat = behaviour_.features.chat;
   w.self_awareness = behaviour_.features.self_awareness;
+  if (store_.mode() == StorePath::Mode::Choice) w.chat_held = kChoicePending;
+  if (store_.mode() == StorePath::Mode::Open) w.store = &store_;
+  if (content_loaded_) {
+    w.world_model = &knowledge_;
+    w.flags = &flags_;
+  }
   ConversationOutput co = conversation_.step(in);
-  for (const Commit& c : co.commits) log_.apply(c);  // in the same step (NPC §8.7 item 5; the store, v0.3)
+  for (const Commit& c : co.commits) log_.apply(c);  // in the same step (NPC §8.7 item 5), and to the store below
+  store_.write(out.events, directory_, content_loaded_ ? &known_ : nullptr, at);
   speech_events(co.commits, at, out);
+  store_.pump(at, out.db);
   out.ui = std::move(co.ui);
-  out.requests = std::move(co.requests);
+  // The conversation's requests after any the step made already (the memory job's, made on a store answer).
+  out.requests.insert(out.requests.end(), std::make_move_iterator(co.requests.begin()),
+                      std::make_move_iterator(co.requests.end()));
   out.calls = std::move(co.calls);
   out.cancels = std::move(co.cancels);
   out.commits = std::move(co.commits);
@@ -552,8 +616,13 @@ void Core::speech_events(const std::vector<Commit>& commits, Mono at, Outputs& o
   if (commits.empty()) return;
   augur::EventBatch batch;
   const proto::Player* pl = last_ && last_->player ? &*last_->player : nullptr;
+  const KnowledgeView* known = content_loaded_ ? &known_ : nullptr;
+  const proto::Pt pt_now = pl != nullptr ? static_cast<proto::Pt>(pl->play_time_ms) : 0;
   for (const Commit& c : commits) {
-    if (c.kind == Commit::Kind::NpcPage || c.kind == Commit::Kind::CutOff) continue;
+    if (c.kind == Commit::Kind::NpcPage || c.kind == Commit::Kind::CutOff) {
+      store_.commit(c, nullptr, directory_, known, pt_now);
+      continue;
+    }
     const auto idx = directory_.find(c.persona);
     if (!idx) continue;
     // The partner as Augur tracks it, when present (its position is the speech's origin); else by id alone.
@@ -617,9 +686,208 @@ void Core::speech_events(const std::vector<Commit>& commits, Mono at, Outputs& o
         continue;
     }
     augur_.resolve_audience(ev, view_);
+    store_.commit(c, c.kind == Commit::Kind::Started ? nullptr : &ev, directory_, known, pt_now);
     batch.push_back(std::move(ev));
   }
   if (!batch.empty()) bus_.run(std::move(batch), at, augur_, view_, out.events);
+}
+
+// C8's answers (store_path.hpp): the world goes on once the open answered, whichever way, and the store's toasts.
+void Core::on_store(const proto::DbResult& r, Mono now, Outputs& out) {
+  StorePath::Effect e = store_.on_result(r);
+  if (e.ready && state_.phase == Phase::Playthrough) enter(Phase::InWorld, now, out);
+  for (StoreNotice& n : e.notices) conversation_.notice(n.cls, n.level, std::move(n.text), now);
+  if (e.job_input) on_job_input(*e.job_input, now, out);
+  if (e.lived_input) on_lived_input(*e.lived_input, e.lived_persona, now, out);
+  if (store_.mode() != StorePath::Mode::Open) memory_run_.reset();  // memory off, or a choice: the job waits
+}
+
+// ---- The memory job (memory_job.hpp; MEM §3.2, §3.6, §3.7) ----
+
+// MEM §2.5: slew:<boss> holds when the boss's flag holds and the persona knows the world stage of that boss; the
+// Great Runes are not read in v0.3, so great_runes>=n never holds yet.
+bool Core::claim_holds(std::size_t persona, std::string_view key) const {
+  if (key.rfind("slew:", 0) != 0 || persona >= known_.personas.size()) return false;
+  const std::string boss(key.substr(5));
+  if (knowledge_.eval("boss('" + boss + "')", flags_, known_.world) != Tri::T) return false;
+  for (const Known& k : known_.personas[persona].known) {
+    for (const WorldStage& w : knowledge_.stages()) {
+      if (k.item == "w:" + w.id && w.boss == boss) return true;
+    }
+  }
+  return false;
+}
+
+// MEM §3.2: one job at a time, oldest first, on 10 s of calm in a world whose gate is open, with no fight, no rollback
+// choice and memory on. The core knows no provider's kind yet, so a cloud's rules hold: a job in flight when the calm
+// ends is let finish.
+void Core::run_memory(Mono at, Outputs& out) {
+  const bool calm = state_.phase == Phase::InWorld && out.ai_allowed && !state_.ai_paused &&
+                    store_.mode() == StorePath::Mode::Open && engaged_.empty() &&
+                    !(last_ && !last_->boss.bars.empty());
+  if (!calm) {
+    calm_since_.reset();
+  } else if (!calm_since_) {
+    calm_since_ = at;
+  }
+  if (memory_run_) {
+    if (memory_run_->retry_at && at >= *memory_run_->retry_at && calm) send_memory(at, out);
+    return;
+  }
+  if (!calm_since_ || at < *calm_since_ + 10000) return;
+  const std::vector<proto::MemoryJob> ready = store_.runnable();
+  if (ready.empty()) {
+    // MEM §13.2: the lived layer at quiet moments only: no journal job waits, 30 s of calm, no conversation with the
+    // NPC open, and at most one update per NPC per 2 h of play.
+    if (at < *calm_since_ + 30000) return;
+    const proto::Pt pt = last_ && last_->player ? static_cast<proto::Pt>(last_->player->play_time_ms) : 0;
+    const std::optional<std::string> partner = conversation_.partner();
+    for (const auto& [persona, due] : lived_due_) {
+      if (!due.due() || (partner && *partner == persona)) continue;
+      if (const auto next = lived_next_.find(persona); next != lived_next_.end() && pt < next->second) continue;
+      MemoryRun run;
+      run.lived = true;
+      run.job.persona = persona;
+      run.job.kind = proto::JobKind::Lived;
+      memory_run_ = std::move(run);
+      store_.want_lived_input(persona);
+      store_.pump(at, out.db);
+      return;
+    }
+    return;
+  }
+  MemoryRun run;
+  run.job = ready.front();
+  run.job.state = proto::JobState::Running;
+  store_.save_job(run.job);
+  store_.want_job_input(run.job.id);
+  memory_run_ = std::move(run);
+  store_.pump(at, out.db);
+}
+
+void Core::on_job_input(const proto::db::JobInputResult& r, Mono at, Outputs& out) {
+  if (!memory_run_ || r.job.id != memory_run_->job.id) return;
+  const auto idx = directory_.find(r.job.persona);
+  InputCtx ctx;
+  if (idx) {
+    ctx.persona = &directory_.persona(*idx);
+    ctx.stage = *idx < known_.personas.size() ? known_.personas[*idx].stage : 0;
+  }
+  if (const auto f = store_.facts().find(r.job.persona); f != store_.facts().end()) ctx.facts = &f->second;
+  for (const auto& [item, certainty] : store_.job_news(r.job.persona)) {
+    const std::string sh = knowledge_.short_of(item);
+    const char* word = certainty == "fact" ? "knew" : certainty == "belief" ? "believed" : "heard";
+    if (!sh.empty()) ctx.new_world.push_back(std::string("(") + word + ") " + sh);
+  }
+  ctx.knowledge = &knowledge_;
+  ctx.now = last_ && last_->player ? static_cast<proto::Pt>(last_->player->play_time_ms) : 0;
+  memory_run_->input = assemble_input(r, ctx);
+  send_memory(at, out);
+}
+
+void Core::send_memory(Mono at, Outputs& out) {
+  MemoryRun& run = *memory_run_;
+  run.retry_at.reset();
+  if (run.lived) {
+    if (!run.lived_input) return;
+    auto messages = lived_messages(memory_prompts_, *run.lived_input, retry_reminder(run.failure));
+    if (!messages) {
+      lived_due_.erase(run.job.persona);
+      memory_run_.reset();
+      return;
+    }
+    proto::ChatRequest c;
+    c.slot = std::string(proto::kMemory);
+    c.purpose = proto::Purpose::Background;
+    c.messages = std::move(*messages);
+    c.json_schema = lived_schema();
+    run.request = next_memory_id_++;
+    out.requests.push_back(proto::LlmRequest::chat(*run.request, std::move(c)));
+    return;
+  }
+  if (!run.input) return;
+  auto messages = memory_messages(memory_prompts_, *run.input, retry_reminder(run.failure));
+  if (!messages) {  // the pack's prompts are broken: a defect, the job waits for the next session
+    run.job.state = proto::JobState::Deferred;
+    run.job.last_error = "prompt";
+    store_.save_job(run.job);
+    memory_run_.reset();
+    return;
+  }
+  proto::ChatRequest c;
+  c.slot = std::string(proto::kMemory);
+  c.purpose = proto::Purpose::Background;
+  c.messages = std::move(*messages);
+  c.json_schema = memory_schema();
+  run.request = next_memory_id_++;
+  out.requests.push_back(proto::LlmRequest::chat(*run.request, std::move(c)));
+  (void)at;
+}
+
+void Core::on_memory_event(const proto::LlmEvent& e, Mono at, Outputs& out) {
+  if (!memory_run_ || !memory_run_->request || e.id != *memory_run_->request || e.kind != proto::EventKind::Ended) {
+    return;
+  }
+  MemoryRun& run = *memory_run_;
+  run.request.reset();
+  const proto::ChatResult result = e.chat.value_or(proto::ChatResult{});
+  if (run.lived) {
+    on_lived_reply(result, at, out);
+    return;
+  }
+  const auto idx = directory_.find(run.job.persona);
+  ValidateCtx vctx;
+  vctx.character = current_ ? std::string(current_->name.view()) : std::string();
+  if (builtin_ && builtin_->lint.current) {
+    const SpeechLint* lint = builtin_->lint.current.get();
+    vctx.banned = [lint](std::string_view s) { return wording::banned(lint->lexicon(), s); };
+  }
+  for (const CatalogueFlag& f : knowledge_.catalogue().flags) vctx.aliases.push_back(f.alias);
+  vctx.proved = [this, idx](std::string_view key) { return idx && claim_holds(*idx, key); };
+  vctx.now = last_ && last_->player ? static_cast<proto::Pt>(last_->player->play_time_ms) : 0;
+  proto::Expected<Validated, JobFailure> v = proto::Unexpected{JobFailure::Provider};
+  if (result.error == proto::ErrorClass::None && run.input) {
+    v = validate_reply(result.text, result.finish_reason, *run.input, vctx);
+  }
+  if (v) {
+    proto::JournalVersion jv;
+    jv.journey = store_.journey();
+    jv.persona = run.job.persona;
+    jv.version = v->journal.version;
+    jv.as_of_pt = v->journal.as_of_pt;
+    jv.from_event_id = run.input->journal ? run.input->journal->upto_event : 0;
+    jv.upto_event_id = v->journal.upto_event;
+    jv.conv_id = run.input->conv;
+    jv.summary = v->journal.summary;
+    jv.keepsakes = keepsakes_json(v->journal.keepsakes);
+    jv.next_keepsake = v->next_keepsake;
+    jv.disposition = v->journal.disposition;
+    jv.told_name = v->journal.told_name;
+    jv.told_name_verified = v->journal.told_name_verified;
+    jv.told_name_heard = v->journal.told_name_heard;
+    jv.model_fp = result.model.empty() ? std::string("-") : result.model;
+    jv.prompt_hash = "memory-v1";
+    jv.persona_hash = idx && !directory_.persona(*idx).hash.empty() ? directory_.persona(*idx).hash : std::string("-");
+    jv.job_id = run.job.id;
+    count_journal_change(lived_due_[run.job.persona], run.input->journal, v->journal);  // MEM §13.2's due count
+    store_.commit_journal(proto::db::CommitJournal{std::move(jv), run.job.id, std::move(v->verified)});
+    memory_run_.reset();
+    store_.pump(at, out.db);
+    return;
+  }
+  // MEM §3.7: two retries in a run, at +5 s and +30 s, each with its reminder; then deferred, parked after 6 attempts.
+  run.failure = v.error();
+  ++run.job.attempts;
+  if (run.tries < 2) {
+    run.retry_at = at + (run.tries == 0 ? 5000 : 30000);
+    ++run.tries;
+    return;
+  }
+  run.job.state = run.job.attempts >= 6 ? proto::JobState::Parked : proto::JobState::Deferred;
+  run.job.last_error = to_string(run.failure);
+  store_.save_job(run.job);
+  memory_run_.reset();
+  store_.pump(at, out.db);
 }
 
 void Core::enter(Phase to, Mono at, Outputs& out) {
@@ -699,7 +967,16 @@ void Core::start_playthrough(const proto::WorldSnapshot& s, Outputs& out) {
   ++state_.playthroughs;
   forget_flags();  // MEM §6.6: every alias Unknown until this playthrough's first frame
   enter(Phase::Playthrough, s.mono_ms, out);
-  // Without the store there is no database to open (§9's DbOpened): the world follows at once.
+  // ARCH §9: the key, then Open; the world waits for the answer. Without a store (none attached, or memory off) there
+  // is no file to open, and the world follows at once.
+  if (store_.available() && current_) {
+    const std::uint8_t gift = current_->keepsake;
+    store_.open(playthrough_key(store_.account(), current_->slot, current_->name.view(), current_->archetype, gift),
+                static_cast<proto::Pt>(s.player->play_time_ms), static_cast<std::uint16_t>(s.player->ng_lvl + 1),
+                s.mono_ms);
+    return;
+  }
+  store_.close();
   enter(Phase::InWorld, s.mono_ms, out);
 }
 
@@ -775,12 +1052,13 @@ void Core::on_snapshot(const proto::WorldSnapshot& s, Outputs& out) {
       if (s.life.main_player && ready_for_playthrough(s)) start_playthrough(s, out);
       return;
     case Phase::Playthrough:
-      enter(Phase::InWorld, at, out);  // never left here without the store; kept for when it waits
+      if (!store_.waiting_open()) enter(Phase::InWorld, at, out);  // the store's open answered, or there is none
       return;
     case Phase::InWorld:
       if (at_title) {
         enter(Phase::Title, at, out);
         current_.reset();
+        store_.close();  // ARCH §9: flush and close the playthrough's file
       } else if (!s.life.main_player || counter_changed || s.life.screen != proto::Screen::InGame) {
         enter(Phase::Loading, at, out);
       }
@@ -789,6 +1067,7 @@ void Core::on_snapshot(const proto::WorldSnapshot& s, Outputs& out) {
       if (at_title) {
         enter(Phase::Title, at, out);
         current_.reset();
+        store_.close();
         return;
       }
       if (!in_world_now || stable_ < 2) return;
@@ -823,6 +1102,96 @@ void Core::settle(Mono at, Outputs& out) {
     state_.badge = badge;
   }
   state_.dormant = !(in_world && state_.gate_open);
+}
+
+}  // namespace en::core
+
+namespace en::core {
+
+// MEM §13.3: what the NPC's own prompt shows it now: its first-meeting self and road, the lived record, the journal,
+// the facts and the feeling in words, and the people (the Tarnished as P1; other NPCs come with their keepsakes, O45).
+void Core::on_lived_input(const proto::db::LivedInputResult& r, const std::string& persona, Mono at, Outputs& out) {
+  if (!memory_run_ || !memory_run_->lived || memory_run_->job.persona != persona) return;
+  const auto idx = directory_.find(persona);
+  std::optional<Journal> journal = r.journal ? journal_of(*r.journal) : std::nullopt;
+  if (!idx || !journal) {  // nothing to build on yet
+    lived_due_.erase(persona);
+    memory_run_.reset();
+    return;
+  }
+  const Persona& p = directory_.persona(*idx);
+  const std::size_t stage = *idx < known_.personas.size() ? known_.personas[*idx].stage : 0;
+  const nlohmann::json rec = p.resolved(stage);
+  LivedJobInput in;
+  in.persona = persona;
+  in.name = p.display_name_fallback;
+  if (const auto pub = rec.find("public"); pub != rec.end() && pub->is_object()) {
+    in.self_text = pub->value("summary", std::string());
+  }
+  if (const auto priv = rec.find("private"); priv != rec.end() && priv->is_object()) {
+    const std::string personality = priv->value("personality", std::string());
+    if (!personality.empty()) in.self_text += (in.self_text.empty() ? "" : " ") + personality;
+    if (const auto seeks = priv->find("seeks"); seeks != priv->end() && seeks->is_array()) {
+      for (const auto& s : *seeks) {
+        if (s.is_string()) in.seeks.push_back(s.get<std::string>());
+      }
+    }
+  }
+  if (const auto st = rec.find("stage"); st != rec.end() && st->is_object()) in.road = st->value("road", std::string());
+  if (r.lived) in.lived = lived_of(*r.lived);
+  in.journal = *journal;
+  proto::PersonaFacts facts;
+  facts.persona = persona;
+  facts.facts = r.facts;
+  BlockNow now;
+  now.pt = last_ && last_->player ? static_cast<proto::Pt>(last_->player->play_time_ms) : 0;
+  const TarnishedBlock words = tarnished_block(&facts, &in.journal, now);
+  in.facts = words.facts;
+  in.feeling_words = words.disposition;
+  in.people = {{"P1", "the Tarnished"}};
+  const std::size_t i = *idx;
+  in.proved = [this, i](std::string_view key) { return claim_holds(i, key); };
+  memory_run_->lived_input = std::move(in);
+  send_memory(at, out);
+}
+
+void Core::on_lived_reply(const proto::ChatResult& result, Mono at, Outputs& out) {
+  MemoryRun& run = *memory_run_;
+  const std::string persona = run.job.persona;
+  const proto::Pt pt = last_ && last_->player ? static_cast<proto::Pt>(last_->player->play_time_ms) : 0;
+  LivedCheck check;
+  check.disposition = run.lived_input ? run.lived_input->journal.disposition : 0;
+  check.now = pt;
+  proto::Expected<Lived, JobFailure> l = proto::Unexpected{JobFailure::Provider};
+  if (result.error == proto::ErrorClass::None && run.lived_input) {
+    l = validate_lived(result.text, result.finish_reason, *run.lived_input, check);
+  }
+  if (l) {
+    proto::LivedVersion v = lived_version(*l, store_.journey(), persona);
+    v.model_fp = result.model.empty() ? std::string("-") : result.model;
+    v.prompt_hash = "lived-v1";
+    v.persona_hash = "-";
+    store_.commit_lived(proto::db::CommitLived{std::move(v), std::nullopt});
+    lived_due_.erase(persona);
+    lived_attempts_.erase(persona);
+    lived_next_[persona] = pt + kLivedEveryMs;
+    memory_run_.reset();
+    store_.pump(at, out.db);
+    return;
+  }
+  // The slot's 2 retries, then the next quiet moment; parked after 4 attempts until the journal changes again.
+  run.failure = l.error();
+  if (run.tries < 2) {
+    run.retry_at = at + (run.tries == 0 ? 5000 : 30000);
+    ++run.tries;
+    return;
+  }
+  if (++lived_attempts_[persona] >= 4) {
+    lived_due_.erase(persona);
+    lived_attempts_.erase(persona);
+  }
+  lived_next_[persona] = pt + 600000;
+  memory_run_.reset();
 }
 
 }  // namespace en::core

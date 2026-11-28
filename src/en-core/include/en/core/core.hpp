@@ -22,7 +22,9 @@
 // judges the input first (the gate, the phases, the ladder), because Augur's Lifecycle source reads what it changed on
 // the same step, and then Augur takes the same input and answers the step's events, which the bus dispatches (none of
 // v0.1's subsystems subscribes yet) into Outputs::events. AugurView is what en-core supplies Augur.
+#include <array>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <span>
@@ -40,7 +42,10 @@
 #include "en/core/gate.hpp"
 #include "en/core/identity.hpp"
 #include "en/core/knowledge.hpp"
+#include "en/core/lived.hpp"
+#include "en/core/memory_job.hpp"
 #include "en/core/predicates.hpp"
+#include "en/core/store_path.hpp"
 #include "en/proto/command.hpp"
 #include "en/proto/lifecycle.hpp"
 #include "en/proto/llm.hpp"
@@ -119,10 +124,20 @@ struct CoreInput {
   struct Pause {
     bool on = false;
   };
+  // The account the shell found under the saves folder (MEM §8.2): with it, each playthrough opens its file. It names
+  // the player's account, so it is never recorded or logged.
+  struct Account {
+    std::uint64_t steamid64 = 0;
+  };
+  // The player's answer to the rollback choice (MEM §9.1); the panel that asks is slice 3's.
+  struct MemoryChoice {
+    proto::db::Choice choice = proto::db::Choice::Forget;
+  };
   // C1's snapshot, C2's lifecycle message, T1's banner, the tick; then the surfaces' event (C7), the model client's
   // event (C10) and the model client's health, which the shell passes when it changes; and the player's Pause AI.
+  // Then the store's answers (C8, in order), the account, and the answer to the choice.
   std::variant<std::unique_ptr<proto::WorldSnapshot>, proto::Lifecycle, BootBanner, Tick, proto::UiEvent,
-               proto::LlmEvent, proto::NetHealth, Pause>
+               proto::LlmEvent, proto::NetHealth, Pause, proto::DbResult, Account, MemoryChoice>
       payload;
 };
 
@@ -173,6 +188,8 @@ struct Outputs {
   // recording or a numbers-only report (PV rules).
   std::vector<Commit> commits;
   std::optional<EndReason> ended;  // a conversation ended on this step
+  // C8: the requests for the store, in order (store_path.hpp). Chat text and the file's key: never logged.
+  std::vector<proto::DbRequest> db;
 };
 
 // What en-core supplies Augur (ARCH §8.1). The Tarnished classifies as Player; a character bound to a persona of the
@@ -259,6 +276,14 @@ class Core {
   // for the profile editor's states (S7.2.b).
   [[nodiscard]] const std::vector<LayerFinding>& layer_findings() const noexcept { return layer_findings_; }
   [[nodiscard]] const MemoryLog& log() const noexcept { return log_; }
+  // The store's side (store_path.hpp): its mode, the choice's summary while it waits, the journey's facts.
+  [[nodiscard]] const StorePath& store() const noexcept { return store_; }
+  // Whether a memory job is in flight (its input asked for, or its request out).
+  [[nodiscard]] bool memory_busy() const noexcept { return memory_run_.has_value(); }
+  // Whether a lived update is due and waits for its quiet moment (MEM §13.2).
+  [[nodiscard]] bool lived_waiting() const noexcept {
+    return std::any_of(lived_due_.begin(), lived_due_.end(), [](const auto& d) { return d.second.due(); });
+  }
   [[nodiscard]] const Conversation& conversation() const noexcept { return conversation_; }
   [[nodiscard]] proto::NetHealth net() const noexcept { return net_; }
 
@@ -294,6 +319,14 @@ class Core {
   void climb(Mono at, Outputs& out);
   void run_conversation(Mono at, bool fresh, const proto::UiEvent* ui, const proto::LlmEvent* llm, Outputs& out);
   void speech_events(const std::vector<Commit>& commits, Mono at, Outputs& out);
+  void on_store(const proto::DbResult& r, Mono now, Outputs& out);
+  void run_memory(Mono at, Outputs& out);
+  void on_job_input(const proto::db::JobInputResult& r, Mono at, Outputs& out);
+  void send_memory(Mono at, Outputs& out);
+  void on_memory_event(const proto::LlmEvent& e, Mono at, Outputs& out);
+  void on_lived_input(const proto::db::LivedInputResult& r, const std::string& persona, Mono at, Outputs& out);
+  void on_lived_reply(const proto::ChatResult& result, Mono at, Outputs& out);
+  [[nodiscard]] bool claim_holds(std::size_t persona, std::string_view key) const;
   void init();
 
   State state_;
@@ -325,6 +358,29 @@ class Core {
   std::vector<LayerFinding> layer_findings_;
   std::vector<ContentError> content_warnings_;
   MemoryLog log_;
+  StorePath store_;
+  // Personas whose active stage moved with the flag frame (persona, from, to): StageChanged at the next Augur run.
+  std::vector<std::array<std::uint32_t, 3>> stage_moves_;
+  bool flags_read_ = false;  // a frame of this playthrough has been read: a stage that moves after it moved in play
+  // The memory job in flight (MEM §3.2): one at a time, its input, its tries and its request.
+  struct MemoryRun {
+    proto::MemoryJob job;
+    std::optional<JobInput> input;
+    std::optional<proto::RequestId> request;
+    int tries = 0;  // retries spent in this run (at most 2)
+    std::optional<Mono> retry_at;
+    JobFailure failure = JobFailure::None;
+    bool lived = false;  // a lived job (MEM §13): its input instead of the journal's
+    std::optional<LivedJobInput> lived_input;
+  };
+  // The lived layer's due counts, last updates and failed attempts, per persona (MEM §13.2), in RAM.
+  std::map<std::string, LivedDue> lived_due_;
+  std::map<std::string, proto::Pt> lived_next_;  // the earliest play time of its next update
+  std::map<std::string, int> lived_attempts_;
+  std::optional<MemoryRun> memory_run_;
+  std::optional<Mono> calm_since_;
+  proto::RequestId next_memory_id_ = kMemoryRequests;
+  std::vector<ContentFile> memory_prompts_;  // the pack's prompts/memory/
   proto::NetHealth net_;
   bool optional_tripped_ = false;   // an optional group tripped: L3 at most (ARCH §6.8)
   std::unique_ptr<proto::WorldSnapshot> last_;  // the newest snapshot, for the conversation

@@ -1,9 +1,14 @@
 {# Block 6, earlier and now (NPC §7.3): the previous conversation's last shown lines under a fixed header, then this
    conversation's completed exchanges, the Tarnished's words quoted as user, the persona's shown words as assistant.
+   The header says things have moved on when the persona's stage then differs from now (MEM §4.3).
    At most 900 tokens; trimmed first, oldest first, keeping the last two exchanges. #}
 {% if not empty(earlier) %}
 [ user ]
+{% if earlier_moved_on %}
+Earlier, when you last spoke with the Tarnished (things have moved on since):
+{% else %}
 Earlier, when you last spoke with the Tarnished:
+{% endif %}
 {% for line in earlier %}
 {% if line.tarnished %}The Tarnished: {{ quote(line.text) }}{% else %}You: {{ quote(line.text) }}{% endif %}
 {% endfor %}

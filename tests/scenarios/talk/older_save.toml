@@ -1,0 +1,89 @@
+# The store's two recoveries through the eval runner (MEM §3.8, §9.1; O144). A process killed in the middle of a
+# conversation: its lines survive, and the next session ends the conversation as crashed (a meeting, folded from the
+# file). Then an older save of the same character, an hour before what the file remembers, a second conversation lying
+# in that hour: the rollback choice is asked, named chat is refused with a status toast until the answer, and Forget
+# takes back what came after. Our own scenario, invented data. Run: eldennet-engine eval <this file> --llm mock.
+schema = 1
+name = "older_save"
+persona = "lantern_keeper"
+overrides = "overrides"
+mock = "older_save.mock.toml"
+store = true
+character = "Wren"
+
+[world]
+param = 81100
+distance_m = 2.5
+bearing_deg = 5.0
+clock = [21, 15]
+subtitles = true
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Is the lamp yours?"
+
+[[step]]
+do = "wait"
+ms = 8000
+
+[[step]]
+do = "kill"
+
+[[step]]
+do = "expect"
+mode = "open"
+fact = { persona = "lantern_keeper", key = "met_count", value = "1" }
+
+[[step]]
+do = "wait"
+ms = 3600000
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Still burning, then."
+
+[[step]]
+do = "wait"
+ms = 8000
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "expect"
+fact = { persona = "lantern_keeper", key = "met_count", value = "2" }
+
+[[step]]
+do = "load"
+pt = 600000
+
+[[step]]
+do = "expect"
+mode = "choice"
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "wait"
+ms = 500
+
+[[step]]
+do = "expect"
+box = "closed"
+toast = "(Not yet: EldenNet is waiting for your answer about this save.)"
+
+[[step]]
+do = "choose"
+choice = "forget"
+
+[[step]]
+do = "expect"
+mode = "open"
+fact = { persona = "lantern_keeper", key = "met_count", value = "<none>" }

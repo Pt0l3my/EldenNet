@@ -1,0 +1,69 @@
+# The reaction cue per persona, fixture state and prior meeting (MEM §12.11's T12; §12.13), hand-written from the
+# design's rules, for v0.3's two personas: the pilot Kalé (eager) and the CI fixture test_stake (close). Each table is
+# [<state>.<persona>.<variant>]:
+#   prior  = the state at the one earlier meeting: world_seen is known(P) there; "none" = never met
+#   met_h  = play hours since that meeting (world_seen_pt)
+#   claims = slew:<boss> claims told earlier; a claim is proved when the boss's flag holds and P knows its world stage
+#   cued   = world_cued: [[item, seconds of play ago]]; inside the 60 s news cooldown the item is skipped
+#   expect = "<item>:<own|told|local_here|local_home>", or "none"
+schema = 1
+
+[after_godrick.kale.met_1h]
+prior  = "fresh"
+met_h  = 1.0
+expect = "w:castle_fallen:local_here"   # eager, within 6 h, the castle's fall reached him by his own ground
+
+[after_godrick.kale.met_8h]
+prior  = "fresh"
+met_h  = 8.0
+expect = "none"                         # local talk needs the meeting that recorded known within 6 h
+
+[after_godrick.kale.first]
+prior  = "none"
+met_h  = 0.0
+expect = "none"                         # never at a first meeting
+
+[after_godrick.kale.cooling]
+prior  = "fresh"
+met_h  = 1.0
+cued   = [["w:castle_fallen", 30]]
+expect = "none"                         # cued 30 s ago: inside the cooldown
+
+[after_godrick.kale.cooled]
+prior  = "fresh"
+met_h  = 1.0
+cued   = [["w:castle_fallen", 90]]
+expect = "w:castle_fallen:local_here"   # 90 s ago: the cooldown has run
+
+[after_radahn.kale.told]
+prior  = "after_radahn"                 # nothing is new
+met_h  = 0.5
+claims = ["slew:radahn"]
+expect = "w:general_fallen:told"
+
+[after_rykard.kale.unproved]
+prior  = "after_godrick"
+met_h  = 2.0
+claims = ["slew:rykard"]                # stays a claim: he does not know the manor lord's fall (T10)
+expect = "none"
+
+[after_godrick.test_stake.own]
+prior  = "fresh"
+met_h  = 2.0
+expect = "w:castle_fallen:own"          # its stage knows the castle's fall: its own stake
+
+[after_godrick.test_stake.first]
+prior  = "none"
+met_h  = 0.0
+expect = "none"
+
+[after_rykard.test_stake.met_2h]
+prior  = "after_godrick"
+met_h  = 2.0
+expect = "none"                         # close: the queen's fall is new and Near (home), but local talk is refused
+
+[after_radahn.test_stake.told]
+prior  = "after_radahn"
+met_h  = 0.5
+claims = ["slew:radahn"]
+expect = "none"                         # close: the Tarnished's part is refused

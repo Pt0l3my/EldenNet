@@ -1,0 +1,11 @@
+{# Part 6: the task and the answer's shape (MEM §3.5): rewrite, keep by id, at most 3 new keepsakes, the feeling by
+   one step at most; and, on a retry, one line naming what went wrong before (MEM §3.7). #}
+[ user ]
+TASK
+Rewrite the journal. List in "keep" the ids of keepsakes that stay exactly as they are.
+Put changed keepsakes (with their id) and at most 3 new ones (id null) in "keepsakes", each citing evidence ids in
+"refs". Leave out what no longer matters. Change the feeling by one step at most, or not at all.
+{"summary": "...", "keep": ["k1"], "keepsakes": [{"id": null, "text": "...", "basis": "said",
+ "weight": 0.5, "about": "tarnished", "refs": ["L3"], "check_key": null}], "told_name": null,
+ "disposition_delta": 0}
+{% if not empty(reminder) %}{{ reminder }}{% endif %}

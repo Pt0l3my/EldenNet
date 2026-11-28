@@ -23,6 +23,7 @@
 // Text in a script is invented and ours; a script never holds a key.
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -44,6 +45,9 @@ struct MockReply {
   std::size_t chunk_chars = 12;
   core::Mono end_ms = 0;
   std::optional<proto::ErrorClass> error;
+  // The request's slot it answers (v0.3): each slot takes its own replies in order, so a memory job's request between
+  // two lines never takes a line's reply. Default the dialogue slot.
+  std::string slot = "dialogue";
 
   friend bool operator==(const MockReply&, const MockReply&) = default;
 };
@@ -80,9 +84,9 @@ class MockModel {
  private:
   MockScript script_;
   std::vector<MockEvent> pending_;  // ordered by time, then by when they were scheduled
-  std::size_t next_ = 0;
   std::size_t served_ = 0;
   std::size_t cancelled_ = 0;
+  std::map<std::string, std::size_t> next_by_slot_;
 };
 
 // The events a script gives its first `requests` requests, each submitted at 0 and run to its end: what `mockllm`
