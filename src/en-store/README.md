@@ -113,6 +113,15 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHYÂ
   hands a removed id to a new row (ARCH Â§2.2's store rules); `events.payload` and `conversations.shown_context` must be
   valid JSON.
 
+- **The pages' reads** (`page()` in `playthrough.cpp`, `lines_of` in `events.cpp`; S12.2): `PageQuery` answers
+  `PageRows` of one kind: the journeys the file holds (each one's first play time, newest event and conversations), a
+  journey's conversations newest first (at most 200), one conversation's PlayerSaid and NpcSaid rows with no audience
+  row, a journey's memory cards (each persona with facts, a journal or memory work: its facts, newest journal version
+  and its jobs' counts), or the backups' count and times (no path). The DLL sends them from its own sequence numbers
+  (`kPageSeq` up), never the core.
+- **T9's handle** (`loop.hpp`): `send` for the tests and the eval, and `try_send`, which leaves a request untouched
+  when C8 is full, for the DLL's spill ring.
+
 ## Tests
 
 `en_store_tests` (doctest; GCC and Clang, and the MinGW build under Wine), with invented rows only:
@@ -129,8 +138,12 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHYÂ
   witnessed event asking, with its summary); the summary's every kind and the stages undone; Keep, and a later crash
   trim touching only its epoch; a new character archived; crash recovery; a reply's pages and a conversation across a
   cut; journal, lived, jobs and the watermark after a trim; forgetting an NPC and a journey; NG+ and a save from the
-  earlier journey; a newer file refused before its backups are touched; a corrupt file restored from its backup; and 12
-  seeded random cuts (no row past the cut, no orphaned audience, the counter as it was, both checks clean);
+  earlier journey; a newer file refused before its backups are touched; a corrupt file restored from its backup; 12
+  seeded random cuts (no row past the cut, no orphaned audience, the counter as it was, both checks clean); and the
+  pages' reads (journeys, conversations, a transcript, memory cards, backups, refused with nothing open); and the trim
+  oracle (MEM Â§9.6): for 8 seeded streams, each cut by the silent trim and by Forget after the choice, the trimmed
+  file's events, audience rows and conversations equal a replay of the same requests up to the cut, the conversation
+  open at the cut ended `trimmed`;
 - the requests (`test_playthrough.cpp`): an event with its audience, each persona reading its own row alone and
   nothing of another journey, a lower id that never takes the counter back; an NpcSaid's pages with their ends and pts;
   the schema's caps (text, payload, JSON, a kind); a JourneyChanged's epoch; conversations with ids past 2^53; a job's

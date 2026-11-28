@@ -1,7 +1,7 @@
 {
   "space": "eldennet",
   "name": "EldenNet",
-  "minor": 20,
+  "minor": 21,
   "categories": [
     {
       "id": "home",
@@ -29,6 +29,7 @@
       "id": "characters",
       "name": "Characters",
       "pages": [
+        "characters.playthrough",
         "characters.named"
       ]
     },
@@ -40,7 +41,10 @@
     {
       "id": "history",
       "name": "History",
-      "pages": []
+      "pages": [
+        "history.conversations",
+        "history.memories"
+      ]
     },
     {
       "id": "behaviour",
@@ -168,6 +172,21 @@
               "kind": "component",
               "component": "computed_sentence",
               "topic": "usage"
+            }
+          ]
+        },
+        {
+          "id": "nearby",
+          "title": "Nearby",
+          "description": "The people you have met who are near you now.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "nearby",
+              "props": {
+                "empty": "Nobody you have met is near you now."
+              }
             }
           ]
         }
@@ -1038,6 +1057,50 @@
       "live": true
     },
     {
+      "id": "characters.playthrough",
+      "category": "characters",
+      "name": "Playthrough",
+      "description": "The people you have met on this journey, and how they are as far as you have seen.",
+      "help": {
+        "purpose": "See who you have met on this journey and how they were when you last saw them.",
+        "steps": [
+          "Choose a journey at the top: the current one shows first; an earlier one is read only.",
+          "Choose someone in the list.",
+          "Read their Status: whether they are here now, when you last met them and how often.",
+          "Open History › Memories to see what they remember of you."
+        ]
+      },
+      "related": [
+        "characters.named",
+        "history.memories",
+        "history.conversations"
+      ],
+      "increment": "0.3",
+      "master": {
+        "topic": "playthrough",
+        "key": "id",
+        "detail": "met",
+        "label": "People met",
+        "empty": "You have met nobody on this journey yet.",
+        "none": "Choose someone to see how they are."
+      },
+      "sections": [
+        {
+          "id": "status",
+          "title": "Status",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "met"
+            }
+          ]
+        }
+      ],
+      "live": true,
+      "scoped": true
+    },
+    {
       "id": "characters.named",
       "category": "characters",
       "name": "Named NPCs",
@@ -1104,6 +1167,177 @@
           ]
         }
       ]
+    },
+    {
+      "id": "history.conversations",
+      "category": "history",
+      "name": "Conversations",
+      "description": "Every conversation you had with a named NPC on this journey, as it was shown.",
+      "help": {
+        "purpose": "Read again what you and a named NPC said to each other on this journey.",
+        "steps": [
+          "Choose a journey at the top: the current one shows first; an earlier one is read only.",
+          "Choose a conversation in the list: who it was with, when, and how it ended.",
+          "Read its lines: yours as you typed them, and theirs as they were shown."
+        ]
+      },
+      "related": [
+        "history.memories",
+        "characters.named"
+      ],
+      "increment": "0.3",
+      "master": {
+        "topic": "conversations",
+        "key": "id",
+        "detail": "conversation",
+        "label": "Conversations",
+        "empty": "No conversation on this journey yet.",
+        "none": "Choose a conversation to read it."
+      },
+      "sections": [
+        {
+          "id": "lines",
+          "title": "What was said",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "conversation",
+              "props": {
+                "empty": "Reading this conversation…"
+              }
+            }
+          ]
+        }
+      ],
+      "live": true,
+      "scoped": true
+    },
+    {
+      "id": "history.memories",
+      "category": "history",
+      "name": "Memories",
+      "description": "What each NPC with a profile remembers of this journey, and the means to make them forget.",
+      "help": {
+        "purpose": "See what each NPC remembers of this journey, and make one forget, or everyone, if you wish.",
+        "steps": [
+          "Choose a journey at the top: the current one shows first; an earlier one is read only.",
+          "Choose an NPC: their journal, keepsakes and memory work show beside the list.",
+          "To make one NPC forget this journey, use Forget this NPC, and press again to confirm.",
+          "To make everyone forget this journey, use Forget this journey at the top, and press again to confirm.",
+          "Each forget takes a backup first; Backups says how many are kept."
+        ]
+      },
+      "related": [
+        "history.conversations",
+        "characters.named",
+        "characters.playthrough"
+      ],
+      "increment": "0.3",
+      "actions": [
+        {
+          "id": "forget_journey",
+          "label": "Forget this journey",
+          "command": "memory.forget_journey",
+          "tone": "destructive",
+          "confirm": "Everyone forgets everything of this journey: facts, journals, keepsakes and conversations. A backup is taken first, and it keeps what was forgotten until three newer backups replace it.",
+          "confirm_after_ms": 1000
+        }
+      ],
+      "master": {
+        "topic": "memories",
+        "key": "id",
+        "detail": "journal",
+        "label": "NPCs",
+        "empty": "Nobody remembers anything of this journey yet.",
+        "none": "Choose an NPC to see what they remember."
+      },
+      "sections": [
+        {
+          "id": "card",
+          "title": "Their journal",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "journal",
+              "props": {
+                "field": "card"
+              }
+            }
+          ]
+        },
+        {
+          "id": "keepsakes",
+          "title": "Keepsakes",
+          "description": "What they keep of this journey, at most eight; the protected one is never pushed out.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "journal",
+              "props": {
+                "field": "keepsakes",
+                "empty": "No keepsake yet."
+              }
+            }
+          ]
+        },
+        {
+          "id": "work",
+          "title": "Memory work",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "journal",
+              "props": {
+                "field": "work"
+              }
+            }
+          ]
+        },
+        {
+          "id": "forget",
+          "title": "Forget",
+          "description": "A backup is taken first, and it keeps what was forgotten until three newer backups replace it.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "journal",
+              "props": {
+                "field": "forget"
+              },
+              "row_actions": [
+                {
+                  "id": "forget",
+                  "label": "Forget this NPC",
+                  "command": "memory.forget_npc",
+                  "key": "id",
+                  "tone": "destructive",
+                  "confirm": "They forget everything of this journey: their facts, journal, keepsakes and conversations. A backup is taken first.",
+                  "confirm_after_ms": 1000
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "backups",
+          "title": "Backups",
+          "description": "Diaries: later version.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "memory.state"
+            }
+          ]
+        }
+      ],
+      "live": true,
+      "scoped": true
     },
     {
       "id": "content",
@@ -1687,6 +1921,51 @@
       "family": true
     },
     {
+      "id": "journeys",
+      "shape": "state"
+    },
+    {
+      "id": "playthrough",
+      "shape": "state",
+      "family": true
+    },
+    {
+      "id": "met",
+      "shape": "state",
+      "family": true
+    },
+    {
+      "id": "conversations",
+      "shape": "state",
+      "family": true,
+      "private": true
+    },
+    {
+      "id": "conversation",
+      "shape": "state",
+      "family": true,
+      "private": true
+    },
+    {
+      "id": "memories",
+      "shape": "state",
+      "family": true
+    },
+    {
+      "id": "journal",
+      "shape": "state",
+      "family": true,
+      "private": true
+    },
+    {
+      "id": "memory.state",
+      "shape": "state"
+    },
+    {
+      "id": "nearby",
+      "shape": "state"
+    },
+    {
       "id": "content",
       "shape": "state"
     },
@@ -1756,7 +2035,9 @@
     "report.build",
     "report.part",
     "ai.pause",
-    "recording.set"
+    "recording.set",
+    "memory.forget_npc",
+    "memory.forget_journey"
   ],
   "slow_commands": [
     "profile.draft"
@@ -1768,7 +2049,9 @@
     "profile.save",
     "profile.reset",
     "profile.restore",
-    "recording.set"
+    "recording.set",
+    "memory.forget_npc",
+    "memory.forget_journey"
   ],
   "quick": [
     {
@@ -1781,5 +2064,9 @@
       },
       "home": "home"
     }
-  ]
+  ],
+  "scope": {
+    "label": "Journey",
+    "topic": "journeys"
+  }
 }

@@ -550,6 +550,18 @@ proto::DbResult StoreCore::run(const proto::DbRequest& req) {
                         [&](const db::JobInput& q) { return query([&] { return job_input(*pt_, q); }); },
                         [&](const db::LivedInput& q) { return query([&] { return lived_input(*pt_, q); }); },
                         [&](const db::EventsForFold& q) { return query([&] { return fold_events(*pt_, q); }); },
+                        [&](const db::PageQuery& q) -> proto::DbResult {
+                          if (q.what == db::PageQuery::What::Backups) {
+                            if (!pt_) return failed(seq, Fault::NotOpen);
+                            const BackupInfo b = backups_of(pt_->folder, pt_->key.slot, pt_->key.fp8);
+                            db::PageRows rows;
+                            rows.what = q.what;
+                            rows.backups = static_cast<std::uint32_t>(b.count);
+                            rows.backup_walls = b.walls;
+                            return proto::DbResult{seq, std::move(rows)};
+                          }
+                          return query([&] { return page(*pt_, q); });
+                        },
                     },
                     req.op);
 }

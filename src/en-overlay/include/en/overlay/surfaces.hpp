@@ -338,4 +338,31 @@ class InputMap {
 // The character a talk key types, lower case: letters, digits and space; 0 for any other key.
 [[nodiscard]] char32_t key_char(std::uint32_t vk) noexcept;
 
+// ---- The rollback choice (MEM §9.1, O144; WHY§690; choice.cpp): EldenNet's own panel, centred on the modal layer ----
+//
+// Its title, its lead, the bullets in their tones' colours (each a small square of its colour and up to two lines of
+// text), and the three answers at the bottom in a row, the focused one ringed and filled. EldenNet moves the focus
+// itself: ← → ↑ ↓ (and Tab) on the keyboard, the D-pad on the pad; Enter or A answers; Esc and B do nothing, since
+// there is no answer of EldenNet's own (the player's exit, GraceUI's, still closes it).
+
+inline constexpr float kChoiceTitlePx = 26.0f;
+inline constexpr float kChoiceTextPx = 20.0f;
+inline constexpr float kChoiceAnswerPx = 20.0f;
+inline constexpr std::uint32_t kChoiceGround = rgba(0x12, 0x14, 0x18, 0xF2);
+inline constexpr std::uint32_t kChoiceFocus = rgba(0xC8, 0xB2, 0x7A, 0x40);
+[[nodiscard]] std::uint32_t tone_colour(proto::ChoiceTone t) noexcept;
+
+[[nodiscard]] GraceUiPanelDesc choice_panel(const Display& d) noexcept;  // the modal layer, centred, takes input
+void paint_choice(Painter& p, const Faces& f, const Display& d, const proto::ChoicePanel& c, std::size_t focus);
+
+class ChoiceInput {
+ public:
+  enum class Action : std::uint8_t { None, Previous, Next, Answer, Ended };
+  struct Mapped {
+    Action action = Action::None;
+    std::optional<proto::CloseReason> reason;  // Ended: why; none for the panel's own release
+  };
+  [[nodiscard]] static Mapped map(const GraceUiEvent& e) noexcept;
+};
+
 }  // namespace en::overlay::surfaces

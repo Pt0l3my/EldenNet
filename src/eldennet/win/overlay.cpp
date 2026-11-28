@@ -48,6 +48,8 @@ struct OverlayLink {
   GraceUiStatus refused = GRACEUI_OK;
   GraceUiStatus page_refused = GRACEUI_OK;
   std::uint32_t plain_changes = 0;  // the surfaces' changes of Plain text logged (D268)
+  std::uint32_t choice_shown = 0;   // the rollback choice's panel last logged as shown, by its id
+  std::size_t choice_focus = 0;     // and its focus as last logged
 };
 
 namespace {
@@ -440,6 +442,11 @@ void log_ui(const en::proto::UiEvent& e) {
             .word("detail", c->detail.empty() ? std::string("none") : c->detail));
   } else if (const auto* k = std::get_if<p::UiEvent::Skip>(&e.event)) {
     log(Line("chat").word("what", "skip").num("index", k->page.index));
+  } else if (const auto* a = std::get_if<p::UiEvent::Choose>(&e.event)) {
+    log(Line("choice").word("what", "answer").num("panel", a->panel).word("answer", p::to_string(a->answer)));
+  } else if (const auto* x = std::get_if<p::UiEvent::ChoiceClosed>(&e.event)) {
+    log(Line("choice").word("what", "closed").num("panel", x->panel).word("reason", close_word(x->reason))
+            .word("detail", x->detail.empty() ? std::string("none") : x->detail));
   }
 }
 
@@ -600,6 +607,7 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
       fill_space(s, core, latest, tripped, o.graceui_version(), banner_words, facts);
       facts.ai = ai_tick(s, cs.gate_open, space->space);
       facts.characters = profiles_facts(s, core, cs.gate_open);  // Characters › Named NPCs (profiles.cpp)
+      facts.memory = memory_facts();  // the memory pages (memory.cpp), from the store and the core
       // Content packs (PAGES §4.6.9): the loads recorded so far (conversation.cpp, profiles.cpp); none before one.
       facts.content = s.content_view.revision != 0 ? &s.content_view : nullptr;
       // AI › Requests and Home's Model calls (the record, ai.cpp), and Pause AI's state as the core holds it (D15).
@@ -635,6 +643,7 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
       for (en::overlay::ProfileRequest& r : space->space.take_profile_requests()) {
         profiles_request(s, core, space->space, std::move(r));
       }
+      memory_requests(s, space->space);  // the memory pages' forgets, for the core, and their transcripts (memory.cpp)
       (void)o.answer_later(space->space);
       if (step.page_refused != GRACEUI_OK && step.page_refused != link->page_refused) {
         log(Line("page").word("refused", "publish_or_answer").num("status", step.page_refused), LogLevel::Warn);
@@ -682,6 +691,19 @@ std::vector<en::proto::UiEvent> overlay_show(Shell& s, const en::proto::UiModel&
     en::overlay::Overlay& o = *link->overlay;
     out = o.show(model, now);
     for (const en::proto::UiEvent& e : out) log_ui(e);
+    // The rollback choice's panel, once per time it is asked (MEM §9.1): its id, its bullets' count, and whether its
+    // panel holds input; never its words.
+    if (en::overlay::Surfaces* sf = o.surfaces(); sf != nullptr && model.choice && sf->choice_holding()) {
+      if (model.choice->id != link->choice_shown) {
+        link->choice_shown = model.choice->id;
+        link->choice_focus = sf->choice_focus();
+        log(Line("choice").word("what", "shown").num("panel", model.choice->id)
+                .num("bullets", model.choice->bullets.size()).num("answers", model.choice->answers.size()));
+      } else if (sf->choice_focus() != link->choice_focus) {
+        link->choice_focus = sf->choice_focus();  // EldenNet's own focus, moved by the player's keys or pad
+        log(Line("choice").word("what", "focus").num("panel", model.choice->id).num("focus", link->choice_focus));
+      }
+    }
     if (en::overlay::Surfaces* sf = o.surfaces()) {
       // The talk key to the box's first submitted frame (NPC §5.1's 50 ms): T6's part, from the hotkey's poll.
       if (const auto opened = sf->take_opened()) {

@@ -10,7 +10,8 @@
 #   hook (R12, GraceUI invariant 16), and never en-core or en-gal (ARCH §2.3: it can never reach game memory).
 set(EN_OVERLAY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/view.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/world.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/space.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/space_data.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/surfaces.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/characters.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/surfaces.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/choice.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/characters.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/memory.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/docs_data.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/workshop.cpp)
 if(WIN32)
   list(APPEND EN_OVERLAY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/overlay.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/chat.cpp)
@@ -60,6 +61,7 @@ if(EN_BUILD_TESTS)
   set(EN_OVERLAY_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/tests/main.cpp ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_view.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_world.cpp ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_space.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_surfaces.cpp ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_characters.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_memory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_workshop.cpp)
   if(WIN32)
     list(APPEND EN_OVERLAY_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/tests/fake_grace.cpp
@@ -92,8 +94,8 @@ if(EN_BUILD_TESTS)
     add_test(NAME en_docs_build COMMAND ${Python3_EXECUTABLE} -I ${PROJECT_SOURCE_DIR}/tools/docs/build.py --check)
     add_test(NAME en_docs_tests COMMAND ${Python3_EXECUTABLE} -I ${PROJECT_SOURCE_DIR}/tools/docs/test_build.py)
     set(EN_GRACEUI_SOURCE "" CACHE PATH
-      "A GraceUI checkout at the pinned commit (fc2205a), for its page lint and space check")
-    set(EN_GRACE_DEV "" CACHE FILEPATH "grace-dev from a Linux build of GraceUI at the pinned commit (fc2205a)")
+      "A GraceUI checkout at the pinned commit (7c26477), for its page lint and space check")
+    set(EN_GRACE_DEV "" CACHE FILEPATH "grace-dev from a Linux build of GraceUI at the pinned commit (7c26477)")
     if(EN_GRACEUI_SOURCE)
       add_test(NAME en_pages_lint COMMAND ${Python3_EXECUTABLE} -I ${PROJECT_SOURCE_DIR}/tests/pages/lint.py
         --graceui ${EN_GRACEUI_SOURCE} ${CMAKE_CURRENT_SOURCE_DIR}/pages/space.toml)

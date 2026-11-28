@@ -343,6 +343,10 @@ bool Surfaces::take(const GraceUiEvent& e, std::uint64_t now, std::vector<proto:
     case GRACEUI_EVENT_POINTER:
     case GRACEUI_EVENT_PAD:
     case GRACEUI_EVENT_INPUT_ENDED: {
+      if (choice_holding_) {
+        take_choice(e, out);
+        return true;
+      }
       if (!holding_) return true;  // after the box's own release: GraceUI's `released` end, or a late event
       const surfaces::InputMap::Mapped m = input_.map(e, now);
       if (m.swallowed) ++counts_.swallowed;
@@ -388,9 +392,123 @@ void Surfaces::release(std::vector<proto::UiEvent>* out, std::optional<proto::Cl
 }
 
 void Surfaces::fault() noexcept {
-  if (holding_) (void)api_.release_input(me_);  // first, then the report (NPC §5.5: ffi_guard releases input first)
+  // First, then the report (NPC §5.5: ffi_guard releases input first).
+  if (holding_ || choice_holding_) (void)api_.release_input(me_);
   holding_ = false;
+  choice_holding_ = false;
   faulted_ = true;
+}
+
+void Surfaces::release_choice() {
+  if (!choice_holding_) return;
+  (void)api_.release_input(me_);
+  choice_holding_ = false;
+}
+
+void Surfaces::take_choice(const GraceUiEvent& e, std::vector<proto::UiEvent>& out) {
+  const surfaces::ChoiceInput::Mapped m = surfaces::ChoiceInput::map(e);
+  using A = surfaces::ChoiceInput::Action;
+  const std::size_t n = last_choice_ ? last_choice_->answers.size() : 0;
+  switch (m.action) {
+    case A::None: break;
+    case A::Previous:
+      if (n != 0 && choice_focus_ > 0) {
+        --choice_focus_;
+        choice_dirty_ = true;
+      }
+      break;
+    case A::Next:
+      if (n != 0 && choice_focus_ + 1 < n) {
+        ++choice_focus_;
+        choice_dirty_ = true;
+      }
+      break;
+    case A::Answer:
+      if (last_choice_ && choice_focus_ < n) {
+        out.push_back(proto::UiEvent{proto::UiEvent::Choose{last_choice_->id,
+                                                            static_cast<proto::ChoiceAnswer>(choice_focus_)}});
+      }
+      break;
+    case A::Ended:
+      choice_holding_ = false;
+      hide(choice_);
+      if (m.reason && last_choice_) {
+        out.push_back(proto::UiEvent{proto::UiEvent::ChoiceClosed{last_choice_->id, *m.reason, {}}});
+      }
+      last_choice_.reset();
+      break;
+  }
+}
+
+void Surfaces::show_choice(const proto::UiModel& model, std::uint64_t now, std::vector<proto::UiEvent>& out) {
+  if (!model.choice) {
+    release_choice();
+    hide(choice_);
+    last_choice_.reset();
+    choice_asked_ = 0;
+    return;
+  }
+  const proto::ChoicePanel& c = *model.choice;
+  if (choice_.id == 0 || (choice_for_ != display_ && !choice_holding_)) {
+    Panel made;
+    made.desc = surfaces::choice_panel(display_);
+    if (api_.create_panel(me_, made.desc, made.id) != GRACEUI_OK) {
+      ++counts_.refused;
+      if (choice_.id == 0) {
+        if (choice_asked_ != c.id) {
+          choice_asked_ = c.id;
+          out.push_back(proto::UiEvent{proto::UiEvent::ChoiceClosed{c.id, proto::CloseReason::NotNow, "not_ready"}});
+        }
+        return;
+      }
+    } else {
+      hide(choice_);
+      choice_ = std::move(made);
+      choice_for_ = display_;
+    }
+  }
+  const bool fresh = !last_choice_ || last_choice_->id != c.id;
+  if (fresh) {
+    choice_focus_ = 0;  // "Forget what came after" has the focus as it opens
+    choice_dirty_ = true;
+  }
+  if (fresh || choice_dirty_ || *last_choice_ != c || !choice_.shown) {
+    choice_.painter.reset(choice_.desc.width, choice_.desc.height, white_, 0.5f, 0.5f);
+    surfaces::paint_choice(choice_.painter, faces_, display_, c, choice_focus_);
+    if (submit(choice_, now, true)) {
+      last_choice_ = c;
+      choice_dirty_ = false;
+    }
+  }
+  if (choice_holding_ || choice_asked_ == c.id) return;
+  choice_asked_ = c.id;
+  if (!choice_.shown) {
+    out.push_back(proto::UiEvent{proto::UiEvent::ChoiceClosed{c.id, proto::CloseReason::NotNow, "not_ready"}});
+    return;
+  }
+  // The modal layer's holder, the keyboard and the pad with the holder's events (D176): EldenNet moves its own focus.
+  GraceUiInputRequest req{};
+  req.size = sizeof req;
+  req.kind = GRACEUI_HOLDER_MODAL;
+  req.wants = GRACEUI_WANT_KEYBOARD | GRACEUI_WANT_PAD;
+  req.panel = choice_.id;
+  req.flags = GRACEUI_INPUT_EVENTS;
+  GraceUiInputAnswer a{};
+  const GraceUiStatus st = api_.request_input(me_, req, a);
+  if (st == GRACEUI_OK && a.answer == GRACEUI_INPUT_GRANTED) {
+    choice_holding_ = true;
+    return;
+  }
+  hide(choice_);
+  last_choice_.reset();
+  if (st == GRACEUI_OK && a.answer == GRACEUI_INPUT_REFUSED) {
+    a.holder[sizeof a.holder - 1] = '\0';
+    out.push_back(
+        proto::UiEvent{proto::UiEvent::ChoiceClosed{c.id, proto::CloseReason::Refused, std::string(a.holder)}});
+  } else {
+    out.push_back(proto::UiEvent{proto::UiEvent::ChoiceClosed{c.id, proto::CloseReason::NotNow,
+                                                              st == GRACEUI_OK ? not_now_word(a.why) : "not_now"}});
+  }
 }
 
 std::optional<Surfaces::Opened> Surfaces::take_opened() noexcept {
@@ -521,8 +639,16 @@ std::vector<proto::UiEvent> Surfaces::show(const proto::UiModel& model, std::uin
       out.push_back(close_event(proto::CloseReason::NotNow, std::string(), "not_ready"));
     }
     if (box.view != proto::BoxView::Open) asked_ = false;
+    if (model.choice && choice_asked_ != model.choice->id) {
+      choice_asked_ = model.choice->id;
+      out.push_back(proto::UiEvent{proto::UiEvent::ChoiceClosed{model.choice->id, proto::CloseReason::NotNow,
+                                                                "not_ready"}});
+    }
     return out;
   }
+
+  // ---- The rollback choice (MEM §9.1): its panel on the modal layer while the model holds it.
+  show_choice(model, now, out);
 
   // ---- The lower third.
   std::optional<proto::PageView> lower;

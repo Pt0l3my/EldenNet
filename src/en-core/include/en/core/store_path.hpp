@@ -54,6 +54,9 @@ inline constexpr std::string_view kChoicePending = "(Not yet: EldenNet is waitin
 inline constexpr std::string_view kBackupRestored =
     "EldenNet's memory file was damaged, so its newest backup was restored.";
 inline constexpr std::string_view kLowDisk = "Less than 200 MB of disk is free: EldenNet may stop saving memories.";
+// The shell's spill ring past its non-speech part (MEM §8.6), and no account found under the saves folder (§8.2).
+inline constexpr std::string_view kMemoryBehind = "Memory is behind; recent events are not being saved.";
+inline constexpr std::string_view kNoAccount = "Memory is off for this session: no Elden Ring save folder was found.";
 // "Memory is off for this session: " and the cause's words.
 [[nodiscard]] std::string memory_off_text(proto::db::Fault cause);
 
@@ -85,6 +88,10 @@ class StorePath {
   void close();
   // The player's answer to the choice.
   void resolve(proto::db::Choice choice);
+  // MEM §9.5 (History › Memories' Forget): one persona of the open journey forgotten, or the whole journey when
+  // `persona` is empty; the store takes a backup first. What the core holds of it goes with it (facts, bundles, open
+  // jobs, news). False, and nothing sent, unless the file is open on that journey.
+  bool forget(std::uint16_t journey, const std::string& persona, proto::Pt at_pt);
 
   // What a result means for the core: the world may go on (the open answered, whichever way), and what to toast.
   struct Effect {

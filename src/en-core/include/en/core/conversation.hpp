@@ -157,6 +157,8 @@ struct ConversationWorld {
   bool self_awareness = true;
   // Named chat held (MEM §9.1: the rollback choice waits): the talk key opens nothing and toasts these words.
   std::string_view chat_held;
+  // The store's spill ring is full (MEM §8.6): no new page shows; what waits is held as for a hidden overlay (§5.8).
+  bool pages_held = false;
   // Memory (v0.3; MEM §4): the store path while its file is open, whose facts and bundles give block 8 and block 6 (a);
   // null keeps block 8 empty and takes block 6 (a) from `log`.
   const StorePath* store = nullptr;
@@ -216,6 +218,9 @@ class Conversation {
   [[nodiscard]] std::optional<Mono> barks_quiet_until() const noexcept;
   [[nodiscard]] std::uint64_t epoch() const noexcept;           // the input epoch: a box opening, an end
   [[nodiscard]] std::optional<proto::RequestId> live_request() const noexcept;
+  // The last step's moment was calm: in a world, not loading, and safe_context's clauses but the ladder's (no danger,
+  // no menu or banner): when the rollback choice's panel may be asked (MEM §9.1), whatever the model's health.
+  [[nodiscard]] bool calm() const noexcept;
 
   struct Impl;
 

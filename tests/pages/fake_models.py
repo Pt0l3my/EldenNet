@@ -35,6 +35,7 @@ class FakeModels:
         self.open_prefix = open_prefix
         self.open_models = list(open_models)
         self.scripted = [list(r) for r in scripted]
+        self.prompts = []  # each chat request's messages, as JSON text, in order: for a case that reads its prompt
         self.lock = threading.Lock()
         self.counts = {"models": 0, "chats": 0, "json": 0, "refused": 0, "unknown": 0, "open_models": 0,
                        "open_chats": 0, "scripted": 0, "stops": 0}
@@ -97,6 +98,8 @@ class FakeModels:
                     return
                 wants_json = "response_format" in body
                 self.count("open_chats" if self.open() else "json" if wants_json else "chats")
+                with fake.lock:
+                    fake.prompts.append(json.dumps(body.get("messages", [])))
                 if isinstance(body.get("stop"), list) and body["stop"]:
                     self.count("stops")
                 pieces = None
@@ -142,6 +145,10 @@ class FakeModels:
     def snapshot(self):
         with self.lock:
             return dict(self.counts)
+
+    def prompts_seen(self):
+        with self.lock:
+            return list(self.prompts)
 
     def close(self):
         self.server.shutdown()

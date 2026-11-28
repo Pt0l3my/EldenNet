@@ -98,6 +98,8 @@ class StoreHandle {
 
   // Never blocks (the core's side): Full when C8's 1,024 are waiting.
   [[nodiscard]] proto::Expected<void, Full> send(proto::DbRequest request);
+  // The same for the shell's spill ring: true when C8 took it (moved from), false when full (the request untouched).
+  [[nodiscard]] bool try_send(proto::DbRequest& request) { return requests_.try_push(request); }
   // The next result, in the order the requests ran.
   [[nodiscard]] bool poll(proto::DbResult& out);
   [[nodiscard]] std::size_t waiting() const { return requests_.size(); }

@@ -85,6 +85,7 @@ class Stmt {
   void reset() noexcept;
 
   // Columns count from 0.
+  [[nodiscard]] int columns() const noexcept;
   [[nodiscard]] bool null(int i) const noexcept;
   [[nodiscard]] std::int64_t i64(int i) const noexcept;
   [[nodiscard]] double f64(int i) const noexcept;

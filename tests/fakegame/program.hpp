@@ -37,6 +37,7 @@ struct Options {
                                        // our notes) and 2 in it; without this it reads 2 always
   bool slot_copy = false;              // with slot_by_state: the field plot keeps a copy of the slot's number while in
                                        // the world (0 outside it): a second object that reads both numbers
+  std::uint32_t play_time_s = 0;      // the save's play time at load (a later session of the save)
   std::uint32_t first_slot = 2;        // with slot_by_state: the slot it reads in the world before it goes back to its
                                        // title (another save was loaded first); after that it reads 2
   std::uint32_t retitle_at_s = 0;      // seconds into the world at which the game goes back to its title, once; 0 never

@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "content/wording.hpp"  // the lexicon's banned words, for the memory job's hygiene
+#include "en/core/choice.hpp"
 #include "en/core/profile.hpp"
 #include "en/core/speech_content.hpp"
 #include "en/core/speech_lint.hpp"
@@ -478,7 +479,26 @@ Outputs Core::step(CoreInput input, Mono now) {
                  },
                  [&](BootBanner& b) { on_banner(b, now, out); },
                  [&](CoreInput::Tick&) {},
-                 [&](proto::UiEvent& e) { ui = &e; },
+                 [&](proto::UiEvent& e) {
+                   // The rollback choice's panel (MEM §9.1, O144): its answer and its close are the core's alone.
+                   if (const auto* c = std::get_if<proto::UiEvent::Choose>(&e.event)) {
+                     if (choice_up_ && c->panel == choice_id_ && store_.mode() == StorePath::Mode::Choice) {
+                       choice_up_ = false;
+                       store_.resolve(static_cast<proto::db::Choice>(c->answer));
+                     }
+                   } else if (const auto* x = std::get_if<proto::UiEvent::ChoiceClosed>(&e.event)) {
+                     if (choice_up_ && x->panel == choice_id_) {
+                       choice_up_ = false;
+                       choice_closed_at_ = now;  // asked again at the next safe moment
+                     }
+                   } else {
+                     if (std::holds_alternative<proto::UiEvent::OpenChat>(e.event) &&
+                         store_.mode() == StorePath::Mode::Choice) {
+                       choice_wanted_ = true;  // the talk key while it waits: the panel again, once it is safe
+                     }
+                     ui = &e;
+                   }
+                 },
                  [&](proto::LlmEvent& e) {
                    if (e.id >= kMemoryRequests) {
                      on_memory_event(e, now, out);  // the memory job's: never the conversation's
@@ -489,8 +509,24 @@ Outputs Core::step(CoreInput input, Mono now) {
                  [&](proto::NetHealth& h) { net_ = h; },
                  [&](CoreInput::Pause& p) { state_.ai_paused = p.on; },
                  [&](proto::DbResult& r) { on_store(r, now, out); },
-                 [&](CoreInput::Account& a) { store_.attach(a.steamid64); },
+                 [&](CoreInput::Account& a) {
+                   store_.attach(a.steamid64);
+                   no_account_ = a.steamid64 == 0;
+                 },
                  [&](CoreInput::MemoryChoice& c) { store_.resolve(c.choice); },
+                 [&](CoreInput::Forget& f) {
+                   if (!can_forget(f.journey)) return;
+                   const proto::Pt pt = last_ && last_->player ? static_cast<proto::Pt>(last_->player->play_time_ms)
+                                                               : 0;
+                   if (store_.forget(f.journey, f.persona, pt)) ++forgets_;
+                 },
+                 [&](CoreInput::StoreBacklog& b) {
+                   if (b.behind && !backlog_.behind) {
+                     conversation_.notice(ToastClass::Degraded, proto::ToastLevel::Warning, std::string(kMemoryBehind),
+                                          now);
+                   }
+                   backlog_ = b;
+                 },
              },
              input.payload);
   store_.set_enabled(behaviour_.features.memory);
@@ -564,6 +600,7 @@ void Core::run_conversation(Mono at, bool fresh, const proto::UiEvent* ui, const
   w.chat = behaviour_.features.chat;
   w.self_awareness = behaviour_.features.self_awareness;
   if (store_.mode() == StorePath::Mode::Choice) w.chat_held = kChoicePending;
+  w.pages_held = backlog_.pages_held;
   if (store_.mode() == StorePath::Mode::Open) w.store = &store_;
   if (content_loaded_) {
     w.world_model = &knowledge_;
@@ -575,6 +612,7 @@ void Core::run_conversation(Mono at, bool fresh, const proto::UiEvent* ui, const
   speech_events(co.commits, at, out);
   store_.pump(at, out.db);
   out.ui = std::move(co.ui);
+  choice_model(at, out);
   // The conversation's requests after any the step made already (the memory job's, made on a store answer).
   out.requests.insert(out.requests.end(), std::make_move_iterator(co.requests.begin()),
                       std::make_move_iterator(co.requests.end()));
@@ -588,6 +626,55 @@ void Core::run_conversation(Mono at, bool fresh, const proto::UiEvent* ui, const
     out.requests.clear();
     std::erase_if(out.calls, [](const CallNote& n) { return n.what == CallNote::What::Sent; });
   }
+}
+
+std::vector<std::pair<std::string, bool>> Core::present() const {
+  std::vector<std::pair<std::string, bool>> out;
+  if (!last_ || !content_loaded_ || state_.phase != Phase::InWorld) return out;
+  for (const proto::Chr& c : last_->chars) {
+    const auto bound = directory_.index().resolve(c);
+    if (!bound || bound->persona >= directory_.size()) continue;
+    const std::string& id = directory_.persona(bound->persona).id;
+    const auto same = [&](const auto& p) { return p.first == id; };
+    if (std::none_of(out.begin(), out.end(), same)) out.emplace_back(id, c.dead);
+  }
+  return out;
+}
+
+bool Core::can_forget(std::uint16_t journey) const noexcept {
+  return store_.mode() == StorePath::Mode::Open && store_.journey() == journey &&
+         conversation_.state() == proto::ConvState::Closed;
+}
+
+// The rollback choice's panel (MEM §9.1, O144; WHY§690): in the model while the choice waits and the moment is calm (a
+// world, no danger, no menu), with a new id each time it is asked; taken down when the moment stops being calm, and,
+// closed without an answer, asked again kChoiceAgainMs later at the next calm moment, or at the talk key.
+void Core::choice_model(Mono now, Outputs& out) {
+  if (store_.mode() != StorePath::Mode::Choice || !store_.choice()) {
+    choice_up_ = false;
+    choice_wanted_ = false;
+    choice_closed_at_.reset();
+    return;
+  }
+  const bool calm = conversation_.calm();
+  if (choice_up_ && !calm) {
+    choice_up_ = false;
+    choice_closed_at_ = now;
+  }
+  if (!choice_up_ && calm &&
+      (!choice_closed_at_ || choice_wanted_ || now - *choice_closed_at_ >= kChoiceAgainMs)) {
+    choice_up_ = true;
+    choice_wanted_ = false;
+    ++choice_id_;
+  }
+  if (!choice_up_) return;
+  const NameOf name_of = [this](std::string_view persona) -> std::optional<std::string> {
+    if (!content_loaded_) return std::nullopt;
+    const std::optional<std::size_t> i = directory_.find(persona);
+    if (!i) return std::nullopt;
+    return directory_.persona(*i).display_name_fallback;
+  };
+  out.ui.choice = choice_panel(*store_.choice(), choice_id_, name_of);
 }
 
 namespace {
@@ -977,6 +1064,10 @@ void Core::start_playthrough(const proto::WorldSnapshot& s, Outputs& out) {
     return;
   }
   store_.close();
+  if (no_account_ && !no_account_told_ && behaviour_.features.memory) {
+    no_account_told_ = true;
+    conversation_.notice(ToastClass::Degraded, proto::ToastLevel::Warning, std::string(kNoAccount), s.mono_ms);
+  }
   enter(Phase::InWorld, s.mono_ms, out);
 }
 

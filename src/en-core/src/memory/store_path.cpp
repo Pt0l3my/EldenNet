@@ -263,6 +263,18 @@ void StorePath::resolve(db::Choice choice) {
   urgent_ = true;
 }
 
+bool StorePath::forget(std::uint16_t journey, const std::string& persona, proto::Pt at_pt) {
+  if (mode_ != Mode::Open || journey != journey_) return false;
+  send(db::Forget{journey, persona, at_pt}, true);  // at once: a forget's backup and its rows go before later writes
+  const auto gone = [&](const std::string& p) { return persona.empty() || p == persona; };
+  std::erase_if(facts_, [&](const auto& kv) { return gone(kv.first); });
+  std::erase_if(bundles_, [&](const auto& kv) { return gone(kv.first); });
+  std::erase_if(jobs_, [&](const auto& kv) { return gone(kv.first); });
+  std::erase_if(news_, [&](const auto& kv) { return gone(kv.first); });
+  std::erase_if(merge_after_, [&](const auto& kv) { return gone(kv.first); });
+  return true;
+}
+
 void StorePath::fail(db::Fault cause, Effect& e) {
   mode_ = Mode::Down;
   dropped_ += held_.size();

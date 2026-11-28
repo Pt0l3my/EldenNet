@@ -334,4 +334,20 @@ Result<std::uint64_t> forget_persona(const Db& db, std::uint16_t journey, const 
   return rows;
 }
 
+Result<std::vector<StoredEvent>> lines_of(const Db& db, proto::RowId conv) {
+  auto s = Stmt::prepare(db, "SELECT " + std::string(kColumns) +
+                                 " FROM events e WHERE e.conv_id = ?1 AND e.kind IN ('PlayerSaid', 'NpcSaid') "
+                                 "ORDER BY e.id");
+  if (!s) return Unexpected{s.error()};
+  s->bind(1, conv);
+  std::vector<StoredEvent> out;
+  for (;;) {
+    auto r = s->step();
+    if (!r) return Unexpected{r.error()};
+    if (!*r) break;
+    out.push_back(read_event(*s));
+  }
+  return out;
+}
+
 }  // namespace en::store::events

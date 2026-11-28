@@ -202,6 +202,8 @@ void Stmt::reset() noexcept {
   bind_failed_ = false;
 }
 
+int Stmt::columns() const noexcept { return st_ != nullptr ? sqlite3_column_count(st_) : 0; }
+
 bool Stmt::null(int i) const noexcept { return sqlite3_column_type(st_, i) == SQLITE_NULL; }
 std::int64_t Stmt::i64(int i) const noexcept { return static_cast<std::int64_t>(sqlite3_column_int64(st_, i)); }
 double Stmt::f64(int i) const noexcept { return sqlite3_column_double(st_, i); }
