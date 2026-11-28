@@ -39,6 +39,7 @@
 #include "en/core/event_log.hpp"
 #include "en/core/gate.hpp"  // Mono
 #include "en/core/identity.hpp"
+#include "en/core/store_path.hpp"
 #include "en/core/toasts.hpp"
 #include "en/core/knowledge.hpp"
 #include "en/core/predicates.hpp"
@@ -156,6 +157,9 @@ struct ConversationWorld {
   bool self_awareness = true;
   // Named chat held (MEM §9.1: the rollback choice waits): the talk key opens nothing and toasts these words.
   std::string_view chat_held;
+  // Memory (v0.3; MEM §4): the store path while its file is open, whose facts and bundles give block 8 and block 6 (a);
+  // null keeps block 8 empty and takes block 6 (a) from `log`.
+  const StorePath* store = nullptr;
 };
 
 struct ConversationInput {

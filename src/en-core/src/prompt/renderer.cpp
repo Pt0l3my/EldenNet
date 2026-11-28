@@ -266,7 +266,26 @@ proto::Expected<json, PromptError> dialogue_data(const DialogueContext& context)
   d["words_max"] = std::clamp<std::int64_t>(words.value_or(40), 10, 60);
   d["standing"] = {{"tied", standing(context.tied)}, {"land", standing(context.land)}};
   d["earlier"] = turns(context.earlier);
+  d["earlier_moved_on"] = context.earlier_moved_on;
   d["history"] = turns(context.history);
+  // Block 8's parts (memory.hpp), each keepsake with its weight and protection for the trim (MEM §4.4).
+  json tarnished = {{"shown", context.tarnished != nullptr}, {"facts", json::array()}, {"disposition", ""},
+                    {"summary", ""},  {"seen", json::array()},    {"proved", json::array()},
+                    {"said", json::array()}};
+  if (const TarnishedBlock* t = context.tarnished) {
+    tarnished["facts"] = t->facts;
+    tarnished["disposition"] = t->disposition;
+    tarnished["summary"] = t->summary;
+    const auto lines = [](const std::vector<TarnishedBlock::Line>& g) {
+      json a = json::array();
+      for (const auto& l : g) a.push_back({{"text", l.text}, {"weight", l.weight}, {"protect", l.protect}});
+      return a;
+    };
+    tarnished["seen"] = lines(t->seen);
+    tarnished["proved"] = lines(t->proved);
+    tarnished["said"] = lines(t->said);
+  }
+  d["tarnished"] = std::move(tarnished);
   const Scene& s = context.scene;
   json nearby = json::array();
   for (const std::string& n : s.nearby) {
@@ -448,6 +467,26 @@ proto::Expected<PromptReport, PromptError> DialoguePrompt::report(const Dialogue
       ++report.exchanges_trimmed;
       return true;
     };
+    // One step of block 8's trim (MEM §4.4): the lightest keepsake that is not the protected one.
+    constexpr std::size_t kTarnished = static_cast<std::size_t>(Block::Tarnished);
+    const auto trim_tarnished = [&]() -> bool {
+      json* group = nullptr;
+      std::size_t at = 0;
+      for (const char* g : {"seen", "proved", "said"}) {
+        json& lines = data["tarnished"][g];
+        for (std::size_t i = lines.size(); i-- > 0;) {
+          if (lines[i]["protect"].get<bool>()) continue;
+          if (group == nullptr || lines[i]["weight"].get<double>() < (*group)[at]["weight"].get<double>()) {
+            group = &lines;
+            at = i;
+          }
+          break;
+        }
+      }
+      if (group == nullptr) return false;
+      group->erase(group->begin() + static_cast<std::ptrdiff_t>(at));
+      return true;
+    };
     const auto trim_nearby = [&]() -> bool {
       json& nearby = data["scene"]["nearby"];
       if (nearby.empty()) return false;
@@ -461,6 +500,8 @@ proto::Expected<PromptReport, PromptError> DialoguePrompt::report(const Dialogue
     while (tokens_of(all) > kPromptTarget) {
       if (trim_history()) {
         render_block(kHistory);
+      } else if (trim_tarnished()) {
+        render_block(kTarnished);
       } else if (trim_nearby()) {
         render_block(kScene);
       } else {

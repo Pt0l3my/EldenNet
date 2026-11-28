@@ -19,6 +19,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "en/core/memory.hpp"
 #include "en/core/speech.hpp"  // HardList, for the reminder
 #include "en/proto/expected.hpp"
 #include "en/proto/llm.hpp"
@@ -90,8 +91,11 @@ struct DialogueContext {
   LintTally tally;  // the last reply's: block 11's note for each tic at its max_per_conversation (§3.3)
   Standing tied;    // block 5b: tied to the persona's own road
   Standing land;    // block 5b: the land's
-  // Blocks 7 and 8's other sources (the KB, the journal, keepsakes, facts and disposition, the told name, the
-  // since-line, the lived layer) come with the store and memory (v0.3) and join this context then.
+  // Block 8 from the store (memory.hpp; MEM §4.3), composed by the core; null leaves it empty. Block 6 (a)'s header
+  // says things have moved on when the persona's stage at that conversation differs from now.
+  const TarnishedBlock* tarnished = nullptr;
+  bool earlier_moved_on = false;
+  // Block 7's other sources (the KB, the since-line, the cue) and block 3's lived layer join later commits.
 };
 
 struct RenderedPrompt {

@@ -2,8 +2,9 @@
 # it lives beside the pilot's other scenarios to share pilot-overrides). The fixture character is Wren; Kalé keeps
 # shop and the test persona stands 12 m away, a synthetic placement, so that it overhears. This commit runs the steps
 # that need no memory job (v0.3's next commits add the journal's): A's chat and its audiences, B's native talk as a
-# second meeting, E's strike, a reload that refolds the facts from the file, and H's NG+, which starts the next
-# journey's facts. Our own scenario, invented data. Run: eldennet-engine eval <this file> --llm mock.
+# second meeting, E's strike, a reload that refolds the facts from the file and a chat whose prompt holds them (block 8)
+# and the first conversation's tail (block 6 (a)), and H's NG+, which starts the next journey's facts. Our own
+# scenario, invented data. Run: eldennet-engine eval <this file> --llm mock.
 schema = 1
 name = "wren_and_kale"
 persona = "kale"
@@ -108,7 +109,9 @@ do = "strike"
 do = "expect"
 fact = { persona = "kale", key = "times_attacked", value = "1" }
 
-# A reload: the facts come back from the file's log.
+# A reload: the facts come back from the file's log, and the next chat's prompt has them in block 8 (MEM §4.3) and the
+# first conversation's tail in block 6 (a), across the sessions (its lines quote the name Wren gave: block 8 does not,
+# with no journal yet).
 [[step]]
 do = "reload"
 
@@ -116,6 +119,28 @@ do = "reload"
 do = "expect"
 mode = "open"
 fact = { persona = "kale", key = "met_count", value = "2" }
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Back again. Still open?"
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "expect"
+npc_lines = 4
+prompt_has = ["[The Tarnished, as you know them]", "You have spoken with the Tarnished a few times.",
+  "The Tarnished struck you once, only a short while ago.", "Earlier, when you last spoke with the Tarnished",
+  "What do you sell?"]
+prompt_lacks = ["They told you their name is"]
+
+[[step]]
+do = "esc"
 
 # H: NG+ starts the next journey; nothing of the first is this journey's.
 [[step]]

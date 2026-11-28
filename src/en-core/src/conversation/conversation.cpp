@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <variant>
 
+#include "en/core/facts.hpp"
 #include "en/core/speech_lint.hpp"  // DeflectionRing
 #include "en/core/toasts.hpp"
 
@@ -657,12 +658,37 @@ struct Conversation::Impl {
     for (std::size_t i = split; i < conv->turns.size(); ++i) recap.push_back(conv->turns[i].text);
     if (recap.size() > 3) recap.erase(recap.begin(), recap.end() - 3);
     std::vector<Turn> earlier;
-    if (in->world.log != nullptr) {
+    // Memory (MEM §4): block 8 from the persona's facts and journal, and block 6 (a) from the file's tail of the last
+    // ended conversation, across sessions; without the store, block 8 stays empty and the tail is this session's.
+    std::optional<TarnishedBlock> tarnished;
+    bool moved_on = false;
+    const MemoryBundle* bundle = nullptr;
+    if (const StorePath* st = in->world.store) {
+      bundle = st->bundle(conv->persona_id);
+      const auto f = st->facts().find(conv->persona_id);
+      const proto::PersonaFacts* facts = f != st->facts().end() ? &f->second : nullptr;
+      BlockNow at;
+      at.pt = snap() != nullptr && snap()->player ? static_cast<proto::Pt>(snap()->player->play_time_ms) : 0;
+      tarnished = tarnished_block(facts, bundle != nullptr && bundle->journal ? &*bundle->journal : nullptr, at);
+      if (facts != nullptr) {
+        const proto::FactRow* seen = find_fact(*facts, fact::kStageSeen);
+        const std::size_t stage = stage_of(conv->persona);
+        moved_on = seen != nullptr && stage < p.stages.size() && seen->value != p.stages[stage].id;
+      }
+    }
+    if (bundle != nullptr) {
+      for (const proto::StoredEvent& e : bundle->prev_tail) {
+        if (!e.text) continue;
+        earlier.push_back(Turn{e.kind == "PlayerSaid" ? Turn::Who::Tarnished : Turn::Who::Persona, *e.text});
+      }
+    } else if (in->world.log != nullptr) {
       for (const LoggedEvent& e : in->world.log->last_lines(conv->persona_id, conv->id, 6)) {
         earlier.push_back(Turn{e.kind == Commit::Kind::PlayerSaid ? Turn::Who::Tarnished : Turn::Who::Persona, e.text});
       }
     }
     DialogueContext ctx;
+    ctx.tarnished = tarnished ? &*tarnished : nullptr;
+    ctx.earlier_moved_on = moved_on && !earlier.empty();
     ctx.persona = conv->persona_id;
     ctx.record = &record;
     ctx.name = conv->name;

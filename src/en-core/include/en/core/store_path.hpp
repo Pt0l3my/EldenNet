@@ -32,6 +32,7 @@
 #include "en/core/event_log.hpp"
 #include "en/core/identity.hpp"
 #include "en/core/knowledge.hpp"
+#include "en/core/memory.hpp"
 #include "en/core/toasts.hpp"
 #include "en/proto/store.hpp"
 
@@ -110,6 +111,10 @@ class StorePath {
   [[nodiscard]] std::uint16_t journey() const noexcept { return journey_; }
   [[nodiscard]] std::size_t held() const noexcept { return held_.size(); }
   [[nodiscard]] std::uint64_t dropped() const noexcept { return dropped_; }
+  // Each persona's bundle (MEM §4.1): asked for at PersonaApproached (the prefetch) and when a conversation starts,
+  // and again when one ends, so its tail is the newest; null until the store answers.
+  void want_bundle(const std::string& persona);
+  [[nodiscard]] const MemoryBundle* bundle(std::string_view persona) const;
   // The file's row for a conversation of this session, once written.
   [[nodiscard]] std::optional<proto::RowId> conversation_row(proto::ConvId conv) const;
 
@@ -155,6 +160,8 @@ class StorePath {
   std::map<std::string, proto::PersonaFacts> facts_;  // the journey's, by profile id
   std::map<proto::ConvId, proto::RowId> convs_;
   std::map<std::pair<proto::ConvId, proto::ReplyId>, proto::EventId> replies_;  // each NpcSaid, for its pages
+  std::map<std::string, MemoryBundle, std::less<>> bundles_;
+  std::map<std::uint64_t, std::string> bundle_seqs_;  // the Bundles in flight, by sequence number
   std::vector<Op> held_;
   std::vector<proto::DbRequest> queued_;
   bool urgent_ = false;  // speech is queued

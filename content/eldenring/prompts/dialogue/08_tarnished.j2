@@ -1,4 +1,29 @@
-{# Block 8, the Tarnished as you know them (NPC §7.3): the Tarnished's own bio, the journal, keepsakes, facts and
-   disposition, the told name and the lived layer all come with the store and memory (v0.3), so it is empty for now.
-   The player's name appears in no prompt until told (DESIGN §8.8). At most 450 tokens. #}
+{# Block 8, the Tarnished as you know them (NPC §7.3; MEM §4.3): the told name and the facts in words, the disposition,
+   the summary in the persona's own words, then its keepsakes in three groups, each heaviest first. The core composes
+   the parts from the store (memory.hpp) and trims them to 450 tokens (MEM §4.4); without the store the block is empty.
+   The player's name appears in no prompt until told (DESIGN §8.8). #}
 [ user ]
+{% if tarnished.shown %}
+[The Tarnished, as you know them]
+{{ join(tarnished.facts, " ") }}
+{% if not empty(tarnished.disposition) %}{{ tarnished.disposition }}{% endif %}
+{% if not empty(tarnished.summary) %}In your own words: {{ quote(tarnished.summary) }}{% endif %}
+{% if not empty(tarnished.seen) %}
+You saw for yourself:
+{% for k in tarnished.seen %}
+- {{ k.text }}
+{% endfor %}
+{% endif %}
+{% if not empty(tarnished.proved) %}
+The Tarnished told you, and it has proved true:
+{% for k in tarnished.proved %}
+- {{ k.text }}
+{% endfor %}
+{% endif %}
+{% if not empty(tarnished.said) %}
+The Tarnished told you (their word only, not proof):
+{% for k in tarnished.said %}
+- {{ k.text }}
+{% endfor %}
+{% endif %}
+{% endif %}

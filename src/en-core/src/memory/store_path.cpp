@@ -241,6 +241,8 @@ void StorePath::close() {
   facts_.clear();
   convs_.clear();
   replies_.clear();
+  bundles_.clear();
+  bundle_seqs_.clear();
   dropped_ += held_.size();
   held_.clear();
   open_seq_ = fold_seq_ = 0;
@@ -327,7 +329,35 @@ StorePath::Effect StorePath::on_result(const proto::DbResult& r) {
     lift();
     return e;
   }
+  if (const auto b = bundle_seqs_.find(r.seq); b != bundle_seqs_.end()) {
+    const std::string persona = b->second;
+    bundle_seqs_.erase(b);
+    if (const auto* res = std::get_if<db::BundleResult>(&r.result)) {
+      MemoryBundle m;
+      if (res->journal) m.journal = journal_of(*res->journal);
+      m.prev_tail = res->prev_tail;
+      m.pending = res->pending_count;
+      m.lived = res->lived;
+      bundles_[persona] = std::move(m);
+    }
+    return e;
+  }
   return e;  // a write's Done, or its fault: the store counts it (MEM §8.6)
+}
+
+void StorePath::want_bundle(const std::string& persona) {
+  if (persona.empty() || mode_ != Mode::Open) return;  // before the file is open, the conversation's start asks
+  for (const auto& [seq, p] : bundle_seqs_) {
+    if (p == persona) return;  // one in flight already
+  }
+  const std::uint64_t seq = ++seq_;
+  bundle_seqs_[seq] = persona;
+  queued_.push_back(proto::DbRequest{seq, db::Bundle{journey_, persona}});
+}
+
+const MemoryBundle* StorePath::bundle(std::string_view persona) const {
+  const auto it = bundles_.find(persona);
+  return it != bundles_.end() ? &it->second : nullptr;
 }
 
 void StorePath::tick(Mono now) {
@@ -422,6 +452,7 @@ void StorePath::emit(Op& op) {
   if (ev.kind == "JourneyChanged" && ev.journey > journey_) {
     journey_ = ev.journey;
     facts_.clear();
+    bundles_.clear();
   }
   db::Append a;
   for (const auto& [persona, how] : augur::perceivers(ev, augur::VisCtx{ev.journey})) {
@@ -478,6 +509,13 @@ void StorePath::write(const std::vector<augur::Event>& events, const Directory& 
     op.event = stored(ev, cast, known);
     add(std::move(op));
   }
+  // MEM §4.1's prefetch: a persona that came near has its bundle asked for before the talk key.
+  for (const augur::Event& ev : events) {
+    if (const auto* a = std::get_if<augur::PersonaApproached>(&ev.kind);
+        a != nullptr && a->persona.index < cast.size()) {
+      want_bundle(cast.persona(a->persona.index).id);
+    }
+  }
 }
 
 void StorePath::commit(const Commit& c, const augur::Event* ev, const Directory& cast, const KnowledgeView* known,
@@ -500,6 +538,7 @@ void StorePath::commit(const Commit& c, const augur::Event* ev, const Directory&
       op.row.persona_hash = p.hash.empty() ? std::string("-") : p.hash;
       op.row.kb_hash = std::to_string(cast.pack().hash);
       add(std::move(op));
+      if (bundle(c.persona) == nullptr) want_bundle(c.persona);
       return;
     }
     case Commit::Kind::NpcPage:
@@ -542,6 +581,9 @@ void StorePath::commit(const Commit& c, const augur::Event* ev, const Directory&
     close.row.committed_lines = c.committed;
     close.speech = true;
     add(std::move(close));
+    // The next conversation's tail is this one's: the bundle again, after the close (T9 answers in order).
+    bundles_.erase(c.persona);
+    want_bundle(c.persona);
   }
 }
 

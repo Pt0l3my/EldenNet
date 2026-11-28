@@ -278,10 +278,11 @@ TEST_CASE("store path: other writes are coalesced and go out within 250 ms; spee
   started.persona = "lantern_keeper";
   p.commit(started, nullptr, cast, nullptr, 611000);
   p.pump(300, out);
-  REQUIRE(out.size() == 2);
+  REQUIRE(out.size() == 3);
   CHECK(std::holds_alternative<db::Append>(out[0].op));
   CHECK(std::holds_alternative<db::ConvOpen>(out[1].op));
   CHECK(std::get<db::ConvOpen>(out[1].op).row.id == 1);
+  CHECK(std::holds_alternative<db::Bundle>(out[2].op));  // MEM §4.1: the persona's bundle, for the first turn
 }
 
 TEST_CASE("store path: a lock at open is retried three times, then the world goes on with memory off and a toast") {

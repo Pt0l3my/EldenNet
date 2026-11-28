@@ -15,3 +15,8 @@ chunk_ms = 40
 text = "Rope, lamp oil, a few charms that mostly work. Take a look."
 first_token_ms = 700
 chunk_ms = 40
+
+[[reply]]
+text = "Open as ever. The church keeps odd hours, but I keep them with it."
+first_token_ms = 700
+chunk_ms = 40

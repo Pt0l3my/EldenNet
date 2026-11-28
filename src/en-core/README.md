@@ -426,6 +426,19 @@ the conversation part B's (above); the core holds both.
   - speech goes out in the step it happens, with whatever was queued before it; other writes go out at most every
     250 ms. A JourneyChanged into a later journey starts that journey's facts;
   - a Tripped answer, at any time, leaves memory off for the session, with a toast naming the cause.
+- **Block 8 and block 6 (a)** (`memory.hpp`, `src/memory/journal.cpp`; MEM §2.3, §2.4, §4). A journal version's
+  keepsakes are the core's JSON (`journal_of`, `keepsakes_json`); the protected keepsake is the heaviest about the
+  Tarnished at 0.7 or more, the older on a tie. Each persona's bundle (its journal, the tail of its last ended
+  conversation, its pending count) is asked for at PersonaApproached, at a conversation's start and again after its
+  end; a turn whose bundle is not back goes without it. `tarnished_block` composes block 8 in MEM §4.3's order and
+  words: the told name and the facts in words on one paragraph (MEM §2.2's table; a first meeting's place and a boss
+  without a shown name are left out until their names are known), the disposition (MEM §2.4), the summary, then the
+  keepsakes seen, said and proved, said, each heaviest first, at most 7. It is held to 450 tokens by MEM §4.4's order
+  (the lightest keepsakes down to the protected one, then the facts other than the name, the meetings and the
+  attacks), and the prompt's own trim takes block 8's lightest keepsakes after block 6 (a)'s lines. Block 6 (a) comes
+  from the file while it is open, across sessions, under "(things have moved on since)" when `stage_seen` differs from
+  the active stage; without the store, block 8 is empty and the tail is this session's. Block 6 (c) has no lines
+  before own-initiative lines (v0.4, O147).
 - **Its words** (drafts for the owner): `kChoicePending` "(Not yet: EldenNet is waiting for your answer about this
   save.)"; `kBackupRestored` "EldenNet's memory file was damaged, so its newest backup was restored."; `kLowDisk` "Less
   than 200 MB of disk is free: EldenNet may stop saving memories."; and `memory_off_text(cause)`, "Memory is off for
@@ -496,4 +509,6 @@ random events (`test_facts.cpp`); and the core against en-store's StoreCore on a
 conversation in the file with the core's own end word and the meeting folded, the 250 ms coalescing and speech taking
 the queue with it, a lock at open retried three times then memory off with its toast, the choice holding named chat and
 the writes until Forget trims and lifts them, memory off and no account opening nothing, a tripped store, and
-StageChanged's and JourneyChanged's stored forms.
+StageChanged's and JourneyChanged's stored forms; block 8 (`test_block8.cpp`): the journal's form and the protected
+keepsake, MEM §4.3's example word for word on the shipped templates, the facts' words, the cap's trim order, block 6
+(a)'s header, and T5 (every system part the same with block 8 or without).
