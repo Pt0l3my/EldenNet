@@ -158,9 +158,9 @@ cmake --build build-cl
   (`mesa-vulkan-drivers`) for Wine's Direct3D 12, as GraceUI's harness does. Build GraceUI at the commit
   third_party/graceui-sys comes from (5702fae, GraceUI 0.2.70), so the space and the surfaces meet the checks they will
   meet. The page lint and the preview are pinned to the same commit (`tests/pages/lint.py`): the page data is protocol
-  1.21's since v0.3's memory pages: History › Memories' Forget waits 1 s before its second press counts and the
-  conversations' and journals' topics are private (GraceUI D274), which an older registration refuses, so the GraceUI
-  floor is 0.2.67 and the page data's minor its floor's (before them, 1.20's pc_only for Workshop, D264).
+  1.22's since the rail's icons (the owner's O149, GraceUI D277), which an older registration refuses, so the GraceUI
+  floor is 0.2.70 and the page data's minor its floor's (before them, 1.21's memory pages: History › Memories' Forget
+  waits 1 s before its second press counts and the conversations' and journals' topics are private, D274).
   `launcher-eldennet-graceui-pages` drives EldenNet's pages through that GraceUI, Content
   packs, Docs, Bug report and Logs drawn in game among them, `-pause` Pause AI by its quick switch's command and by
   Home's header switch's, `-talk-calls` AI › Requests after a reply and `-talk-traces` System › Traces and Performance

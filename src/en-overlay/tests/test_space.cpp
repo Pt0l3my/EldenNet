@@ -415,12 +415,12 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
                                           "profile.save", "profile.reset", "profile.restore", "profile.draft",
                                           "report.build", "report.part", "ai.pause", "recording.set",
                                           "memory.forget_npc", "memory.forget_journey"}));
-  // The floor's minor, GraceUI 0.2.67's (D264: register_pages refuses a newer one): 1.21's confirm_after_ms and private
-  // topics (D274), on 1.20's pc_only, 1.19's share
+  // The floor's minor, GraceUI 0.2.70's (D264: register_pages refuses a newer one): 1.22's category icons (D277), on
+  // 1.21's confirm_after_ms and private topics (D274), 1.20's pc_only, 1.19's share
   // (D263), 1.18's filter's own choices (D262), 1.17's browser-only page (D258), 1.16's stream's filter bar (D257),
   // 1.15's header switch (D256), 1.13's quick switches and live pages (D252), 1.12's document block, prose field and
   // preview (D251), 1.11's filter bar (D250), 1.10's foot (D248) and 1.8's sensitive marks (D221).
-  CHECK(pages["minor"] == 21);
+  CHECK(pages["minor"] == 22);
   // Pause AI for this session, the one quick switch (GraceUI §78's form), and not sensitive: a paired device may pause.
   CHECK(pages["quick"] == json::array({{{"id", "pause"}, {"label", "Pause AI for this session"},
                                         {"command", "ai.pause"},

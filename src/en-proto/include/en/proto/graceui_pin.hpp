@@ -9,10 +9,11 @@
 namespace en::proto::graceui_pin {
 
 inline constexpr std::uint32_t kAbiMajor = 1;  // graceui.h's GRACEUI_ABI_MAJOR, which `connect` asks
-// GraceUI 0.2.67 (D274, protocol 1.21), since v0.3's memory pages: History › Memories' Forget, whose second press
+// GraceUI 0.2.70 (D277, protocol 1.22), since the rail's icons (the owner's O149), which an older registration
+// refuses; its register_pages refuses page data of a newer minor (EldenNet's is its floor's, 22). It holds what the
+// floor held before: 0.2.67's memory pages (D274, protocol 1.21): History › Memories' Forget, whose second press
 // counts only after 1 s (`confirm_after_ms`, PAGES §4.6.5), and the conversations' and journals' topics marked
-// private, which an older registration refuses; its register_pages refuses page data of a newer minor (EldenNet's is
-// its floor's, 21). It holds what the floor held before: 0.2.57's Tools › Workshop on this PC alone, its page and its
+// private, which an older registration refuses; 0.2.57's Tools › Workshop on this PC alone, its page and its
 // topics marked pc_only (D264, protocol 1.20; the owner's O132), which an older GraceUI does not read, so a paired
 // device would see the page and watch its topics; 0.2.56's Copy on the unknown characters' TOML (D263, protocol
 // 1.19), which an older registration refuses;
@@ -33,7 +34,7 @@ inline constexpr std::uint32_t kAbiMajor = 1;  // graceui.h's GRACEUI_ABI_MAJOR,
 // EldenNet's, and at 0.2.70 for the pad's keyboard (D276) and the rail's icons (D277); what came after 0.2.22 but the
 // pages is used only behind its has_cap, or, for 0.2.36's EB Garamond Italic (D241), where GraceUI's folder holds the
 // file: without it the Tarnished's lines are drawn upright.
-inline constexpr std::array<std::uint16_t, 3> kFloor = {0, 2, 67};
+inline constexpr std::array<std::uint16_t, 3> kFloor = {0, 2, 70};
 inline constexpr std::string_view kCommit = "5702fae";  // GraceUI's main (D169 to D277), GraceUI 0.2.70
 
 // Whether a GraceUI version (major, minor, patch) is at least the floor.

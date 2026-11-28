@@ -2095,7 +2095,7 @@ def check_workshop(r):
                                                                  "ribbon")},
          failures)
     tools = next((c for c in pages.get("categories", []) if c.get("id") == "tools"), {})
-    need(tools.get("pages") == ["tools.report", "tools.workshop"] and pages.get("minor") == 21,
+    need(tools.get("pages") == ["tools.report", "tools.workshop"] and pages.get("minor") == 22,
          "Tools' pages: %s (minor %s)" % (tools.get("pages"), pages.get("minor")), failures)
     action = (page.get("actions") or [{}])[0]
     need(action.get("command") == "recording.set" and action.get("label") == "Record this session" and
@@ -2551,8 +2551,8 @@ def check_graceui_ai(r):
     need(cards == [(slot, title, slot, "ai.jobs", slot) for slot, title in (
         ("dialogue", "Conversation"), ("bark_live", "Quick lines"), ("bark_pool", "Prepared lines"),
         ("memory", "Memory"), ("selftest", "Self-test"))], "the Models page's cards: %s" % cards, failures)
-    # The page data's minor: the floor's, protocol 1.21's (GraceUI D274: the memory pages' Forget and private topics).
-    need(body("pages").get("minor") == 21 and [s.get("id") for s in models.get("sections", [])][:2] == ["now", "preset"]
+    # The page data's minor: the floor's, protocol 1.22's (GraceUI D277: the rail's icons).
+    need(body("pages").get("minor") == 22 and [s.get("id") for s in models.get("sections", [])][:2] == ["now", "preset"]
          and len(models.get("sections", [])) == 7, "the Models page's sections: %s (minor %s)" %
          ([s.get("id") for s in models.get("sections", [])], body("pages").get("minor")), failures)
     need(body("first_status").get("sentence", "").startswith("No provider yet"),
