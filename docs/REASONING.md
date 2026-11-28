@@ -719,6 +719,11 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 694 | 2026-11-28 | The store's open and the rollback, as built | DECIDED | #engine #memory |
 | 695 | 2026-11-28 | The store's thread, its breaker and faults; reused event ids found and closed | DECIDED | #engine #memory |
 | 696 | 2026-11-28 | No clock_cast, zoned_time or current_zone in the DLL's modules | FACT | #engine #toolchain |
+| 697 | 2026-11-28 | The store in the core: no store, no wait; Busy retried, then memory off | DECIDED | #engine #memory |
+| 698 | 2026-11-28 | Block 8, the since-line and the cue, as built; the attacked fact's subject | DECIDED | #engine #memory #eval |
+| 699 | 2026-11-28 | The memory job, as built | DECIDED | #engine #memory |
+| 700 | 2026-11-28 | The lived layer, as built, with what it holds back | DECIDED | #engine #memory |
+| 701 | 2026-11-28 | Steam's floating keyboard through the loaded steam_api64.dll's flat exports | FACT | #graceui |
 
 ## Entries
 
@@ -10145,3 +10150,79 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   The link failed on Linux, and in the game it would be a registry read for nothing.
 - The file time is now converted by the two clocks' distance at that moment (no leap seconds, the same in every
   library). The rule for every later module the DLL links is in ARCH §2.3's dated note.
+
+### 697. The store in the core: no store, no wait; Busy retried, then memory off
+
+`2026-11-28` · DECIDED · `#engine` `#memory` · refs: ARCH§9, MEM§1.5, MEM§2.2, MEM§8.3, MEM§9.1, WHY§695, engine a004576
+
+- The core speaks to en-store in C8's messages alone and never links it; only en-core's tests run StoreCore on a
+  temporary folder. en-augur's `freeze_into` and `perceivers` keep the audience field out of en-core (MEM §1.3).
+- Without the shell's account discovery, or with `features.memory` off, a playthrough enters the world at once, as in
+  v0.2, so the DLL and the fake game keep their behaviour until the DLL attaches the store (slice 3).
+- Facts are refolded from the journey's events at every open and after a rollback, and written back when the file
+  says they are stale; writes wait for that refold. Speech goes out in its own step and takes everything queued before
+  it, so a conversation's row always precedes its lines.
+- An open that answers Busy is retried 3 times, 1 s apart, while the lifecycle waits; then memory is off for the
+  session with one toast, and the world goes on. A file locked that long is held by another program.
+- The world goes on at Opened, whatever its kind; a pending rollback choice holds named chat (a status toast) and the
+  writes, as MEM §9.1 has it; a silent trim counts as resolved.
+- `StageChanged` comes from the knowledge subscriber when a persona's stage moves between two flag frames of one
+  playthrough, never at a load; its payload is `{from, to}`. Meetings within 10 minutes of the last are one meeting.
+
+### 698. Block 8, the since-line and the cue, as built; the attacked fact's subject
+
+`2026-11-28` · DECIDED · `#engine` `#memory` `#eval` · refs: MEM§2.8, MEM§4, MEM§12.6, MEM§12.13, O30, O147, a004576
+
+- The eval runs a talk scenario on the store with `store = true`; `wren_and_kale`, `older_save` and `kale_news` sit in
+  `tests/scenarios/talk/` beside the pilot's, under the design's names (WHY§689).
+- Found while testing: the attacked fact folded on the event's object, but Augur's PersonaAttacked names the victim as
+  its subject. The fold reads the subject.
+- Block 8 composes in code from MEM §2.2's and §2.4's words, its headers in `08_tarnished.j2`; MEM §4.3's example
+  renders word for word. Blocks 1 to 5 and the prompt goldens are byte for byte as before (T5).
+- Readings: the core never waits for the bundle (asked for at PersonaApproached and a conversation's start; a turn
+  goes without one not back yet); block 6 (a) quotes the Tarnished's own words, so a name the player said shows there
+  before any journal holds it ("until told" read as "until said to the persona"); the first meeting's place and a
+  boss's name in "You fought beside…" wait for names by id; the cue's strings live in `07_knowledge.j2`, held to
+  `kCueStrings` by a test; `shown_context` is a JSON array within 4,096 bytes.
+- No world topic offers (v0.5) and nothing own-initiative (v0.4), by O147.
+
+### 699. The memory job, as built
+
+`2026-11-28` · DECIDED · `#engine` `#memory` · refs: MEM§2.5, MEM§2.6, MEM§3, DESIGN§10.3, O147, engine a004576
+
+- The plan's two commits landed as one: the job's life, input and prompt, and its reply's validation in code (MEM §3.6
+  steps 1 to 10), retries with reminders, deferral and commit.
+- Found while building: the core overwrote a step's model requests with the conversation's, so a memory request made
+  on a store answer was lost; they are appended now.
+- Readings: a cloud provider's rules hold (10 s of calm, a running job let finish) until the provider's kind reaches
+  the core; a newer end merging into a running job becomes the next job from its `upto`; other personas' and bosses'
+  runtime names read "someone you know" and "a mighty foe" until names by id reach the core; `great_runes>=n` is
+  offered but never holds in v0.3 (no count is read); claims are promoted at render and at each commit.
+- Our words: the relative times ("a moment ago", "a little while ago", "earlier today", "some time ago"), the
+  certainty words, the checks' meanings and the three retry reminders, in `memory_job.cpp` and `validate.cpp`.
+- C11's judged probes need an export of their own (a reload with a journal), not X1's dialogue arms: left for slice 3.
+
+### 700. The lived layer, as built, with what it holds back
+
+`2026-11-28` · DECIDED · `#engine` `#memory` · refs: MEM§13, proposal 0004, O86, engine a004576
+
+- A due update is held in RAM, not as a stored job: a reload forgets it until the journal moves again.
+- The rare and sustained tiers count scenes by the cited keepsakes' `since_pt`, since keepsakes keep no event ids.
+- The memory lines carry weight, basis, "proved", "with P1" for a keepsake about the Tarnished, and the keep mark;
+  keepsakes have no type, emotion or actors yet, and the Tarnished alone is P1 until keepsakes name other NPCs (O45).
+- Block 3's supersession is not rendered yet: block 3 stays the first-meeting self, and block 8 carries the layer.
+- A due update waits for no journal job and 30 s of calm, at most once per NPC per 2 h of play; a failure is retried
+  twice, then waits 10 minutes of play, and after 4 attempts waits for the journal.
+
+### 701. Steam's floating keyboard through the loaded steam_api64.dll's flat exports
+
+`2026-11-28` · FACT · `#graceui` · refs: GraceUI D275, S4
+
+- GraceUI 0.2.68 opens Steam's floating keyboard for its menu's text fields when an edit begins from a pad, through the
+  flat C exports of the steam_api64.dll the game has loaded: the newest `SteamAPI_SteamUtils_v0NN` accessor (versioned:
+  v010, v011, so GraceUI probes for the newest), `SteamAPI_ISteamUtils_ShowFloatingGamepadTextInput(utils, mode, x, y,
+  w, h)` and `…DismissFloatingGamepadTextInput(utils)`; modes 0 one line, 1 several, 2 e-mail, 3 numeric.
+- Source: the export names and C signatures as the MIT npm package steamworks-ffi-node 0.11.3 binds them, read with
+  grep in an untrusted folder, never run; Steam's own pages were not reachable from GraceUI's session.
+- Whether it shows over the game, reaches the field and keeps the window's focus is for S4's pad rows on testers'
+  machines. EldenNet's chat box will open it through a GraceUI ABI slot, not by calling Steam itself.

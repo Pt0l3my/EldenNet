@@ -2397,8 +2397,15 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     rollback by O144's rule with its summary, crash recovery, forgetting, NG+, its thread, queues and breaker, and the
     fault tests. The fake game's suite under Wine: 150 of 150. Left: memory in the core (slice 2), then the DLL and
     the pages' data (slice 3).
+    Slice 2 built on 2026-11-28 (merged at a004576; WHY§697 to §700): the store in the core (the key, the open with
+    Busy retried, the choice holding named chat, ordered writes, the facts' fold), the eval runner on the store with
+    `wren_and_kale`, `older_save` and `kale_news`, block 8 and 6 (a) from memory, the memory job and the lived layer.
+    The fake game's suite under Wine: 150 of 150. Left: the DLL with the store, the rollback panel and the pages' data
+    (slice 3), and the owner's review of v0.3's words.
 - b What each persona has seen of the world, the since-line, and reaction cues
   - refs: MEM§12.13, O28
+  - gives: built in v0.3's second slice on 2026-11-28 (engine a004576; WHY§698): `world_seen`, the since-line, the
+    reaction cue in conversation, `shown_context` and the 60-second news cooldown, offline; in game with slice 3's DLL.
 - c The pacing core and the autonomous class; the pilot's own-initiative lines, once S3 and S6 allow them [done]
   - refs: DESIGN§9.4, DESIGN§8.9, O31, NPC§5.2, WHY§420, O147
   - gives: with them target rule 0, the talk key answering a line a persona has just addressed to the Tarnished
@@ -2411,6 +2418,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     survey); the subjects and autonomy's subject line move with autonomy to S13.2.j (O147).
 - e One memory per witness, and the lived layer's update at quiet moments
   - refs: O46, DESIGN§10.3, MEM§13
+  - gives: built in v0.3's first and second slices (engine c64ae54, a004576; WHY§691, §699, §700): every event's
+    audience frozen, the memory job per witness, and the lived layer's update at quiet moments, offline.
 
 ### S12.2 GraceUI 0.3
 
