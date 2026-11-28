@@ -332,6 +332,7 @@ TEST_CASE("store: a trim takes journal and lived versions after the cut, lowers 
   Rig rig;
   rig.open_at(kHour);
   const proto::EventId a = rig.put("PersonaSeen", kHour + kMin, {{"kale", How::Direct}});
+  const proto::EventId c = rig.put("PersonaSeen", kHour + 90 * 1000, {{"kale", How::Direct}});
   const proto::EventId b = rig.put("PersonaAttacked", kHour + 3 * kMin, {{"kale", How::Direct}});
   for (std::uint32_t v = 1; v <= 2; ++v) {
     db::CommitJournal j;
@@ -362,7 +363,69 @@ TEST_CASE("store: a trim takes journal and lived versions after the cut, lowers 
   CHECK(rig.count("npc_lived") == 0);
   CHECK(rig.value("SELECT watermark FROM memory_progress WHERE persona = 'kale'") == number_text(a));
   REQUIRE(o.open_jobs.size() == 1);
-  CHECK(o.open_jobs[0].upto_event_id == a);  // lowered to its last kept event
+  CHECK(o.open_jobs[0].upto_event_id == c);  // lowered to its last kept event after the watermark
+  CHECK(o.open_jobs[0].created_pt == kHour + 2 * kMin);  // timed no later than the cut
+}
+
+TEST_CASE("store: a trim queues again a done job whose version went, and a conversation cut too short takes its job") {
+  // MEM §9.6's T1, both ways: a conversation's job ran and wrote its version; a trim in the conversation's last reply
+  // takes the version back. With 2 of the Tarnished's lines and 4 committed still kept, the job is queued again, down
+  // to the last kept line; cut below that (MEM §3.1), the job goes. Two jobs left with the same lines are one.
+  for (const bool short_cut : {false, true}) {
+    CAPTURE(short_cut);
+    Rig rig;
+    rig.open_at(kHour);
+    const proto::RowId conv = rig.conversation("kale", kHour);
+    rig.line(conv, "PlayerSaid", kHour + 1000, "Evening.", "kale");
+    const proto::EventId r1 = rig.line(conv, "NpcSaid", kHour + 2000, "Evening.", "kale");
+    rig.ok(rig.send(db::AppendPage{r1, "Mind the step.", kHour + 5000}));
+    const proto::EventId p2 = rig.line(conv, "PlayerSaid", kHour + 8000, "What do you sell?", "kale");
+    const proto::EventId r2 = rig.line(conv, "NpcSaid", kHour + 9000, "Rope.", "kale");
+    rig.ok(rig.send(db::AppendPage{r2, "And oil.", kHour + 12000}));
+    proto::ConversationRow end;
+    end.id = conv;
+    end.ended_pt = kHour + 15000;
+    end.end_reason = "closed";
+    end.player_lines = 2;
+    end.committed_lines = 4;
+    rig.ok(rig.send(db::ConvClose{end}));
+    proto::MemoryJob job;
+    job.persona = "kale";
+    job.cause = proto::JobCause::Conversation;
+    job.conv_id = conv;
+    job.upto_event_id = r2;
+    job.created_pt = kHour + 15000;
+    auto saved = rig.send(db::UpsertJob{job});
+    const proto::RowId id = std::get<db::JobSaved>(saved.result).id;
+    proto::MemoryJob later = job;  // a second job over the same lines, queued, as a merge left behind would be
+    later.created_pt = kHour + 16000;
+    rig.ok(rig.send(db::UpsertJob{later}));
+    db::CommitJournal j;
+    j.version.persona = "kale";
+    j.version.version = 1;
+    j.version.as_of_pt = kHour + 15000;
+    j.version.upto_event_id = r2;
+    j.version.model_fp = j.version.prompt_hash = j.version.persona_hash = "x";
+    j.job = id;
+    rig.ok(rig.send(j));
+    rig.ok(rig.send(db::Close{}));
+    // Short: between the first reply's pages (1 line of the Tarnished's, 2 committed); else between the second's.
+    const db::Opened o = rig.open_at(short_cut ? kHour + 3000 : kHour + 10000);
+    REQUIRE(o.rollback.kind == db::Rollback::Kind::Trimmed);
+    CHECK(rig.count("npc_journal") == 0);
+    CHECK(rig.count("memory_progress") == 0);  // no version left: no watermark, as before the first commit
+    if (short_cut) {
+      CHECK(rig.count("memory_jobs") == 0);
+      CHECK(o.open_jobs.empty());
+    } else {
+      REQUIRE(rig.count("memory_jobs") == 1);
+      CHECK(rig.value("SELECT id || ':' || state || ':' || upto_event_id || ':' || attempts FROM memory_jobs") ==
+            number_text(id) + ":queued:" + number_text(r2) + ":0");
+      REQUIRE(o.open_jobs.size() == 1);
+      CHECK(rig.value("SELECT committed_lines FROM conversations") == "4");
+      (void)p2;
+    }
+  }
 }
 
 TEST_CASE("store: forgetting one NPC keeps what another perceived; forgetting a journey keeps its epochs") {

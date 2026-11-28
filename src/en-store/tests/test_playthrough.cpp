@@ -295,15 +295,19 @@ TEST_CASE("playthrough: lived versions, the facts replaced whole by a refold, an
   CHECK(li->lived->journal_version == 3);
   CHECK_FALSE(li->journal);
   REQUIRE(meta_set(pt.db, "facts_stale", "1"));
-  REQUIRE(append(pt, proto::db::Append{event(kFirstEvent, "PersonaSeen", 100, {{"kale", How::Direct}}),
-                                       {proto::PersonaFacts{"kale", {proto::FactRow{"seen_count", "1", {}, 100}}}}}));
+  // A fact an event gives, and a claim's proof, which none does (its src_event NULL).
+  const proto::PersonaFacts before{"kale", {proto::FactRow{"seen_count", "1", kFirstEvent, 100},
+                                            proto::FactRow{"verified:slew:godrick", "1", {}, 150}}};
+  REQUIRE(append(pt, proto::db::Append{event(kFirstEvent, "PersonaSeen", 100, {{"kale", How::Direct}}), {before}}));
   REQUIRE(append(
       pt, proto::db::Append{
               event(kFirstEvent + 1, "PersonaAttacked", 200, {{"kale", How::Direct}, {"boc", How::Witnessed}}), {}}));
   proto::db::PutFacts refold;
   refold.personas = {proto::PersonaFacts{"kale", {proto::FactRow{"times_attacked", "1", kFirstEvent + 1, 200}}}};
   REQUIRE(put_facts(pt, refold));
-  CHECK(test::value(pt.db, "SELECT group_concat(key) FROM npc_facts") == "times_attacked");  // seen_count is gone
+  // seen_count is gone with the fold; the claim's proof, which no event gives, stays.
+  CHECK(test::value(pt.db, "SELECT group_concat(key) FROM npc_facts ORDER BY key") ==
+        "times_attacked,verified:slew:godrick");
   CHECK(meta_get(pt.db, "facts_stale").value_or(std::nullopt) == "0");
   auto all = fold_events(pt, proto::db::EventsForFold{1});
   REQUIRE(all);

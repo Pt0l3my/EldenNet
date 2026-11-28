@@ -216,8 +216,8 @@ struct CommitLived {
   LivedVersion version;
   std::optional<RowId> job;
 };
-// The journey's facts, refolded by the core (WHY§689): every persona's facts in the journey are replaced, and
-// `meta.facts_stale` is cleared, in one transaction.
+// The journey's facts, refolded by the core (WHY§689): every persona's facts in the journey that the events give are
+// replaced (a fact no event gives, a claim's proof, stays), and `meta.facts_stale` is cleared, in one transaction.
 struct PutFacts {
   std::uint16_t journey = 1;
   std::vector<PersonaFacts> personas;

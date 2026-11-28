@@ -53,7 +53,8 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHYÂ
     goes into its payload's `pages` (`end`, `pt`), and `append_page` adds each later one, the text joined by a space;
   - `conv_open` and `conv_close` (ids the core's); `upsert_job` (ids the store's); `commit_journal` writes a version,
     its watermark (`memory_progress`, which moves only so), the job done and its `verified:*` facts; `commit_lived`;
-    `put_facts` replaces the journey's facts with the core's refold and clears `facts_stale` (WHYÂ§689);
+    `put_facts` replaces the journey's facts the events give with the core's refold, keeping a claim's proof, and clears
+    `facts_stale` (WHYÂ§689);
   - the queries: `bundle` (the newest journal and lived versions, the facts, the last six direct lines of the most
     recent ended conversation, block 6a, and how many events above the watermark the persona perceived);
     `job_input` (the persona's own evidence in (watermark, upto], with the conversations its lines belong to, for their
@@ -102,9 +103,14 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHYÂ
   - a reply shown across the cut keeps its pages shown at or before it;
   - conversations started after the cut go, and one across it ends `trimmed` at its last kept line, its counts redone;
   - journal and lived versions, decisions, recall memories and intents after the cut go;
-  - a journal job's range comes down to its last kept event, or the job goes; a lived job of a removed version goes,
-    and a running job is queued again;
-  - the watermark is the current version's;
+  - a journal job the trim took work from (not done, or done with its version gone) keeps the persona's evidence after
+    its watermark up to its end, a conversation's job only the lines of conversations still with 2 of the Tarnished's
+    lines and 4 committed (MEM Â§3.1, Â§9.6's T1); it ends at its last such event, queued again and timed no later than
+    the cut, or goes with none left, and two left over the same evidence are one; a lived job of a removed version
+    goes, and a running job is queued again;
+  - the watermark is the current version's, timed as it is, and goes with no version left;
+  - a fact no event gives (a claim's proof, `src_event` NULL) goes when timed after the cut, and a journey with no
+    epoch left takes its facts with it;
   - `facts_stale` is set for the core's refold, and the event counter stays, so no id is reused.
 - **`0001_init.sql`**: MEM Â§8.7's schema as written, with the reserved recall tables (`memories`, `memory_actors`,
   `memories_fts` on FTS5, `embeddings`) and the seams (`npc_intents`, `decisions`). Ours on top of it: `meta` also
@@ -137,7 +143,8 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHYÂ
   within 5 min with the counter kept; O144's two sides (an hour holding only unwitnessed events trimmed silently, one
   witnessed event asking, with its summary); the summary's every kind and the stages undone; Keep, and a later crash
   trim touching only its epoch; a new character archived; crash recovery; a reply's pages and a conversation across a
-  cut; journal, lived, jobs and the watermark after a trim; forgetting an NPC and a journey; NG+ and a save from the
+  cut; journal, lived, jobs and the watermark after a trim; a done job queued again when its version goes, and a
+  conversation cut too short taking its job; forgetting an NPC and a journey; NG+ and a save from the
   earlier journey; a newer file refused before its backups are touched; a corrupt file restored from its backup; 12
   seeded random cuts (no row past the cut, no orphaned audience, the counter as it was, both checks clean); and the
   pages' reads (journeys, conversations, a transcript, memory cards, backups, refused with nothing open); and the trim
@@ -148,8 +155,8 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHYÂ
   nothing of another journey, a lower id that never takes the counter back; an NpcSaid's pages with their ends and pts;
   the schema's caps (text, payload, JSON, a kind); a JourneyChanged's epoch; conversations with ids past 2^53; a job's
   life and a journal version's commit with its watermark, job and facts, a duplicate version refused; the bundle's
-  six-line tail and pending count, direct lines only; a job's evidence; lived versions, a refold replacing every fact,
-  and the fold's every row;
+  six-line tail and pending count, direct lines only; a job's evidence; lived versions, a refold replacing every fact
+  the events give and keeping a claim's proof, and the fold's every row;
 - the files (`test_files.cpp`): names and UTC stamps, the soft match's rules, a key's live file, a new file with the
   slot's other character archived and restored when that character comes back, another slot untouched, a renamed
   file with no WAL left, three rotating backups with the newest in `.1`, a migration's last two, and a corrupt file
