@@ -476,6 +476,21 @@ the conversation part B's (above); the core holds both.
   - claims are also promoted at render (`BlockNow::proved`), so a claim proved since the last job shows as proved.
   The Great Runes are not read in v0.3, so `great_runes>=n` never holds yet; the lexicon's locked terms (MEM §3.6
   step 4) come with v0.5.
+- **The lived layer** (`lived.hpp`, `src/memory/lived.cpp`, `prompts/lived/01` and `02`; MEM §13; proposal 0004):
+  one versioned record per journey and NPC (`towards`, `aims`, `learned`, `self`, `manner`), in its own words, each
+  part citing the journal's keepsakes. It is due once the journal has gained 3 new or rewritten keepsakes, changed
+  its protected keepsake or moved its disposition (counted at each journal commit, in RAM), and its job runs at a
+  quiet moment only: no journal job waiting, 30 s of calm, no conversation with the NPC open, at most once per NPC
+  per 2 h of play. Its input is what the NPC's own prompt would show it; validation holds each part to its tier
+  (moderate: a cited memory with its person, 2 memories for an aim or a lesson, a lesson on a seen memory or a proved
+  claim, one change each; rare: `self` on 3 memories of 0.7 from 2 scenes, once per 10 h; sustained: `manner` on 3
+  memories with the Tarnished from 3 meetings, once per 5 h), a feeling to its trust's side (the Tarnished's trust
+  being the disposition) and the caps; then one CommitLived. It renders in block 8 after the disposition, under "Since
+  then, in your own words:", the Tarnished's entry first, within 100 tokens. A failure is retried twice, then waits
+  10 min of play; after 4 attempts it waits for the journal to change again. Left for later: the due job kept in the
+  file (`memory_jobs.kind = lived`: here it is held in RAM, so a reload forgets a due update until the journal moves
+  again), what the layer supersedes in block 3, and scenes and meetings read from the cited keepsakes' events (here a
+  keepsake's `since_pt` stands for its scene).
 - **Its words** (drafts for the owner): `kChoicePending` "(Not yet: EldenNet is waiting for your answer about this
   save.)"; `kBackupRestored` "EldenNet's memory file was damaged, so its newest backup was restored."; `kLowDisk` "Less
   than 200 MB of disk is free: EldenNet may stop saving memories."; and `memory_off_text(cause)`, "Memory is off for
@@ -553,4 +568,6 @@ T12, the cue equal to `tests/knowledge/cues.toml` at every row for the pilot and
 (`tests/fixtures/personas/`); T4's since-line for the pilot's three transitions; and W5's and W7's cue clauses, each
 with a failing fixture. The memory job (`tests/memory/test_memory_job.cpp`): the relative time's words, the input
 assembled and the checks offered, the six prompt parts on the shipped templates and the schema, and the reply's
-validation step by step, each with a fixture that just fails it.
+validation step by step, each with a fixture that just fails it. The lived layer (`tests/memory/test_lived.cpp`): the
+due count, the record's form, its prompt on the shipped templates, each rule of MEM §13.5 with a fixture that just
+fails it, and block 8's lines within 100 tokens.

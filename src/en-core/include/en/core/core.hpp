@@ -24,6 +24,7 @@
 // v0.1's subsystems subscribes yet) into Outputs::events. AugurView is what en-core supplies Augur.
 #include <array>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <span>
@@ -41,6 +42,7 @@
 #include "en/core/gate.hpp"
 #include "en/core/identity.hpp"
 #include "en/core/knowledge.hpp"
+#include "en/core/lived.hpp"
 #include "en/core/memory_job.hpp"
 #include "en/core/predicates.hpp"
 #include "en/core/store_path.hpp"
@@ -278,6 +280,10 @@ class Core {
   [[nodiscard]] const StorePath& store() const noexcept { return store_; }
   // Whether a memory job is in flight (its input asked for, or its request out).
   [[nodiscard]] bool memory_busy() const noexcept { return memory_run_.has_value(); }
+  // Whether a lived update is due and waits for its quiet moment (MEM §13.2).
+  [[nodiscard]] bool lived_waiting() const noexcept {
+    return std::any_of(lived_due_.begin(), lived_due_.end(), [](const auto& d) { return d.second.due(); });
+  }
   [[nodiscard]] const Conversation& conversation() const noexcept { return conversation_; }
   [[nodiscard]] proto::NetHealth net() const noexcept { return net_; }
 
@@ -318,6 +324,8 @@ class Core {
   void on_job_input(const proto::db::JobInputResult& r, Mono at, Outputs& out);
   void send_memory(Mono at, Outputs& out);
   void on_memory_event(const proto::LlmEvent& e, Mono at, Outputs& out);
+  void on_lived_input(const proto::db::LivedInputResult& r, const std::string& persona, Mono at, Outputs& out);
+  void on_lived_reply(const proto::ChatResult& result, Mono at, Outputs& out);
   [[nodiscard]] bool claim_holds(std::size_t persona, std::string_view key) const;
   void init();
 
@@ -362,7 +370,13 @@ class Core {
     int tries = 0;  // retries spent in this run (at most 2)
     std::optional<Mono> retry_at;
     JobFailure failure = JobFailure::None;
+    bool lived = false;  // a lived job (MEM §13): its input instead of the journal's
+    std::optional<LivedJobInput> lived_input;
   };
+  // The lived layer's due counts, last updates and failed attempts, per persona (MEM §13.2), in RAM.
+  std::map<std::string, LivedDue> lived_due_;
+  std::map<std::string, proto::Pt> lived_next_;  // the earliest play time of its next update
+  std::map<std::string, int> lived_attempts_;
   std::optional<MemoryRun> memory_run_;
   std::optional<Mono> calm_since_;
   proto::RequestId next_memory_id_ = kMemoryRequests;

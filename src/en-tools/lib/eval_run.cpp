@@ -705,8 +705,11 @@ class Runner {
       case EvalStep::Kind::WaitJobs: {  // until no memory job is queued or in flight, two minutes at most
         const Mono until = t_ + 120000;
         advance(250);
-        while (t_ < until && (core_->memory_busy() || !core_->store().runnable().empty())) advance(250);
-        if (core_->memory_busy() || !core_->store().runnable().empty()) {
+        const auto busy = [&] {
+          return core_->memory_busy() || !core_->store().runnable().empty() || core_->lived_waiting();
+        };
+        while (t_ < until && busy()) advance(250);
+        if (busy()) {
           run_.failed.push_back("line " + std::to_string(st.line) + ": the memory jobs did not finish in 2 min");
         }
         return;

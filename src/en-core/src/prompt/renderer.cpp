@@ -270,11 +270,13 @@ proto::Expected<json, PromptError> dialogue_data(const DialogueContext& context)
   d["history"] = turns(context.history);
   // Block 8's parts (memory.hpp), each keepsake with its weight and protection for the trim (MEM §4.4).
   json tarnished = {{"shown", context.tarnished != nullptr}, {"facts", json::array()}, {"disposition", ""},
+                    {"lived", json::array()},
                     {"summary", ""},  {"seen", json::array()},    {"proved", json::array()},
                     {"said", json::array()}};
   if (const TarnishedBlock* t = context.tarnished) {
     tarnished["facts"] = t->facts;
     tarnished["disposition"] = t->disposition;
+    tarnished["lived"] = t->lived;
     tarnished["summary"] = t->summary;
     const auto lines = [](const std::vector<TarnishedBlock::Line>& g) {
       json a = json::array();

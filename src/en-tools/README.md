@@ -374,22 +374,23 @@ and the persona's deflection) and `lantern-long-reply` (the reply's second sente
 stream is cancelled while it streams).
 
 **Memory** (v0.3; MEM §2.8, §3.8, §9; Q6: the design's names, the runner's TOML). `store = true` runs the core against
-en-store's StoreCore on a temporary folder of the run's own (removed after it), the account attached, each step's store
-requests answered in order, each answer the core's next input, as T9 would. `character` names the Tarnished (invented),
-and `[[world.extra]]` places more invented characters after the partner. The steps: `native_talk` (the game's own talk
-with the partner), `strike` (the Tarnished's blow), `ng_plus`, `reload` (the title, then a new session's core and store
-thread on the same file), `kill` (the process dies: nothing closed or flushed), `load` (an older save at `pt`), `choose`
-(the rollback's answer), `wait_jobs` (nothing to wait for until the memory job) and `move` with `who`; and `expect`'s
-`mode`, `fact` (the journey's, as the core folds it) and `audience` (the events of a kind a persona perceived so, read
-through en-store's own query). `wren_and_kale` runs MEM §2.8's steps A to F and H on scripted replies (`slot =
-"memory"` replies answer the memory job, each slot in its own order): A's chat and its audiences and journal v1 with
-the told name, C's claim filed with `slew:godrick`, B's native talk as a second meeting, D's fall proving the claim at
-render, E's strike, and F after a reload, whose prompt holds block 8, the tail, the since-line and the
-Tarnished's-part cue; then H's NG+. And `older_save` a hard kill mid-conversation (the next session ends it as
-crashed, a meeting) and an older save an hour back, whose choice refuses named chat with its toast until Forget takes
-back what came after. `kale_news` runs the reaction cue in conversation: a second meeting an hour after the castle's
-fall opens with the since-line and the cue, a line 30 s later finds the item in its news cooldown, and one 90 s later
-carries it again.
+en-store's StoreCore on a temporary folder of the run's own (removed after it), the account attached, each step's
+store requests answered in order, each answer the core's next input, as T9 would. `character` names the Tarnished
+(invented), and `[[world.extra]]` places more invented characters after the partner. The steps: `native_talk` (the
+game's own talk with the partner), `strike` (the Tarnished's blow), `ng_plus`, `reload` (the title, then a new
+session's core and store thread on the same file), `kill` (the process dies: nothing closed or flushed), `load` (an
+older save at `pt`), `choose` (the rollback's answer), `wait_jobs` (nothing to wait for until the memory job) and
+`move` with `who`; and `expect`'s `mode`, `fact` (the journey's, as the core folds it) and `audience` (the events of a
+kind a persona perceived so, read through en-store's own query). `wren_and_kale` runs MEM §2.8's steps A to F and H on
+scripted replies (`slot = "memory"` replies answer the memory job, each slot in its own order): A's chat and its
+audiences and journal v1 with the told name, C's claim filed with `slew:godrick`, B's native talk as a second meeting,
+D's fall proving the claim at render, E's strike, and F after a reload, whose prompt holds block 8, the tail, the
+since-line and the Tarnished's-part cue; F's job filing the blow and F2's lived version, which the next prompt
+carries; then H's NG+. And `older_save` a hard kill mid-conversation (the next session ends it as crashed, a meeting)
+and an older save an hour back, whose choice refuses named chat with its toast until Forget takes back what came
+after. `kale_news` runs the reaction cue in conversation: a second meeting an hour after the castle's fall opens with
+the since-line and the cue, a line 30 s later finds the item in its news cooldown, and one 90 s later carries it
+again.
 
 **The speech tap** (`lib/speech_tap.hpp`; WHY§410). The core runs the eval's own speech parts (`Core(SpeechParts)`):
 part A's sanitizer, lint and pager over the content's lexicon, each wrapped, so that every reply attempt the

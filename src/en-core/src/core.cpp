@@ -315,7 +315,9 @@ std::vector<ContentError> Core::load_content(std::span<const ContentFile> files,
   }
   memory_prompts_.clear();
   for (const ContentFile& f : pack->others) {
-    if (f.path.rfind("prompts/memory/", 0) == 0) memory_prompts_.push_back(f);
+    if (f.path.rfind("prompts/memory/", 0) == 0 || f.path.rfind("prompts/lived/", 0) == 0) {
+      memory_prompts_.push_back(f);
+    }
   }
   directory_ = Directory::build(std::move(*pack), realm, predicates_);
   knowledge_ = std::move(*knowledge);
@@ -696,6 +698,7 @@ void Core::on_store(const proto::DbResult& r, Mono now, Outputs& out) {
   if (e.ready && state_.phase == Phase::Playthrough) enter(Phase::InWorld, now, out);
   for (StoreNotice& n : e.notices) conversation_.notice(n.cls, n.level, std::move(n.text), now);
   if (e.job_input) on_job_input(*e.job_input, now, out);
+  if (e.lived_input) on_lived_input(*e.lived_input, e.lived_persona, now, out);
   if (store_.mode() != StorePath::Mode::Open) memory_run_.reset();  // memory off, or a choice: the job waits
 }
 
@@ -733,7 +736,26 @@ void Core::run_memory(Mono at, Outputs& out) {
   }
   if (!calm_since_ || at < *calm_since_ + 10000) return;
   const std::vector<proto::MemoryJob> ready = store_.runnable();
-  if (ready.empty()) return;
+  if (ready.empty()) {
+    // MEM §13.2: the lived layer at quiet moments only: no journal job waits, 30 s of calm, no conversation with the
+    // NPC open, and at most one update per NPC per 2 h of play.
+    if (at < *calm_since_ + 30000) return;
+    const proto::Pt pt = last_ && last_->player ? static_cast<proto::Pt>(last_->player->play_time_ms) : 0;
+    const std::optional<std::string> partner = conversation_.partner();
+    for (const auto& [persona, due] : lived_due_) {
+      if (!due.due() || (partner && *partner == persona)) continue;
+      if (const auto next = lived_next_.find(persona); next != lived_next_.end() && pt < next->second) continue;
+      MemoryRun run;
+      run.lived = true;
+      run.job.persona = persona;
+      run.job.kind = proto::JobKind::Lived;
+      memory_run_ = std::move(run);
+      store_.want_lived_input(persona);
+      store_.pump(at, out.db);
+      return;
+    }
+    return;
+  }
   MemoryRun run;
   run.job = ready.front();
   run.job.state = proto::JobState::Running;
@@ -766,6 +788,23 @@ void Core::on_job_input(const proto::db::JobInputResult& r, Mono at, Outputs& ou
 void Core::send_memory(Mono at, Outputs& out) {
   MemoryRun& run = *memory_run_;
   run.retry_at.reset();
+  if (run.lived) {
+    if (!run.lived_input) return;
+    auto messages = lived_messages(memory_prompts_, *run.lived_input, retry_reminder(run.failure));
+    if (!messages) {
+      lived_due_.erase(run.job.persona);
+      memory_run_.reset();
+      return;
+    }
+    proto::ChatRequest c;
+    c.slot = std::string(proto::kMemory);
+    c.purpose = proto::Purpose::Background;
+    c.messages = std::move(*messages);
+    c.json_schema = lived_schema();
+    run.request = next_memory_id_++;
+    out.requests.push_back(proto::LlmRequest::chat(*run.request, std::move(c)));
+    return;
+  }
   if (!run.input) return;
   auto messages = memory_messages(memory_prompts_, *run.input, retry_reminder(run.failure));
   if (!messages) {  // the pack's prompts are broken: a defect, the job waits for the next session
@@ -792,6 +831,10 @@ void Core::on_memory_event(const proto::LlmEvent& e, Mono at, Outputs& out) {
   MemoryRun& run = *memory_run_;
   run.request.reset();
   const proto::ChatResult result = e.chat.value_or(proto::ChatResult{});
+  if (run.lived) {
+    on_lived_reply(result, at, out);
+    return;
+  }
   const auto idx = directory_.find(run.job.persona);
   ValidateCtx vctx;
   vctx.character = current_ ? std::string(current_->name.view()) : std::string();
@@ -826,6 +869,7 @@ void Core::on_memory_event(const proto::LlmEvent& e, Mono at, Outputs& out) {
     jv.prompt_hash = "memory-v1";
     jv.persona_hash = idx && !directory_.persona(*idx).hash.empty() ? directory_.persona(*idx).hash : std::string("-");
     jv.job_id = run.job.id;
+    count_journal_change(lived_due_[run.job.persona], run.input->journal, v->journal);  // MEM §13.2's due count
     store_.commit_journal(proto::db::CommitJournal{std::move(jv), run.job.id, std::move(v->verified)});
     memory_run_.reset();
     store_.pump(at, out.db);
@@ -1058,6 +1102,96 @@ void Core::settle(Mono at, Outputs& out) {
     state_.badge = badge;
   }
   state_.dormant = !(in_world && state_.gate_open);
+}
+
+}  // namespace en::core
+
+namespace en::core {
+
+// MEM §13.3: what the NPC's own prompt shows it now: its first-meeting self and road, the lived record, the journal,
+// the facts and the feeling in words, and the people (the Tarnished as P1; other NPCs come with their keepsakes, O45).
+void Core::on_lived_input(const proto::db::LivedInputResult& r, const std::string& persona, Mono at, Outputs& out) {
+  if (!memory_run_ || !memory_run_->lived || memory_run_->job.persona != persona) return;
+  const auto idx = directory_.find(persona);
+  std::optional<Journal> journal = r.journal ? journal_of(*r.journal) : std::nullopt;
+  if (!idx || !journal) {  // nothing to build on yet
+    lived_due_.erase(persona);
+    memory_run_.reset();
+    return;
+  }
+  const Persona& p = directory_.persona(*idx);
+  const std::size_t stage = *idx < known_.personas.size() ? known_.personas[*idx].stage : 0;
+  const nlohmann::json rec = p.resolved(stage);
+  LivedJobInput in;
+  in.persona = persona;
+  in.name = p.display_name_fallback;
+  if (const auto pub = rec.find("public"); pub != rec.end() && pub->is_object()) {
+    in.self_text = pub->value("summary", std::string());
+  }
+  if (const auto priv = rec.find("private"); priv != rec.end() && priv->is_object()) {
+    const std::string personality = priv->value("personality", std::string());
+    if (!personality.empty()) in.self_text += (in.self_text.empty() ? "" : " ") + personality;
+    if (const auto seeks = priv->find("seeks"); seeks != priv->end() && seeks->is_array()) {
+      for (const auto& s : *seeks) {
+        if (s.is_string()) in.seeks.push_back(s.get<std::string>());
+      }
+    }
+  }
+  if (const auto st = rec.find("stage"); st != rec.end() && st->is_object()) in.road = st->value("road", std::string());
+  if (r.lived) in.lived = lived_of(*r.lived);
+  in.journal = *journal;
+  proto::PersonaFacts facts;
+  facts.persona = persona;
+  facts.facts = r.facts;
+  BlockNow now;
+  now.pt = last_ && last_->player ? static_cast<proto::Pt>(last_->player->play_time_ms) : 0;
+  const TarnishedBlock words = tarnished_block(&facts, &in.journal, now);
+  in.facts = words.facts;
+  in.feeling_words = words.disposition;
+  in.people = {{"P1", "the Tarnished"}};
+  const std::size_t i = *idx;
+  in.proved = [this, i](std::string_view key) { return claim_holds(i, key); };
+  memory_run_->lived_input = std::move(in);
+  send_memory(at, out);
+}
+
+void Core::on_lived_reply(const proto::ChatResult& result, Mono at, Outputs& out) {
+  MemoryRun& run = *memory_run_;
+  const std::string persona = run.job.persona;
+  const proto::Pt pt = last_ && last_->player ? static_cast<proto::Pt>(last_->player->play_time_ms) : 0;
+  LivedCheck check;
+  check.disposition = run.lived_input ? run.lived_input->journal.disposition : 0;
+  check.now = pt;
+  proto::Expected<Lived, JobFailure> l = proto::Unexpected{JobFailure::Provider};
+  if (result.error == proto::ErrorClass::None && run.lived_input) {
+    l = validate_lived(result.text, result.finish_reason, *run.lived_input, check);
+  }
+  if (l) {
+    proto::LivedVersion v = lived_version(*l, store_.journey(), persona);
+    v.model_fp = result.model.empty() ? std::string("-") : result.model;
+    v.prompt_hash = "lived-v1";
+    v.persona_hash = "-";
+    store_.commit_lived(proto::db::CommitLived{std::move(v), std::nullopt});
+    lived_due_.erase(persona);
+    lived_attempts_.erase(persona);
+    lived_next_[persona] = pt + kLivedEveryMs;
+    memory_run_.reset();
+    store_.pump(at, out.db);
+    return;
+  }
+  // The slot's 2 retries, then the next quiet moment; parked after 4 attempts until the journal changes again.
+  run.failure = l.error();
+  if (run.tries < 2) {
+    run.retry_at = at + (run.tries == 0 ? 5000 : 30000);
+    ++run.tries;
+    return;
+  }
+  if (++lived_attempts_[persona] >= 4) {
+    lived_due_.erase(persona);
+    lived_attempts_.erase(persona);
+  }
+  lived_next_[persona] = pt + 600000;
+  memory_run_.reset();
 }
 
 }  // namespace en::core

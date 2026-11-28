@@ -91,6 +91,8 @@ class StorePath {
     bool ready = false;
     std::vector<StoreNotice> notices;
     std::optional<proto::db::JobInputResult> job_input;  // the memory job's evidence (MEM §3.3)
+    std::optional<proto::db::LivedInputResult> lived_input;  // the lived job's (MEM §13.3)
+    std::string lived_persona;
   };
   Effect on_result(const proto::DbResult& result);
   // Time passing: a Busy open's retry.
@@ -127,6 +129,9 @@ class StorePath {
   // A journal version, the job done and the verified facts, in one transaction; the persona's bundle again after it.
   void commit_journal(proto::db::CommitJournal c);
   [[nodiscard]] std::vector<std::pair<std::string, std::string>> job_news(std::string_view persona) const;
+  // The lived layer (MEM §13): its job's input, and a new version in one transaction, the bundle again after.
+  void want_lived_input(const std::string& persona);
+  void commit_lived(proto::db::CommitLived c);
   // The file's row for a conversation of this session, once written.
   [[nodiscard]] std::optional<proto::RowId> conversation_row(proto::ConvId conv) const;
 
@@ -178,6 +183,8 @@ class StorePath {
   std::map<std::string, proto::MemoryJob, std::less<>> jobs_;  // this journey's open jobs, by persona
   std::map<std::uint64_t, std::string> job_seqs_;              // the UpsertJobs in flight
   std::uint64_t input_seq_ = 0;                                // the JobInput in flight
+  std::uint64_t lived_seq_ = 0;                                // the LivedInput in flight
+  std::string lived_persona_;
   std::map<std::string, std::vector<std::pair<std::string, std::string>>, std::less<>> news_;  // item, certainty
   std::map<std::string, proto::EventId, std::less<>> merge_after_;  // a running job's persona: the newer upto
   std::vector<Op> held_;

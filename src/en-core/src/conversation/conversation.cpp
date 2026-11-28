@@ -10,6 +10,7 @@
 #include <variant>
 
 #include "en/core/facts.hpp"
+#include "en/core/lived.hpp"
 #include "en/core/speech_lint.hpp"  // DeflectionRing
 #include "en/core/toasts.hpp"
 
@@ -821,7 +822,12 @@ struct Conversation::Impl {
           return false;
         };
       }
-      tarnished = tarnished_block(facts, bundle != nullptr && bundle->journal ? &*bundle->journal : nullptr, at);
+      std::vector<std::string> lived;  // the lived layer (MEM §13.6)
+      if (bundle != nullptr && bundle->lived) {
+        if (const auto l = lived_of(*bundle->lived)) lived = lived_lines(*l);
+      }
+      tarnished = tarnished_block(facts, bundle != nullptr && bundle->journal ? &*bundle->journal : nullptr, at,
+                                  std::move(lived));
       if (facts != nullptr) {
         const proto::FactRow* seen = find_fact(*facts, fact::kStageSeen);
         const std::size_t stage = stage_of(conv->persona);

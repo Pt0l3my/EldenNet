@@ -176,6 +176,8 @@ std::uint32_t block_tokens(const TarnishedBlock& b) noexcept {
   std::size_t bytes = std::string_view("[The Tarnished, as you know them]\n").size();
   for (const std::string& f : b.facts) bytes += f.size() + 1;
   if (!b.disposition.empty()) bytes += b.disposition.size() + 1;
+  if (!b.lived.empty()) bytes += std::string_view("Since then, in your own words:\n").size();
+  for (const std::string& l : b.lived) bytes += l.size() + 1;
   if (!b.summary.empty()) bytes += b.summary.size() + std::string_view("In your own words: \"\"\n").size();
   const auto group = [&](const std::vector<TarnishedBlock::Line>& g, std::string_view header) {
     if (g.empty()) return;
@@ -188,8 +190,10 @@ std::uint32_t block_tokens(const TarnishedBlock& b) noexcept {
   return estimate_tokens(bytes);
 }
 
-TarnishedBlock tarnished_block(const proto::PersonaFacts* facts, const Journal* journal, const BlockNow& now) {
+TarnishedBlock tarnished_block(const proto::PersonaFacts* facts, const Journal* journal, const BlockNow& now,
+                               std::vector<std::string> lived) {
   TarnishedBlock b;
+  b.lived = std::move(lived);
   std::size_t kept_core = 0;
   b.facts = fact_words(facts, journal, now, kept_core);
   const std::int64_t met = num(facts, fact::kMetCount).value_or(0);

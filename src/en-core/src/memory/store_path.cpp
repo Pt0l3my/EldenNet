@@ -246,6 +246,7 @@ void StorePath::close() {
   jobs_.clear();
   job_seqs_.clear();
   input_seq_ = 0;
+  lived_seq_ = 0;
   news_.clear();
   merge_after_.clear();
   dropped_ += held_.size();
@@ -347,6 +348,14 @@ StorePath::Effect StorePath::on_result(const proto::DbResult& r) {
     job_seqs_.erase(j);
     return e;
   }
+  if (r.seq == lived_seq_ && lived_seq_ != 0) {
+    lived_seq_ = 0;
+    if (const auto* in = std::get_if<db::LivedInputResult>(&r.result)) {
+      e.lived_input = *in;
+      e.lived_persona = lived_persona_;
+    }
+    return e;
+  }
   if (r.seq == input_seq_) {
     input_seq_ = 0;
     if (const auto* in = std::get_if<db::JobInputResult>(&r.result)) e.job_input = *in;
@@ -436,6 +445,22 @@ void StorePath::commit_journal(db::CommitJournal c) {
     jobs_.erase(it);
     if (merge_after_.contains(persona)) save_job(done);  // the waiting conversation's job, from this one's upto
   }
+  bundles_.erase(persona);
+  want_bundle(persona);
+}
+
+void StorePath::want_lived_input(const std::string& persona) {
+  if (mode_ != Mode::Open || lived_seq_ != 0) return;
+  lived_seq_ = ++seq_;
+  lived_persona_ = persona;
+  queued_.push_back(proto::DbRequest{lived_seq_, db::LivedInput{journey_, persona}});
+  urgent_ = true;
+}
+
+void StorePath::commit_lived(db::CommitLived c) {
+  if (mode_ != Mode::Open) return;
+  const std::string persona = c.version.persona;
+  send(std::move(c), false);
   bundles_.erase(persona);
   want_bundle(persona);
 }

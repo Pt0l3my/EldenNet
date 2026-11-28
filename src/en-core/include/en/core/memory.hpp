@@ -67,6 +67,7 @@ struct TarnishedBlock {
   };
   std::vector<std::string> facts;  // the name first, then each fact's sentence
   std::string disposition;
+  std::vector<std::string> lived;  // the lived layer's lines (lived.hpp; MEM §13.6), under their fixed lead
   std::string summary;
   std::vector<Line> seen, proved, said;
   friend bool operator==(const TarnishedBlock&, const TarnishedBlock&) = default;
@@ -89,7 +90,7 @@ inline constexpr std::uint32_t kBlock8Cap = 450;
 // the attacks. With neither a journal nor a meeting, the single line "You have never spoken with this Tarnished."
 // (and the sightings' line when it applies).
 [[nodiscard]] TarnishedBlock tarnished_block(const proto::PersonaFacts* facts, const Journal* journal,
-                                             const BlockNow& now);
+                                             const BlockNow& now, std::vector<std::string> lived = {});
 // The block's estimate, as the template sets it out.
 [[nodiscard]] std::uint32_t block_tokens(const TarnishedBlock& b) noexcept;
 

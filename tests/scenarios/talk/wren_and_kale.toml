@@ -185,6 +185,39 @@ prompt_has = ["They told you their name is Wren. You have spoken with the Tarnis
   "because of what the Tarnished told you of it."]
 
 [[step]]
+do = "say"
+text = "Sorry about the other day. That was an accident."
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "esc"
+
+# F's job files the blow as k3 (seen, protected) and the feeling drops to wary; that makes the lived layer due, and at
+# the next quiet moment its job writes Kalé's first version (F2), which his next prompt carries (MEM §13.6).
+[[step]]
+do = "wait_jobs"
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Still angry?"
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "expect"
+prompt_has = ["You are wary of the Tarnished.", "Since then, in your own words:",
+  "Of the Tarnished: \"I keep a close eye on them since they struck me in my own shop.\"",
+  "You saw for yourself:\n- The Tarnished struck me in my own shop and called it an accident."]
+
+[[step]]
 do = "esc"
 
 # H: NG+ starts the next journey; nothing of the first is this journey's.

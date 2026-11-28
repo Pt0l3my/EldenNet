@@ -21,6 +21,16 @@ text = "Open as ever. The church keeps odd hours, but I keep them with it."
 first_token_ms = 700
 chunk_ms = 40
 
+[[reply]]
+text = "An accident. Of course. Mind your elbows in here."
+first_token_ms = 700
+chunk_ms = 40
+
+[[reply]]
+text = "Angry is a strong word. Careful, more like."
+first_token_ms = 700
+chunk_ms = 40
+
 # The memory job's replies (slot memory), in order: A's journal v1, then C's v2. One line each, as TOML strings.
 
 [[reply]]
@@ -43,6 +53,30 @@ text = [
   "[{\"id\": null, \"text\": \"They claim to have killed the lord of the castle.\", \"basis\":",
   "\"said\", \"weight\": 0.6, \"about\": \"tarnished\", \"refs\": [\"L1\"], \"check_key\":",
   "\"slew:godrick\"}], \"told_name\": null, \"disposition_delta\": 0}",
+]
+first_token_ms = 900
+chunk_ms = 20
+
+# F's job (journal v3), then the lived layer's first version (F2).
+
+[[reply]]
+slot = "memory"
+text = [
+  "{\"summary\": \"Wren came by the church, claimed the castle's lord, and later struck me in my",
+  "own shop, calling it an accident.\", \"keep\": [\"k1\", \"k2\"], \"keepsakes\": [{\"id\": null,",
+  "\"text\": \"The Tarnished struck me in my own shop and called it an accident.\", \"basis\":",
+  "\"seen\", \"weight\": 0.75, \"about\": \"tarnished\", \"refs\": [\"N1\", \"L2\"], \"check_key\": null}],",
+  "\"told_name\": null, \"disposition_delta\": -1}",
+]
+first_token_ms = 900
+chunk_ms = 20
+
+[[reply]]
+slot = "memory"
+text = [
+  "{\"towards\": [{\"id\": null, \"who\": \"P1\", \"feeling\": \"wary\", \"trust_delta\": 0, \"text\": \"I",
+  "keep a close eye on them since they struck me in my own shop.\", \"refs\": [\"k3\"]}], \"aims\":",
+  "[], \"learned\": [], \"self\": null, \"manner\": null}",
 ]
 first_token_ms = 900
 chunk_ms = 20

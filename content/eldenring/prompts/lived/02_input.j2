@@ -1,0 +1,30 @@
+{# Part 2: what the NPC's own prompt would show it now (MEM §13.3): who it is and its road, how things have turned so
+   far, its memories (each keepsake with its id, weight, basis, "proved" for a claim proved true, its people and the
+   protected mark), the facts and the feeling in words, the people by letter; then the task and the answer's shape. #}
+[ user ]
+ABOUT {{ name }}
+{{ self_text }}{% if not empty(road) %} {{ road }}{% endif %}
+HOW THINGS HAVE TURNED SO FAR
+{% for t in turned %}
+{{ t.id }} [{{ t.label }}; from {{ t.refs }}] {{ quote(t.text) }}
+{% endfor %}
+{% if empty(turned) %}(nothing yet)
+{% endif %}
+MEMORIES
+Summary: {% if empty(summary) %}(nothing yet){% else %}{{ summary }}{% endif %}
+{% for m in memories %}
+{{ m.id }} [{{ m.label }}] {{ quote(m.text) }}
+{% endfor %}
+{% if not empty(facts) %}{{ join(facts, " ") }}{% endif %}
+{% if not empty(feeling) %}{{ feeling }}{% endif %}
+PEOPLE
+{% for p in people %}
+{{ p.letter }} {{ p.label }}
+{% endfor %}
+
+TASK
+List only what changes: an entry with its id to rewrite it, or with id null to add one. Anything you leave out stays
+as it is. Feelings: fond, grateful, admiring, curious, indifferent, wary, afraid, resentful, scornful.
+{"towards": [{"id": null, "who": "P1", "feeling": "wary", "trust_delta": 0, "text": "...",
+ "refs": ["k3"]}], "aims": [], "learned": [], "self": null, "manner": null}
+{% if not empty(reminder) %}{{ reminder }}{% endif %}

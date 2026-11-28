@@ -7,6 +7,12 @@
 [The Tarnished, as you know them]
 {{ join(tarnished.facts, " ") }}
 {% if not empty(tarnished.disposition) %}{{ tarnished.disposition }}{% endif %}
+{% if not empty(tarnished.lived) %}
+Since then, in your own words:
+{% for l in tarnished.lived %}
+{{ l }}
+{% endfor %}
+{% endif %}
 {% if not empty(tarnished.summary) %}In your own words: {{ quote(tarnished.summary) }}{% endif %}
 {% if not empty(tarnished.seen) %}
 You saw for yourself:
