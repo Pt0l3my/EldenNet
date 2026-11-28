@@ -84,7 +84,6 @@ class MockModel {
  private:
   MockScript script_;
   std::vector<MockEvent> pending_;  // ordered by time, then by when they were scheduled
-  std::size_t next_ = 0;
   std::size_t served_ = 0;
   std::size_t cancelled_ = 0;
   std::map<std::string, std::size_t> next_by_slot_;
