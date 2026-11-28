@@ -10,6 +10,7 @@
 #include <functional>
 #include <optional>
 #include <random>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -518,6 +519,64 @@ TEST_CASE("oracle (MEM 9.6, 8.3): New character archives the old file whole and 
   CHECK(rows(archived.front(), tables[0]) == before[0]);
 }
 
+TEST_CASE("oracle (MEM 9.6, C11): a hard kill mid-reply: every acknowledged page survives, nothing else appears") {
+  // The long reply (its pages capped as it streams), killed at each page's boundary, a millisecond before its play
+  // time and a frame after, and at seeded moments between the line and the reply's end; the next session closes the
+  // conversation as crashed. The file holds exactly the pages the surfaces acknowledged before the kill.
+  EvalScenario s = scenario("lantern-long-reply.toml");
+  s.store = true;
+  s.character = "Wren";
+  s.steps = {step(Kind::Open), say("How do you keep the lamp?"), wait(15000), step(Kind::Esc)};
+  Folder folder;
+  const EvalRun full = run_kept(s, folder.at("full"));
+  const fs::path f = live_file(folder.at("full"));
+  std::vector<std::int64_t> pages;
+  for (const std::string& r : rows(f, "SELECT json_extract(p.value, '$.pt') FROM events e, json_each(e.payload, "
+                                      "'$.pages') p WHERE e.kind = 'NpcSaid' ORDER BY 1")) {
+    pages.push_back(std::stoll(r));
+  }
+  REQUIRE(pages.size() >= 2);
+  const std::int64_t from = full.step_pt[2];  // the wait after the line
+  std::vector<std::int64_t> kills;
+  for (const std::int64_t p : pages) {
+    kills.push_back(p - 1);
+    kills.push_back(p + 250);
+  }
+  std::mt19937 rng(11);
+  std::uniform_int_distribution<std::int64_t> between(from + 1, pages.back() + 1000);
+  for (int i = 0; i < 8; ++i) kills.push_back(between(rng));
+  for (std::size_t i = 0; i < kills.size(); ++i) {
+    const std::int64_t kill = kills[i];
+    CAPTURE(kill);
+    EvalScenario k = s;
+    k.steps = {step(Kind::Open), say("How do you keep the lamp?"), wait(static_cast<core::Mono>(kill - from)),
+               step(Kind::Kill), expect_mode("open")};
+    const EvalRun run = run_kept(k, folder.at("kill-" + std::to_string(i)));
+    const fs::path file = live_file(folder.at("kill-" + std::to_string(i)));
+    REQUIRE(run.turns.size() == 1);
+    const EvalTurn& turn = run.turns.front();
+    // A page is timed by the snapshot before the frame that showed it: shown by the kill if timed a frame before it,
+    // and never if timed after it.
+    const auto timed = [&](std::int64_t by) {
+      return static_cast<std::size_t>(
+          std::count_if(pages.begin(), pages.end(), [&](std::int64_t p) { return p <= by; }));
+    };
+    CHECK(turn.pages >= timed(kill - 250));
+    CHECK(turn.pages <= timed(kill));
+    CHECK(number(file, "SELECT count(*) FROM events WHERE kind = 'PlayerSaid'") == 1);
+    if (turn.pages == 0) {
+      CHECK(number(file, "SELECT count(*) FROM events WHERE kind = 'NpcSaid'") == 0);
+    } else {
+      CHECK(one(file, "SELECT text FROM events WHERE kind = 'NpcSaid'") == turn.reply);
+      CHECK(number(file, "SELECT json_array_length(payload, '$.pages') FROM events WHERE kind = 'NpcSaid'") ==
+            static_cast<std::int64_t>(turn.pages));
+      CHECK(number(file, "SELECT max(json_extract(p.value, '$.pt')) FROM events e, json_each(e.payload, '$.pages') p "
+                         "WHERE e.kind = 'NpcSaid'") <= kill);
+    }
+    CHECK(one(file, "SELECT end_reason FROM conversations") == "crash");
+  }
+}
+
 TEST_CASE("oracle (MEM 12.11): star_falls, Kalé's steps, as the file holds them") {
   const EvalScenario sf = scenario("star_falls.toml");
   Folder folder;
@@ -599,4 +658,83 @@ TEST_CASE("oracle (MEM 12.11's T7, T3): world trims around the general and the s
       CHECK(one(file, kale + "'world_seen'") == "[[\"w:castle_fallen\",\"rumour\"]]");  // A's, before D
     }
   });
+}
+
+namespace {
+
+// Every byte of every file under a store folder: the live files, their WAL and shared memory, backups, archives.
+std::string all_bytes(const fs::path& dir) {
+  std::string out;
+  for (const auto& e : fs::recursive_directory_iterator(dir)) {
+    if (!e.is_regular_file()) continue;
+    out += read_file(e.path().string(), 64u << 20).value_or(std::string());
+  }
+  return out;
+}
+
+std::string utf16le(const std::string& ascii) {
+  std::string out;
+  for (const char c : ascii) {
+    out.push_back(c);
+    out.push_back('\0');
+  }
+  return out;
+}
+
+}  // namespace
+
+TEST_CASE("oracle (MEM 8.3, 8.6): the eval's database files hold no text that must not be there") {
+  // The plan's privacy rules for the playthrough file (v0.3 plan §4): the Tarnished's own name only as its hash (MEM
+  // §8.3), never a path, never the fixed text of a prompt (only the lines shown_context keeps), never the model's raw
+  // answer, and never what the model wrote that was not shown. Each scenario runs with a canary for the character's
+  // name, one no line types, and its files are read byte by byte, the WAL, backups and archives included.
+  const std::string canary = "Quillfeather";
+  for (const char* name : {"wren_and_kale.toml", "star_falls.toml", "older_save.toml", "kale_news.toml",
+                           "lantern-long-reply.toml"}) {
+    CAPTURE(name);
+    EvalScenario s = scenario(name);
+    s.store = true;
+    s.character = canary;
+    Folder folder;
+    EvalOptions o;
+    o.store_dir = folder.at("store");
+    auto run = run_eval(s, EvalLlm::Mock, o);  // the told name is not the save's now: some expectations fail
+    REQUIRE(run.has_value());
+    const std::string bytes = all_bytes(folder.at("store"));
+    REQUIRE(bytes.size() > 4096);
+    CHECK(bytes.find(run->turns.front().player) != std::string::npos);  // the Tarnished's line, kept as typed
+    CHECK(bytes.find(canary) == std::string::npos);
+    CHECK(bytes.find(utf16le(canary)) == std::string::npos);
+    for (const fs::path& p : {folder.at("store"), s.folder, fs::temp_directory_path()}) {
+      CHECK(bytes.find(p.string()) == std::string::npos);
+    }
+    // The prompt's fixed parts: no line of a system message of 40 characters or more.
+    std::set<std::string> lines;
+    for (const EvalTurn& t : run->turns) {
+      for (const proto::Message& m : t.prompt) {
+        if (m.role != proto::Role::System) continue;
+        std::string text = m.joined();
+        for (std::size_t at = 0; at < text.size();) {
+          const std::size_t nl = std::min(text.find('\n', at), text.size());
+          if (nl - at >= 40) lines.insert(text.substr(at, nl - at));
+          at = nl + 1;
+        }
+      }
+    }
+    REQUIRE_FALSE(lines.empty());
+    for (const std::string& l : lines) {
+      CAPTURE(l.substr(0, 40));
+      CHECK(bytes.find(l) == std::string::npos);
+    }
+    // The model's raw answer: the memory job's JSON keys of its own.
+    for (const char* key : {"disposition_delta", "\"keep\":", "told_name\":"}) {
+      CHECK(bytes.find(key) == std::string::npos);
+    }
+    // What the model wrote past the pager's cap, never shown.
+    if (std::string(name) == "lantern-long-reply.toml") {
+      CHECK(bytes.find("The lamp burns all night") != std::string::npos);  // what showed is there, read as written
+      CHECK(bytes.find("count the travellers who pass") == std::string::npos);
+      CHECK(bytes.find("Then I wait for the light") == std::string::npos);
+    }
+  }
 }

@@ -519,7 +519,12 @@ epoch alone); New character (the old file archived whole, an empty one in its pl
 back after another character in the slot); `star_falls` as its file holds it (E's claim and proof, no star keepsake,
 E2's cue on its NpcSaid, F's rollback, G's journey); and MEM §12.11's T7 world trims (before the general's fall, between
 it and the star, after both, and before E2, whose item a trim makes cue-able again) and T3's fold property at six seeded
-cuts, through the same oracle.
+cuts, through the same oracle; a hard kill mid-reply at each page's boundary and at seeded moments (C11: the file holds
+exactly the pages acknowledged before it, and the next session ends the conversation as crashed); and the scan of the
+eval's database files, WAL, backups and archives included, byte by byte, for text that must not be there: a canary name
+for the Tarnished (only its hash, MEM §8.3), the store's, the scenario's and the temporary folder's paths, every system
+line of 40 characters or more of the prompts sent, the memory job's own JSON keys, and the long reply's text past the
+pager's cap.
 
 Its `test_dialogue_prompt.cpp` runs the first conversation's part A on the shipped content: the pack loads, the frame and
 the registers keep their caps, blocks 1 to 5 never move with the turn and 5b only with the stage and its lines (T5),
