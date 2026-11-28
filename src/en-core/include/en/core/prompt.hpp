@@ -92,7 +92,8 @@ struct DialogueContext {
   Standing tied;    // block 5b: tied to the persona's own road
   Standing land;    // block 5b: the land's
   // Block 8 from the store (memory.hpp; MEM §4.3), composed by the core; null leaves it empty. Block 6 (a)'s header
-  // says things have moved on when the persona's stage at that conversation differs from now.
+  // says things have moved on when the persona's stage at that conversation differs from now, or the since-line names
+  // something (MEM §4.3, §12.6).
   const TarnishedBlock* tarnished = nullptr;
   bool earlier_moved_on = false;
   // Block 7's first lines (MEM §12.6, §12.13): the since-line, then the reaction cue (its reason's word and the item's

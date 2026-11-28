@@ -69,9 +69,10 @@ flags = "after_radahn"
 do = "wait"
 ms = 8000
 
-# D: the Tarnished claims the general. The since-line names the star and the general's fall, and A's tail follows; no
-# reaction cue yet (no claim proved, nothing on his ground). MEM's header "(things have moved on since)" is for a
-# persona whose stage then differs from now (§4.3): Kalé's stays the same.
+# D: the Tarnished claims the general. The since-line names the star and the general's fall, and A's tail follows
+# under the header "(things have moved on since)", which a since-line that names something brings as a stage change
+# does (MEM §4.3 as §12.6 widens it; Kalé's stage stays the same); no reaction cue yet (no claim proved, nothing on his
+# ground).
 [[step]]
 do = "open"
 
@@ -86,8 +87,8 @@ ms = 7000
 [[step]]
 do = "expect"
 prompt_has = ["Since you last spoke with the Tarnished, you have learned of", "the fall of the red general",
-  "a star come down out of the sky", "Earlier, when you last spoke with the Tarnished:"]
-prompt_lacks = ["On your mind:", "(things have moved on since)"]
+  "a star come down out of the sky", "Earlier, when you last spoke with the Tarnished (things have moved on since):"]
+prompt_lacks = ["On your mind:"]
 
 [[step]]
 do = "say"

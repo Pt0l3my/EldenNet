@@ -848,8 +848,9 @@ struct Conversation::Impl {
     }
     DialogueContext ctx;
     ctx.tarnished = tarnished ? &*tarnished : nullptr;
-    ctx.earlier_moved_on = moved_on && !earlier.empty();
     news(ctx, r, tarnished ? &*tarnished : nullptr);
+    // MEM §4.3 as §12.6 widens it: the persona's stage then differs from now, or the since-line names something.
+    ctx.earlier_moved_on = (moved_on || !ctx.since_line.empty()) && !earlier.empty();
     ctx.persona = conv->persona_id;
     ctx.record = &record;
     ctx.name = conv->name;
