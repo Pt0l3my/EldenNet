@@ -969,11 +969,13 @@ constexpr auto kKeys = std::to_array<Key>({
     AU("self_block_changes_by"), AU("calls_by"), AU("player_by"), AU("hp_zero_by"), U("clock_frames"),
     U("clock_steps"), U("clock_same"), U("clock_jumps"), U("play_frames"), U("play_rose"), U("play_fell"),
     U("sheet_frames"), U("level_frames"), U("level_changes"), U("name_frames"), U("name_changes"),
+    U("fp_frames"), U("fp_over"), AU("fp_changes_by"), U("stamina_frames"), U("stamina_over"),
+    AU("stamina_changes_by"), U("deaths_frames"), U("deaths_rose"), U("deaths_other"), U("hp_falls"),
     // The sheet scan (in game). `first` and `last` under `numbers` are numbers of the tester's own character,
     // written with the owner's word (O122); no key holds a text, and a run that reads as one is told by its place.
     O("sheet"), B("sheet_classed"), B("sheet_is_first"), B("sheet_is_second"), AO("sheets"), W("sheet_of", kSheetOf),
     U("text_fields"), U("address_fields"), U("restless"), AO("numbers"), U("last"), U("changes"), U("phases"),
-    AO("text_runs"), U("run_fields"), B("numbers_cut"), U("rose_once_total"), AO("rose_once"), B("from_nothing"), U("part_passes"), AO("matches"),
+    AO("text_runs"), U("run_fields"), B("numbers_cut"), U("rose_only_total"), AO("rose_only"), B("from_nothing"), U("rose_times"), U("part_passes"), AO("matches"),
     U("anchor"), U("equal_passes"), U("changed_together"),
     // The character survey (in game): behaviour only, no value of any character.
     O("survey"), U("tracked"), U("most_listed"), U("deaths"), U("fields_total"), AO("survey_fields"), U("seen"),
@@ -981,7 +983,8 @@ constexpr auto kKeys = std::to_array<Key>({
     AU("handles"), AO("pairs"), U("a"), U("b"), U("holds_for"), U("of"), U("dead_total"), AO("dead_bits"),
     U("agree_alive"), U("agree_dead"), U("against"), U("screen_total"), AO("screen_bits"), U("look"),
     U("flipped_in"), AO("checks"), W("check", kCheck), U("player_holds"), U("player_of"), U("sheet_same"),
-    U("sheet_other"), U("sheet_none"),
+    U("sheet_other"), U("sheet_none"), U("vitals_seen"), U("fp_ok"), U("fp_none"), U("fp_changed"),
+    U("stamina_ok"), U("stamina_none"), U("stamina_changed"),
     // The scan by phases (in game): where a field or a bit fits a pattern of the tester's phases; no value.
     O("phase_scan"), U("targets_total"), U("targets_copied"), AO("phase_targets"), W("target_is", kPhaseTarget),
     U("part_word"), U("group"), U("copied_times"), U("phases_seen"), AO("patterns"), W("phase_pattern", kPhasePattern),
@@ -1903,6 +1906,13 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     w.number("sheet_same", f.sheet_same);
     w.number("sheet_other", f.sheet_other);
     w.number("sheet_none", f.sheet_none);
+    w.number("vitals_seen", f.vitals_seen);
+    w.number("fp_ok", f.fp_ok);
+    w.number("fp_none", f.fp_none);
+    w.number("fp_changed", f.fp_changed);
+    w.number("stamina_ok", f.stamina_ok);
+    w.number("stamina_none", f.stamina_none);
+    w.number("stamina_changed", f.stamina_changed);
     w.end_object();
   }
 
@@ -1995,6 +2005,16 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     w.number("level_changes", f.level_changes);
     w.number("name_frames", f.name_frames);
     w.number("name_changes", f.name_changes);
+    w.number("fp_frames", f.fp_frames);
+    w.number("fp_over", f.fp_over);
+    numbers(w, "fp_changes_by", f.fp_changes_by);
+    w.number("stamina_frames", f.stamina_frames);
+    w.number("stamina_over", f.stamina_over);
+    numbers(w, "stamina_changes_by", f.stamina_changes_by);
+    w.number("deaths_frames", f.deaths_frames);
+    w.number("deaths_rose", f.deaths_rose);
+    w.number("deaths_other", f.deaths_other);
+    w.number("hp_falls", f.hp_falls);
     w.end_object();
   }
 
@@ -2052,13 +2072,14 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
         w.end_object();
       }
       w.end_array();
-      w.number("rose_once_total", o.rises_total);
-      w.begin_array("rose_once");
+      w.number("rose_only_total", o.rises_total);
+      w.begin_array("rose_only");
       for (const SheetRise& r : o.rises) {
         w.begin_object();
         w.number("offset", r.offset);
         w.number("phases", r.phases);
         w.boolean("from_nothing", r.from_nothing);
+        w.number("rose_times", r.times);
         w.end_object();
       }
       w.end_array();

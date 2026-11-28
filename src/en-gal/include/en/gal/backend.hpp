@@ -131,6 +131,9 @@ class ErBackend final : public proto::GameBackend {
     bool characters = false;                  // the characters manager's object was there
     bool player = false;                      // an object of the player's class behind the main player's word
     std::optional<proto::Meter> hp;           // the main player's health and its maximum
+    // Its focus and its stamina, each with its most, where the layout binds both of a pair (the twenty-second
+    // round) and neither reads below nothing.
+    std::optional<proto::Meter> fp, stamina;
     std::optional<std::array<float, 3>> pos;  // and its position
     bool list = false;                        // the near list's bounds made sense
     std::uint32_t near_all = 0;               // its elements, by its bounds
@@ -182,6 +185,9 @@ class ErBackend final : public proto::GameBackend {
     bool sheet = false;                        // the sheet's object was there
     std::optional<std::uint32_t> level;
     std::optional<std::uint32_t> name_units;
+    // The save data's count of deaths, where the layout binds it, in every call that reads the save data's object.
+    // The caller is to tell no more of it than whether it was there and how it changed.
+    std::optional<std::uint32_t> deaths;
   };
   // `fields`: the list's characters' other fields too (one copy of a character each; the round asks every other call).
   WorldAlone world_alone(const proto::GameThread& gt, bool fields = false);

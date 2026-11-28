@@ -686,7 +686,12 @@ class CharSurvey {
     // kMaxChecks at most; a check whose place lies outside a character's copy is not counted for that sighting.
     std::vector<SurveyCheck> checks;
     std::uint32_t sheet_at = 0;           // where in a character the sheet's address lies (0: not looked for)
+    // Where in the health's object the focus, the stamina and the most of each lie (32 bits each; `pairs` false:
+    // not looked at). The four and the health must lie within kVitalsSpan bytes of one another.
+    bool pairs = false;
+    std::uint32_t fp_at = 0, max_fp_at = 0, stamina_at = 0, max_stamina_at = 0;
   };
+  static constexpr std::uint32_t kVitalsSpan = 0x40;
   static constexpr std::size_t kMaxChecks = 32;
   explicit CharSurvey(Options options);
   ~CharSurvey();

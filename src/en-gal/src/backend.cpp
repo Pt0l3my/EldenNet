@@ -1050,10 +1050,15 @@ ErBackend::WorldAlone ErBackend::world_alone(const GameThread& gt, bool fields) 
       }
     }
   }
-  if (has_play || has_sheet) {
+  const bool has_deaths = d_.address(Item::SaveData).has_value() && b_.field(Fld::Deaths) != nullptr;
+  if (has_play || has_sheet || has_deaths) {
     if (const auto save = item_object(gt, Group::Player, Item::SaveData, false)) {
       if (const auto play = save->integer(b_.field(Fld::PlayTime)); has_play && play && *play >= 0) {
         done.play_time = static_cast<std::uint64_t>(*play);
+      }
+      if (const auto deaths = save->integer(b_.field(Fld::Deaths)); has_deaths && deaths && *deaths >= 0 &&
+                                                                    *deaths <= 0xFFFF'FFFF) {
+        done.deaths = static_cast<std::uint32_t>(*deaths);
       }
       // The sheet, by the save data's own word; read before anything else is copied (the save data's copy is the
       // items' own, and stays).
@@ -1113,6 +1118,15 @@ ErBackend::WorldAlone ErBackend::world_alone(const GameThread& gt, bool fields) 
           if (cur && max && *cur >= 0 && *max >= 0 && *cur <= 0xFFFF'FFFF && *max <= 0xFFFF'FFFF) {
             done.hp = proto::Meter{static_cast<std::uint32_t>(*cur), static_cast<std::uint32_t>(*max)};
           }
+          const auto pair = [&](Fld now, Fld most) -> std::optional<proto::Meter> {
+            if (b_.field(now) == nullptr || b_.field(most) == nullptr) return std::nullopt;
+            const auto c = vit->integer(b_.field(now));
+            const auto m = vit->integer(b_.field(most));
+            if (!c || !m || *c < 0 || *m < 0 || *c > 0xFFFF'FFFF || *m > 0xFFFF'FFFF) return std::nullopt;
+            return proto::Meter{static_cast<std::uint32_t>(*c), static_cast<std::uint32_t>(*m)};
+          };
+          done.fp = pair(Fld::Fp, Fld::MaxFp);
+          done.stamina = pair(Fld::Stamina, Fld::MaxStamina);
         }
       }
       if (mot_addr != 0) {

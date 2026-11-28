@@ -689,6 +689,15 @@ TEST_CASE("backend: the world's leads alone read through a layout that places th
   CHECK(timed.clock->m == 47);
   REQUIRE(timed.play_time.has_value());
   CHECK(*timed.play_time == 3'600'123);
+  // The count of deaths beside it, and the main player's focus and stamina with the health (the twenty-second
+  // round): each where the layout binds it.
+  REQUIRE(timed.deaths.has_value());
+  CHECK(*timed.deaths == 3);
+  REQUIRE(timed.fp.has_value());
+  CHECK(timed.fp->cur <= timed.fp->max);
+  CHECK(timed.fp->max != 0);
+  REQUIRE(timed.stamina.has_value());
+  CHECK(timed.stamina->cur <= timed.stamina->max);
   // The sheet through the save data's own word: the level in its range, and a name of some letters (their count
   // is the caller's to hold against the call before, and no more).
   CHECK(timed.sheet);

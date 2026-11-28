@@ -750,6 +750,13 @@ struct SurveyFound {
   std::uint32_t sheet_same = 0;
   std::uint32_t sheet_other = 0;
   std::uint32_t sheet_none = 0;
+  // The focus and the stamina of the characters near (the twenty-second round), where the round gives their places
+  // in the part of health: sightings of the others in which the part was read, and of those the ones in which a
+  // pair read as one (nothing or more, and no more than its most), had a most of nothing, or was another than at
+  // the character's sighting before. Counts only.
+  std::uint32_t vitals_seen = 0;
+  std::uint32_t fp_ok = 0, fp_none = 0, fp_changed = 0;
+  std::uint32_t stamina_ok = 0, stamina_none = 0, stamina_changed = 0;
 };
 
 // The sheet scan (in game; the twentieth round, the owner's O121 and O122): the save data's object and the main
@@ -776,8 +783,9 @@ struct SheetText {
 // count of deaths so); it is found here.
 struct SheetRise {
   std::uint32_t offset = 0;
-  std::uint32_t phases = 0;      // bit n: the rise fell in the tester's phase n
+  std::uint32_t phases = 0;      // bit n: a rise fell in the tester's phase n
   bool from_nothing = false;     // it read nothing before (a flag set, more likely than a count)
+  std::uint32_t times = 1;       // how many times it rose (each by one, and it changed in no other way)
 };
 struct SheetObject {
   std::uint32_t which = 0;           // 0: the save data's object; 1: the sheet
@@ -910,6 +918,18 @@ struct WorldRead {
   std::uint64_t level_changes = 0;         //   another than in the frame before
   std::uint64_t name_frames = 0;           // a name of one to sixteen letters
   std::uint64_t name_changes = 0;          //   of another length than in the frame before
+  // The main player's focus and stamina through the layout (the twenty-second round): no value is written.
+  std::uint64_t fp_frames = 0;             // frames with the focus and its most
+  std::uint64_t fp_over = 0;               //   of them: the most nothing, or the focus above it
+  std::vector<std::uint32_t> fp_changes_by;       // by the marks: the focus another than in the frame before
+  std::uint64_t stamina_frames = 0;
+  std::uint64_t stamina_over = 0;
+  std::vector<std::uint32_t> stamina_changes_by;
+  // The save data's count of deaths through the layout, against the reader's own count of the health's falls.
+  std::uint64_t deaths_frames = 0;         // frames with the count
+  std::uint64_t deaths_rose = 0;           //   one more than in the frame before
+  std::uint64_t deaths_other = 0;          //   changed otherwise
+  std::uint64_t hp_falls = 0;              // frames in which the health read nothing and had not the frame before
 };
 
 struct PairHit {

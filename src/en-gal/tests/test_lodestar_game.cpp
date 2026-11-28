@@ -2622,6 +2622,11 @@ TEST_CASE("in game: the character survey tells a character's fields by how they 
     w.mem.put<std::uint64_t>(holder + 0x0, c.vitals);
     w.mem.put<std::int32_t>(c.vitals + 0x8, 500);
     w.mem.put<std::int32_t>(c.vitals + 0xC, 500);
+    // A focus and its most (the odd ones have none), a stamina and its most.
+    w.mem.put<std::int32_t>(c.vitals + 0x10, index % 2 == 1 ? 0 : 50);
+    w.mem.put<std::int32_t>(c.vitals + 0x14, index % 2 == 1 ? 0 : 60);
+    w.mem.put<std::int32_t>(c.vitals + 0x18, 80);
+    w.mem.put<std::int32_t>(c.vitals + 0x1C, 90);
     w.mem.put<std::uint64_t>(c.at + 0x100, w.mem.alloc(0x10));  // an address of its own
     // A sheet: the main player's, and behind the same place in the others an object of the same class (the odd
     // ones), of another class (the even ones), or nothing (the ninth).
@@ -2645,6 +2650,11 @@ TEST_CASE("in game: the character survey tells a character's fields by how they 
   o.parts_at = 0x30;
   o.vitals_at = 0x0;
   o.hp_at = 0x8;
+  o.pairs = true;
+  o.fp_at = 0x10;
+  o.max_fp_at = 0x14;
+  o.stamina_at = 0x18;
+  o.max_stamina_at = 0x1C;
   o.character_vtables = {rva(w.vtable("chr")), rva(w.vtable("hero")), rva(w.vtable("npc")), rva(w.vtable("beast"))};
   o.image = &w.sys->image();
   // The round's own checks of places a survey left open, counted over the sightings.
@@ -2784,6 +2794,15 @@ TEST_CASE("in game: the character survey tells a character's fields by how they 
   CHECK(f.sheet_same == 4 * 20);
   CHECK(f.sheet_other == 4 * 20);
   CHECK(f.sheet_none == 20);
+  // The focus and the stamina of the nine others, by their shape: each pair reads as one at every sighting; the
+  // five odd ones have no focus; nothing changed between sightings. The main player's own is not counted here.
+  CHECK(f.vitals_seen == 9 * 20);
+  CHECK(f.fp_ok == 9 * 20);
+  CHECK(f.fp_none == 5 * 20);
+  CHECK(f.fp_changed == 0);
+  CHECK(f.stamina_ok == 9 * 20);
+  CHECK(f.stamina_none == 0);
+  CHECK(f.stamina_changed == 0);
   // The dead bit: it was set as the one died, clear in every living character at every sighting since, and set
   // in the dead one. The on-screen bit flipped before in the looking phase, so it is no candidate.
   REQUIRE(f.dead_bits.size() == 1);
@@ -3138,6 +3157,7 @@ TEST_CASE("in game: the sheet scan tells the numbers of the save data's object a
   w.mem.put<std::uint32_t>(save + 0xC0, 0x0123'4567u);
   w.mem.put<std::uint32_t>(save + 0xC4, 77);
   w.mem.put<std::uint32_t>(save + 0xD0, 0);
+  w.mem.put<std::uint32_t>(save + 0xE0, 5);        // a count that rises twice: at the death, and once more later
   w.mem.put<std::uint32_t>(save + 0xA0, 1000);     // the play time: never still
   w.mem.put<std::uint32_t>(save + 0x4100, 3);      // in the second piece
   lodestar::SheetScan::Options o;
@@ -3192,6 +3212,7 @@ TEST_CASE("in game: the sheet scan tells the numbers of the save data's object a
   w.mem.put<std::uint32_t>(save + 0x94, 13);
   w.mem.put<std::uint32_t>(save + 0xC4, 78);
   w.mem.put<std::uint32_t>(save + 0xD0, 1);
+  w.mem.put<std::uint32_t>(save + 0xE0, 6);
   w.mem.put<std::uint32_t>(sheet_a + 0x44, 0);
   w.mem.put<std::uint32_t>(sheet_b + 0x44, 0);
   w.mem.put<std::uint32_t>(part + 0x20, 0);
@@ -3204,6 +3225,7 @@ TEST_CASE("in game: the sheet scan tells the numbers of the save data's object a
   w.mem.put<std::uint64_t>(manager + 0x10, hero);
   pass();
   scan.mark(now);
+  w.mem.put<std::uint32_t>(save + 0xE0, 7);
   for (int i = 0; i < 4; ++i) pass();  // standing again
   // The tester quits: the manager and the save data's static are emptied. Nothing told so far is lost.
   w.mem.put<std::uint64_t>(w.at("st_characters"), 0);
@@ -3264,8 +3286,14 @@ TEST_CASE("in game: the sheet scan tells the numbers of the save data's object a
   // flag (marked as rising from nothing). The play time rose every pass, by more: not one of them.
   CHECK(field(sd, 0xC0) == nullptr);
   CHECK(field(sd, 0xC4) == nullptr);
-  CHECK(sd.rises_total == 3);
-  REQUIRE(sd.rises.size() == 3);
+  CHECK(sd.rises_total == 4);
+  REQUIRE(sd.rises.size() == 4);
+  CHECK(sd.rises[0].times == 1);
+  // What rose by one twice, in two phases, and did nothing else: told with its two times.
+  CHECK(sd.rises[3].offset == 0xE0);
+  CHECK(sd.rises[3].times == 2);
+  CHECK(sd.rises[3].phases == 0b1100);
+  CHECK_FALSE(sd.rises[3].from_nothing);
   CHECK(sd.rises[0].offset == 0x94);
   CHECK(sd.rises[0].phases == 0b100);
   CHECK_FALSE(sd.rises[0].from_nothing);

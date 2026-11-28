@@ -5617,7 +5617,7 @@ def check_read_stay(result):
     sheet = d.get("sheet") or {"sheets": [], "phase_passes": []}
     objects = {o["sheet_of"]: o for o in sheet["sheets"]}
     passes = sheet.get("phase_passes") or [0] * 6
-    rose = {r["offset"]: r for r in (objects.get("save_data") or {}).get("rose_once", [])}
+    rose = {r["offset"]: r for r in (objects.get("save_data") or {}).get("rose_only", [])}
     need(passes[0] >= 2 and passes[1] >= 2 and passes[2] >= 3 and 0x18 in rose and rose[0x18]["phases"] == 2 and
          rose[0x18]["from_nothing"] is True,  # the fake ledger's count starts at nothing
          "the sheet scan on the count of deaths: passes %s rose once %s" % (passes, sorted(rose.items())[:6]), failures)

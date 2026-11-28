@@ -291,11 +291,14 @@ struct SheetScan::Impl {
       const std::span<const std::byte> last(ob.before.data(), ob.bytes);  // each part as it was last read
       for (std::size_t f = 0; f < kFields; ++f) {
         if ((ob.marks[f] & kSeen) == 0) continue;
-        // What rose by one once and did nothing else: its place and phase, whatever the field holds.
-        if (ob.changes[f] == 1 && ob.rose[f] == 1) {
+        // What rose by one, once or more, and did nothing else: its place, its phases and how many times, whatever
+        // the field holds. (The twenty-first round asked for "once"; the tester died twice, and a count of deaths
+        // then rises twice.)
+        if (ob.changes[f] >= 1 && ob.rose[f] == ob.changes[f]) {
           ++t.rises_total;
           if (t.rise_count < kListedRises) {
-            t.rises[t.rise_count++] = SheetRise{static_cast<std::uint32_t>(f * 4), ob.phases[f], ob.first[f] == 0};
+            t.rises[t.rise_count++] =
+                SheetRise{static_cast<std::uint32_t>(f * 4), ob.phases[f], ob.first[f] == 0, ob.changes[f]};
           }
         }
         // An address first: its halves read as letters too, and are no text. Neither is ever told.

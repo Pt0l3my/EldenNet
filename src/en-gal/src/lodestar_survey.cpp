@@ -57,6 +57,8 @@ struct CharSurvey::Impl {
     bool player = false;
     bool has_hp = false;
     std::int32_t hp = 0;          // at the last sighting
+    bool pair_seen = false;       // its focus and stamina were read at a sighting before
+    std::int32_t fp_before = 0, stamina_before = 0;
     std::array<std::uint64_t, kFields / 64> changed{};  // by field: it differed between two sightings
   };
   struct DeadBit {
@@ -85,6 +87,8 @@ struct CharSurvey::Impl {
     std::array<SurveyCheck, kMaxChecks> checks{};
     std::size_t check_count = 0;
     std::uint32_t sheet_same = 0, sheet_other = 0, sheet_none = 0;
+    std::uint32_t vitals_seen = 0, fp_ok = 0, fp_none = 0, fp_changed = 0, stamina_ok = 0, stamina_none = 0,
+                  stamina_changed = 0;
   };
 
   Options o;
@@ -106,6 +110,10 @@ struct CharSurvey::Impl {
   std::size_t player_slot = kMaxTracked;  // the main player's place, once its copy of this pass is taken
   std::uint64_t player_sheet_class = 0;   // the first word of the main player's sheet, in this pass
   std::uint32_t sheet_same = 0, sheet_other = 0, sheet_none = 0;
+  // The part of health's read: from `vitals_from` (a multiple of 8), `vitals_bytes` of it; the pairs' counts.
+  std::uint32_t vitals_from = 0, vitals_bytes = 8;
+  std::uint32_t vitals_seen = 0, fp_ok = 0, fp_none = 0, fp_changed = 0, stamina_ok = 0, stamina_none = 0,
+                stamina_changed = 0;
 
   Step step = Step::Manager;
   std::uint64_t manager_at = 0, player_at = 0, list_begin = 0, holder = 0, vitals = 0;
@@ -136,6 +144,18 @@ struct CharSurvey::Impl {
         look_last(kBits),
         flip_last(kBits) {
     std::sort(o.character_vtables.begin(), o.character_vtables.end());
+    // The part of health's one read: the health's own eight bytes, or, with the pairs, from the lowest of the
+    // five places to the highest, where that is no more than kVitalsSpan.
+    vitals_from = o.hp_at & ~7u;
+    if (o.pairs) {
+      const std::uint32_t lowest = std::min({o.hp_at, o.fp_at, o.max_fp_at, o.stamina_at, o.max_stamina_at});
+      const std::uint32_t highest = std::max({o.hp_at, o.fp_at, o.max_fp_at, o.stamina_at, o.max_stamina_at});
+      const std::uint32_t from = lowest & ~7u, to = (highest + 4 + 7) & ~7u;
+      if (to - from <= kVitalsSpan) {
+        vitals_from = from;
+        vitals_bytes = to - from;
+      }
+    }
     for (const SurveyCheck& c : o.checks) {
       if (checks.size() >= kMaxChecks || c.kind >= SurveyCheck::kKinds) continue;
       SurveyCheck mine;
@@ -350,6 +370,13 @@ struct CharSurvey::Impl {
     s.sheet_same = sheet_same;
     s.sheet_other = sheet_other;
     s.sheet_none = sheet_none;
+    s.vitals_seen = vitals_seen;
+    s.fp_ok = fp_ok;
+    s.fp_none = fp_none;
+    s.fp_changed = fp_changed;
+    s.stamina_ok = stamina_ok;
+    s.stamina_none = stamina_none;
+    s.stamina_changed = stamina_changed;
     // The characters of this pass, the main player's place among them, and those seen twice or more.
     std::array<std::size_t, kMaxSeen> seen{};
     std::size_t n = 0, player = kMaxSeen;
@@ -666,11 +693,34 @@ bool CharSurvey::step(const proto::GameThread& gt, GuardedReader& reader, std::u
         return false;
       }
       case Step::Vitals: {
-        std::array<std::byte, 8> raw{};
-        const int got = m.read(gt, reader, m.vitals + (m.o.hp_at & ~7u), raw);
+        std::array<std::byte, kVitalsSpan> all{};
+        const std::span<std::byte> raw(all.data(), m.vitals_bytes);
+        const int got = m.read(gt, reader, m.vitals + m.vitals_from, raw);
         if (got == 2) return false;
         if (got == 1) {
-          const auto hp = static_cast<std::int32_t>(field_at(raw, m.o.hp_at & 7u & ~3u));
+          const auto at = [&](std::uint32_t off) {
+            return static_cast<std::int32_t>(field_at(raw, (off - m.vitals_from) & ~3u));
+          };
+          const auto hp = at(m.o.hp_at);
+          // The focus and the stamina of a character that is not the main player: by their shape, and against
+          // the character's sighting before. The values stay here.
+          Impl::Tracked& t = m.tracked[m.slot_now];
+          if (m.o.pairs && m.vitals_bytes != 8 && t.address != m.player_at) {
+            const std::int32_t fp = at(m.o.fp_at), fp_most = at(m.o.max_fp_at);
+            const std::int32_t st = at(m.o.stamina_at), st_most = at(m.o.max_stamina_at);
+            ++m.vitals_seen;
+            m.fp_ok += fp >= 0 && fp <= fp_most ? 1 : 0;
+            m.fp_none += fp == 0 && fp_most == 0 ? 1 : 0;
+            m.stamina_ok += st >= 0 && st <= st_most ? 1 : 0;
+            m.stamina_none += st == 0 && st_most == 0 ? 1 : 0;
+            if (t.pair_seen) {
+              m.fp_changed += fp != t.fp_before ? 1 : 0;
+              m.stamina_changed += st != t.stamina_before ? 1 : 0;
+            }
+            t.pair_seen = true;
+            t.fp_before = fp;
+            t.stamina_before = st;
+          }
           m.take(m.slot_now, m.bytes_now, &hp);
         } else {
           m.take(m.slot_now, m.bytes_now, nullptr);
@@ -738,6 +788,13 @@ SurveyFound CharSurvey::found() const {
   out.sheet_same = s.sheet_same;
   out.sheet_other = s.sheet_other;
   out.sheet_none = s.sheet_none;
+  out.vitals_seen = s.vitals_seen;
+  out.fp_ok = s.fp_ok;
+  out.fp_none = s.fp_none;
+  out.fp_changed = s.fp_changed;
+  out.stamina_ok = s.stamina_ok;
+  out.stamina_none = s.stamina_none;
+  out.stamina_changed = s.stamina_changed;
   return out;
 }
 
