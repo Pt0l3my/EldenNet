@@ -102,7 +102,10 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHY�
   - every epoch started after the cut goes whole, and the first at or before it is cut into;
   - a reply shown across the cut keeps its pages shown at or before it;
   - conversations started after the cut go, and one across it ends `trimmed` at its last kept line, its counts redone;
-  - journal and lived versions, decisions, recall memories and intents after the cut go;
+  - journal versions written from evidence after the cut, in the epoch cut into or a later one, go (a version of an
+    earlier epoch that Keep kept has its own timeline and stays), lived versions with their journal versions, and
+    decisions, recall memories and intents timed after the cut (a memory or an intent of an earlier epoch's events
+    stays); the choice's summary counts the same rows;
   - a journal job the trim took work from (not done, or done with its version gone) keeps the persona's evidence after
     its watermark up to its end, a conversation's job only the lines of conversations still with 2 of the Tarnished's
     lines and 4 committed (MEM §3.1, §9.6's T1); it ends at its last such event, queued again and timed no later than
@@ -139,18 +142,18 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHY�
   comma (the C++ global locale always; a C locale when the system has one), a batch with an apostrophe in a comment, a
   semicolon in a string and a trigger, a transaction dropped or committed, a constraint, the fault classes, and a
   backup that never overwrites;
-- the store's core (`test_store.cpp`): a new file and its start backup; refusal with nothing open; a silent trim
-  within 5 min with the counter kept; O144's two sides (an hour holding only unwitnessed events trimmed silently, one
-  witnessed event asking, with its summary); the summary's every kind and the stages undone; Keep, and a later crash
-  trim touching only its epoch; a new character archived; crash recovery; a reply's pages and a conversation across a
-  cut; journal, lived, jobs and the watermark after a trim; a done job queued again when its version goes, and a
-  conversation cut too short taking its job; forgetting an NPC and a journey; NG+ and a save from the
-  earlier journey; a newer file refused before its backups are touched; a corrupt file restored from its backup; 12
-  seeded random cuts (no row past the cut, no orphaned audience, the counter as it was, both checks clean); and the
-  pages' reads (journeys, conversations, a transcript, memory cards, backups, refused with nothing open); and the trim
-  oracle (MEM §9.6): for 8 seeded streams, each cut by the silent trim and by Forget after the choice, the trimmed
-  file's events, audience rows and conversations equal a replay of the same requests up to the cut, the conversation
-  open at the cut ended `trimmed`;
+- the store's core (`test_store.cpp`): a new file and its start backup; refusal with nothing open; a silent trim within
+  5 min with the counter kept; O144's two sides (an hour holding only unwitnessed events trimmed silently, one witnessed
+  event asking, with its summary); the summary's every kind and the stages undone; Keep, and a later crash trim touching
+  only its epoch, the old timeline's journal and lived versions included; a new character archived; crash recovery; a
+  reply's pages and a conversation across a cut; journal, lived, jobs and the watermark after a trim; a done job queued
+  again when its version goes, and a conversation cut too short taking its job; forgetting an NPC and a journey; NG+ and
+  a save from the earlier journey; a newer file refused before its backups are touched; a corrupt file restored from its
+  backup; 12 seeded random cuts (no row past the cut, no orphaned audience, the counter as it was, both checks clean);
+  and the pages' reads (journeys, conversations, a transcript, memory cards, backups, refused with nothing open); and
+  the trim oracle (MEM §9.6): for 8 seeded streams, each cut by the silent trim and by Forget after the choice, the
+  trimmed file's events, audience rows and conversations equal a replay of the same requests up to the cut, the
+  conversation open at the cut ended `trimmed`;
 - the requests (`test_playthrough.cpp`): an event with its audience, each persona reading its own row alone and
   nothing of another journey, a lower id that never takes the counter back; an NpcSaid's pages with their ends and pts;
   the schema's caps (text, payload, JSON, a kind); a JourneyChanged's epoch; conversations with ids past 2^53; a job's

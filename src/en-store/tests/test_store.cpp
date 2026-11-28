@@ -247,7 +247,22 @@ TEST_CASE("store: the summary counts each kind that matters, and names the stage
 TEST_CASE("store: Keep keeps every row in a new epoch, and a later crash trim touches only that epoch") {
   Rig rig;
   rig.open_at(kHour);
-  rig.put("PersonaSeen", kHour + 30 * kMin, {{"kale", How::Direct}});
+  const proto::EventId seen = rig.put("PersonaSeen", kHour + 30 * kMin, {{"kale", How::Direct}});
+  // The old timeline's journal version and its lived version, written from it, both timed after any later cut.
+  db::CommitJournal j;
+  j.version.persona = "kale";
+  j.version.version = 1;
+  j.version.as_of_pt = kHour + 30 * kMin;
+  j.version.upto_event_id = seen;
+  j.version.model_fp = j.version.prompt_hash = j.version.persona_hash = "x";
+  rig.ok(rig.send(j));
+  db::CommitLived l;
+  l.version.persona = "kale";
+  l.version.version = 1;
+  l.version.journal_version = 1;
+  l.version.as_of_pt = kHour + 30 * kMin;
+  l.version.model_fp = l.version.prompt_hash = l.version.persona_hash = "x";
+  rig.ok(rig.send(l));
   rig.ok(rig.send(db::Close{}));
   REQUIRE(rig.open_at(kHour).rollback.kind == db::Rollback::Kind::Choice);
   const db::Opened kept = opened_of(rig.send(db::Resolve{db::Choice::Keep}));
@@ -262,6 +277,10 @@ TEST_CASE("store: Keep keeps every row in a new epoch, and a later crash trim to
   CHECK(later.rollback.kind == db::Rollback::Kind::Trimmed);
   CHECK(rig.count("events") == 1);  // the kept "future" row of the old epoch stays
   CHECK(rig.value("SELECT t_play_ms FROM events") == number_text(kHour + 30 * kMin));
+  // And the memory job's work from it: its journal and lived versions, and the watermark they set.
+  CHECK(rig.count("npc_journal") == 1);
+  CHECK(rig.count("npc_lived") == 1);
+  CHECK(rig.value("SELECT watermark FROM memory_progress WHERE persona = 'kale'") == number_text(seen));
 }
 
 TEST_CASE("store: This is a new character archives the old file, never deleting it, and starts a new one") {

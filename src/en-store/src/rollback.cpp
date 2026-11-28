@@ -40,6 +40,14 @@ Result<std::int64_t> one_number(const Db& db, const std::string& sql) {
   return *r && !s->null(0) ? s->i64(0) : std::int64_t{0};
 }
 
+// The first event of the epoch a cut is in, or 0 when the cut lies before every epoch: what the cut takes of the memory
+// job's work is written from evidence at or after it (a version of an earlier epoch, kept by Keep, has a timeline of
+// its own).
+Result<std::int64_t> first_event_cut(const Db& db, const CutPlan& plan) {
+  if (!plan.partial) return std::int64_t{0};
+  return one_number(db, "SELECT start_event_id FROM epochs WHERE epoch = " + number_text(*plan.partial));
+}
+
 }  // namespace
 
 std::string CutPlan::removes(std::string_view time, std::string_view table) const {
@@ -101,14 +109,21 @@ Result<proto::db::RollbackSummary> summarise(const Playthrough& pt, const CutPla
   if (auto r = events::summarise_cut(pt.db, plan, out); !r) return Unexpected{r.error()};
   // What the memory job wrote after the cut: journal and lived versions (with the claims among the journal's
   // keepsakes), and recall memories (reserved, empty in v1).
+  // The same rows the trim takes (below).
+  auto from = first_event_cut(pt.db, plan);
+  if (!from) return Unexpected{from.error()};
   auto j = Stmt::prepare(pt.db,
                          "SELECT persona, as_of_pt, (SELECT count(*) FROM json_each(keepsakes) k "
-                         "WHERE json_extract(k.value, '$.basis') = 'said') FROM npc_journal WHERE as_of_pt > ?1 "
-                         "UNION ALL SELECT persona, as_of_pt, 0 FROM npc_lived WHERE as_of_pt > ?1 "
-                         "UNION ALL SELECT persona, t_play_ms, 0 FROM memories WHERE t_play_ms > ?1 "
+                         "WHERE json_extract(k.value, '$.basis') = 'said') FROM npc_journal WHERE as_of_pt > ?1 AND "
+                         "upto_event_id >= ?2 "
+                         "UNION ALL SELECT l.persona, l.as_of_pt, 0 FROM npc_lived l WHERE EXISTS (SELECT 1 FROM "
+                         "npc_journal v WHERE v.journey = l.journey AND v.persona = l.persona AND v.version = "
+                         "l.journal_version AND v.as_of_pt > ?1 AND v.upto_event_id >= ?2) "
+                         "UNION ALL SELECT persona, t_play_ms, 0 FROM memories WHERE t_play_ms > ?1 AND "
+                         "coalesce(last_event_id, ?2) >= ?2 "
                          "ORDER BY 2 DESC");
   if (!j) return Unexpected{j.error()};
-  j->bind(1, plan.cut);
+  j->bind(1, plan.cut).bind(2, *from);
   std::vector<Item> memory_items;
   for (;;) {
     auto r = j->step();
@@ -166,11 +181,21 @@ Result<std::uint64_t> trim(Playthrough& pt, const CutPlan& plan) {
             p + " AND started_pt <= " + cut + " AND (ended_pt IS NULL OR ended_pt > " + cut + ")");
     if (!add(straddling)) return Unexpected{straddling.error()};
   }
-  // Journal and lived versions written from evidence after the cut, and the rows timed after it.
-  for (const char* sql : {"DELETE FROM npc_journal WHERE as_of_pt > ", "DELETE FROM npc_lived WHERE as_of_pt > ",
-                          "DELETE FROM decisions WHERE t_play_ms > ", "DELETE FROM memories WHERE t_play_ms > ",
-                          "DELETE FROM npc_intents WHERE t_play_ms > "}) {
-    auto r = run_counting(pt.db, sql + cut);
+  // Journal versions written from evidence after the cut, in the epoch cut into or a later one: a version of an
+  // earlier epoch kept by Keep (MEM §9.3) has its own timeline, often timed after the cut, and stays, as do its lived
+  // versions; a lived version goes with its journal version. Then the rows timed after the cut (a recall memory or an
+  // intent of an earlier epoch's events stays too).
+  auto from_event = first_event_cut(pt.db, plan);
+  if (!from_event) return Unexpected{from_event.error()};
+  const std::string from = number_text(*from_event);
+  for (const std::string& sql :
+       {"DELETE FROM npc_journal WHERE as_of_pt > " + cut + " AND upto_event_id >= " + from,
+        std::string("DELETE FROM npc_lived WHERE NOT EXISTS (SELECT 1 FROM npc_journal v WHERE v.journey = "
+                    "npc_lived.journey AND v.persona = npc_lived.persona AND v.version = npc_lived.journal_version)"),
+        "DELETE FROM decisions WHERE t_play_ms > " + cut,
+        "DELETE FROM memories WHERE t_play_ms > " + cut + " AND coalesce(last_event_id, " + from + ") >= " + from,
+        "DELETE FROM npc_intents WHERE t_play_ms > " + cut + " AND coalesce(event_id, " + from + ") >= " + from}) {
+    auto r = run_counting(pt.db, sql);
     if (!add(r)) return Unexpected{r.error()};
   }
   // Jobs (MEM §3.1, §3.7): a journal job the trim took work from (one not done, or a done one whose version went) keeps
