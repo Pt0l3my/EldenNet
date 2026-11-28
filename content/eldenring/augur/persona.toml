@@ -1,0 +1,118 @@
+# Augur's persona rules for v0.3 (MEM §1.1, §1.2; ARCH §8.6; DESIGN §6.5): our own, written from the design's specs.
+# Each rule's event feeds memory: a fact of the persona's (MEM §2.2), a pending note (§2.6), a "just now" line (§1.4)
+# or the memory bundle's prefetch (§4.1), each with its audience frozen at emission. Since O147 the pacing core and
+# NPCs' own lines are v0.4's, so CameNear and AutonomyTick, which only arm greetings, quest business and autonomy,
+# wait for it; StageChanged is the knowledge subscriber's, in code.
+
+# PersonaSeen: within 10 m for 2 s; re-armed beyond 30 m or after loading (P, 1.0). The persona only: `seen_count`.
+[[rule]]
+id = "persona_seen"
+emits = "PersonaSeen"
+subjects = { kinds = ["persona"], alive = true }
+signal = "dist_m"
+detect = { kind = "enter_radius", m = 10.0, rearm_m = 30.0, dwell_ms = 2000 }
+class = "P"
+confidence = 1.0
+audience = { radius = "subject" }
+priority = 40
+
+# PersonaApproached: within 6 m for 1 s; re-armed beyond 10 m (T, 1.0): the memory bundle's prefetch (MEM §4.1) and
+# the warm-up. Its use by the pre-S3 rule and own-initiative lines waits for v0.4 (O147).
+[[rule]]
+id = "persona_approached"
+emits = "PersonaApproached"
+subjects = { kinds = ["persona"], alive = true }
+signal = "dist_m"
+detect = { kind = "enter_radius", m = 6.0, rearm_m = 10.0, dwell_ms = 1000 }
+class = "T"
+confidence = 1.0
+audience = { radius = "none" }
+priority = 40
+
+# PersonaAttacked: the Tarnished's hit takes the persona's HP down (P, 0.95); direct for the victim, witnessed by others
+# within 20 m: `times_attacked`, the "struck" and "saw attack" notes. The hostility bits' path (+1/+2 rising) waits
+# for S7's team_turned.
+[[rule]]
+id = "persona_attacked"
+emits = "PersonaAttacked"
+subjects = { kinds = ["persona"] }
+signal = "hit_by_player"
+detect = { kind = "rising_edge" }
+class = "P"
+key = "attacked:{subject}"
+dedup_s = 2
+confidence = 0.95
+audience = { radius = "witness" }
+priority = 20
+
+# PersonaDied: the dead bit rising (P, 1.0); witnessed within 30 m: the "saw death" note.
+[[rule]]
+id = "persona_died"
+emits = "PersonaDied"
+subjects = { kinds = ["persona"] }
+signal = "dead"
+detect = { kind = "rising_edge" }
+class = "P"
+confidence = 1.0
+audience = { radius = "death" }
+priority = 10
+
+# FoughtBeside: a boss fight ended in Victory with the persona there, alive and not hostile, within 40 m (P, 0.9):
+# `fought_beside`. Decided with the fight's outcome, as boss_ended is; whether the persona came as a summon waits for
+# S7. The persona only.
+[[rule]]
+id = "fought_beside"
+emits = "FoughtBeside"
+subjects = { kinds = ["world"] }
+signal = "boss_active"
+detect = { kind = "falling_edge" }
+debounce_ms = 1000
+payload = "fought_beside"
+class = "P"
+key = "fought:{fight_id}"
+confidence = 0.9
+audience = { radius = "subject" }
+priority = 6
+
+# NativeTalkStarted and Ended with a persona: the native talk's persona, the nearest within 3 m while the popup's talk
+# id, the talk camera or the HUD's pop-up menu is up (S3 picks the signals; 0.6 until S3). P, the persona only, the
+# start dedup'd for 5 min (DESIGN §6.5): `met_count` and the "talked" note, and `stage_talk`'s fold once it ships.
+# The world's own T rules (world.toml) stay for the scheduler's lock.
+[[rule]]
+id = "native_talk_with_started"
+emits = "NativeTalkStarted"
+subjects = { kinds = ["persona"] }
+signal = "talking_with"
+detect = { kind = "rising_edge" }
+class = "P"
+key = "talk:{subject}"
+dedup_s = 300
+confidence = 0.6
+audience = { radius = "subject" }
+priority = 10
+
+[[rule]]
+id = "native_talk_with_ended"
+emits = "NativeTalkEnded"
+subjects = { kinds = ["persona"] }
+signal = "talking_with"
+detect = { kind = "falling_edge" }
+class = "P"
+confidence = 0.6
+audience = { radius = "subject" }
+priority = 10
+
+# KilledNear: the Tarnished cut down a character that is no persona, and personas saw it within 20 m (K, 120 s): a
+# "just now" line for its witnesses (MEM §1.4). The witness remark it also drives (`saw_kill`) waits for v0.4 (O147).
+[[rule]]
+id = "killed_near"
+emits = "KilledNear"
+subjects = { kinds = ["generic"] }
+signal = "dead"
+detect = { kind = "rising_edge" }
+class = "K"
+key = "killed_near:{subject}"
+ttl_s = 120
+confidence = 1.0
+audience = { radius = "witness" }
+priority = 30

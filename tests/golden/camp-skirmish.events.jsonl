@@ -1,4 +1,4 @@
-{"golden":1,"route":"camp-skirmish","source":"camp-skirmish.scn","rules_hash":"fnv1a64:df48f9ff95a3ec76","events":21}
+{"golden":1,"route":"camp-skirmish","source":"camp-skirmish.scn","rules_hash":"fnv1a64:7dfc90533919d15d","events":21}
 {"seq":[1,0],"t":0,"t_play":0,"kind":"DataReady","class":"T","rule":"data_ready","source":"lifecycle","subject":null,"object":null,"key":null,"conf":1.0,"audience":[],"count":1,"merged":false,"interrupts":[],"payload":{}}
 {"seq":[1,1],"t":0,"t_play":0,"kind":"LadderChanged","class":"T","rule":"ladder_changed","source":"lifecycle","subject":null,"object":null,"key":null,"conf":1.0,"audience":[],"count":1,"merged":false,"interrupts":[],"payload":{"to":"L2"}}
 {"seq":[4,0],"t":250,"t_play":600250,"kind":"PlaythroughReady","class":"P","rule":"playthrough_ready","source":"lifecycle","subject":null,"object":null,"key":"playthrough:0","conf":1.0,"audience":[],"count":1,"merged":false,"interrupts":[],"payload":{"slot":0,"ordinal":1}}

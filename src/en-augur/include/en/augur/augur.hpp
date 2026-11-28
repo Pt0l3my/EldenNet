@@ -102,6 +102,9 @@ class Augur {
   };
   void evaluate(const Observations& obs, Mono now, const AugurCtx& ctx, std::vector<Pending>& fires);
   void emit_batch(std::vector<Pending>& fires, Mono now, const AugurCtx& ctx, EventBatch& out);
+  // The modifiers after the payload: requires, the cooldown, the key and class handling; then the event is out.
+  bool admit(const Rule& rule, const Pending& p, Event ev, const std::string* key, Mono now, const AugurCtx& ctx,
+             EventBatch& out);
   bool finish(Pending& p, Mono now, const AugurCtx& ctx, EventBatch& out);
   void resolve_deferred(Mono now, bool timer, const AugurCtx& ctx, EventBatch& out);
   Event start_event(const Rule& rule, const Pending& p, Mono now) const;

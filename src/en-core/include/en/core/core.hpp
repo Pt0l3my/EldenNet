@@ -21,7 +21,7 @@
 // Augur (en-augur, ARCH §8; part 11) runs in every step, before anything that consumes the step's events: the slice
 // judges the input first (the gate, the phases, the ladder), because Augur's Lifecycle source reads what it changed on
 // the same step, and then Augur takes the same input and answers the step's events, which the bus dispatches (none of
-// v0.1's subsystems subscribes yet) into Outputs::events. AugurView is what en-core supplies Augur at v0.1.
+// v0.1's subsystems subscribes yet) into Outputs::events. AugurView is what en-core supplies Augur.
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -161,7 +161,9 @@ struct Outputs {
   bool ai_allowed = false;               // C15: network calls allowed (the gate open, and L2 or above)
   State state;
   std::vector<Change> changes;
-  std::vector<augur::Event> events;  // Augur's events of the step, in dispatch order (ARCH §8.9)
+  // Augur's events of the step, in dispatch order (ARCH §8.9), then the conversation's commits as events, each with its
+  // audience frozen (MEM §1.1): ConversationStarted, PlayerSaid, NpcSaid (at a reply's first page), ConversationEnded.
+  std::vector<augur::Event> events;
   proto::UiModel ui;                 // C6: what the surfaces show after this step, whole (the newest wins)
   // C9: to submit, in order (Service::submit); none while !ai_allowed (C4) or while AI is paused (D15).
   std::vector<proto::LlmRequest> requests;
@@ -173,9 +175,11 @@ struct Outputs {
   std::optional<EndReason> ended;  // a conversation ended on this step
 };
 
-// What en-core supplies Augur (ARCH §8.1), for what v0.1 knows. There are no personas and no cards until content
-// exists (v0.2, v0.4): every character classifies as Mute, and the Tarnished as Player. The predicates are v0.1's
-// (predicates.hpp); no persona perceives yet; the seed root is 0 until the store's playthrough key exists.
+// What en-core supplies Augur (ARCH §8.1). The Tarnished classifies as Player; a character bound to a persona of the
+// loaded content (identity.hpp) as that persona, at the stage the knowledge's view gives it; every other character as
+// Mute until cards and character profiles exist (v0.4). A persona may perceive while it is conscious at its active
+// stage and that stage does not mute it (MEM §1.2; Augur checks it is alive). The predicates are v0.1's
+// (predicates.hpp); the seed root is 0 until the store's playthrough key exists.
 class AugurView final : public augur::AugurCtx {
  public:
   explicit AugurView(const Predicates& predicates) : predicates_(predicates) {}
@@ -189,8 +193,11 @@ class AugurView final : public augur::AugurCtx {
   std::optional<proto::ChrHandle> player;  // the Tarnished's handle at the last snapshot
   PredicateFacts facts;
   std::uint64_t seed_root = 0;
+  const Directory* directory = nullptr;  // the loaded content's personas; none before a load
+  const KnowledgeView* known = nullptr;  // each persona's active stage
 
  private:
+  [[nodiscard]] std::size_t active_stage(std::size_t persona) const noexcept;
   const Predicates& predicates_;
 };
 
@@ -286,6 +293,7 @@ class Core {
   void run_augur(const proto::WorldSnapshot* s, const proto::Lifecycle* l, Mono now, Outputs& out);
   void climb(Mono at, Outputs& out);
   void run_conversation(Mono at, bool fresh, const proto::UiEvent* ui, const proto::LlmEvent* llm, Outputs& out);
+  void speech_events(const std::vector<Commit>& commits, Mono at, Outputs& out);
   void init();
 
   State state_;

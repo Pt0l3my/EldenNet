@@ -124,6 +124,7 @@ endif()
 include(cmake/sanitizers.cmake)  # EN_SANITIZE and EN_FUZZ, for Clang on Linux (ARCH §12.1)
 include(cmake/embed_files.cmake)  # en_embed_files: text files built in (Augur's rule files)
 include(cmake/link_rules.cmake)  # en_link_rule: ARCH §2.3's rules on the link graph, checked at configure time
+include(cmake/sqlite.cmake)  # SQLite 3.54.1's amalgamation (O146), en-store's alone: the build's one C target
 
 # The modules the DLL links hold no static object with a dynamic initialiser (it would run under the loader lock) or
 # with a destructor that runs at exit (it would run at DLL_PROCESS_DETACH): ARCH §3.1 and §1.7. Clang checks both.
@@ -144,6 +145,7 @@ add_subdirectory(src/en-proto)
 add_subdirectory(src/en-llm)
 add_subdirectory(src/en-augur)  # Augur, the event engine (part 11): below en-core, game-neutral
 add_subdirectory(src/en-core)   # the core's v0.1 slice: the lifecycle, the gate, L1, L2 and Dormant (part 5)
+add_subdirectory(src/en-store)  # the SQLite files, migrations and the store's request loop (v0.3; ARCH §2.2, MEM §8)
 # en-gal's portable part builds with every compiler; its SEH-guarded copy (__try/__except, ARCH §2.6) only with an
 # MSVC-like one, the clang-cl build (cmake/clang-cl-xwin.cmake): src/en-gal/CMakeLists.txt chooses.
 add_subdirectory(src/en-gal)

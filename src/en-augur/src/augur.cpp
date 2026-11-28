@@ -312,13 +312,16 @@ bool Augur::finish(Pending& p, Mono now, const AugurCtx& ctx, EventBatch& out) {
     }
     case PayloadId::TalkStart: {
       NativeTalkStarted e;
+      if (tr != nullptr && tr->subject.kind == Subject::Kind::Persona) e.persona = tr->subject.persona;
       e.signals.popup = world_.world().ui.popup_talk_id.has_value();
       e.signals.talk_cam = world_.world().ui.talk_cam;
+      e.signals.popup_menu = e.persona.has_value() && world_.world().ui.hud == proto::HudState::PopupMenu;
       ev.kind = e;
       break;
     }
     case PayloadId::TalkEnd: {
       NativeTalkEnded e;
+      if (tr != nullptr && tr->subject.kind == Subject::Kind::Persona) e.persona = tr->subject.persona;
       const auto& started = world_.world().native_talk_started;
       e.held_ms = started && p.fire.t >= *started ? static_cast<std::uint32_t>(p.fire.t - *started) : 0;
       ev.kind = e;
@@ -460,8 +463,93 @@ bool Augur::finish(Pending& p, Mono now, const AugurCtx& ctx, EventBatch& out) {
       ph.add("to", std::string(kLevelWords[l < kLevelWords.size() ? l : 0]));
       break;
     }
+    // personas (MEM §1.1): each needs its subject to be a persona, or names it from the world.
+    case PayloadId::PersonaSeen:
+      if (tr == nullptr || tr->subject.kind != Subject::Kind::Persona) return false;
+      ev.kind = PersonaSeen{tr->subject.persona};
+      break;
+    case PayloadId::PersonaApproached:
+      if (tr == nullptr || tr->subject.kind != Subject::Kind::Persona) return false;
+      ev.kind = PersonaApproached{tr->subject.persona};
+      break;
+    case PayloadId::PersonaAttacked:
+      // The Tarnished's hit (an HP drop by the player); the hostility bits' path waits for S7's team_turned.
+      if (tr == nullptr || tr->subject.kind != Subject::Kind::Persona) return false;
+      ev.kind = PersonaAttacked{tr->subject.persona, AttackVia::HpDrop};
+      ev.object = ActorRef::player();
+      break;
+    case PayloadId::PersonaDied: {
+      if (tr == nullptr || tr->subject.kind != Subject::Kind::Persona) return false;
+      const bool by_player = pl.ever && tr->chr.last_hit_by && *tr->chr.last_hit_by == pl.p.handle;
+      ev.kind = PersonaDied{tr->subject.persona, by_player};
+      if (by_player) ev.object = ActorRef::player();
+      break;
+    }
+    case PayloadId::KilledNear: {
+      // The Tarnished killed a character that is not a persona, and personas witnessed it within 20 m.
+      if (tr == nullptr || tr->subject.kind == Subject::Kind::Persona || !pl.ever || !tr->chr.last_hit_by ||
+          *tr->chr.last_hit_by != pl.p.handle) {
+        return false;
+      }
+      KilledNear e;
+      if (tr->subject.kind == Subject::Kind::Card) e.victim_card = tr->subject.card;
+      std::vector<std::pair<float, std::uint32_t>> near;
+      for (const Tracker& w : world_.trackers()) {
+        if (!w.present || w.chr.dead || w.subject.kind != Subject::Kind::Persona) continue;
+        if (!ctx.persona_may_perceive(w.subject.persona)) continue;
+        const float d = dist3(w.chr.pos, tr->chr.pos);
+        if (d <= kWitnessM && world_.same_area(w.chr.block, tr->chr.block)) {
+          near.emplace_back(d, w.subject.persona.index);
+        }
+      }
+      if (near.empty()) {
+        ++stats_.refused;  // no persona saw it
+        return false;
+      }
+      std::sort(near.begin(), near.end());
+      for (std::size_t i = 0; i < near.size() && i < kMaxAudience; ++i) {
+        e.witnesses.push_back(PersonaId{near[i].second});
+      }
+      ev.kind = std::move(e);
+      ev.object = ActorRef::player();
+      break;
+    }
+    case PayloadId::FoughtBeside: {
+      // Deferred with the boss's outcome; on a Victory, one event for each persona that fought there: present, alive,
+      // not hostile and within 40 m of the Tarnished (DESIGN §6.5; whether it came as a summon waits for S7).
+      if (!p.outcome) {
+        p.fight = world_.fight() ? world_.fight()->ordinal : 0;
+        deferred_.push_back(Deferred{p, p.fire.t_c + kBossOutcomeWindowMs});
+        return false;
+      }
+      if (*p.outcome != BossOutcome::Victory || !pl.present) return false;
+      std::int32_t boss = 0;
+      if (world_.fight() && world_.fight()->ordinal == p.fight && !world_.fight()->bars.empty()) {
+        boss = world_.fight()->bars[0].name_id;
+      }
+      ph.add("fight_id", std::to_string(p.fight));
+      const std::string key = rule.key.empty() ? std::string() : render_key(rule.key, ph);
+      bool any = false;
+      for (const Tracker& w : world_.trackers()) {
+        if (!w.present || w.chr.dead || w.subject.kind != Subject::Kind::Persona || world_.hostile(w.chr)) continue;
+        if (dist3(w.chr.pos, pl.p.pos) > kFoughtBesideM) continue;
+        Event one = ev;
+        one.subject = ActorRef::of(w.subject, w.handle);
+        one.kind = FoughtBeside{w.subject.persona, boss};
+        const std::string k = key.empty() ? key : key + ":" + key_text(*one.subject);
+        any = admit(rule, p, std::move(one), key.empty() ? nullptr : &k, now, ctx, out) || any;
+      }
+      return any;
+    }
   }
 
+  // requires, the cooldown and class handling (admit), once the key's placeholders are known.
+  const std::string key = rule.key.empty() ? std::string() : render_key(rule.key, ph);
+  return admit(rule, p, std::move(ev), rule.key.empty() ? nullptr : &key, now, ctx, out);
+}
+
+bool Augur::admit(const Rule& rule, const Pending& p, Event ev, const std::string* key, Mono now, const AugurCtx& ctx,
+                  EventBatch& out) {
   // requires, evaluated at emission: false suppresses the fire, and its edge is consumed.
   if (rule.requires_id != kAlwaysTrue && !ctx.eval(rule.requires_id, EvalScope{&ev})) {
     ++stats_.by_requires;
@@ -472,7 +560,7 @@ bool Augur::finish(Pending& p, Mono now, const AugurCtx& ctx, EventBatch& out) {
     ++stats_.by_cooldown;
     return false;
   }
-  if (!rule.key.empty()) ev.key = std::make_shared<const std::string>(render_key(rule.key, ph));
+  if (key != nullptr) ev.key = std::make_shared<const std::string>(*key);
   // class handling.
   switch (rule.cls) {
     case Class::P:
@@ -525,6 +613,14 @@ void Augur::resolve_deferred(Mono now, bool timer, const AugurCtx& ctx, EventBat
 void Augur::resolve_audience(Event& ev, const AugurCtx& ctx) const {
   ev.audience.clear();
   if (ev.radius == Radius::None) return;
+  if (ev.radius == Radius::Subject) {
+    // "The persona only" (MEM §1.1): the subject, direct, when it is a persona that may perceive.
+    if (ev.subject && ev.subject->kind == ActorRef::Kind::Persona) {
+      const PersonaId id{ev.subject->id};
+      if (ctx.persona_may_perceive(id)) ev.audience.push_back(AudienceEntry{id, How::Direct});
+    }
+    return;
+  }
   // Origin: the subject's position; the Tarnished's for the Tarnished's and the world's events.
   const ActorRef origin_actor = ev.subject && ev.subject->kind != ActorRef::Kind::Player ? *ev.subject : ActorRef::player();
   auto origin = world_.position(origin_actor);
@@ -542,7 +638,7 @@ void Augur::resolve_audience(Event& ev, const AugurCtx& ctx) const {
   };
   std::vector<Cand> cands;
   for (const Tracker& t : world_.trackers()) {
-    if (!t.present || t.subject.kind != Subject::Kind::Persona) continue;
+    if (!t.present || t.chr.dead || t.subject.kind != Subject::Kind::Persona) continue;  // alive (MEM §1.2)
     if (!ctx.persona_may_perceive(t.subject.persona)) continue;
     const float d = dist3(t.chr.pos, *origin);
     if (d > radius || !world_.same_area(t.chr.block, *origin_block)) continue;
