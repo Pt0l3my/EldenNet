@@ -454,6 +454,28 @@ the conversation part B's (above); the core holds both.
     `known` (at most 24 items with their certainties), from which `world_seen` folds.
   World topic offers in block 7 wait for the knowledge base (v0.5), and greetings carrying a cue for own-initiative
   lines (v0.4, O147). A short holding a term locked now is not yet left out: the lexicon's locked set comes with v0.5.
+- **The memory job** (`memory_job.hpp`, `src/memory/memory_job.cpp`, `src/memory/validate.cpp`,
+  `prompts/memory/01` to `06`; MEM §2.5, §2.6, §3; DESIGN §10.3):
+  - a conversation's end with at least 2 lines of the Tarnished's and 4 committed queues the persona's job (UpsertJob),
+    or merges into its open one (attempts reset); a running job takes the merge once it ends;
+  - one job at a time, oldest first, after 10 s of calm in a world whose gate is open, with no fight, no rollback
+    choice and memory on (the core knows no provider's kind yet, so a cloud's rules hold), on the `memory` slot with
+    MEM §3.5's schema and request ids of its own (from 2^50);
+  - the input (MEM §3.3): the brief and honesty, the stage's gist and road with the news new at the queued
+    conversation, the journal with the protected keepsake marked, the talk (L, at most 60), the notes (N: MEM §2.6's
+    kinds and words, at most 10, newest first, each with when it happened), the context (C: `shown_context`'s world
+    items as "(knew|heard|believed) short" and its "just now" lines, at most 12), and the checks offered (`slew:<boss>`
+    when the Tarnished named that boss in a line of theirs, `great_runes>=n`, `name`);
+  - the reply (MEM §3.6): parsed (the last balanced object when wrapped), the summary's unfit sentences out and its
+    length held, the keepsakes checked (refs and basis, no gendered pronoun about the Tarnished, the world model's
+    own dropped, unoffered checks removed, weights moved by 0.2 at most, at most 3 new, the protected one kept, 8 at
+    most), claims promoted, the told name taken only from the Tarnished's own lines (verified when it is the save's),
+    the character's name kept out of a journal with no told name, and the feeling moved by one step at most. Then one
+    CommitJournal (the version, the watermark, the job done, the verified facts) and the persona's bundle again;
+  - a failed reply is retried twice, at +5 s and +30 s, with its reminder line; then deferred, parked after 6 attempts;
+  - claims are also promoted at render (`BlockNow::proved`), so a claim proved since the last job shows as proved.
+  The Great Runes are not read in v0.3, so `great_runes>=n` never holds yet; the lexicon's locked terms (MEM §3.6
+  step 4) come with v0.5.
 - **Its words** (drafts for the owner): `kChoicePending` "(Not yet: EldenNet is waiting for your answer about this
   save.)"; `kBackupRestored` "EldenNet's memory file was damaged, so its newest backup was restored."; `kLowDisk` "Less
   than 200 MB of disk is free: EldenNet may stop saving memories."; and `memory_off_text(cause)`, "Memory is off for
@@ -529,4 +551,6 @@ keepsake, MEM §4.3's example word for word on the shipped templates, the facts'
 (a)'s header, and T5 (every system part the same with block 8 or without). News (`tests/knowledge/test_news.cpp`):
 T12, the cue equal to `tests/knowledge/cues.toml` at every row for the pilot and the CI fixture persona `test_stake`
 (`tests/fixtures/personas/`); T4's since-line for the pilot's three transitions; and W5's and W7's cue clauses, each
-with a failing fixture.
+with a failing fixture. The memory job (`tests/memory/test_memory_job.cpp`): the relative time's words, the input
+assembled and the checks offered, the six prompt parts on the shipped templates and the schema, and the reply's
+validation step by step, each with a fixture that just fails it.

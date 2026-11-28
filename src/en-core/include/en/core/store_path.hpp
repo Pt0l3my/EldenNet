@@ -90,6 +90,7 @@ class StorePath {
   struct Effect {
     bool ready = false;
     std::vector<StoreNotice> notices;
+    std::optional<proto::db::JobInputResult> job_input;  // the memory job's evidence (MEM §3.3)
   };
   Effect on_result(const proto::DbResult& result);
   // Time passing: a Busy open's retry.
@@ -115,21 +116,33 @@ class StorePath {
   // and again when one ends, so its tail is the newest; null until the store answers.
   void want_bundle(const std::string& persona);
   [[nodiscard]] const MemoryBundle* bundle(std::string_view persona) const;
+
+  // The memory jobs (MEM §3.1, §3.2): this journey's open jobs as the store last answered them. A conversation's end
+  // with at least 2 lines of the Tarnished's and 4 committed queues one, or merges into the persona's open one
+  // (attempts reset); a running job takes the merge after it ends. Each queued job keeps the news new at its last
+  // conversation (`known` items absent from world_seen before it), for the job's input.
+  [[nodiscard]] std::vector<proto::MemoryJob> runnable() const;  // queued, oldest first
+  void want_job_input(proto::RowId job);
+  void save_job(const proto::MemoryJob& job);
+  // A journal version, the job done and the verified facts, in one transaction; the persona's bundle again after it.
+  void commit_journal(proto::db::CommitJournal c);
+  [[nodiscard]] std::vector<std::pair<std::string, std::string>> job_news(std::string_view persona) const;
   // The file's row for a conversation of this session, once written.
   [[nodiscard]] std::optional<proto::RowId> conversation_row(proto::ConvId conv) const;
 
  private:
   // A write, made when it happens and given its ids when it goes out.
   struct Op {
-    enum class Kind : std::uint8_t { Event, ConvOpen, ConvClose, Page };
+    enum class Kind : std::uint8_t { Event, ConvOpen, ConvClose, Page, Job };
     Kind kind = Kind::Event;
     proto::StoredEvent event;    // Event: id 0 until it goes out
     proto::ConversationRow row;  // ConvOpen, ConvClose: id 0 until it goes out
     proto::ConvId conv = 0;      // the session's conversation, mapped to its row
     proto::ReplyId reply = 0;    // an NpcSaid and its pages
     std::string text;            // Page
-    proto::Pt pt = 0;            // Page
+    proto::Pt pt = 0;            // Page, Job
     bool speech = false;
+    std::string persona;  // Job
   };
   [[nodiscard]] proto::StoredEvent stored(const augur::Event& ev, const Directory& cast,
                                           const KnowledgeView* known) const;
@@ -161,7 +174,12 @@ class StorePath {
   std::map<proto::ConvId, proto::RowId> convs_;
   std::map<std::pair<proto::ConvId, proto::ReplyId>, proto::EventId> replies_;  // each NpcSaid, for its pages
   std::map<std::string, MemoryBundle, std::less<>> bundles_;
-  std::map<std::uint64_t, std::string> bundle_seqs_;  // the Bundles in flight, by sequence number
+  std::map<std::uint64_t, std::string> bundle_seqs_;           // the Bundles in flight, by sequence number
+  std::map<std::string, proto::MemoryJob, std::less<>> jobs_;  // this journey's open jobs, by persona
+  std::map<std::uint64_t, std::string> job_seqs_;              // the UpsertJobs in flight
+  std::uint64_t input_seq_ = 0;                                // the JobInput in flight
+  std::map<std::string, std::vector<std::pair<std::string, std::string>>, std::less<>> news_;  // item, certainty
+  std::map<std::string, proto::EventId, std::less<>> merge_after_;  // a running job's persona: the newer upto
   std::vector<Op> held_;
   std::vector<proto::DbRequest> queued_;
   bool urgent_ = false;  // speech is queued

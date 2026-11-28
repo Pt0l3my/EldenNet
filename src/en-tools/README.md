@@ -381,12 +381,15 @@ with the partner), `strike` (the Tarnished's blow), `ng_plus`, `reload` (the tit
 thread on the same file), `kill` (the process dies: nothing closed or flushed), `load` (an older save at `pt`), `choose`
 (the rollback's answer), `wait_jobs` (nothing to wait for until the memory job) and `move` with `who`; and `expect`'s
 `mode`, `fact` (the journey's, as the core folds it) and `audience` (the events of a kind a persona perceived so, read
-through en-store's own query). `wren_and_kale` runs MEM §2.8's steps that need no memory job yet (A's chat and its
-audiences, B's native talk as a second meeting, E's strike, a reload refolding the facts from the file, H's NG+), and
-`older_save` a hard kill mid-conversation (the next session ends it as crashed, a meeting) and an older save an hour
-back, whose choice refuses named chat with its toast until Forget takes back what came after. `kale_news` runs the
-reaction cue in conversation: a second meeting an hour after the castle's fall opens with the since-line and the cue,
-a line 30 s later finds the item in its news cooldown, and one 90 s later carries it again.
+through en-store's own query). `wren_and_kale` runs MEM §2.8's steps A to F and H on scripted replies (`slot =
+"memory"` replies answer the memory job, each slot in its own order): A's chat and its audiences and journal v1 with
+the told name, C's claim filed with `slew:godrick`, B's native talk as a second meeting, D's fall proving the claim at
+render, E's strike, and F after a reload, whose prompt holds block 8, the tail, the since-line and the
+Tarnished's-part cue; then H's NG+. And `older_save` a hard kill mid-conversation (the next session ends it as
+crashed, a meeting) and an older save an hour back, whose choice refuses named chat with its toast until Forget takes
+back what came after. `kale_news` runs the reaction cue in conversation: a second meeting an hour after the castle's
+fall opens with the since-line and the cue, a line 30 s later finds the item in its news cooldown, and one 90 s later
+carries it again.
 
 **The speech tap** (`lib/speech_tap.hpp`; WHY§410). The core runs the eval's own speech parts (`Core(SpeechParts)`):
 part A's sanitizer, lint and pager over the content's lexicon, each wrapped, so that every reply attempt the

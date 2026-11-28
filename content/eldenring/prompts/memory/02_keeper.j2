@@ -1,0 +1,8 @@
+{# Part 2: who keeps the journal. The persona's brief, so the summary sounds like it; the stage's gist and road, so it
+   agrees with what has passed; and the news new to it since the last meeting, by short, with its certainty word. #}
+[ system ]
+About {{ name }}: {{ brief }}{% if not empty(honesty) %} Honesty: {{ honesty }}.{% endif %}
+{% if not (empty(gist) and empty(road)) %}Where things stand now: {{ gist }} {{ road }}{% endif %}
+{% if not empty(new_world) %}
+News that reached {{ name }} since the last meeting: {{ join(new_world, "; ") }}.
+{% endif %}

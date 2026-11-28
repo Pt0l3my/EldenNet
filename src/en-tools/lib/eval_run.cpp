@@ -575,7 +575,14 @@ class Runner {
       }
     }
     for (const proto::LlmRequest& r : o.requests) {
-      if (const auto* chat = std::get_if<proto::ChatRequest>(&r.body)) {
+      const auto* chat = std::get_if<proto::ChatRequest>(&r.body);
+      // The memory job's: the model answers it, and no turn counts it.
+      if (chat != nullptr && chat->slot != proto::kDialogue) {
+        with_model([&](auto& m) { m.submit(r, t_); });
+        ++run_.background;
+        continue;
+      }
+      if (chat != nullptr) {
         last_prompt_.clear();
         for (const proto::Message& m : chat->messages) last_prompt_ += m.joined() + "\n";
         if (!run_.turns.empty() && run_.turns.back().prompt.empty()) run_.turns.back().prompt = chat->messages;
@@ -695,9 +702,15 @@ class Runner {
                                                                                 : proto::db::Choice::Forget}});
         advance(500);
         return;
-      case EvalStep::Kind::WaitJobs:  // no memory job before v0.3's next commits: nothing to wait for
+      case EvalStep::Kind::WaitJobs: {  // until no memory job is queued or in flight, two minutes at most
+        const Mono until = t_ + 120000;
         advance(250);
+        while (t_ < until && (core_->memory_busy() || !core_->store().runnable().empty())) advance(250);
+        if (core_->memory_busy() || !core_->store().runnable().empty()) {
+          run_.failed.push_back("line " + std::to_string(st.line) + ": the memory jobs did not finish in 2 min");
+        }
         return;
+      }
       case EvalStep::Kind::Expect:
         expect(st);
         return;

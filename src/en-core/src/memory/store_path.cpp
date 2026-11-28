@@ -243,6 +243,11 @@ void StorePath::close() {
   replies_.clear();
   bundles_.clear();
   bundle_seqs_.clear();
+  jobs_.clear();
+  job_seqs_.clear();
+  input_seq_ = 0;
+  news_.clear();
+  merge_after_.clear();
   dropped_ += held_.size();
   held_.clear();
   open_seq_ = fold_seq_ = 0;
@@ -291,6 +296,12 @@ StorePath::Effect StorePath::on_result(const proto::DbResult& r) {
     next_event_ = o->next_event_id;
     next_conv_ = o->next_conv_id;
     journey_ = o->journey;
+    jobs_.clear();
+    for (const proto::MemoryJob& j : o->open_jobs) {
+      if (j.journey == journey_ && j.kind == proto::JobKind::Journal && j.state != proto::JobState::Done) {
+        jobs_[j.persona] = j;
+      }
+    }
     facts_stale_ = o->facts_stale;
     if (o->restored_backup) {
       e.notices.push_back(StoreNotice{ToastClass::Degraded, proto::ToastLevel::Warning, std::string(kBackupRestored)});
@@ -329,6 +340,18 @@ StorePath::Effect StorePath::on_result(const proto::DbResult& r) {
     lift();
     return e;
   }
+  if (const auto j = job_seqs_.find(r.seq); j != job_seqs_.end()) {
+    if (const auto* saved = std::get_if<db::JobSaved>(&r.result)) {
+      if (const auto it = jobs_.find(j->second); it != jobs_.end()) it->second.id = saved->id;
+    }
+    job_seqs_.erase(j);
+    return e;
+  }
+  if (r.seq == input_seq_) {
+    input_seq_ = 0;
+    if (const auto* in = std::get_if<db::JobInputResult>(&r.result)) e.job_input = *in;
+    return e;
+  }
   if (const auto b = bundle_seqs_.find(r.seq); b != bundle_seqs_.end()) {
     const std::string persona = b->second;
     bundle_seqs_.erase(b);
@@ -353,6 +376,73 @@ void StorePath::want_bundle(const std::string& persona) {
   const std::uint64_t seq = ++seq_;
   bundle_seqs_[seq] = persona;
   queued_.push_back(proto::DbRequest{seq, db::Bundle{journey_, persona}});
+}
+
+std::vector<proto::MemoryJob> StorePath::runnable() const {
+  std::vector<proto::MemoryJob> out;
+  for (const auto& [p, j] : jobs_) {
+    if (j.state == proto::JobState::Queued && j.id != 0) out.push_back(j);
+  }
+  std::stable_sort(out.begin(), out.end(), [](const auto& a, const auto& b) { return a.created_pt < b.created_pt; });
+  return out;
+}
+
+void StorePath::want_job_input(proto::RowId job) {
+  if (mode_ != Mode::Open || input_seq_ != 0) return;
+  input_seq_ = ++seq_;
+  queued_.push_back(proto::DbRequest{input_seq_, db::JobInput{job}});
+  urgent_ = true;
+}
+
+void StorePath::save_job(const proto::MemoryJob& job) {
+  if (mode_ != Mode::Open) return;
+  jobs_[job.persona] = job;
+  const std::uint64_t seq = ++seq_;
+  job_seqs_[seq] = job.persona;
+  queued_.push_back(proto::DbRequest{seq, db::UpsertJob{job}});
+  urgent_ = true;
+  // A run that ended with a newer conversation waiting: that conversation's job now (MEM §3.1).
+  if (job.state != proto::JobState::Running) {
+    if (const auto m = merge_after_.find(job.persona); m != merge_after_.end()) {
+      proto::MemoryJob next = job;
+      if (job.state == proto::JobState::Done) {
+        next.id = 0;
+        next.from_event_id = job.upto_event_id;
+      }
+      next.upto_event_id = m->second;
+      next.state = proto::JobState::Queued;
+      next.attempts = 0;
+      merge_after_.erase(m);
+      save_job(next);
+    }
+  }
+}
+
+void StorePath::commit_journal(db::CommitJournal c) {
+  if (mode_ != Mode::Open) return;
+  const std::string persona = c.version.persona;
+  for (const proto::FactRow& f : c.facts) {  // the verified facts, in RAM too
+    proto::PersonaFacts& pf = facts_[persona];
+    pf.persona = persona;
+    std::erase_if(pf.facts, [&](const proto::FactRow& r) { return r.key == f.key; });
+    pf.facts.push_back(f);
+    std::sort(pf.facts.begin(), pf.facts.end(), [](const auto& a, const auto& b) { return a.key < b.key; });
+  }
+  send(std::move(c), false);
+  news_.erase(persona);
+  if (auto it = jobs_.find(persona); it != jobs_.end()) {
+    it->second.state = proto::JobState::Done;
+    proto::MemoryJob done = it->second;
+    jobs_.erase(it);
+    if (merge_after_.contains(persona)) save_job(done);  // the waiting conversation's job, from this one's upto
+  }
+  bundles_.erase(persona);
+  want_bundle(persona);
+}
+
+std::vector<std::pair<std::string, std::string>> StorePath::job_news(std::string_view persona) const {
+  const auto it = news_.find(persona);
+  return it != news_.end() ? it->second : std::vector<std::pair<std::string, std::string>>{};
 }
 
 const MemoryBundle* StorePath::bundle(std::string_view persona) const {
@@ -437,6 +527,32 @@ void StorePath::emit(Op& op) {
       const auto it = replies_.find({op.conv, op.reply});
       if (it == replies_.end()) return;
       send(db::AppendPage{it->second, op.text, op.pt}, true);
+      return;
+    }
+    case Op::Kind::Job: {
+      // MEM §3.1: up to this conversation's end, the last event this file has been given.
+      const proto::EventId upto = next_event_ - 1;
+      auto it = jobs_.find(op.persona);
+      if (it != jobs_.end() && it->second.state == proto::JobState::Running) {
+        merge_after_[op.persona] = upto;  // the run in flight takes it once it ends
+        return;
+      }
+      proto::MemoryJob job;
+      if (it != jobs_.end()) {
+        job = it->second;  // queued, deferred or parked: extended, its attempts reset
+      } else {
+        job.journey = journey_;
+        job.persona = op.persona;
+        job.kind = proto::JobKind::Journal;
+        job.cause = proto::JobCause::Conversation;
+        job.created_pt = op.pt;
+      }
+      job.upto_event_id = upto;
+      if (const auto row = conversation_row(op.conv)) job.conv_id = *row;
+      job.state = proto::JobState::Queued;
+      job.attempts = 0;
+      jobs_[op.persona] = job;
+      save_job(job);
       return;
     }
     case Op::Kind::Event:
@@ -580,6 +696,22 @@ void StorePath::commit(const Commit& c, const augur::Event* ev, const Directory&
     op.event.payload = p.dump();
   }
   const proto::Pt at = op.event.t_play_ms;
+  const bool queues = c.kind == Commit::Kind::Ended && c.player_lines >= 2 && c.committed >= 4;
+  if (queues && c.known) {  // the news it brought, against world_seen before this end's fold
+    const json k = json::parse(*c.known, nullptr, false);
+    const auto f = facts_.find(c.persona);
+    auto& news = news_[c.persona];
+    for (const json& pair : k.is_array() ? k : json::array()) {
+      if (!pair.is_array() || pair.size() != 2 || !pair[0].is_string() || !pair[1].is_string()) continue;
+      const std::string item = pair[0].get<std::string>();
+      bool seen = false;
+      if (f != facts_.end()) {
+        for (const auto& [i, w] : fact_pairs(f->second, fact::kWorldSeen)) seen = seen || i == item;
+      }
+      const bool listed = std::any_of(news.begin(), news.end(), [&](const auto& n) { return n.first == item; });
+      if (!seen && !listed && news.size() < 3) news.emplace_back(item, pair[1].get<std::string>());
+    }
+  }
   add(std::move(op));
   if (c.kind == Commit::Kind::Ended) {
     Op close;
@@ -595,6 +727,15 @@ void StorePath::commit(const Commit& c, const augur::Event* ev, const Directory&
     // The next conversation's tail is this one's: the bundle again, after the close (T9 answers in order).
     bundles_.erase(c.persona);
     want_bundle(c.persona);
+    // MEM §3.1: a conversation of at least 2 lines of the Tarnished's and 4 committed queues the persona's job.
+    if (queues) {
+      Op job;
+      job.kind = Op::Kind::Job;
+      job.conv = c.conv;
+      job.persona = c.persona;
+      job.pt = at;
+      add(std::move(job));
+    }
   }
 }
 

@@ -41,6 +41,7 @@
 #include "en/core/gate.hpp"
 #include "en/core/identity.hpp"
 #include "en/core/knowledge.hpp"
+#include "en/core/memory_job.hpp"
 #include "en/core/predicates.hpp"
 #include "en/core/store_path.hpp"
 #include "en/proto/command.hpp"
@@ -275,6 +276,8 @@ class Core {
   [[nodiscard]] const MemoryLog& log() const noexcept { return log_; }
   // The store's side (store_path.hpp): its mode, the choice's summary while it waits, the journey's facts.
   [[nodiscard]] const StorePath& store() const noexcept { return store_; }
+  // Whether a memory job is in flight (its input asked for, or its request out).
+  [[nodiscard]] bool memory_busy() const noexcept { return memory_run_.has_value(); }
   [[nodiscard]] const Conversation& conversation() const noexcept { return conversation_; }
   [[nodiscard]] proto::NetHealth net() const noexcept { return net_; }
 
@@ -311,6 +314,11 @@ class Core {
   void run_conversation(Mono at, bool fresh, const proto::UiEvent* ui, const proto::LlmEvent* llm, Outputs& out);
   void speech_events(const std::vector<Commit>& commits, Mono at, Outputs& out);
   void on_store(const proto::DbResult& r, Mono now, Outputs& out);
+  void run_memory(Mono at, Outputs& out);
+  void on_job_input(const proto::db::JobInputResult& r, Mono at, Outputs& out);
+  void send_memory(Mono at, Outputs& out);
+  void on_memory_event(const proto::LlmEvent& e, Mono at, Outputs& out);
+  [[nodiscard]] bool claim_holds(std::size_t persona, std::string_view key) const;
   void init();
 
   State state_;
@@ -346,6 +354,19 @@ class Core {
   // Personas whose active stage moved with the flag frame (persona, from, to): StageChanged at the next Augur run.
   std::vector<std::array<std::uint32_t, 3>> stage_moves_;
   bool flags_read_ = false;  // a frame of this playthrough has been read: a stage that moves after it moved in play
+  // The memory job in flight (MEM §3.2): one at a time, its input, its tries and its request.
+  struct MemoryRun {
+    proto::MemoryJob job;
+    std::optional<JobInput> input;
+    std::optional<proto::RequestId> request;
+    int tries = 0;  // retries spent in this run (at most 2)
+    std::optional<Mono> retry_at;
+    JobFailure failure = JobFailure::None;
+  };
+  std::optional<MemoryRun> memory_run_;
+  std::optional<Mono> calm_since_;
+  proto::RequestId next_memory_id_ = kMemoryRequests;
+  std::vector<ContentFile> memory_prompts_;  // the pack's prompts/memory/
   proto::NetHealth net_;
   bool optional_tripped_ = false;   // an optional group tripped: L3 at most (ARCH §6.8)
   std::unique_ptr<proto::WorldSnapshot> last_;  // the newest snapshot, for the conversation

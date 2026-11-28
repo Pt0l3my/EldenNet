@@ -52,7 +52,7 @@
 //   do = "kill"                              # the process dies: the core and the store's thread are dropped unflushed
 //   do = "load"                              # an older save of the same character, at `pt` ms of play
 //   do = "choose"                            # the answer to the rollback choice: forget | keep | new
-//   do = "wait_jobs"                         # until the memory jobs have run (none yet: v0.3's next commits)
+//   do = "wait_jobs"                         # until no memory job is queued or in flight (two minutes at most)
 //   do = "move"                              # `who` = 0 the partner (default), n the n-th extra
 //   do = "expect"                            # and: mode (the store's: off, opening, choice, open, down),
 //   fact = { persona = "kale", key = "met_count", value = "1" }      # "<none>" when unset
@@ -194,6 +194,7 @@ struct EvalRun {
   std::vector<std::string> toasts;  // every toast that went up
   std::vector<std::string> endings;
   std::size_t requests = 0, cancels = 0;
+  std::size_t background = 0;  // the memory job's requests (v0.3)
   std::vector<std::string> failed;  // each expectation that failed: "line 30: npc_lines is 0, expected 1"
 };
 

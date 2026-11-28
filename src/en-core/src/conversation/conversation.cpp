@@ -803,6 +803,24 @@ struct Conversation::Impl {
       const proto::PersonaFacts* facts = f != st->facts().end() ? &f->second : nullptr;
       BlockNow at;
       at.pt = snap() != nullptr && snap()->player ? static_cast<proto::Pt>(snap()->player->play_time_ms) : 0;
+      // MEM §2.5 at render: slew:<boss> holds when the boss's flag holds and the persona knows that boss's world stage.
+      const Knowledge* model = in->world.world_model;
+      const FlagState* fs = in->world.flags;
+      const KnowledgeView* kv = in->world.knowledge;
+      const std::size_t who = conv->persona;
+      if (model != nullptr && fs != nullptr && kv != nullptr && who < kv->personas.size()) {
+        at.proved = [model, fs, kv, who](std::string_view key) {
+          if (key.rfind("slew:", 0) != 0) return false;
+          const std::string boss(key.substr(5));
+          if (model->eval("boss('" + boss + "')", *fs, kv->world) != Tri::T) return false;
+          for (const Known& k : kv->personas[who].known) {
+            for (const WorldStage& w : model->stages()) {
+              if (k.item == "w:" + w.id && w.boss == boss) return true;
+            }
+          }
+          return false;
+        };
+      }
       tarnished = tarnished_block(facts, bundle != nullptr && bundle->journal ? &*bundle->journal : nullptr, at);
       if (facts != nullptr) {
         const proto::FactRow* seen = find_fact(*facts, fact::kStageSeen);

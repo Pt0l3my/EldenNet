@@ -4,6 +4,7 @@
 // prompt shows of the Tarnished comes from the persona's bundle (the journal, the facts, the previous conversation's
 // tail; MEM §4.1), composed here into block 8's parts in MEM §4.3's order and words, within its 450 tokens (§4.4).
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <optional>
 #include <string>
@@ -75,6 +76,8 @@ struct TarnishedBlock {
 struct BlockNow {
   proto::Pt pt = 0;                                // the play time now
   std::map<std::int32_t, std::string> boss_names;  // runtime NpcName by name id, as the bars showed them
+  // MEM §2.5's promotion at render: whether a claim's check key holds now; unset, the `verified:` facts decide.
+  std::function<bool(std::string_view)> proved;
 };
 
 inline constexpr std::uint32_t kBlock8Cap = 450;

@@ -19,7 +19,8 @@ std::optional<std::int64_t> num(const proto::PersonaFacts* f, std::string_view k
   return f != nullptr ? fact_number(*f, key) : std::nullopt;
 }
 
-bool verified(const proto::PersonaFacts* f, const std::string& check_key) {
+bool verified(const proto::PersonaFacts* f, const std::string& check_key, const BlockNow& now) {
+  if (now.proved) return now.proved(check_key);
   if (f == nullptr) return false;
   const proto::FactRow* r = find_fact(*f, "verified:" + check_key);
   return r != nullptr && (r->value == "1" || r->value == "true");
@@ -210,7 +211,7 @@ TarnishedBlock tarnished_block(const proto::PersonaFacts* facts, const Journal* 
       TarnishedBlock::Line line{k.text, k.weight, prot && *prot == i, k.check_key.value_or(std::string())};
       if (k.basis == Keepsake::Basis::Seen) {
         b.seen.push_back(std::move(line));
-      } else if (k.check_key && verified(facts, *k.check_key)) {
+      } else if (k.check_key && verified(facts, *k.check_key, now)) {
         b.proved.push_back(std::move(line));
       } else {
         b.said.push_back(std::move(line));

@@ -31,7 +31,8 @@ do = "expect"
 mode = "open"
 fact = { persona = "kale", key = "met_count", value = "<none>" }
 
-# A: three lines with Kalé; the Lantern-Keeper overhears all six.
+# A: three lines with Kalé; the Lantern-Keeper overhears all six. Its end queues Kalé's job (3 lines of Wren's, 6
+# committed), which runs after 10 s of calm: journal v1, the told name verified (it is the save's), k1 a claim.
 [[step]]
 do = "open"
 
@@ -88,6 +89,40 @@ audience = { kind = "PlayerSaid", persona = "lantern_keeper", how = "overheard",
 do = "expect"
 fact = { persona = "lantern_keeper", key = "met_count", value = "<none>" }
 
+[[step]]
+do = "wait_jobs"
+
+# C: Wren claims the castle's lord. The job files it as k2, a claim with slew:godrick (Godrick has not fallen).
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "I killed Godrick, you know."
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "expect"
+prompt_has = ["[The Tarnished, as you know them]", "They told you their name is Wren.",
+  "The Tarnished told you (their word only, not proof):\n- They mean to take the castle on the cliffs, or so they say."]
+
+[[step]]
+do = "say"
+text = "Thought you should hear it from me."
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait_jobs"
+
 # B: fifteen minutes later, the game's own talk with Kalé: a second meeting (past the 10 min merge window).
 [[step]]
 do = "wait"
@@ -101,6 +136,15 @@ ms = 4000
 do = "expect"
 fact = { persona = "kale", key = "met_count", value = "2" }
 
+# D: the castle's lord falls (far from Kalé): his claim k2 is proved at render, since he knows the fall by Near.
+[[step]]
+do = "flags"
+flags = "after_godrick"
+
+[[step]]
+do = "wait"
+ms = 2000
+
 # E: the Tarnished strikes Kalé.
 [[step]]
 do = "strike"
@@ -109,9 +153,9 @@ do = "strike"
 do = "expect"
 fact = { persona = "kale", key = "times_attacked", value = "1" }
 
-# A reload: the facts come back from the file's log, and the next chat's prompt has them in block 8 (MEM §4.3) and the
-# first conversation's tail in block 6 (a), across the sessions (its lines quote the name Wren gave: block 8 does not,
-# with no journal yet).
+# F, after a reload: the facts come back from the file's log, and the next chat's prompt has block 8 (the told name,
+# the meetings, the blow, k2 proved), the last conversation's tail across the sessions, the since-line and the cue for
+# the Tarnished's part (MEM §12.13).
 [[step]]
 do = "reload"
 
@@ -133,11 +177,12 @@ ms = 7000
 
 [[step]]
 do = "expect"
-npc_lines = 4
-prompt_has = ["[The Tarnished, as you know them]", "You have spoken with the Tarnished a few times.",
-  "The Tarnished struck you once, only a short while ago.", "Earlier, when you last spoke with the Tarnished",
-  "What do you sell?"]
-prompt_lacks = ["They told you their name is"]
+npc_lines = 6
+prompt_has = ["They told you their name is Wren. You have spoken with the Tarnished a few times.",
+  "The Tarnished struck you once, only a short while ago.",
+  "The Tarnished told you, and it has proved true:\n- They claim to have killed the lord of the castle.",
+  "Earlier, when you last spoke with the Tarnished", "Since you last spoke with the Tarnished, you have learned of",
+  "because of what the Tarnished told you of it."]
 
 [[step]]
 do = "esc"
