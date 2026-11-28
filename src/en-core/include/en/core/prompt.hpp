@@ -95,6 +95,13 @@ struct DialogueContext {
   // says things have moved on when the persona's stage at that conversation differs from now.
   const TarnishedBlock* tarnished = nullptr;
   bool earlier_moved_on = false;
+  // Block 7's first lines (MEM §12.6, §12.13): the since-line, then the reaction cue (its reason's word and the item's
+  // short), then the cued item's own line under its certainty label when block 5b does not show it.
+  std::string since_line;
+  std::string cue_why;  // "own", "told", "local_here", "local_home"; empty: no cue
+  std::string cue_short;
+  std::string cue_label;  // "You know:", "You have heard:", "You believe:"
+  std::string cue_line;
   // Block 7's other sources (the KB, the since-line, the cue) and block 3's lived layer join later commits.
 };
 

@@ -55,6 +55,12 @@ struct Commit {
   EndReason reason = EndReason::Closed;  // Ended
   std::uint16_t player_lines = 0;        // Ended: the Tarnished's lines sent
   std::uint16_t committed = 0;           // Ended: lines committed (the Tarnished's and the replies shown)
+  // Memory (v0.3; MEM §12.7, §12.13): an NpcSaid's cued item, when its reply was rendered with a reaction cue; an
+  // end's `shown_context` (the world items and lines shown, as JSON) and `known` (the persona's known items with their
+  // certainties, as JSON pairs, when the conversation had a flag frame).
+  std::string cue;
+  std::string shown_context;
+  std::optional<std::string> known;
   Mono at = 0;
 
   friend bool operator==(const Commit&, const Commit&) = default;

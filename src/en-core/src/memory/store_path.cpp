@@ -558,14 +558,24 @@ void StorePath::commit(const Commit& c, const augur::Event* ev, const Directory&
   op.kind = Op::Kind::Event;
   op.event = stored(*ev, cast, known);
   op.event.text = c.kind == Commit::Kind::Ended ? std::nullopt : std::optional<std::string>(c.text);
-  if (c.kind == Commit::Kind::NpcSaid) op.event.t_play_end_ms = op.event.t_play_ms;
+  if (c.kind == Commit::Kind::NpcSaid) {
+    op.event.t_play_end_ms = op.event.t_play_ms;
+    if (!c.cue.empty()) {
+      json p = json::parse(op.event.payload, nullptr, false);
+      if (p.is_object()) {
+        p["cue"] = c.cue;
+        op.event.payload = p.dump();
+      }
+    }
+  }
   if (c.kind == Commit::Kind::Ended) {
     const auto idx = cast.find(c.persona);
     json p = json::object();
     p["reason"] = to_string(c.reason);  // the core's own word; the augur event carries Augur's five
     p["player_lines"] = c.player_lines;
     p["committed"] = c.committed;
-    p["known"] = nullptr;
+    p["known"] = c.known ? json::parse(*c.known, nullptr, false) : json(nullptr);
+    if (p["known"].is_discarded()) p["known"] = nullptr;
     p["stage"] = idx ? stage_now(cast, known, static_cast<std::uint32_t>(*idx)) : std::string();
     op.event.payload = p.dump();
   }
@@ -579,6 +589,7 @@ void StorePath::commit(const Commit& c, const augur::Event* ev, const Directory&
     close.row.end_reason = to_string(c.reason);
     close.row.player_lines = c.player_lines;
     close.row.committed_lines = c.committed;
+    close.row.shown_context = c.shown_context.empty() ? std::string("[]") : c.shown_context;
     close.speech = true;
     add(std::move(close));
     // The next conversation's tail is this one's: the bundle again, after the close (T9 answers in order).

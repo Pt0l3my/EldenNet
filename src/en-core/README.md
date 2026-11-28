@@ -439,6 +439,21 @@ the conversation part B's (above); the core holds both.
   from the file while it is open, across sessions, under "(things have moved on since)" when `stage_seen` differs from
   the active stage; without the store, block 8 is empty and the tail is this session's. Block 6 (c) has no lines
   before own-initiative lines (v0.4, O147).
+- **News since the last meeting** (`knowledge.hpp`'s `since_line`, `cue`; `news_lint.hpp`; MEM §12.6, §12.7,
+  §12.13; O30, O147). From what the store holds of the persona (`world_seen`, `world_seen_pt`, `world_cued`, the
+  proved claims block 8 renders) and the flag frame:
+  - the since-line, fixed at a conversation's first framed turn, names at most two items known now and absent from
+    `world_seen` (in block 5b's selection order) within 55 tokens, and nothing at a first meeting;
+  - the reaction cue, at each framed turn: own stake, then the Tarnished's part (not for a close persona), then local
+    talk (eager alone, Near alone, within 6 h of play of the meeting that recorded `known`), skipping an item cued
+    within the 60 s news cooldown. It is one of four fixed strings (`kCueStrings`, held to block 7's template word for
+    word), followed by the item's own line under its certainty label when block 5b does not show it;
+  - the reply rendered with a cue carries it on its NpcSaid when its first line shows, and `world_cued` folds it;
+  - each conversation records `shown_context` (block 5b's, the since-line's and the cued items by id with their
+    certainty, the cue marked, and block 9's "just now" lines, within 4,096 bytes) and, when it had a frame, its end's
+    `known` (at most 24 items with their certainties), from which `world_seen` folds.
+  World topic offers in block 7 wait for the knowledge base (v0.5), and greetings carrying a cue for own-initiative
+  lines (v0.4, O147). A short holding a term locked now is not yet left out: the lexicon's locked set comes with v0.5.
 - **Its words** (drafts for the owner): `kChoicePending` "(Not yet: EldenNet is waiting for your answer about this
   save.)"; `kBackupRestored` "EldenNet's memory file was damaged, so its newest backup was restored."; `kLowDisk` "Less
   than 200 MB of disk is free: EldenNet may stop saving memories."; and `memory_off_text(cause)`, "Memory is off for
@@ -511,4 +526,7 @@ the queue with it, a lock at open retried three times then memory off with its t
 the writes until Forget trims and lifts them, memory off and no account opening nothing, a tripped store, and
 StageChanged's and JourneyChanged's stored forms; block 8 (`test_block8.cpp`): the journal's form and the protected
 keepsake, MEM §4.3's example word for word on the shipped templates, the facts' words, the cap's trim order, block 6
-(a)'s header, and T5 (every system part the same with block 8 or without).
+(a)'s header, and T5 (every system part the same with block 8 or without). News (`tests/knowledge/test_news.cpp`):
+T12, the cue equal to `tests/knowledge/cues.toml` at every row for the pilot and the CI fixture persona `test_stake`
+(`tests/fixtures/personas/`); T4's since-line for the pilot's three transitions; and W5's and W7's cue clauses, each
+with a failing fixture.

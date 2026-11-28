@@ -2,6 +2,7 @@
 #include "en/core/conversation.hpp"
 
 #include <algorithm>
+#include <charconv>
 #include <cmath>
 #include <map>
 #include <type_traits>
@@ -183,6 +184,15 @@ struct Active {
   EndReason end_reason = EndReason::Closed;
   bool esc_closed = false;  // Esc closed the box while a reply paces: end when it is done (NPC §5.7)
   std::optional<proto::ChrHandle> retarget;  // open on this one once ended
+  // Memory (MEM §12.6, §12.7, §12.13): the since-line, fixed at the first framed turn; each reply's cued item; what
+  // the persona was shown (world items by id, "just now" lines by text) for the memory job; whether a frame was there.
+  bool since_done = false;
+  std::string since;
+  std::map<proto::ReplyId, std::string> reply_cue;
+  std::vector<std::pair<std::string, std::string>> shown_items;  // item, certainty word ("cue" marks a cued item)
+  std::vector<std::string> cued_items;
+  std::vector<std::string> shown_lines;
+  bool framed = false;
 };
 
 struct Grace {
@@ -192,6 +202,7 @@ struct Grace {
   std::uint8_t index = 0;
   std::string text;
   Mono until = 0;
+  std::string cue;  // the reply's cued item, carried by its NpcSaid
 };
 
 struct KeptDraft {
@@ -405,6 +416,129 @@ struct Conversation::Impl {
 
   [[nodiscard]] bool would_open(const Candidate& c) const {
     return !conversable(facts_of(c), around, now) && !safe_context(around) && observer_allows(snap()->chars[c.chr].handle);
+  }
+
+  // ---- News (MEM §12.6, §12.7, §12.13) ----
+
+  // The since-line (fixed at the conversation's first framed turn) and this reply's cue, from what the store holds of
+  // the persona; and what the reply's prompt shows of the world, for the memory job's `shown_context`.
+  void news(DialogueContext& ctx, ReplyRun& r, const TarnishedBlock* block) {
+    const KnowledgeView* k = in->world.knowledge;
+    const Knowledge* model = in->world.world_model;
+    const FlagState* fs = in->world.flags;
+    const StorePath* st = in->world.store;
+    if (k == nullptr || conv->persona >= k->personas.size()) return;
+    const Grounding& g = k->personas[conv->persona];
+    if (k->world.have_frame) conv->framed = true;
+    for (const std::string& item : g.shown) {
+      const auto known = std::find_if(g.known.begin(), g.known.end(), [&](const Known& x) { return x.item == item; });
+      note_item(item, known != g.known.end() ? to_string(known->certainty) : "rumour");
+    }
+    for (const std::string& line : ctx.scene.just_now) note_line(line);
+    if (st == nullptr || model == nullptr || fs == nullptr || !k->world.have_frame) return;
+    NewsRecord rec;
+    if (const auto f = st->facts().find(conv->persona_id); f != st->facts().end()) {
+      for (const auto& [item, word] : fact_pairs(f->second, fact::kWorldSeen)) {
+        const Certainty c = word == "fact" ? Certainty::Fact : word == "belief" ? Certainty::Belief : Certainty::Rumour;
+        rec.seen.push_back(Seen{item, c});
+      }
+      rec.seen_pt = fact_number(f->second, fact::kWorldSeenPt);
+      for (const auto& [item, pt] : fact_pairs(f->second, fact::kWorldCued)) {
+        std::int64_t v = 0;
+        std::from_chars(pt.data(), pt.data() + pt.size(), v);
+        rec.cued.emplace_back(item, v);
+      }
+    }
+    if (block != nullptr) {
+      for (const auto& l : block->proved) {
+        if (l.check_key.rfind("slew:", 0) == 0) rec.told_bosses.push_back(l.check_key.substr(5));
+      }
+    }
+    rec.pt_now = snap() != nullptr && snap()->player ? static_cast<std::int64_t>(snap()->player->play_time_ms) : 0;
+    const Persona& p = cast()->persona(conv->persona);
+    if (const auto aw = p.record.find("awareness"); aw != p.record.end() && aw->is_object()) {
+      rec.temperament = aw->value("news", std::string("plain"));
+    }
+    if (!conv->since_done) {
+      conv->since_done = true;
+      conv->since = model->since_line(conv->persona, *fs, k->world, rec);
+      if (!conv->since.empty()) {
+        for (const std::string& item : model->since_items(conv->persona, *fs, k->world, rec)) note_item(item, "rumour");
+      }
+    }
+    ctx.since_line = conv->since;
+    const std::optional<Cue> cue = model->cue(conv->persona, *fs, k->world, rec);
+    if (!cue) return;
+    ctx.cue_why = to_string(cue->why);
+    ctx.cue_short = model->short_of(cue->item);
+    conv->reply_cue[r.id] = cue->item;
+    if (std::find(conv->cued_items.begin(), conv->cued_items.end(), cue->item) == conv->cued_items.end()) {
+      conv->cued_items.push_back(cue->item);
+    }
+    // The item's own line in block 7 when block 5b does not show it (MEM §12.13).
+    if (std::find(g.shown.begin(), g.shown.end(), cue->item) == g.shown.end()) {
+      for (const KnownLine& l : model->known_lines(conv->persona, *fs, k->world, rec.seen)) {
+        if (l.known.item != cue->item || l.line.empty()) continue;
+        ctx.cue_line = l.line;
+        ctx.cue_label = l.known.certainty == Certainty::Fact     ? "You know:"
+                        : l.known.certainty == Certainty::Belief ? "You believe:"
+                                                                 : "You have heard:";
+      }
+    }
+  }
+
+  void note_item(const std::string& item, std::string certainty) {
+    for (const auto& [i, c] : conv->shown_items) {
+      if (i == item) return;
+    }
+    conv->shown_items.emplace_back(item, std::move(certainty));
+  }
+  void note_line(const std::string& line) {
+    const auto& lines = conv->shown_lines;
+    if (line.empty() || std::find(lines.begin(), lines.end(), line) != lines.end()) return;
+    conv->shown_lines.push_back(line);
+  }
+
+  // MEM §12.7: the world items by id (with their certainty, and a cue mark), then the "just now" lines, within the
+  // column's 4,096 bytes.
+  [[nodiscard]] std::string shown_context_json() const {
+    nlohmann::json a = nlohmann::json::array();
+    const auto fits = [&](const nlohmann::json& next) {
+      nlohmann::json t = a;
+      t.push_back(next);
+      return t.dump().size() <= 4096;
+    };
+    for (const auto& [item, certainty] : conv->shown_items) {
+      nlohmann::json e = {{"item", item}, {"certainty", certainty}};
+      if (std::find(conv->cued_items.begin(), conv->cued_items.end(), item) != conv->cued_items.end()) e["cue"] = true;
+      if (!fits(e)) break;
+      a.push_back(std::move(e));
+    }
+    for (const std::string& item : conv->cued_items) {
+      const bool listed = std::any_of(conv->shown_items.begin(), conv->shown_items.end(),
+                                      [&](const auto& x) { return x.first == item; });
+      nlohmann::json e = {{"item", item}, {"certainty", "rumour"}, {"cue", true}};
+      if (!listed && fits(e)) a.push_back(std::move(e));
+    }
+    for (const std::string& line : conv->shown_lines) {
+      nlohmann::json e = {{"line", line}};
+      if (!fits(e)) break;
+      a.push_back(std::move(e));
+    }
+    return a.dump();
+  }
+
+  // ConversationEnded's `known` (MEM §12.7): the persona's known items with their certainties, at most 24, when the
+  // conversation had a flag frame; none otherwise.
+  [[nodiscard]] std::optional<std::string> known_json() const {
+    const KnowledgeView* k = in->world.knowledge;
+    if (!conv->framed || k == nullptr || conv->persona >= k->personas.size()) return std::nullopt;
+    nlohmann::json a = nlohmann::json::array();
+    for (const Known& x : k->personas[conv->persona].known) {
+      if (a.size() >= kKnownMax) break;
+      a.push_back(nlohmann::json::array({x.item, to_string(x.certainty)}));
+    }
+    return a.dump();
   }
 
   // ---- Commits ----
@@ -689,6 +823,7 @@ struct Conversation::Impl {
     DialogueContext ctx;
     ctx.tarnished = tarnished ? &*tarnished : nullptr;
     ctx.earlier_moved_on = moved_on && !earlier.empty();
+    news(ctx, r, tarnished ? &*tarnished : nullptr);
     ctx.persona = conv->persona_id;
     ctx.record = &record;
     ctx.name = conv->name;
@@ -929,6 +1064,7 @@ struct Conversation::Impl {
         c.page = it->index;
         c.persona = it->persona;
         c.text = it->text;
+        if (c.kind == Commit::Kind::NpcSaid) c.cue = it->cue;
         commit(std::move(c));
         grace.erase(it);
         return;
@@ -943,6 +1079,9 @@ struct Conversation::Impl {
     c.page = index;
     c.persona = conv->persona_id;
     c.text = text;
+    if (index == 0) {
+      if (const auto cue = conv->reply_cue.find(reply); cue != conv->reply_cue.end()) c.cue = cue->second;
+    }
     commit(std::move(c));
     if (index == 0) {
       ++conv->committed;
@@ -1051,13 +1190,20 @@ struct Conversation::Impl {
       ReplyRun& r = *conv->reply;
       cancel_request(r);
       if (r.on_screen && !r.shown_at) {
+        const auto cue = conv->reply_cue.find(r.id);
         grace.push_back(Grace{conv->id, r.id, conv->persona_id, *r.on_screen, r.pages[*r.on_screen].text,
-                              now + T::kGraceMs});
+                              now + T::kGraceMs,
+                              cue != conv->reply_cue.end() && *r.on_screen == 0 ? cue->second : std::string()});
       }
     }
     if (conv->tail && !conv->tail->shown_at) {
       const proto::PageId id = conv->tail->view.id;
-      grace.push_back(Grace{id.conv, id.reply, conv->persona_id, id.index, conv->tail->view.text, now + T::kGraceMs});
+      std::string cue;
+      if (const auto it = conv->reply_cue.find(id.reply); it != conv->reply_cue.end() && id.index == 0) {
+        cue = it->second;
+      }
+      grace.push_back(
+          Grace{id.conv, id.reply, conv->persona_id, id.index, conv->tail->view.text, now + T::kGraceMs, cue});
     }
     finish(why);
   }
@@ -1070,6 +1216,8 @@ struct Conversation::Impl {
     c.reason = why;
     c.player_lines = conv->player_lines;
     c.committed = conv->committed;
+    c.shown_context = shown_context_json();
+    c.known = known_json();
     commit(std::move(c));
     // The memory job (≥ 2 player lines and ≥ 4 committed, DESIGN §8.6) is v0.3's, with the store.
     ++epoch;

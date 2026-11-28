@@ -39,7 +39,8 @@ if(EN_BUILD_TESTS)
   # the test persona (part B) and the pilot (S11.3.c), the fixture flag states and the truth tables.
   file(GLOB_RECURSE EN_CORE_TEST_FILES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/tests/scenarios/talk/overrides/*.toml
     ${PROJECT_SOURCE_DIR}/tests/scenarios/talk/pilot-overrides/*.toml
-    ${PROJECT_SOURCE_DIR}/tests/fixtures/flagstates/*.toml ${PROJECT_SOURCE_DIR}/tests/knowledge/*.toml)
+    ${PROJECT_SOURCE_DIR}/tests/fixtures/flagstates/*.toml ${PROJECT_SOURCE_DIR}/tests/knowledge/*.toml
+    ${PROJECT_SOURCE_DIR}/tests/fixtures/personas/*.toml)
   list(SORT EN_CORE_TEST_FILES)
   set(_en_test_files ${CMAKE_CURRENT_BINARY_DIR}/test_files.cpp)
   en_embed_files(${_en_test_files} INCLUDE en/core/core.hpp NAMESPACE en::core::test TYPE en::core::BuiltinFile

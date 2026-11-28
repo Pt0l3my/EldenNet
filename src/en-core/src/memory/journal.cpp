@@ -207,7 +207,7 @@ TarnishedBlock tarnished_block(const proto::PersonaFacts* facts, const Journal* 
     });
     for (const std::size_t i : order) {
       const Keepsake& k = journal->keepsakes[i];
-      TarnishedBlock::Line line{k.text, k.weight, prot && *prot == i};
+      TarnishedBlock::Line line{k.text, k.weight, prot && *prot == i, k.check_key.value_or(std::string())};
       if (k.basis == Keepsake::Basis::Seen) {
         b.seen.push_back(std::move(line));
       } else if (k.check_key && verified(facts, *k.check_key)) {

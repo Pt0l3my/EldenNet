@@ -1310,4 +1310,142 @@ std::string you_now(const proto::Meter& hp, bool fighting, bool self_awareness) 
   return out;  // the statuses' words join after S8 (DESIGN §9.9)
 }
 
+
+
+// ---- News since the last meeting (MEM §12.6, §12.13) ----
+
+const char* to_string(CueWhy v) noexcept {
+  switch (v) {
+    case CueWhy::Own:
+      return "own";
+    case CueWhy::Told:
+      return "told";
+    case CueWhy::LocalHere:
+      return "local_here";
+    case CueWhy::LocalHome:
+      return "local_home";
+  }
+  return "own";
+}
+
+namespace {
+
+const WorldStage* stage_of_item(std::span<const WorldStage> stages, std::string_view item) {
+  if (item.substr(0, 2) != "w:") return nullptr;
+  for (const WorldStage& w : stages) {
+    if (w.id == item.substr(2)) return &w;
+  }
+  return nullptr;
+}
+
+std::size_t since_tokens(std::string_view text) noexcept {
+  return static_cast<std::size_t>(std::ceil(static_cast<double>(text.size()) / 3.6 * 1.15));
+}
+
+}  // namespace
+
+std::string Knowledge::short_of(std::string_view item) const {
+  if (const WorldStage* w = stage_of_item(stages_, item)) return w->short_text;
+  if (item.substr(0, 2) == "q:") {
+    const std::string_view rest = item.substr(2);
+    const std::size_t dot = rest.find('.');
+    if (dot != std::string_view::npos) {
+      if (const auto s = step_of(rest.substr(0, dot), rest.substr(dot + 1))) {
+        for (const Track& t : tracks_) {
+          if (t.id == rest.substr(0, dot)) return t.steps[*s].short_text;
+        }
+      }
+    }
+  }
+  return {};
+}
+
+std::vector<std::string> Knowledge::since_items(std::size_t persona, const FlagState& fs, const WorldView& view,
+                                                const NewsRecord& news) const {
+  std::vector<std::string> out;
+  if (!fs.have_frame || !news.seen_pt || persona >= personas_.size()) return out;
+  std::vector<KnownLine> lines = known_lines(persona, fs, view, news.seen);
+  std::stable_sort(lines.begin(), lines.end(), [](const KnownLine& a, const KnownLine& b) {
+    if (a.known.own_affairs != b.known.own_affairs) return a.known.own_affairs;
+    if (a.tied != b.tied) return a.tied;
+    if (a.rank != b.rank) return a.rank > b.rank;
+    return a.known.item < b.known.item;
+  });
+  for (const KnownLine& l : lines) {
+    const bool held =
+        std::any_of(news.seen.begin(), news.seen.end(), [&](const Seen& s) { return s.item == l.known.item; });
+    if (!held && l.known.path != Path::Kept) out.push_back(l.known.item);
+  }
+  return out;
+}
+
+std::string Knowledge::since_line(std::size_t persona, const FlagState& fs, const WorldView& view,
+                                  const NewsRecord& news) const {
+  const std::vector<std::string> items = since_items(persona, fs, view, news);
+  std::vector<std::string> shorts;
+  for (const std::string& i : items) {
+    if (std::string s = short_of(i); !s.empty()) shorts.push_back(std::move(s));
+  }
+  if (shorts.empty()) return {};
+  constexpr std::string_view kHead = "Since you last spoke with the Tarnished, you have learned of ";
+  const auto line = [&](std::size_t n) {
+    std::string out = std::string(kHead) + shorts[0];
+    if (n == 2) out += " and " + shorts[1];
+    if (shorts.size() > n) out += ", and other news besides";
+    return out + ".";
+  };
+  if (shorts.size() >= 2 && since_tokens(line(2)) <= 55) return line(2);
+  return line(1);
+}
+
+std::optional<Cue> Knowledge::cue(std::size_t persona, const FlagState& fs, const WorldView& view,
+                                  const NewsRecord& news) const {
+  if (!fs.have_frame || !news.seen_pt || persona >= personas_.size()) return std::nullopt;
+  std::vector<KnownLine> lines = known_lines(persona, fs, view, news.seen);
+  std::stable_sort(lines.begin(), lines.end(), [](const KnownLine& a, const KnownLine& b) {
+    if (a.known.own_affairs != b.known.own_affairs) return a.known.own_affairs;
+    if (a.tied != b.tied) return a.tied;
+    if (a.rank != b.rank) return a.rank > b.rank;
+    return a.known.item < b.known.item;
+  });
+  // K: minus superseded items and items whose cooldown is running.
+  std::vector<const KnownLine*> k;
+  for (const KnownLine& l : lines) {
+    const bool superseded = std::any_of(lines.begin(), lines.end(), [&](const KnownLine& o) {
+      return std::find(o.supersedes.begin(), o.supersedes.end(), l.known.item) != o.supersedes.end();
+    });
+    const bool cooling = std::any_of(news.cued.begin(), news.cued.end(), [&](const auto& c) {
+      return c.first == l.known.item && news.pt_now >= c.second && news.pt_now - c.second < news.cooldown_ms;
+    });
+    if (!superseded && !cooling) k.push_back(&l);
+  }
+  const auto is_new = [&](const KnownLine* l) {
+    return std::none_of(news.seen.begin(), news.seen.end(), [&](const Seen& s) { return s.item == l->known.item; });
+  };
+  for (const KnownLine* l : k) {  // 1. own stake
+    if (is_new(l) && l->known.own_affairs) return Cue{l->known.item, CueWhy::Own};
+  }
+  if (news.temperament != "close") {  // 2. the Tarnished's part
+    for (const KnownLine* l : k) {
+      const WorldStage* w = stage_of_item(stages_, l->known.item);
+      if (w != nullptr && !w->boss.empty() &&
+          std::find(news.told_bosses.begin(), news.told_bosses.end(), w->boss) != news.told_bosses.end()) {
+        return Cue{l->known.item, CueWhy::Told};
+      }
+    }
+  }
+  if (news.temperament == "eager" && news.pt_now - *news.seen_pt <= 6 * 3600000) {  // 3. local talk
+    const std::size_t stage = view.personas.size() > persona ? view.personas[persona] : 0;
+    const KnowledgePersona& p = personas_[persona];
+    const std::string at = stage < p.stages.size() ? p.stages[stage].at : std::string();
+    for (const KnownLine* l : k) {
+      if (!is_new(l) || l->known.path != Path::Near) continue;
+      const WorldStage* w = stage_of_item(stages_, l->known.item);
+      const bool here = w != nullptr && std::find(w->regions.begin(), w->regions.end(), at) != w->regions.end();
+      return Cue{l->known.item, here ? CueWhy::LocalHere : CueWhy::LocalHome};
+    }
+  }
+  return std::nullopt;
+}
+
 }  // namespace en::core

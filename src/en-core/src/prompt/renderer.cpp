@@ -286,6 +286,9 @@ proto::Expected<json, PromptError> dialogue_data(const DialogueContext& context)
     tarnished["said"] = lines(t->said);
   }
   d["tarnished"] = std::move(tarnished);
+  d["since_line"] = context.since_line;
+  d["cue"] = {{"why", context.cue_why}, {"short", context.cue_short}, {"label", context.cue_label},
+              {"line", context.cue_line}};
   const Scene& s = context.scene;
   json nearby = json::array();
   for (const std::string& n : s.nearby) {

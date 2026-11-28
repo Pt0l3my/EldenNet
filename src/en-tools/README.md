@@ -384,7 +384,9 @@ thread on the same file), `kill` (the process dies: nothing closed or flushed), 
 through en-store's own query). `wren_and_kale` runs MEM §2.8's steps that need no memory job yet (A's chat and its
 audiences, B's native talk as a second meeting, E's strike, a reload refolding the facts from the file, H's NG+), and
 `older_save` a hard kill mid-conversation (the next session ends it as crashed, a meeting) and an older save an hour
-back, whose choice refuses named chat with its toast until Forget takes back what came after.
+back, whose choice refuses named chat with its toast until Forget takes back what came after. `kale_news` runs the
+reaction cue in conversation: a second meeting an hour after the castle's fall opens with the since-line and the cue,
+a line 30 s later finds the item in its news cooldown, and one 90 s later carries it again.
 
 **The speech tap** (`lib/speech_tap.hpp`; WHY§410). The core runs the eval's own speech parts (`Core(SpeechParts)`):
 part A's sanitizer, lint and pager over the content's lexicon, each wrapped, so that every reply attempt the

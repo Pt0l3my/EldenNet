@@ -551,6 +551,10 @@ void Core::run_conversation(Mono at, bool fresh, const proto::UiEvent* ui, const
   w.self_awareness = behaviour_.features.self_awareness;
   if (store_.mode() == StorePath::Mode::Choice) w.chat_held = kChoicePending;
   if (store_.mode() == StorePath::Mode::Open) w.store = &store_;
+  if (content_loaded_) {
+    w.world_model = &knowledge_;
+    w.flags = &flags_;
+  }
   ConversationOutput co = conversation_.step(in);
   for (const Commit& c : co.commits) log_.apply(c);  // in the same step (NPC §8.7 item 5), and to the store below
   store_.write(out.events, directory_, content_loaded_ ? &known_ : nullptr, at);

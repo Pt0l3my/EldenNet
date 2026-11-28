@@ -61,6 +61,8 @@ struct TarnishedBlock {
     std::string text;
     double weight = 0;
     bool protect = false;
+    std::string check_key;  // a claim's (MEM §2.5), for the reaction cue's Tarnished's part
+    friend bool operator==(const Line&, const Line&) = default;
   };
   std::vector<std::string> facts;  // the name first, then each fact's sentence
   std::string disposition;

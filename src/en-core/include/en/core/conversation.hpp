@@ -160,6 +160,9 @@ struct ConversationWorld {
   // Memory (v0.3; MEM §4): the store path while its file is open, whose facts and bundles give block 8 and block 6 (a);
   // null keeps block 8 empty and takes block 6 (a) from `log`.
   const StorePath* store = nullptr;
+  // The world model and the flag state the view came from: the since-line and the cue read them (MEM §12.6, §12.13).
+  const Knowledge* world_model = nullptr;
+  const FlagState* flags = nullptr;
 };
 
 struct ConversationInput {
