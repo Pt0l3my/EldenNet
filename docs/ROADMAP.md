@@ -1402,6 +1402,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Changed the same day: a check through EldenNet cannot show either, as EldenNet binds T and Tab on its main path
     and GraceUI masks a bound key from the game. Guides to the default keyboard layout disagree about Tab. So the
     owner is asked to press both in the game without mods, in its default layout, on foot and in its menus.
+    Changed on 2026-11-28 (WHY§706): the owner is not asked. The wiki lists T as Sort Items in the menus and no use of
+    Tab, and patch 1.12 changed the starting layout; the game's own key tables (`KeyAssignParam`), read by a DataPiler
+    job once DataPiler lists them, settle both keys for the field and the menus.
 - b Spike S3, the talk observer, and the pilot persona's S6, in game [planned]
   - needs: S10.1.m, S10.1.c
   - gives: Status on 2026-11-27: planned, not waiting. There is no package for the owner to run: the build's layout

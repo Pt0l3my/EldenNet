@@ -728,6 +728,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 703 | 2026-11-28 | The store in the DLL: T9, the account folder, the spill ring | DECIDED | #engine #dll #memory |
 | 704 | 2026-11-28 | The rollback panel, as built | DECIDED | #engine #overlay #memory |
 | 705 | 2026-11-28 | The memory pages, as built | DECIDED | #engine #pages #memory |
+| 706 | 2026-11-28 | The default keyboard layout: what the wiki says, and where the game keeps it | LIKELY | #input #hotkeys #research |
 
 ## Entries
 
@@ -5170,6 +5171,8 @@ invariant 10, EldenNet ARCH (T3)
   list is from the search results (Shacknews' "Elden Ring controls and PC keybindings", PC Gamer's "Elden Ring's
   half-assed mouse and keyboard controls", keymap.io's Elden Ring page). Not a FACT until S4 presses `T` in game in
   the default layout and the game does nothing.
+- *Later (2026-11-28, WHY§706):* stale and incomplete. Patch 1.12 changed the starting layout on Steam, and the
+  Fextralife wiki's Controls page lists T as Sort Items in the menus. Not settled until the game's own tables are read.
 
 ### 278. GraceUI's browser rail kept categories with no page, which the game's rail leaves out: compare both views on a real mod's pages
 
@@ -7214,6 +7217,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - NPC §5.1 masks "Tab while a page shows", but GraceUI's hotkeys have no unregister or pause: registered, Tab is never
   the game's while it is bound. S4 is to check that the game does not need Tab; if it does, the skip hotkey takes
   another default.
+- *Later (2026-11-28, WHY§706):* the Fextralife wiki lists no default use of Tab, in the field or in the menus; the
+  game's own key tables are to settle it.
 
 ### 439. T6 waits on GraceUI's handle, and the talk key's latency is measured from its SendInput
 
@@ -10302,3 +10307,24 @@ GraceUI D254, D274, engine 889f763
 - The floor rises to GraceUI 0.2.67 and page data minor 21 (`confirm_after_ms`, private topics).
 - GraceUI 0.2.68's `check:space` welcomes every space at increment 0.2, so the browser check marks EldenNet's 0.3 pages
   as 0.2 in its copy of `pages.json`; a flag there would remove the stand-in (sent to Grace).
+
+### 706. The default keyboard layout: what the wiki says, and where the game keeps it
+
+`2026-11-28` · LIKELY · `#input` `#hotkeys` `#research` · refs: WHY§277, WHY§438, O94, NPC§5.1, S11.1.a
+
+- (METHOD) The owner asked why the default layout was never settled. WHY§277 rested on search snippets alone, the guide
+  pages being outside the network then; the owner named the Fextralife wiki, and its hosts (the wiki and its image
+  host) were allowed on 2026-11-28.
+- (LIKELY) The wiki's Controls page: in the menus on PC, T (or the right button) sorts items, Q goes back, F switches
+  the view, Z and X step through equipment slots, R removes an item, G opens help or the map. No default use of Tab is
+  listed anywhere on the wiki. Its four screenshots of the Key Settings screen (the field's actions) bind neither T nor
+  Tab, but they predate patch 1.12.
+- (FACT, the wiki's patch notes) Patch 1.12 (Steam only) changed the starting layout of Key Settings; saves made
+  before it keep theirs. The wiki adds that Jump moved from F to Space and the dodge from Space to Shift. So two
+  players can have different defaults, and our list in WHY§277 is the older one.
+- (LIKELY) The game keeps its key assignments in its own tables: the public paramdefs (Paramdex, read as a pointer,
+  never as fact, O48) define `KeyAssignParam` (per row a pad key, a keyboard key with a modifier, a mouse key) and
+  `KeyAssignMenuItemParam` for Elden Ring. DataPiler reads only the params it lists, and these are not among them yet.
+- Consequence for EldenNet: T, masked whenever it is bound (WHY§438's rule holds for the talk key too), would take
+  keyboard sorting away from the inventory (the right button still sorts). The default stays until the game's tables
+  are read; then the talk and skip keys are chosen from keys free in the field and the menus alike.
