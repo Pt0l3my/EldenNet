@@ -344,7 +344,10 @@ class Body final : public en::gal::TaskBody {
       watch = nullptr;
       sweep = nullptr;
       tree = nullptr;
-    } else if (tree != nullptr) {
+    } else if (!yield && tree != nullptr) {
+      // (In the stay's plan the tree's walk leaves the yielded steps to the shared searches too, where it has its
+      // part among them: in the twenty-first round it took every step the scans left, for five minutes, and the
+      // watch made no pass from the 35th second to the 333rd; the stay's verdict came twenty seconds late.)
       // The tree's walk, likewise, until it is through: it is read once, and what the round compares waits for it.
       // With a share among the others it took seven minutes, and the eleventh round's session ended 47 records
       // short of it; alone it takes about one.
