@@ -31,7 +31,7 @@ using NameOf = std::function<std::optional<std::string>(std::string_view persona
 [[nodiscard]] proto::ChoicePanel choice_panel(const proto::db::RollbackSummary& s, std::uint32_t id,
                                               const NameOf& name_of);
 
-inline constexpr std::string_view kChoiceTitle = "This save is from before EldenNet's memory of it ends";
+inline constexpr std::string_view kChoiceTitle = "An older save";
 inline constexpr std::string_view kChoiceLead =
     "You loaded a save from earlier than what EldenNet remembers. What should it do with what came after?";
 inline constexpr std::string_view kChoiceForget = "Forget what came after";

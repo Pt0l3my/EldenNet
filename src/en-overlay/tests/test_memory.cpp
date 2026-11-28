@@ -92,7 +92,8 @@ TEST_CASE("memory pages: Memories' card, keepsakes and work, from MEM 2.2's rend
   // Backups by count, no path; and what a backup keeps.
   const json st = MemoryPages::body(kMemoryStateTopic, world());
   CHECK(st["items"][0] == json{{"label", "Backups"}, {"value", "3"}});
-  CHECK(st["items"][1] == json{{"label", "Newest"}, {"value", "2025-11-27 00:00 UTC"}});
+  CHECK(st["items"][1] == json{{"label", "Newest"}, {"value", "27 November 2026, 14:05"}});
+  CHECK(time_words(LocalTime{2027, 1, 3, 0, 0}) == "3 January 2027, 00:00");
   CHECK(st.dump().find("three newer backups") != std::string::npos);
   CHECK(st.dump().find(".sqlite") == std::string::npos);
 }

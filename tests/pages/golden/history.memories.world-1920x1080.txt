@@ -193,13 +193,13 @@ text    ink.hi        919,1127   66x28   clip1 glyphs 7 "Backups"
 text    ink.body     1231,1129    8x25   clip1 glyphs 1 "3"
 line    rule          919,1171  936x1    clip1
 text    ink.hi        919,1187   56x28   clip1 glyphs 6 "Newest"
-text    ink.body     1231,1189  169x25   clip1 glyphs 18 "2025-11-27 00:00 UTC"
+text    ink.body     1231,1189  194x25   clip1 glyphs 20 "27 November 2026, 14:05"
 line    rule          919,1231  936x1    clip1
 text    ink.hi        919,1247   38x28   clip1 glyphs 4 "Then"
-text    ink.body     1231,1249  169x25   clip1 glyphs 18 "2025-11-26 00:00 UTC"
+text    ink.body     1231,1249  194x25   clip1 glyphs 20 "26 November 2026, 09:40"
 line    rule          919,1291  936x1    clip1
 text    ink.hi        919,1307   38x28   clip1 glyphs 4 "Then"
-text    ink.body     1231,1309  169x25   clip1 glyphs 18 "2025-11-25 00:00 UTC"
+text    ink.body     1231,1309  194x25   clip1 glyphs 20 "25 November 2026, 21:02"
 line    rule          919,1351  936x1    clip1
 text    ink.hi        919,1367  178x28   clip1 glyphs 16 "What a backup holds"
 text    ink.body     1231,1369  616x25   clip1 glyphs 61 "Each holds what was remembered when it was taken, the forgotten memories "

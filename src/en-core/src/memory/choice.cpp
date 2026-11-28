@@ -73,7 +73,7 @@ proto::ChoicePanel choice_panel(const db::RollbackSummary& s, std::uint32_t id, 
       case db::RollbackItem::Kind::Witnessed:
         text = capital(who) + " saw something happen, " + at(item.pt) + ".";
         break;
-      case db::RollbackItem::Kind::Memory: text = capital(who) + "'s memory of it, written " + at(item.pt) + "."; break;
+      case db::RollbackItem::Kind::Memory: text = "A memory " + who + " wrote, " + at(item.pt) + "."; break;
       case db::RollbackItem::Kind::Stage: continue;  // listed with the stages below
       case db::RollbackItem::Kind::Journey: text = "A later journey, begun " + at(item.pt) + "."; break;
     }

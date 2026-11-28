@@ -295,7 +295,7 @@ class Core {
   // Whether a forget may go now: the file open on the journey, and no conversation open (its rows would go under it).
   [[nodiscard]] bool can_forget(std::uint16_t journey) const noexcept;
   // The personas perceived in the newest snapshot (SP7), alive, by profile id: Home's Nearby and Playthrough's "Here
-  // now"; and whether a perceived one lies dead (Playthrough's "Fell").
+  // now"; and whether a perceived one lies dead (Playthrough's "Fallen").
   [[nodiscard]] std::vector<std::pair<std::string, bool>> present() const;
   // How many forgets the core has sent the store (the shell reads the pages' data again after each).
   [[nodiscard]] std::uint64_t forgets() const noexcept { return forgets_; }

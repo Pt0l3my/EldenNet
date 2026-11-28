@@ -17,7 +17,7 @@ inline const MemoryFacts* memory_fixture(std::string_view state) {
     m.can_forget = true;
     m.current = 2;
     m.backups = 3;
-    m.backup_walls = {1764201600, 1764115200, 1764028800};
+    m.backup_times = {LocalTime{2026, 11, 27, 14, 5}, LocalTime{2026, 11, 26, 9, 40}, LocalTime{2026, 11, 25, 21, 2}};
     JourneyFacts first;
     first.journey = 1;
     MemberFacts keeper;

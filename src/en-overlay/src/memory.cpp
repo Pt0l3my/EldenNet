@@ -3,7 +3,6 @@
 
 #include <algorithm>
 #include <charconv>
-#include <cstdio>
 
 namespace en::overlay {
 
@@ -34,29 +33,10 @@ std::string key_of(std::uint16_t journey, const std::string& persona) {
 
 std::string times(std::uint32_t n) { return n == 1 ? "once" : std::to_string(n) + " times"; }
 
-// A wall time as "2026-11-27 14:05 UTC" (a backup's), from the days since the epoch (the civil calendar's rule).
-std::string utc_words(std::int64_t wall) {
-  const std::int64_t days = wall >= 0 ? wall / 86400 : (wall - 86399) / 86400;
-  const std::int64_t secs = wall - days * 86400;
-  std::int64_t z = days + 719468;
-  const std::int64_t era = (z >= 0 ? z : z - 146096) / 146097;
-  const std::int64_t doe = z - era * 146097;
-  const std::int64_t yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
-  const std::int64_t doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-  const std::int64_t mp = (5 * doy + 2) / 153;
-  const std::int64_t d = doy - (153 * mp + 2) / 5 + 1;
-  const std::int64_t m = mp < 10 ? mp + 3 : mp - 9;
-  const std::int64_t y = yoe + era * 400 + (m <= 2 ? 1 : 0);
-  char buf[96];
-  std::snprintf(buf, sizeof buf, "%04lld-%02lld-%02lld %02lld:%02lld UTC", static_cast<long long>(y),
-                static_cast<long long>(m), static_cast<long long>(d), static_cast<long long>(secs / 3600),
-                static_cast<long long>(secs % 3600 / 60));
-  return buf;
-}
 
 std::string_view status_word(const MemberFacts& m) {
   if (m.here) return "Here now";
-  if (m.fell) return "Fell";
+  if (m.fell) return "Fallen";
   return "Alive when last met";
 }
 
@@ -126,6 +106,15 @@ std::string_view disposition_word(int d) noexcept {
   }
 }
 
+std::string time_words(const LocalTime& t) {
+  static constexpr std::string_view kMonths[] = {"January", "February", "March",     "April",   "May",      "June",
+                                                 "July",    "August",   "September", "October", "November", "December"};
+  const std::string_view month = t.month >= 1 && t.month <= 12 ? kMonths[t.month - 1] : std::string_view("January");
+  const auto two = [](int v) { return (v < 10 ? "0" : "") + std::to_string(v); };
+  return std::to_string(t.day) + " " + std::string(month) + " " + std::to_string(t.year) + ", " + two(t.hour) + ":" +
+         two(t.minute);
+}
+
 std::string play_clock(std::uint64_t ms) {
   const std::uint64_t minutes = ms / 60000;
   const std::uint64_t m = minutes % 60;
@@ -172,8 +161,8 @@ json MemoryPages::body(std::string_view topic, const MemoryFacts* f) {
     if (loaded) {
       items.push_back(json{{"label", "Backups"}, {"value", std::to_string(f->backups)}});
       std::size_t n = 0;
-      for (const std::int64_t w : f->backup_walls) {
-        items.push_back(json{{"label", n == 0 ? "Newest" : "Then"}, {"value", utc_words(w)}});
+      for (const LocalTime& t : f->backup_times) {
+        items.push_back(json{{"label", n == 0 ? "Newest" : "Then"}, {"value", time_words(t)}});
         if (++n == 3) break;
       }
       items.push_back(json{{"label", "What a backup holds"},
