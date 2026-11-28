@@ -2047,6 +2047,14 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     browser's collapsed rail; all of a space's categories or none, page data minor 22. Optional for EldenNet; Grace
     suggests an icon for each of the ten. It changes what players see, so it is put to the owner with v0.3's words
     and taken at the pin after the answer. The owner chose Grace's ten (O149), for the pin of 0.2.70.
+- ce First light as a flow page, and check:space at an increment (GraceUI 0.2.71, protocol 1.23) [done]
+  - refs: GraceUI:D278, PAGES§4.6.10, WHY§705
+  - gives: GraceUI's D278, built on 2026-11-28 (GraceUI main 6406c36; GraceUI's docs/eldennet-changes.md §104): a page
+    with `flow` is a setup flow outside the rail, drawn in both views, its tabs its steps, its state topic and step
+    command EldenNet's, `start` landing the next menu opening and the dashboard's first load on it once a session, and an
+    action's `opens` for Run setup again (PAGES §4.6.10's dated note). Page data minor 23. And WHY§705's point:
+    `check:space --increment 0.3` welcomes EldenNet's space at its own increment, so the browser check's 0.2 stand-in
+    goes at the next pin. For EldenNet's First light when it is built.
 
 ### S11.3 EldenNet v0.2
 

@@ -914,6 +914,13 @@ a later version (O41, EldenNet DESIGN §13); v1 is dialogue only and never write
   optional prepared lines → text size (G6) and the browser view (its address, and the switch to turn it off; G4) →
   done, with a checklist and "Open Docs › Getting started". It opens at the title screen on first run (in the browser
   too, if the player opens the dashboard first), and again from Home › Setup and Settings.
+  *2026-11-28 (GraceUI D278, 0.2.71):* First light is a flow page outside the rail: its steps are the flow's tabs, its
+  state topic EldenNet's ({step, done, blocked, start}), each step's Back, Skip, Next and Done EldenNet's step command.
+  GraceUI never opens the menu by itself, so on first run the menu opens on it at its next opening (and the
+  dashboard at its first load), once a session, with `start` set; EldenNet invites the player with a notice of its own
+  (words for the owner when built) and clears `start` at Done. "Run setup again" is EldenNet's reset action whose
+  `opens` names the flow. The flow homes no setting: its steps show EldenNet's settings as shortcut rows, and GraceUI's
+  own text size and browser view by Related links.
 - **Modals**: the Forget confirmations, Reset page or Reset all, key capture, the Workshop spoiler confirmation, and
   from 1.1 the plugins-stopped pop-up (D105).
 - **Search** (GraceUI §4.3) is a modal scope over the page.
