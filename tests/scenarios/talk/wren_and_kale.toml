@@ -1,0 +1,126 @@
+# MEM §2.8's worked example as an acceptance test, in the eval runner's TOML (Q6: the design's name, the runner's form;
+# it lives beside the pilot's other scenarios to share pilot-overrides). The fixture character is Wren; Kalé keeps
+# shop and the test persona stands 12 m away, a synthetic placement, so that it overhears. This commit runs the steps
+# that need no memory job (v0.3's next commits add the journal's): A's chat and its audiences, B's native talk as a
+# second meeting, E's strike, a reload that refolds the facts from the file, and H's NG+, which starts the next
+# journey's facts. Our own scenario, invented data. Run: eldennet-engine eval <this file> --llm mock.
+schema = 1
+name = "wren_and_kale"
+persona = "kale"
+overrides = "pilot-overrides"
+mock = "wren_and_kale.mock.toml"
+store = true
+character = "Wren"
+
+[world]
+param = 81200
+distance_m = 2.5
+bearing_deg = 4.0
+clock = [19, 0]
+subtitles = true
+flags = "fresh"
+
+[[world.extra]]
+param = 81100
+distance_m = 12.0
+bearing_deg = 40.0
+
+[[step]]
+do = "expect"
+mode = "open"
+fact = { persona = "kale", key = "met_count", value = "<none>" }
+
+# A: three lines with Kalé; the Lantern-Keeper overhears all six.
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "Evening. I'm Wren."
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "say"
+text = "I mean to take the castle on the cliffs."
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "say"
+text = "What do you sell?"
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "wait"
+ms = 1000
+
+[[step]]
+do = "expect"
+player_lines = 3
+npc_lines = 3
+fact = { persona = "kale", key = "met_count", value = "1" }
+
+[[step]]
+do = "expect"
+audience = { kind = "PlayerSaid", persona = "kale", how = "direct", count = 3 }
+
+[[step]]
+do = "expect"
+audience = { kind = "NpcSaid", persona = "lantern_keeper", how = "overheard", count = 3 }
+
+[[step]]
+do = "expect"
+audience = { kind = "PlayerSaid", persona = "lantern_keeper", how = "overheard", count = 3 }
+
+[[step]]
+do = "expect"
+fact = { persona = "lantern_keeper", key = "met_count", value = "<none>" }
+
+# B: fifteen minutes later, the game's own talk with Kalé: a second meeting (past the 10 min merge window).
+[[step]]
+do = "wait"
+ms = 900000
+
+[[step]]
+do = "native_talk"
+ms = 4000
+
+[[step]]
+do = "expect"
+fact = { persona = "kale", key = "met_count", value = "2" }
+
+# E: the Tarnished strikes Kalé.
+[[step]]
+do = "strike"
+
+[[step]]
+do = "expect"
+fact = { persona = "kale", key = "times_attacked", value = "1" }
+
+# A reload: the facts come back from the file's log.
+[[step]]
+do = "reload"
+
+[[step]]
+do = "expect"
+mode = "open"
+fact = { persona = "kale", key = "met_count", value = "2" }
+
+# H: NG+ starts the next journey; nothing of the first is this journey's.
+[[step]]
+do = "ng_plus"
+
+[[step]]
+do = "expect"
+fact = { persona = "kale", key = "met_count", value = "<none>" }

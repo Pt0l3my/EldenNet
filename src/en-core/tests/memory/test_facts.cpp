@@ -71,8 +71,8 @@ TEST_CASE("facts: seen, attacked, fought beside, the Tarnished's falls, and anot
   (void)fold_fact(f, event(1, "PersonaSeen", kMin), How::Direct);
   (void)fold_fact(f, event(2, "PersonaSeen", 2 * kMin), How::Direct);
   CHECK(value(f, fact::kSeenCount) == "2");
-  proto::StoredEvent hit = event(3, "PersonaAttacked", 3 * kMin, "player", R"({"via":"HpDrop"})");
-  hit.object = "persona:kale";
+  proto::StoredEvent hit = event(3, "PersonaAttacked", 3 * kMin, "persona:kale", R"({"via":"HpDrop"})");
+  hit.object = "player";
   (void)fold_fact(f, hit, How::Direct);
   CHECK(value(f, fact::kTimesAttacked) == "1");
   CHECK(value(f, fact::kLastAttackedPt) == std::to_string(3 * kMin));
@@ -139,10 +139,7 @@ TEST_CASE("facts: the live fold and the recomputation agree (seeded random event
         payload = rng() % 2 ? R"({"cue":"item1"})" : R"({"cue":null})";
       }
       proto::StoredEvent e = event(id, kind, t, kind == "PlayerDied" ? "player" : "persona:" + who, payload);
-      if (kind == "PersonaAttacked") {
-        e.subject = "player";
-        e.object = "persona:" + who;
-      }
+      if (kind == "PersonaAttacked") e.object = "player";
       for (const std::string& p : personas) {
         if (rng() % 3 == 0) continue;
         const How how = hows[rng() % hows.size()];

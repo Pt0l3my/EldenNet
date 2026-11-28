@@ -168,7 +168,7 @@ std::vector<std::string> fold_fact(PersonaFacts& facts, const StoredEvent& ev, H
       meeting(f, ev, payload_of(ev));
     } else if (ev.kind == "PersonaSeen" && ev.subject == self) {
       f.add(fact::kSeenCount);
-    } else if (ev.kind == "PersonaAttacked" && ev.object == self) {
+    } else if (ev.kind == "PersonaAttacked" && ev.subject == self) {  // the victim; the Tarnished is the object
       f.add(fact::kTimesAttacked);
       f.set(fact::kLastAttackedPt, ev.t_play_ms);
     } else if (ev.kind == "FoughtBeside" && ev.subject == self) {

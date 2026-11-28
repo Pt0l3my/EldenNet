@@ -373,6 +373,19 @@ world's frame in its first sentence regenerated once with block 11's reminder; t
 and the persona's deflection) and `lantern-long-reply` (the reply's second sentence fills it past the word cap, and the
 stream is cancelled while it streams).
 
+**Memory** (v0.3; MEM §2.8, §3.8, §9; Q6: the design's names, the runner's TOML). `store = true` runs the core against
+en-store's StoreCore on a temporary folder of the run's own (removed after it), the account attached, each step's store
+requests answered in order, each answer the core's next input, as T9 would. `character` names the Tarnished (invented),
+and `[[world.extra]]` places more invented characters after the partner. The steps: `native_talk` (the game's own talk
+with the partner), `strike` (the Tarnished's blow), `ng_plus`, `reload` (the title, then a new session's core and store
+thread on the same file), `kill` (the process dies: nothing closed or flushed), `load` (an older save at `pt`), `choose`
+(the rollback's answer), `wait_jobs` (nothing to wait for until the memory job) and `move` with `who`; and `expect`'s
+`mode`, `fact` (the journey's, as the core folds it) and `audience` (the events of a kind a persona perceived so, read
+through en-store's own query). `wren_and_kale` runs MEM §2.8's steps that need no memory job yet (A's chat and its
+audiences, B's native talk as a second meeting, E's strike, a reload refolding the facts from the file, H's NG+), and
+`older_save` a hard kill mid-conversation (the next session ends it as crashed, a meeting) and an older save an hour
+back, whose choice refuses named chat with its toast until Forget takes back what came after.
+
 **The speech tap** (`lib/speech_tap.hpp`; WHY§410). The core runs the eval's own speech parts (`Core(SpeechParts)`):
 part A's sanitizer, lint and pager over the content's lexicon, each wrapped, so that every reply attempt the
 conversation opens is recorded with its context (the sanitizer's names, the lint's context, the word cap) and counted:

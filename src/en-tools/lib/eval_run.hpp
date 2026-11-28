@@ -37,6 +37,27 @@
 //   prompt_has = ["As things stand now:"]    # texts the last dialogue request's messages hold, or lack
 //   name_prefixes = 0                        # also: the reply attempts so far whose "Name:" step 5 took
 //
+// Memory (v0.3; MEM §2.8, §9): `store = true` runs the core against en-store's StoreCore on a temporary folder of the
+// run's own (removed after), the account attached, each step's store requests answered in order as T9 would. Then:
+//
+//   character = "Wren"                       # the Tarnished's invented name (default "Vessel")
+//   [[world.extra]]                          # more invented characters near the Tarnished, after the partner
+//   param = 81100
+//   distance_m = 12.0
+//   [[step]]
+//   do = "native_talk"                       # the game's own talk with the partner for `ms` (default 3000)
+//   do = "strike"                            # the Tarnished strikes the partner once
+//   do = "ng_plus"                           # the journey's next cycle (ng_lvl + 1)
+//   do = "reload"                            # back to the title, then the same save again: a new session's core
+//   do = "kill"                              # the process dies: the core and the store's thread are dropped unflushed
+//   do = "load"                              # an older save of the same character, at `pt` ms of play
+//   do = "choose"                            # the answer to the rollback choice: forget | keep | new
+//   do = "wait_jobs"                         # until the memory jobs have run (none yet: v0.3's next commits)
+//   do = "move"                              # `who` = 0 the partner (default), n the n-th extra
+//   do = "expect"                            # and: mode (the store's: off, opening, choice, open, down),
+//   fact = { persona = "kale", key = "met_count", value = "1" }      # "<none>" when unset
+//   audience = { kind = "PlayerSaid", persona = "kale", how = "direct", count = 3 }
+//
 // A `flags` step (`flags = "after_radahn"`) changes the world's flag state from the next snapshot on: the scenario's
 // overrides give a catalogue whose aliases a `ci:` record verifies (the eval's realm alone), so the core asks for them
 // (SetWatchFlags) and the runner answers each fourth snapshot with a FlagFrame of the state's aliases, as the game task
@@ -66,7 +87,25 @@
 namespace en::tools {
 
 struct EvalStep {
-  enum class Kind : std::uint8_t { Open, Say, Wait, Esc, Skip, Move, Expect, Flags, Restart };
+  enum class Kind : std::uint8_t {
+    Open,
+    Say,
+    Wait,
+    Esc,
+    Skip,
+    Move,
+    Expect,
+    Flags,
+    Restart,
+    NativeTalk,
+    Strike,
+    NgPlus,
+    Reload,
+    Kill,
+    Load,
+    Choose,
+    WaitJobs,
+  };
   Kind kind = Kind::Wait;
   std::size_t line = 0;
   std::string text;                 // Say
@@ -79,6 +118,19 @@ struct EvalStep {
   std::optional<std::size_t> name_prefixes;           // the run's so far: attempts whose "Name:" step 5 took
   std::vector<std::string> prompt_has, prompt_lacks;  // Expect: in the last dialogue request's messages, or not
   std::string flags;                                  // Flags: a fixture flag state's name
+  std::size_t who = 0;                                // Move: 0 the partner, n the n-th extra
+  std::int64_t pt = 0;                                // Load: the older save's play time, ms
+  std::string choice;                                 // Choose: forget | keep | new
+  std::optional<std::string> mode;                    // Expect: the store's mode
+  struct Fact {
+    std::string persona, key, value;
+  };
+  struct Audience {
+    std::string kind, persona, how;
+    std::size_t count = 0;
+  };
+  std::optional<Fact> fact;          // Expect: the journey's fact, as the core holds it
+  std::optional<Audience> audience;  // Expect: the events of a kind the persona perceived so, in the file
 };
 
 struct EvalScenario {
@@ -92,6 +144,13 @@ struct EvalScenario {
   std::uint8_t clock_h = 12, clock_m = 0;
   bool subtitles = true;
   std::optional<std::string> flags;  // the fixture flag state the world starts in
+  bool store = false;                 // the core against en-store on a temporary folder
+  std::string character = "Vessel";   // the Tarnished's name, invented
+  struct Extra {
+    std::uint32_t param = 0;
+    float distance_m = 0, bearing_deg = 0;
+  };
+  std::vector<Extra> extras;
   std::vector<EvalStep> steps;
 };
 

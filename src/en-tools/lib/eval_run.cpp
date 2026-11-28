@@ -7,13 +7,18 @@
 #include <fstream>
 #include <map>
 #include <memory>
+#include <random>
 #include <sstream>
 #include <variant>
 
 #include <toml.hpp>
 
+#include "en/augur/audience.hpp"
 #include "en/core/core.hpp"
+#include "en/core/facts.hpp"
 #include "en/core/speech_content.hpp"
+#include "en/store/playthrough.hpp"
+#include "en/store/store.hpp"
 #include "en/proto/toml_check.hpp"
 #include "golden_run.hpp"
 #include "prompt_fixture.hpp"  // find_flag_state
@@ -38,8 +43,9 @@ bool inside(const fs::path& p) {
   return true;
 }
 
-constexpr std::array<std::string_view, 9> kStepKinds = {"open", "say",    "wait",  "esc",    "skip",
-                                                        "move", "expect", "flags", "restart"};
+constexpr std::array<std::string_view, 17> kStepKinds = {
+    "open",        "say",    "wait",    "esc",    "skip", "move", "expect", "flags",    "restart",
+    "native_talk", "strike", "ng_plus", "reload", "kill", "load", "choose", "wait_jobs"};
 
 }  // namespace
 
@@ -53,7 +59,8 @@ proto::Expected<EvalScenario, std::string> parse_eval_scenario(std::string_view 
                              ": not valid TOML: " + std::string(parsed.error().description())};
   }
   const toml::table& root = parsed.table();
-  constexpr std::array<std::string_view, 8> kTop = {"schema", "name", "persona", "overrides", "mock", "recorded", "world", "step"};
+  constexpr std::array<std::string_view, 10> kTop = {"schema", "name",     "persona", "overrides", "mock",
+                                                     "recorded", "world", "step",    "store",     "character"};
   for (auto&& [k, v] : root) {
     if (std::find(kTop.begin(), kTop.end(), k.str()) == kTop.end()) return proto::Unexpected{at(v, "an unknown key")};
   }
@@ -63,6 +70,9 @@ proto::Expected<EvalScenario, std::string> parse_eval_scenario(std::string_view 
   s.name = root["name"].value_or(std::string());
   s.persona = root["persona"].value_or(std::string());
   if (s.name.empty() || s.persona.empty()) return proto::Unexpected{std::string("name and persona are needed")};
+  s.store = root["store"].value_or(false);
+  s.character = root["character"].value_or(std::string("Vessel"));
+  if (s.character.empty() || s.character.size() > 16) return proto::Unexpected{std::string("character: 1 to 16 bytes")};
   for (const char* key : {"overrides", "mock", "recorded"}) {
     if (const auto v = root[key].value<std::string>()) {
       if (!inside(fs::path(*v))) return proto::Unexpected{std::string(key) + " must be a path inside the scenario's folder"};
@@ -73,7 +83,8 @@ proto::Expected<EvalScenario, std::string> parse_eval_scenario(std::string_view 
     }
   }
   if (const toml::table* w = root["world"].as_table()) {
-    constexpr std::array<std::string_view, 6> kWorld = {"param", "distance_m", "bearing_deg", "clock", "subtitles", "flags"};
+    constexpr std::array<std::string_view, 7> kWorld = {"param", "distance_m", "bearing_deg", "clock",
+                                                        "subtitles", "flags", "extra"};
     for (auto&& [k, v] : *w) {
       if (std::find(kWorld.begin(), kWorld.end(), k.str()) == kWorld.end()) return proto::Unexpected{at(v, "world: an unknown key")};
     }
@@ -82,6 +93,20 @@ proto::Expected<EvalScenario, std::string> parse_eval_scenario(std::string_view 
     s.bearing_deg = static_cast<float>((*w)["bearing_deg"].value_or(0.0));
     s.subtitles = (*w)["subtitles"].value_or(true);
     if (const auto f = (*w)["flags"].value<std::string>()) s.flags = *f;
+    if (const toml::array* ex = (*w)["extra"].as_array()) {
+      if (!ex->is_array_of_tables() || ex->size() > 8) {
+        return proto::Unexpected{std::string("world.extra: at most 8 tables")};
+      }
+      for (const toml::node& n : *ex) {
+        const toml::table& e = *n.as_table();
+        EvalScenario::Extra x;
+        x.param = static_cast<std::uint32_t>(e["param"].value_or(std::int64_t{0}));
+        x.distance_m = static_cast<float>(e["distance_m"].value_or(10.0));
+        x.bearing_deg = static_cast<float>(e["bearing_deg"].value_or(0.0));
+        if (x.param == 0) return proto::Unexpected{at(e, "world.extra: param is needed")};
+        s.extras.push_back(x);
+      }
+    }
     if (const toml::array* c = (*w)["clock"].as_array(); c != nullptr && c->size() == 2) {
       s.clock_h = static_cast<std::uint8_t>((*c)[0].value_or(std::int64_t{12}) % 24);
       s.clock_m = static_cast<std::uint8_t>((*c)[1].value_or(std::int64_t{0}) % 60);
@@ -90,11 +115,12 @@ proto::Expected<EvalScenario, std::string> parse_eval_scenario(std::string_view 
   if (s.param == 0) return proto::Unexpected{std::string("world.param, the persona's invented row, is needed")};
   const toml::array* steps = root["step"].as_array();
   if (steps == nullptr || !steps->is_array_of_tables()) return proto::Unexpected{std::string("the scenario needs [[step]]s")};
-  constexpr std::array<std::string_view, 21> kStep = {"do",           "text",     "ms",          "distance_m",
-                                                      "state",        "box",      "ended",       "last_npc",
-                                                      "toast",        "npc_lines", "player_lines", "failures",
-                                                      "deflections",  "regenerations", "cancels", "note", "at",
-                                                      "flags",        "prompt_has", "prompt_lacks", "name_prefixes"};
+  constexpr std::array<std::string_view, 27> kStep = {
+      "do",       "text",          "ms",           "distance_m",  "state",    "box",    "ended",
+      "last_npc", "toast",         "npc_lines",    "player_lines", "failures", "deflections",
+      "regenerations", "cancels",  "note",         "at",          "flags",    "prompt_has",
+      "prompt_lacks",  "name_prefixes", "who",     "pt",          "choice",   "mode",   "fact",
+      "audience"};
   for (std::size_t i = 0; i < steps->size(); ++i) {
     const toml::table& t = *steps->get(i)->as_table();
     const std::string where = "step[" + std::to_string(i) + "]";
@@ -107,7 +133,8 @@ proto::Expected<EvalScenario, std::string> parse_eval_scenario(std::string_view 
     const auto k = std::find(kStepKinds.begin(), kStepKinds.end(), kind);
     if (k == kStepKinds.end()) {
       return proto::Unexpected{
-          at(t, where + ".do: must be one of open, say, wait, esc, skip, move, expect, flags, restart")};
+          at(t, where + ".do: must be one of open, say, wait, esc, skip, move, expect, flags, restart, native_talk, "
+                        "strike, ng_plus, reload, kill, load, choose, wait_jobs")};
     }
     st.kind = static_cast<EvalStep::Kind>(k - kStepKinds.begin());
     st.text = t["text"].value_or(std::string());
@@ -133,6 +160,32 @@ proto::Expected<EvalScenario, std::string> parse_eval_scenario(std::string_view 
       }
     }
     if (st.kind == EvalStep::Kind::Say && st.text.empty()) return proto::Unexpected{at(t, where + ": say needs a text")};
+    st.who = static_cast<std::size_t>(std::max<std::int64_t>(0, t["who"].value_or(std::int64_t{0})));
+    if (st.who > s.extras.size()) return proto::Unexpected{at(t, where + ".who: no such extra")};
+    st.pt = std::max<std::int64_t>(0, t["pt"].value_or(std::int64_t{0}));
+    if (st.kind == EvalStep::Kind::Load && st.pt == 0) return proto::Unexpected{at(t, where + ": load needs a pt")};
+    st.choice = t["choice"].value_or(std::string());
+    if (st.kind == EvalStep::Kind::Choose && st.choice != "forget" && st.choice != "keep" && st.choice != "new") {
+      return proto::Unexpected{at(t, where + ".choice: must be forget, keep or new")};
+    }
+    if (st.kind == EvalStep::Kind::NativeTalk && st.ms == 0) st.ms = 3000;
+    if (const auto m = t["mode"].value<std::string>()) st.mode = *m;
+    if (const toml::table* f = t["fact"].as_table()) {
+      st.fact = EvalStep::Fact{(*f)["persona"].value_or(std::string()), (*f)["key"].value_or(std::string()),
+                               (*f)["value"].value_or(std::string())};
+      if (st.fact->persona.empty() || st.fact->key.empty()) {
+        return proto::Unexpected{at(t, where + ".fact: persona and key are needed")};
+      }
+    }
+    if (const toml::table* a = t["audience"].as_table()) {
+      st.audience = EvalStep::Audience{(*a)["kind"].value_or(std::string()), (*a)["persona"].value_or(std::string()),
+                                       (*a)["how"].value_or(std::string()),
+                                       static_cast<std::size_t>(std::max<std::int64_t>(0, (*a)["count"].value_or(
+                                                                                          std::int64_t{0})))};
+      if (st.audience->kind.empty() || st.audience->persona.empty() || !proto::how_from(st.audience->how)) {
+        return proto::Unexpected{at(t, where + ".audience: kind, persona and how (direct, overheard, witnessed)")};
+      }
+    }
     st.flags = t["flags"].value_or(std::string());
     if (st.kind == EvalStep::Kind::Flags && st.flags.empty()) return proto::Unexpected{at(t, where + ": flags needs a state's name")};
     for (const char* key : {"prompt_has", "prompt_lacks"}) {
@@ -176,6 +229,43 @@ namespace {
 
 constexpr proto::ChrHandle kPlayer{1};
 constexpr proto::ChrHandle kPartner{0x500};
+constexpr std::uint64_t kEvalAccount = 76561190000000009ull;  // invented
+
+const char* mode_word(core::StorePath::Mode m) {
+  switch (m) {
+    case core::StorePath::Mode::Off:
+      return "off";
+    case core::StorePath::Mode::Opening:
+      return "opening";
+    case core::StorePath::Mode::Choice:
+      return "choice";
+    case core::StorePath::Mode::Open:
+      return "open";
+    case core::StorePath::Mode::Down:
+      return "down";
+  }
+  return "off";
+}
+
+// The run's own folder for the store, removed after it.
+class RunFolder {
+ public:
+  RunFolder() {
+    std::random_device rd;
+    path_ = fs::temp_directory_path() / ("en-eval-store-" + std::to_string(rd()) + "-" + std::to_string(rd()));
+    fs::create_directories(path_);
+  }
+  ~RunFolder() {
+    std::error_code ec;
+    fs::remove_all(path_, ec);
+  }
+  RunFolder(const RunFolder&) = delete;
+  RunFolder& operator=(const RunFolder&) = delete;
+  [[nodiscard]] const fs::path& path() const { return path_; }
+
+ private:
+  fs::path path_;
+};
 
 class Runner {
  public:
@@ -202,6 +292,12 @@ class Runner {
     auto speech = core::load_speech(*pack);
     if (!speech) return proto::Unexpected{"the content does not load: " + core::describe(speech.error().front())};
     tap_ = std::make_unique<SpeechTap>(speech->lint, speech->prompt);
+    if (s_.store) {
+      folder_ = std::make_unique<RunFolder>();
+      new_store();
+    }
+    extra_dist_.clear();
+    for (const EvalScenario::Extra& x : s_.extras) extra_dist_.push_back(x.distance_m);
     if (auto loaded = fresh_core(); !loaded.empty()) return proto::Unexpected{std::move(loaded)};
     if (s_.flags) {
       auto f = flag_state(*s_.flags);
@@ -248,6 +344,24 @@ class Runner {
         if (auto booted = boot(); !booted.empty()) return proto::Unexpected{std::move(booted)};
         continue;
       }
+      if (st.kind == EvalStep::Kind::Reload || st.kind == EvalStep::Kind::Kill || st.kind == EvalStep::Kind::Load) {
+        if (!store_) {
+          run_.failed.push_back("line " + std::to_string(st.line) + ": needs store = true");
+          continue;
+        }
+        if (st.kind != EvalStep::Kind::Kill) to_title();  // a kill closes nothing: the file is left as it was
+        if (st.kind == EvalStep::Kind::Load) {
+          pt_base_ = st.pt;  // the same character, an older save: the core opens the same file
+          t_base_ = t_;
+        } else {
+          new_store();
+          if (auto loaded = fresh_core(); !loaded.empty()) return proto::Unexpected{std::move(loaded)};
+          pt_base_ = static_cast<proto::Pt>(play_ms());  // the save as it was left
+          t_base_ = t_;
+        }
+        if (auto booted = boot(); !booted.empty()) return proto::Unexpected{std::move(booted)};
+        continue;
+      }
       do_step(st);
     }
     finish();
@@ -276,15 +390,39 @@ class Runner {
     return {};
   }
 
+  // A store thread of the session's own on the run's folder (T9 is the process's: a reload or a kill starts another).
+  void new_store() {
+    store_.reset();
+    store::StoreCfg c;
+    c.saves = folder_->path() / "saves";
+    c.build = "eval";
+    store_ = std::make_unique<store::StoreCore>(std::move(c));
+  }
+
+  // The play time the snapshots carry: the save's, from when it was loaded.
+  [[nodiscard]] std::uint64_t play_ms() const { return static_cast<std::uint64_t>(pt_base_ + (t_ - t_base_)); }
+
+  // Back to the title, as the game shows it: the core closes the playthrough's file.
+  void to_title() {
+    t_ += 250;
+    proto::WorldSnapshot s = snapshot();
+    s.life.main_player = false;
+    s.life.screen = proto::Screen::Title;
+    s.player.reset();
+    s.chars.clear();
+    feed(core::CoreInput{std::make_unique<proto::WorldSnapshot>(std::move(s))});
+  }
+
   // Boot: T1 ready, a healthy model, a playthrough, and the world until the gate has held and the observer allows.
   std::string boot() {
     const Mono from = t_;
     feed(core::CoreInput{proto::Lifecycle{proto::Lifecycle::DataReady{proto::BuildKey{0}, all_caps()}}});
     feed(core::CoreInput{proto::NetHealth{true}});
+    if (store_) feed(core::CoreInput{core::CoreInput::Account{kEvalAccount}});
     proto::Lifecycle::PlaythroughReady p;
     p.slot = 2;
-    (void)p.name.try_assign("Vessel");  // invented; it stays in the core
-    p.play_time_ms = 600000;
+    (void)p.name.try_assign(s_.character);  // invented; it stays in the core
+    p.play_time_ms = static_cast<std::uint64_t>(pt_base_);
     feed(core::CoreInput{proto::Lifecycle{p}});
     while (!(core_->state().phase == core::Phase::InWorld && core_->state().gate_open)) {
       if (t_ - from > 30000) return "the world never became ready";
@@ -345,24 +483,43 @@ class Runner {
     proto::Player p;
     p.handle = kPlayer;
     p.save_slot = 2;
-    p.play_time_ms = 600000 + t_;
+    p.play_time_ms = play_ms();
+    p.ng_lvl = ng_;
     p.hp = proto::Meter{420, 420};
     s.player = p;
+    if (talk_until_ && t_ < *talk_until_) s.ui.popup_talk_id = 1;
     s.clock = proto::Clock{s_.clock_h, s_.clock_m};
     proto::Chr c;
     c.handle = kPartner;
     c.param = s_.param;
     c.dist_m = distance_;
     c.bearing_deg = s_.bearing_deg;
-    c.hp = proto::Meter{100, 100};
+    c.hp = proto::Meter{partner_hp_, 100};
     c.on_screen = true;
+    if (strike_ && *strike_ == seq_) c.last_hit_by = kPlayer;
     (void)s.chars.try_push_back(c);
+    for (std::size_t i = 0; i < s_.extras.size(); ++i) {
+      proto::Chr x;
+      x.handle = proto::ChrHandle{0x601 + i};
+      x.param = s_.extras[i].param;
+      x.dist_m = extra_dist_[i];
+      x.bearing_deg = s_.extras[i].bearing_deg;
+      x.hp = proto::Meter{100, 100};
+      x.on_screen = true;
+      (void)s.chars.try_push_back(x);
+    }
     return s;
   }
 
   void feed(core::CoreInput in) {
     const core::Outputs o = core_->step(std::move(in), t_);
     absorb(o);
+    // The store's thread, answering each request in order as it arrives (T9); each answer is the core's next input.
+    if (store_ && !o.db.empty()) {
+      std::vector<proto::DbResult> answers;
+      for (const proto::DbRequest& r : o.db) answers.push_back(store_->handle(r));
+      for (proto::DbResult& r : answers) feed(core::CoreInput{std::move(r)});
+    }
     // The attempts the conversation opened in this step belong to the line in flight: the newest, its PlayerSaid
     // committed in this step or before.
     for (; seen_attempts_ < tap_->attempts().size(); ++seen_attempts_) {
@@ -508,7 +665,38 @@ class Runner {
         if (ui_.page && ui_.page->kind == proto::PageKind::Speech) ui(proto::UiEvent{proto::UiEvent::Skip{ui_.page->id}});
         return;
       case EvalStep::Kind::Move:
-        distance_ = st.distance_m;
+        if (st.who == 0) {
+          distance_ = st.distance_m;
+        } else {
+          extra_dist_[st.who - 1] = st.distance_m;
+        }
+        return;
+      case EvalStep::Kind::NativeTalk:
+        talk_until_ = t_ + st.ms;
+        advance(st.ms + 1000);
+        talk_until_.reset();
+        return;
+      case EvalStep::Kind::Strike:
+        partner_hp_ = partner_hp_ > 10 ? partner_hp_ - 10 : 1;
+        strike_ = seq_ + 1;
+        advance(1000);
+        return;
+      case EvalStep::Kind::NgPlus:
+        ++ng_;
+        advance(1000);
+        return;
+      case EvalStep::Kind::Reload:
+      case EvalStep::Kind::Kill:
+      case EvalStep::Kind::Load:  // run() starts what follows: the title, a fresh core or store, the boot
+        return;
+      case EvalStep::Kind::Choose:
+        feed(core::CoreInput{core::CoreInput::MemoryChoice{st.choice == "keep"  ? proto::db::Choice::Keep
+                                                           : st.choice == "new" ? proto::db::Choice::NewCharacter
+                                                                                : proto::db::Choice::Forget}});
+        advance(500);
+        return;
+      case EvalStep::Kind::WaitJobs:  // no memory job before v0.3's next commits: nothing to wait for
+        advance(250);
         return;
       case EvalStep::Kind::Expect:
         expect(st);
@@ -560,6 +748,31 @@ class Runner {
       check(st, "regenerations", std::to_string(n), std::to_string(*st.regenerations));
     }
     if (st.cancels) check(st, "cancels", std::to_string(run_.cancels), std::to_string(*st.cancels));
+    if (st.mode) check(st, "mode", mode_word(core_->store().mode()), *st.mode);
+    if (st.fact) {
+      const auto& facts = core_->store().facts();
+      const auto it = facts.find(st.fact->persona);
+      const proto::FactRow* row = it != facts.end() ? core::find_fact(it->second, st.fact->key) : nullptr;
+      check(st, ("fact " + st.fact->persona + "." + st.fact->key).c_str(), row != nullptr ? row->value : "<none>",
+            st.fact->value);
+    }
+    if (st.audience) {
+      const store::Playthrough* pt = store_ ? store_->playthrough() : nullptr;
+      if (pt == nullptr) {
+        run_.failed.push_back("line " + std::to_string(st.line) + ": audience: no file is open");
+      } else {
+        const std::uint16_t journey = core_->store().journey();
+        std::size_t n = 0;
+        if (auto seen = store::events::seen_by(pt->db, journey, st.audience->persona, 0, std::nullopt)) {
+          for (const proto::StoredEvent& e : *seen) {
+            const auto v = augur::visible_to(e, st.audience->persona, augur::VisCtx{journey});
+            if (e.kind == st.audience->kind && v && proto::to_string(v->how) == st.audience->how) ++n;
+          }
+        }
+        check(st, ("audience " + st.audience->kind + " " + st.audience->persona).c_str(), std::to_string(n),
+              std::to_string(st.audience->count));
+      }
+    }
     if (st.name_prefixes) {
       std::size_t n = 0;
       for (const TapAttempt& a : tap_->attempts()) n += a.counts.name_prefixes();
@@ -615,6 +828,16 @@ class Runner {
   std::string flags_name_;                                  // its fixture's name
   std::string last_prompt_;                                 // the last dialogue request's messages, for prompt_has
   std::map<std::pair<proto::ConvId, proto::ReplyId>, std::size_t> replies_;
+  // Memory (store = true): the run's folder, before the store that keeps its file open.
+  std::unique_ptr<RunFolder> folder_;
+  std::unique_ptr<store::StoreCore> store_;
+  proto::Pt pt_base_ = 600000;  // the save's play time when loaded
+  Mono t_base_ = 0;
+  std::uint8_t ng_ = 0;
+  std::optional<Mono> talk_until_;      // a native talk with the partner until then
+  std::optional<std::uint64_t> strike_;  // the snapshot on which the Tarnished's blow lands
+  std::uint32_t partner_hp_ = 100;
+  std::vector<float> extra_dist_;
 };
 
 }  // namespace

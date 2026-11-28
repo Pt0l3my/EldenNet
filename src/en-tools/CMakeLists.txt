@@ -3,7 +3,7 @@
 file(GLOB EN_TOOLS_LIB_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/lib/*.cpp)
 add_library(en_tools_scn STATIC ${EN_TOOLS_LIB_SOURCES})
 target_include_directories(en_tools_scn PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/lib)
-target_link_libraries(en_tools_scn PUBLIC en_core en_shell en_gal en_llm)  # en_llm: X1's messages and sampling
+target_link_libraries(en_tools_scn PUBLIC en_core en_shell en_gal en_llm en_store)  # en_llm: X1's messages and sampling
 file(GLOB EN_TOOLS_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 add_executable(eldennet-engine ${EN_TOOLS_SOURCES})
 target_link_libraries(eldennet-engine PRIVATE en_prompt en_llm en_gal en_shell en_tools_scn)  # en_shell: the lint's recording vocabulary

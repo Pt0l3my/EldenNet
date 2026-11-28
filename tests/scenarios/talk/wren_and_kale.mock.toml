@@ -1,0 +1,17 @@
+# The scripted model for wren_and_kale.toml (mockllm): invented replies in our own words, one per request.
+schema = 1
+
+[[reply]]
+text = "Evening, Wren. Mind the step, the church floor has opinions."
+first_token_ms = 700
+chunk_ms = 40
+
+[[reply]]
+text = "The castle? Bold. Buy a lantern first, and maybe a prayer."
+first_token_ms = 700
+chunk_ms = 40
+
+[[reply]]
+text = "Rope, lamp oil, a few charms that mostly work. Take a look."
+first_token_ms = 700
+chunk_ms = 40

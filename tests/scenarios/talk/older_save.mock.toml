@@ -1,0 +1,12 @@
+# The scripted model for older_save.toml (mockllm): an invented reply in our own words.
+schema = 1
+
+[[reply]]
+text = "It keeps me as I keep it. Mind the wick."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "Always. It is the one thing here that does as it is told."
+first_token_ms = 600
+chunk_ms = 40

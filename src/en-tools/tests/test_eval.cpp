@@ -203,7 +203,37 @@ TEST_CASE("eval: a scenario's errors") {
   const auto bad = parse_eval_scenario(
       "schema = 1\nname = \"x\"\npersona = \"p\"\n[world]\nparam = 5\n[[step]]\ndo = \"dance\"\n", ".");
   REQUIRE_FALSE(bad.has_value());
-  CHECK(bad.error() == "line 6: step[0].do: must be one of open, say, wait, esc, skip, move, expect, flags, restart");
+  CHECK(bad.error() == "line 6: step[0].do: must be one of open, say, wait, esc, skip, move, expect, flags, restart, "
+                       "native_talk, strike, ng_plus, reload, kill, load, choose, wait_jobs");
+  // The memory steps' own (v0.3): a choice, a load's pt, an extra that is not there, an audience's how.
+  const std::string head = "schema = 1\nname = \"x\"\npersona = \"p\"\nstore = true\n[world]\nparam = 5\n";
+  const auto choice = parse_eval_scenario(head + "[[step]]\ndo = \"choose\"\nchoice = \"maybe\"\n", ".");
+  REQUIRE_FALSE(choice.has_value());
+  CHECK(choice.error() == "line 7: step[0].choice: must be forget, keep or new");
+  CHECK(parse_eval_scenario(head + "[[step]]\ndo = \"load\"\n", ".").error() == "line 7: step[0]: load needs a pt");
+  CHECK(parse_eval_scenario(head + "[[step]]\ndo = \"move\"\nwho = 1\n", ".").error() ==
+        "line 7: step[0].who: no such extra");
+  CHECK(parse_eval_scenario(head + "[[step]]\ndo = \"expect\"\naudience = { kind = \"NpcSaid\", persona = "
+                                   "\"kale\", how = \"seen\" }\n",
+                            ".")
+            .error() == "line 7: step[0].audience: kind, persona and how (direct, overheard, witnessed)");
+  const auto ok = parse_eval_scenario(head + "character = \"Wren\"\n[[world.extra]]\nparam = 9\n[[step]]\n"
+                                             "do = \"expect\"\nfact = { persona = \"kale\", key = \"met_count\", "
+                                             "value = \"1\" }\n",
+                                      ".");
+  CHECK_FALSE(ok.has_value());  // `character` belongs before [world]: inside it, an unknown key
+  const auto good = parse_eval_scenario("schema = 1\nname = \"x\"\npersona = \"p\"\nstore = true\ncharacter = "
+                                        "\"Wren\"\n[world]\nparam = 5\n[[world.extra]]\nparam = 9\n[[step]]\n"
+                                        "do = \"expect\"\nfact = { persona = \"kale\", key = \"met_count\", "
+                                        "value = \"1\" }\n",
+                                        ".");
+  REQUIRE(good.has_value());
+  CHECK(good->store);
+  CHECK(good->character == "Wren");
+  REQUIRE(good->extras.size() == 1);
+  CHECK(good->extras[0].param == 9);
+  REQUIRE(good->steps[0].fact.has_value());
+  CHECK(good->steps[0].fact->value == "1");
   const auto no_state =
       parse_eval_scenario("schema = 1\nname = \"x\"\npersona = \"p\"\n[world]\nparam = 5\n[[step]]\ndo = \"flags\"\n", ".");
   REQUIRE_FALSE(no_state.has_value());
