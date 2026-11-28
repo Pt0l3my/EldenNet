@@ -10334,6 +10334,10 @@ GraceUI D254, D274, engine 889f763
   are read; then the talk and skip keys are chosen from keys free in the field and the menus alike.
 - *Later (2026-11-28):* the owner never noticed the change: their save predates patch 1.12 and kept the old
   layout. So players have either layout, and the talk and skip keys must be free in both.
+- *Later (2026-11-28):* the plan, put to the owner (who asked about Z, which steps through equipment slots in the
+  menus as T sorts): EldenNet hands its talk and skip keys back to the game while a game menu is open, since nobody
+  talks then, so a key is chosen by the field alone, in both layouts. Asked of GraceUI: suspending a consumer's own
+  hotkey (its mask following); EldenNet's side waits on reading the game's menu screen (Lodestar's next target).
 
 ### 707. The focus and the stamina beside the health
 
