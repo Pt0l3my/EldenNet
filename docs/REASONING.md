@@ -733,6 +733,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 708 | 2026-11-28 | The clock's minute and the play time confirmed; the hour waits for both readings | FACT | #lodestar #l6 #gal |
 | 709 | 2026-11-28 | A long exclusive scan starved the shared searches | METHOD | #lodestar #tests |
 | 710 | 2026-11-28 | "Rose by one, once" needs the thing done once | METHOD | #lodestar |
+| 711 | 2026-11-28 | The basics checked against the wiki: what was stale, disputed or missing | METHOD | #research #launcher #memory #input |
 
 ## Entries
 
@@ -10390,3 +10391,34 @@ GraceUI D254, D274, engine 889f763
   no field qualified. The rule that survives a repeat is "every change a rise by one". A round's tasks must not say a
   repeat does no harm unless its rules bear it. `save_data.death_count` at 0x94 is entered as a lead: the scan dropped
   it as text beside its neighbour, and the watch saw it change once, a rise.
+
+### 711. The basics checked against the wiki: what was stale, disputed or missing
+
+`2026-11-28` · METHOD · `#research` `#launcher` `#memory` `#input` · refs: WHY§277, WHY§706, ER01, ER04, MEM§9, O144
+
+- (METHOD) The owner asked which basic facts of the game we had never checked. 62 that the design leans on were held
+  against the Fextralife wiki (its pages named in the audit; our own words), each marked confirmed, wrong, stale,
+  disputed, unverified in our documents or missing.
+- **Stale:** patch 1.12 (Steam) made the map's key rebindable, so WHY§277's "G and Esc cannot be rebound" no longer
+  holds for G; no key of the game's may be assumed fixed, and the talk and skip keys are checked against the player's
+  bindings (WHY§706).
+- **Disputed, and a safety matter:** our sources say anti-cheat off keeps the game offline (ER01's table, item 30); the
+  wiki says it does not by itself, and that playing online with modified files risks a ban of the whole Steam account.
+  S0-C is to prove the game offline after EldenNet's start, and the launcher's warning is to name the account.
+- **The save's name:** the wiki writes `ERS0000.sl2`, we `ER0000.sl2` (FACT, SaveForge); the wiki is likely wrong, but a
+  backup that copies one exact name would copy nothing silently. The launcher's backup is to copy every `*.sl2`, `*.bak`
+  and `*.co2` in the save folder and warn when it finds none. The folder, the `.bak`, Proton's path and the Steam Cloud
+  caveat are confirmed. O144's premise (autosave, one save a character) rests on the owner's word; the ten slots on
+  SaveForge alone.
+- **Confirmed:** a new journey resets questlines, story progress and found Sites of Grace (MEM§9.4's and ER04§4.3's
+  SPECULATION lifted), keeps the map, is offered after the credits or later at the Table of Lost Grace, and scaling
+  stops at journey 8; Shadow of the Erdtree adds a one-time "DLC+" step after its last boss.
+- **Missing:** Arabic, a right-to-left language, is a game language since 1.12, and Dear ImGui does no right-to-left
+  shaping, so names read from an Arabic install would show broken (support, or a stated fallback, before v1.0); patch
+  1.17 lets the mouse turn the camera during the game's own talk and makes the key settings' reset restore the post-1.12
+  defaults; after a death the player may revive at a Stake of Marika rather than a grace; some quests end when Rykard or
+  Radahn is killed, and quest steps advance at a rest or a reload of the area. The Tarnished Pack's two invaders (the
+  Noble Broken Mask in Leyndell before it turns to ash, Knight Leontiel after Radahn) are owed bios under O43, marked
+  as the pack's.
+- *Correction (Engine, 2026-11-28):* the Engine told the owner the same day that our documents never mention the
+  Tarnished Pack; ER01 and others do. The search that said so had cut its own output short.

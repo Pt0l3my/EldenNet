@@ -1300,7 +1300,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
-  - refs: DESIGN§3, ARCH§4, ARCH§5, O5
+  - refs: DESIGN§3, ARCH§4, ARCH§5, O5, WHY§711
+  - gives: noted on 2026-11-28 (WHY§711): S0-C proves the game offline after EldenNet's start, since the wiki says
+    anti-cheat off does not by itself keep it offline; the launcher's warning names the ban risk to the whole Steam
+    account; the save backup copies every `*.sl2`, `*.bak` and `*.co2` in the save folder and warns when it finds none.
 - b The game-access layer: discovery, layouts, guarded reads, the eleven read groups, the degradation ladder
   - refs: DESIGN§4, ARCH§6, O3, O27
 - c The reader (EldenNet's own thread since O101; the game-thread task before), the world snapshot, and Augur, the event engine, with golden files
@@ -2640,6 +2643,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - c A bio for every named NPC and named boss of the base game, every binding verified or the bio held with its reason
   - needs: S15.1.d
   - refs: DESIGN§7.8, O43
+  - gives: noted on 2026-11-28 (WHY§711): the Tarnished Pack's two invaders are owed bios too, marked as the pack's.
+- d Names in a right-to-left language: Arabic installs (a game language since patch 1.12), supported or with a stated fallback
+  - refs: WHY§711
 
 ### S16.2 GraceUI 1.0
 
