@@ -61,6 +61,7 @@ struct PhaseScan::Impl {
   };
   struct Summary {
     std::uint32_t passes = 0, absent = 0, phase = 0, copied = 0;
+    std::array<std::uint32_t, kPhases> copies_by{}, once_by{};
     std::array<Told, kMaxPatterns> patterns{};
     std::array<TargetTold, kMaxTargets> targets{};
   };
@@ -78,6 +79,7 @@ struct PhaseScan::Impl {
   std::uint32_t read_now = 0;
   std::uint64_t next_due_us = 0;
   std::uint32_t passes = 0, absent = 0;
+  std::array<std::uint32_t, kPhases> copies_by{}, once_by{};
   std::atomic<std::uint32_t> marks{0};
   std::atomic<std::uint64_t> mark_us{0};
   mutable std::mutex mutex;
@@ -139,6 +141,7 @@ struct PhaseScan::Impl {
     if (k.seen[slot] != 0xFF) ++k.seen[slot];
     k.bytes = k.bytes == 0 ? bytes : std::min(k.bytes, bytes);
     ++k.copies;
+    ++(k.t.once ? once_by : copies_by)[phase_now];
   }
 
   // Whether the pattern can be tried on the target: of its group, and copied in every phase the pattern names.
@@ -244,6 +247,8 @@ struct PhaseScan::Impl {
     s.passes = passes;
     s.absent = absent;
     s.phase = phase_now;
+    s.copies_by = copies_by;
+    s.once_by = once_by;
     s.copied = 0;
     for (std::size_t i = 0; i < kept.size(); ++i) {
       const Kept& k = kept[i];
@@ -392,6 +397,8 @@ PhaseFound PhaseScan::found() const {
   out.phase = s.phase;
   out.targets_total = static_cast<std::uint32_t>(m.kept.size());
   out.targets_copied = s.copied;
+  out.copies_by.assign(s.copies_by.begin(), s.copies_by.end());
+  out.once_by.assign(s.once_by.begin(), s.once_by.end());
   // The targets told: the named ones that were copied (a static with a number, the player, its parts), and any
   // with a hit. A hit's `target` is its place in this list.
   std::vector<std::uint32_t> place(m.kept.size(), ~0u);

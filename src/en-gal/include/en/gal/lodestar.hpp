@@ -843,7 +843,7 @@ struct WorldAt {
   std::uint32_t near_all = 0; // the near list's elements
 };
 struct WorldRead {
-  static constexpr std::size_t kSpans = 12;  // before the first mark, then after each of eleven
+  static constexpr std::size_t kSpans = 16;  // before the first mark, then after each of fifteen
   std::uint32_t lacks = 0;          // the parts the layout does not bind (ErBackend::WorldAlone's bits); 0: none
   std::uint64_t calls = 0;          // frames asked for
   std::uint64_t state_frames = 0;   // in which the game's state's object was there
@@ -1076,9 +1076,29 @@ struct PhaseFound {
   std::uint32_t phase = 0;
   std::uint32_t targets_total = 0;
   std::uint32_t targets_copied = 0;
+  std::vector<std::uint32_t> copies_by;  // by phase: copies folded in, of the targets copied at every pass
+  std::vector<std::uint32_t> once_by;    //   and of those copied once a phase
   std::vector<PhaseTarget> targets;  // those copied once at least and named by the round (a static with a number,
                                      // the player, its parts), and any target with a hit
   std::vector<PhasePatternFound> patterns;
+};
+
+// What the round itself cost, and how the game's window stands (the twenty-second round; the engine's and
+// GraceUI's questions, with the owner's word, O151). EldenNet's own: the megabytes the DLL holds on its heap and
+// its reader thread's time on the processor. Of the window: its kind and whether a display scale is on, as flags;
+// no size of it or of the screen.
+struct CostFound {
+  std::uint32_t own_mb_start = 0;   // the DLL's own heap, in MB, when the round began
+  std::uint32_t own_mb_most = 0;
+  std::uint32_t own_mb_end = 0;     // at this report
+  std::uint64_t reader_cpu_ms = 0;  // the reader thread's time on the processor so far
+  std::uint64_t session_s = 0;      // since the round began
+};
+struct WindowFound {
+  bool seen = false;                // the game's window was found
+  std::uint32_t mode = 0;           // 0 a window with a frame, 1 one that fills its monitor with no frame
+                                    // (borderless or fullscreen: no telling without the swap chain), 2 another
+  bool dpi_scaled = false;          // the window's display scale is above 100%
 };
 
 struct Found {
@@ -1106,6 +1126,8 @@ struct Found {
   std::optional<SurveyFound> survey;
   std::optional<SheetFound> sheet;
   std::optional<PhaseFound> phases;
+  std::optional<CostFound> cost;
+  std::optional<WindowFound> window;
   std::vector<InvariantFound> invariants;
 };
 

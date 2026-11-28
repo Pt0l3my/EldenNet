@@ -19,6 +19,10 @@ namespace eldennet {
 namespace {
 constinit thread_local bool t_armed = false;
 constinit std::atomic<std::uint64_t> g_news{0};
+// The bytes the DLL holds on its heap now (the twenty-second read-only round: what EldenNet itself costs in memory,
+// S10.3.a): each block's size as the heap gives it, added as it is allocated and taken off as it is freed. A
+// relaxed count: no lock of ours, and nothing allocated.
+constinit std::atomic<std::uint64_t> g_live{0};
 constinit std::atomic<HANDLE> g_heap{nullptr};
 
 // Our heap, made at the first allocation (no static initialiser, nothing under the loader lock: DllMain allocates
@@ -39,16 +43,23 @@ std::uint64_t number(const void* p) noexcept {
   return n;
 }
 
+void* counted(void* block) noexcept {
+  if (block != nullptr) {
+    const SIZE_T held = HeapSize(heap(), 0, block);
+    if (held != static_cast<SIZE_T>(-1)) g_live.fetch_add(held, std::memory_order_relaxed);
+  }
+  return block;
+}
 void* allocate(std::size_t size) noexcept {
   if (t_armed) g_news.fetch_add(1, std::memory_order_relaxed);
-  return HeapAlloc(heap(), 0, size == 0 ? 1 : size);
+  return counted(HeapAlloc(heap(), 0, size == 0 ? 1 : size));
 }
 void* allocate(std::size_t size, std::align_val_t a) noexcept {
   if (t_armed) g_news.fetch_add(1, std::memory_order_relaxed);
   const auto align = static_cast<std::size_t>(a);
-  if (align <= 16) return HeapAlloc(heap(), 0, size == 0 ? 1 : size);
+  if (align <= 16) return counted(HeapAlloc(heap(), 0, size == 0 ? 1 : size));
   if (size > SIZE_MAX - align - sizeof(void*)) return nullptr;
-  void* raw = HeapAlloc(heap(), 0, size + align + sizeof(void*));
+  void* raw = counted(HeapAlloc(heap(), 0, size + align + sizeof(void*)));
   if (raw == nullptr) return nullptr;
   const std::uint64_t at = number(raw);
   const std::uint64_t aligned = (at + sizeof(void*) + align - 1) & ~static_cast<std::uint64_t>(align - 1);
@@ -57,7 +68,10 @@ void* allocate(std::size_t size, std::align_val_t a) noexcept {
   return out;
 }
 void release(void* p) noexcept {
-  if (p != nullptr) HeapFree(heap(), 0, p);
+  if (p == nullptr) return;
+  const SIZE_T held = HeapSize(heap(), 0, p);
+  if (held != static_cast<SIZE_T>(-1)) g_live.fetch_sub(held, std::memory_order_relaxed);
+  HeapFree(heap(), 0, p);
 }
 void release(void* p, std::align_val_t a) noexcept {
   if (p == nullptr) return;
@@ -75,6 +89,7 @@ P* or_throw(P* p) {
 
 void arm_allocation_watch(bool armed) noexcept { t_armed = armed; }
 std::uint64_t allocations_watched() noexcept { return g_news.load(std::memory_order_relaxed); }
+std::uint64_t own_bytes() noexcept { return g_live.load(std::memory_order_relaxed); }
 
 }  // namespace eldennet
 

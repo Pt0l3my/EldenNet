@@ -986,10 +986,14 @@ constexpr auto kKeys = std::to_array<Key>({
     U("sheet_other"), U("sheet_none"), U("vitals_seen"), U("fp_ok"), U("fp_none"), U("fp_changed"),
     U("stamina_ok"), U("stamina_none"), U("stamina_changed"),
     // The scan by phases (in game): where a field or a bit fits a pattern of the tester's phases; no value.
-    O("phase_scan"), U("targets_total"), U("targets_copied"), AO("phase_targets"), W("target_is", kPhaseTarget),
+    O("phase_scan"), U("targets_total"), U("targets_copied"), AU("phase_copies"), AU("phase_once"),
+    AO("phase_targets"), W("target_is", kPhaseTarget),
     U("part_word"), U("group"), U("copied_times"), U("phases_seen"), AO("patterns"), W("phase_pattern", kPhasePattern),
     U("tried_on"), U("whole_fits"), U("bit_fits"), AO("fits"), U("target_at"), B("whole_field"), B("one_bit"),
     B("off_zero"), B("on_small"),
+    // What the round itself cost and how the game's window stands: EldenNet's own figures and two flags.
+    O("cost"), U("own_mb_start"), U("own_mb_most"), U("own_mb_end"), U("reader_cpu_ms"), U("session_s"),
+    O("game_window"), B("window_seen"), U("window_mode"), B("dpi_scaled"),
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
@@ -2097,6 +2101,8 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     w.number("phase", f.phase);
     w.number("targets_total", f.targets_total);
     w.number("targets_copied", f.targets_copied);
+    numbers(w, "phase_copies", f.copies_by);
+    numbers(w, "phase_once", f.once_by);
     w.begin_array("phase_targets");
     for (const PhaseTarget& t : f.targets) {
       w.begin_object();
@@ -2134,6 +2140,23 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.end_object();
     }
     w.end_array();
+    w.end_object();
+  }
+
+  if (found.cost) {
+    w.begin_object("cost");
+    w.number("own_mb_start", found.cost->own_mb_start);
+    w.number("own_mb_most", found.cost->own_mb_most);
+    w.number("own_mb_end", found.cost->own_mb_end);
+    w.number("reader_cpu_ms", found.cost->reader_cpu_ms);
+    w.number("session_s", found.cost->session_s);
+    w.end_object();
+  }
+  if (found.window) {
+    w.begin_object("game_window");
+    w.boolean("window_seen", found.window->seen);
+    w.number("window_mode", found.window->mode);
+    w.boolean("dpi_scaled", found.window->dpi_scaled);
     w.end_object();
   }
 
