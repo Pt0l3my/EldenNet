@@ -724,6 +724,10 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 699 | 2026-11-28 | The memory job, as built | DECIDED | #engine #memory |
 | 700 | 2026-11-28 | The lived layer, as built, with what it holds back | DECIDED | #engine #memory |
 | 701 | 2026-11-28 | Steam's floating keyboard through the loaded steam_api64.dll's flat exports | FACT | #graceui |
+| 702 | 2026-11-28 | GraceUI pinned at 0.2.68, and why no fade needed a wait | FACT | #engine #graceui |
+| 703 | 2026-11-28 | The store in the DLL: T9, the account folder, the spill ring | DECIDED | #engine #dll #memory |
+| 704 | 2026-11-28 | The rollback panel, as built | DECIDED | #engine #overlay #memory |
+| 705 | 2026-11-28 | The memory pages, as built | DECIDED | #engine #pages #memory |
 
 ## Entries
 
@@ -10226,3 +10230,75 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   grep in an untrusted folder, never run; Steam's own pages were not reachable from GraceUI's session.
 - Whether it shows over the game, reaches the field and keeps the window's focus is for S4's pad rows on testers'
   machines. EldenNet's chat box will open it through a GraceUI ABI slot, not by calling Steam itself.
+
+### 702. GraceUI pinned at 0.2.68, and why no fade needed a wait
+
+`2026-11-28` · FACT · `#engine` `#graceui` · refs: GraceUI D270, D271, D272, D273, D274, D275, WHY§681, engine eb24874
+
+- Pinned at GraceUI main 7c26477 (0.2.68; protocol 1.21; ABI 1.9), taking 0.2.63 to 0.2.68 together. Of the vendored
+  headers only `graceui_test.h` changed; of the lint's pinned files `build.py`, `protocol.toml` and the demo space.
+- D271 and D272 fade GraceUI's menu and its page body only. Every pixel probe of the fake game reads EldenNet's own
+  panels (F11's view, the lower third, the box), which GraceUI does not fade, so no case needed a wait or Reduce motion.
+- D273 lets the Plain text case read `plain_text` before the menu first opens. D270 and D275 change nothing for
+  EldenNet. No golden changed.
+- The pin commit uses nothing of protocol 1.21, so its floor stayed 0.2.57; the pages commit raised it (WHY§705).
+
+### 703. The store in the DLL: T9, the account folder, the spill ring
+
+`2026-11-28` · DECIDED · `#engine` `#dll` `#memory` · refs: MEM§1.1, MEM§8.2, MEM§8.6, ARCH§1.2, WHY§195, engine 2fafe96
+
+- T6 starts T9 at its own start (`Store::spawn` on EldenNet's saves folder, kept for the process, R14) and drains C8's
+  answers each wake, before the tick.
+- MEM §8.2 runs over a listing (en_shell's `steamid.hpp`, tested on Linux): 17-digit folders; one is taken; of several,
+  the one with the newest save file; a save changed since the game's process started wins; none, or several with no
+  save, is no account, and memory is off for the session with one toast. It runs at T6's start and at each
+  PlaythroughReady. The SteamID is never logged (`account why=… folders=N`). The tests name a folder of their own
+  through a switch that only a probe build reads; the release DLL refuses it in its log.
+- MEM §8.2's "recorded in meta and in diag" is the log line alone for now: v0.3 has no diag file, and a meta row waits.
+- The spill ring: 4,096 requests, 256 of them for speech; only an event's append may go unsaved, since dropping one of
+  the store's own requests (open, rows, jobs, queries) would undo what follows. Behind, the core toasts once and holds
+  the reply's pages as a hidden overlay does (30 s, then dropped unshown), so a line shown is never lost.
+- `imports.allow` gains SQLite's Windows VFS and std::filesystem's imports, each reviewed: EldenNet's own files and this
+  process only, no network, hook or other process.
+- **Found by the fake game:** the Tarnished's lines were stored with no audience row when the Tarnished's block did not
+  match the partner's, so the next conversation's prompt lost them. The addressee of speech now always hears it
+  directly (MEM §1.1), whatever the blocks read.
+
+### 704. The rollback panel, as built
+
+`2026-11-28` · DECIDED · `#engine` `#overlay` `#memory` · refs: MEM§9.1, O144, WHY§690, GraceUI D77, engine 2fafe96
+
+- The core makes the panel from the store's summary: the save's play time and journey against the file's, up to eight
+  items after the cut (who by the content's name, else "someone you know"; when, in play time), the quest stages
+  undone (whose story, never a stage id), the counts, and the three answers explained; "Forget what came after" is
+  focused, and nothing answers by itself.
+- "Where" waits for runtime place names (S7's catalogue): the summary carries place ids, and the bullets say who and
+  when.
+- It comes up only while the moment is calm (a world, not loading, the safe context's clauses without the ladder's).
+  Closed with no answer (danger, a load, the player's exit, refused input), it comes back 10 s later at a calm moment,
+  or at once at the talk key. Each showing has a new id, and an answer naming a stale one is no answer.
+- en-overlay draws it centred on GraceUI's modal layer, its panel made at first use, holding input as
+  GRACEUI_HOLDER_MODAL; EldenNet moves its own focus (arrows, Tab, the D-pad), Enter or A answers, Esc and B do nothing.
+  The log says `choice what=shown|focus|answer|closed`, never its words.
+
+### 705. The memory pages, as built
+
+`2026-11-28` · DECIDED · `#engine` `#pages` `#memory` · refs: PAGES§4.6.1, PAGES§4.6.4, PAGES§4.6.5, PAGES§4.8,
+GraceUI D254, D274, engine 889f763
+
+- Increment 0.3: Characters › Playthrough, History › Conversations and History › Memories, Home's Nearby, and the top
+  bar's Journey as the space's scope. Conversation and journal topics are private (D274). Row keys: a conversation's id
+  as digits; a member as `<journey>.<persona>`.
+- The data come from the store's page queries, sent by the DLL under sequence numbers of its own and routed aside from
+  the core's answers; read at open, after each forget, at a conversation's end and every 5 s. A transcript is read only
+  while a view watches it.
+- Forget (`memory.forget_npc`, `memory.forget_journey`) waits 1 s before its second press counts
+  (`confirm_after_ms = 1000`), is sensitive (this PC alone), and is refused unless the journey is the open one and no
+  conversation is open. The core alone writes the store: a backup first (MEM §9.5), then the forget, then it drops what
+  it held of it.
+- Left out: Memories' tiles and its `features.memory` switch, since a page with a master list has no page-level blocks
+  and the behaviour pages are not in v0.3. "Fell" needs the Tarnished to have perceived the body; a death not seen reads
+  "Alive when last met" (SP7). Story lines, Related, Has heard of, Since you last spoke and World now wait for 0.5.
+- The floor rises to GraceUI 0.2.67 and page data minor 21 (`confirm_after_ms`, private topics).
+- GraceUI 0.2.68's `check:space` welcomes every space at increment 0.2, so the browser check marks EldenNet's 0.3 pages
+  as 0.2 in its copy of `pages.json`; a flag there would remove the stand-in (sent to Grace).

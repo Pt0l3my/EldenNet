@@ -2995,3 +2995,39 @@ just be postponed until it can be implemented as fully functional (or at least c
 (2026-11-27).
 
 **Follows from.** DESIGN §16.2; O145.
+
+## O148
+
+**v0.3's words, as built** · *2026-11-28 · Decided by the owner*
+
+**Question.** v0.3 adds words a player reads: the memory messages, the panel shown when an older save is loaded
+(O144), the pages Characters › Playthrough, History › Conversations and History › Memories with Forget, Home's
+Nearby, the top bar's Journey, and the bundled Docs' sections on memory (WHY§703 to §705). Approve them as built, or
+change them? **Options:**
+- (a) As built, with four changes: the panel's title "An older save"; the status word "Fallen" for "Fell"; the bullet
+  "A memory {who} wrote, at {h:mm} of play."; and the backups' times in the PC's own time ("27 November 2026, 14:05")
+  rather than UTC. **Recommended.**
+- (b) As built, without the changes.
+- (c) The owner's own changes.
+**Decision.** (a), the same day: the words as built (the review file put to the owner, listed by where they show), with
+the four changes. The panel's "where" waits for runtime place names, as the review said.
+
+**Owner's words.** "With my 4 changes (Recommended)" (question dialog, 2026-11-28).
+
+**Follows from.** O144; O147; PAGES §4.6; MEM §9.1.
+
+## O149
+
+**Icons on the rail's categories** · *2026-11-28 · Decided by the owner*
+
+**Question.** GraceUI 0.2.70 lets a space name a line icon from GraceUI's own set for each category of the rail, drawn
+before its name in both views (GraceUI D277); all of a space's categories or none. **Options:**
+- (a) Grace's ten: Home home, AI spark, Voice voice, Characters people, Map map, History history, Behaviour sliders,
+  System pulse, Tools tools, Settings gear. **Recommended.**
+- (b) No icons: the rail stays as it is.
+- (c) Other icons from the set (grace, lamp, book, chat, cube, shield besides).
+**Decision.** (a), the same day: Grace's ten, taken at the pin of GraceUI 0.2.70, with page data minor 22.
+
+**Owner's words.** "Grace's ten (Recommended)" (question dialog, 2026-11-28).
+
+**Follows from.** GraceUI D277; roadmap S11.2.cd.

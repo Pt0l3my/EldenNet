@@ -116,13 +116,13 @@ and a line counts as said only once you have seen it.
 ### Memory of you and of each other
 
 - tag: Memory
-- design: DESIGN§10.2, DESIGN§10.5, O45
+- design: DESIGN§10.2, DESIGN§10.5, O45, O144
 
 Every character with a profile keeps a short journal: who you are to them, and a handful of
 keepsakes about you and about the other characters they deal with. How they feel about you moves a
 little with each conversation and is shown in words, never as a number. Memories follow your save:
-loading an earlier one rolls them back with it, and each new cycle of the game starts a journey of
-its own.
+loading an earlier one rolls them back with it, asking you first when something that matters would
+be forgotten, and each new cycle of the game starts a journey of its own.
 
 ### Character profiles and the roster
 
