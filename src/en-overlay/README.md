@@ -9,9 +9,10 @@ moved it to GraceUI 0.2.5's ABI 1.2 (§19, §23, §24, §26 to §29, §33, §34 
 C; WHY§364) adds EldenNet's own surfaces on GraceUI 0.2.20's ABI 1.5 (§31, §33, §47 to §50): the lower third, the chat
 box, the hint and the toasts. Later increments add the call-out box (v0.6) and the rest of its pages.
 
-It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at fc2205a, GraceUI
-0.2.62, ABI 1.9, protocol 1.20, whose uploads and on_present it does not use; its floor, 0.2.57, for Workshop's pc_only
-marks (D264), which an older GraceUI does not read, with 0.2.56's Copy (D263), 0.2.55's Logs' Level filter with its own
+It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 7c26477, GraceUI
+0.2.68, ABI 1.9, protocol 1.21, whose uploads and on_present it does not use; its floor, 0.2.67, for the memory pages'
+Forget that waits 1 s and their private topics (D274), with 0.2.57's pc_only marks for Workshop (D264), which an older
+GraceUI does not read, 0.2.56's Copy (D263), 0.2.55's Logs' Level filter with its own
 choices (D262), 0.2.51's browser-only Workshop (D258), 0.2.50's filter bar on Logs' stream, 0.2.49's header switch, Docs' document block and Bug report's prose
 field and preview, the profile editor's families, slow commands, editor block and chosen row, on 0.2.17's wait handle;
 0.2.36's italic face where GraceUI's folder has it, 0.2.38's word for what pressed a hotkey and 0.2.61's Plain text
@@ -46,7 +47,7 @@ On T1, after WaitWindow (ARCH §3.2's Connect, and ConnectB on the banner path):
    GraceUI loaded before EldenNet is found by its name, and GraceUI installed in the game's folder but not yet loaded is
    loaded by EldenNet (and found by its name if a loader loads it later).
 2. **`Overlay::connect`** as `eldennet` (its id and its space's), display name `EldenNet`, its version, its GraceUI floor
-   (0.2.57, `en/proto/graceui_pin.hpp`) and the caps it uses: `notices world-state hotkeys`, and with the view
+   (0.2.67, `en/proto/graceui_pin.hpp`) and the caps it uses: `notices world-state hotkeys`, and with the view
    `panels textures`. The answers: `connected`; `notices_only` (inactive for the anti-cheat, with a handle: the banner
    through `notice` alone, D88); or a failed connect, `absent`, `too_old`, `duplicate_id`, `inactive` (the overlay
    could not start or turned itself off), `refused` or `not_yet`, which leave EldenNet headless (ARCH §10.3's "Overlay
@@ -520,7 +521,7 @@ table in PAGES' columns, a time not known left out; nothing published without fa
 path or SteamID in any frame of either), and in the Linux builds the five fixture states'
 `tests/pages/<state>/topics.json` (EN_UPDATE_FIXTURES=1 writes them anew). In the
 Windows builds, under Wine, the connection against a fake GraceUI of our own (`tests/fake_grace.hpp`; graceui-sys has no
-C mock): ABI 1.9's table, answering as GraceUI 0.2.62 answers and checking as it checks (connect's answers, notices
+C mock): ABI 1.9's table, answering as GraceUI 0.2.68 answers and checking as it checks (connect's answers, notices
 under keys, the registration window, hidden panels, hotkeys, poll's events by the event's size, the space's slots, and
 submit's draw-list checks: counts, bounds, ranges, indices, clip rectangles inside the panel, known textures, the
 stride). The cases: the space registered once for its views, or not without the cap or beside anti-cheat; watched

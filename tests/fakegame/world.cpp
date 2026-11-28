@@ -507,6 +507,7 @@ void world_create_singletons() {
   ledger->f.settings = make<FG::SettingsBlock>();
   ledger->f.settings->show_subtitles = 1;
   ledger->f.ng_level = 0;
+  ledger->f.play_time_ms = options().play_time_s * 1000u;  // --play-time-s: a later session of the save
   (void)fg_save_ledger_swap(ledger);
   auto* warden = make<FG::RunWardenImp>();
   warden->f.save_slot = options().slot_by_state ? -1 : 2;

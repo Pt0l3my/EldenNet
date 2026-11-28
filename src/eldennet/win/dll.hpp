@@ -229,6 +229,8 @@ struct Shell {
   bool ai_paused = false;
   // T6's: each step of the core, timed in µs (System › Performance's; en-gal's C13 histogram), T6 alone writing it.
   en::gal::Histogram core_us;
+  // T6's: the memory pages' forgets the space took (memory.cpp), for the core after overlay_tick.
+  std::vector<en::core::CoreInput::Forget> forgets_asked;
 };
 // The one Shell, made on T1 (never destroyed), or null before.
 [[nodiscard]] Shell* shell() noexcept;
@@ -333,6 +335,30 @@ bool content_tick(Shell& s, en::core::Core& core) noexcept;
 // T6, after each step of the core: its requests submitted, its cancels made, its commits and its ending logged as
 // words and numbers.
 void conversation_out(Shell& s, en::core::Outputs& out) noexcept;
+
+// ---- The store (store.cpp; ARCH §1.2's T9, §1.3's C8; MEM §8.2, §8.6) ----
+// T6 at its start: T9 started on <data>\saves (kept for the process, R14), and the account looked for (store_account).
+void store_start(Shell& s, std::vector<en::core::CoreInput>& to_core) noexcept;
+// T6, at its start and at each PlaythroughReady: MEM §8.2's account, for the core when it changed (never logged).
+void store_account(Shell& s, std::vector<en::core::CoreInput>& to_core) noexcept;
+// T6, each wake: T9's answers in order, each logged by its kind and numbers, for the core.
+void store_poll(Shell& s, std::vector<en::proto::DbResult>& out) noexcept;
+// T6, after each step: the core's requests (Outputs::db) through the spill ring; `requests` is emptied.
+void store_send(Shell& s, std::vector<en::proto::DbRequest>& requests) noexcept;
+// T6, each wake: the spill ring drained into C8, and its state for the core when it changed.
+[[nodiscard]] std::optional<en::core::CoreInput::StoreBacklog> store_backlog(Shell& s) noexcept;
+// T6, every 10 s: the store's counts in one log line.
+void store_status() noexcept;
+
+// ---- The memory pages (memory.cpp; S12.2.a, S12.2.b; PAGES §4.6.1, §4.6.4, §4.6.5) ----
+// T6, each wake before the space's step: the pages' facts from the core, and the store read again when due.
+void memory_tick(Shell& s, const en::core::Core& core, std::uint64_t now) noexcept;
+// T6: one of T9's answers to the pages' own queries (kPageSeq up), taken into the facts; false for the core's.
+bool memory_result(Shell& s, const en::core::Core& core, en::proto::DbResult& r) noexcept;
+// T6, after the space's step: its forgets for the core (Shell::forgets_asked) and its transcripts for T9.
+void memory_requests(Shell& s, en::overlay::Space& space) noexcept;
+// T6: the pages' facts, or null before the first tick.
+[[nodiscard]] const en::overlay::MemoryFacts* memory_facts() noexcept;
 
 // ---- The profile editor (profiles.cpp; S7.2.b, NPC §4.7) ----
 // The draft helper's request ids, below the conversation's (en-core's kConversationRequests): ai_pump hands their

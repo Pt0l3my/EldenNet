@@ -496,7 +496,21 @@ the conversation part B's (above); the core holds both.
   than 200 MB of disk is free: EldenNet may stop saving memories."; and `memory_off_text(cause)`, "Memory is off for
   this session: " with "its file is in use by another program.", "the disk is full.", "its file is damaged. The newest
   backup will be used next time.", "its file was made by a newer EldenNet." or "its file could not be read or
-  written.".
+  written."; and since slice 3 `kMemoryBehind` "Memory is behind; recent events are not being saved." and `kNoAccount`
+  "Memory is off for this session: no Elden Ring save folder was found.".
+- **The shell's part** (slice 3): `CoreInput::Account{0}` says the shell found no account (MEM §8.2 step 4), toasted
+  once at the first playthrough; `CoreInput::StoreBacklog{behind, pages_held}` is the spill ring's state, `behind`
+  toasting as it turns on and `pages_held` holding the reply's pages as a hidden overlay does (§5.8's 30 s), so a shown
+  line is never lost; `present()` names the personas perceived in the newest snapshot (the pages' Nearby).
+- **The rollback choice's panel** (`choice.hpp`; MEM §9.1, O144, WHY§690): UiModel's `choice` while the store waits
+  and the moment is calm (`Conversation::calm`: a world, not loading, safe_context's clauses but the ladder's), in our
+  words from the summary (the save's play time and journey against the file's, up to eight items after the cut by who
+  and when, the stages undone by whose story, the counts, the answers explained) and the three answers, Forget first.
+  `UiEvent::Choose` with the panel's id resolves it; `ChoiceClosed` (danger, a load, the player's exit, refused input)
+  takes it down until 10 s of calm have passed, or the talk key asks again. There is no answer of the core's own.
+- **Forget** (`CoreInput::Forget`; MEM §9.5; PAGES §4.6.5): from the pages' one command path, refused unless the file
+  is open on that journey and no conversation is open (`can_forget`); the store path sends it at once (a backup
+  first, in en-store) and drops its facts, bundles, open jobs and news for the persona, or for the whole journey.
 
 ## Tests
 

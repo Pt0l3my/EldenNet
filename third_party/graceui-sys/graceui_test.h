@@ -273,6 +273,11 @@ GRACEUI_API uint32_t GraceUI_Test_GetInputCosts(uint32_t kind, uint32_t* out, ui
  * GraceUI_RequestApi only; null keeps the real name. */
 GRACEUI_API void GraceUI_Test_SetAntiCheatNames(const wchar_t* module_prefix, const wchar_t* parent_name);
 
+/* Steam's floating keyboard (D275) is looked for in this module instead of steam_api64.dll: the harness's stand-in,
+ * which exports the flat API's names and records its calls, so that no file of the harness bears Steam's name. Before
+ * a pad's first text field; null keeps Steam's name. */
+GRACEUI_API void GraceUI_Test_SetSteamModule(const wchar_t* module_name);
+
 typedef struct GraceUiTestNotice {
   uint32_t size;          /* set by the caller to sizeof(GraceUiTestNotice) */
   uint32_t owner;         /* 0: GraceUI's own; else the mod's number (GraceUiTestConsumer.owner) */
@@ -362,6 +367,14 @@ typedef struct GraceUiTestMenu {
   /* Appended for Plain text in game (D267): */
   uint32_t plain_text;  /* 1 while the menu draws its serif and display roles in Noto Sans (ui.menu.plain_text) */
   uint32_t plain_baked; /* 1 if Plain text's own faces were baked at warm-up; 0, the nearest sans bakes serve it */
+  /* Appended for the menu's fades (D271): */
+  uint32_t fade_in_frames;  /* frames the menu gave the present thread to draw fading in, since the first warm-up */
+  uint32_t fade_out_frames; /* and fading out after a close by the player, holding no input (0 alpha_milli after) */
+  uint32_t alpha_milli;     /* the alpha of the last frame that drew it, in thousandths (1000: whole; at least 1
+                               while drawn, 0 once nothing is); with a page's body fading in (D272), the body's times
+                               the menu's */
+  /* Appended for the page body's fade (D272): */
+  uint32_t body_fade_frames; /* frames the present thread drew with a new page's body fading in */
 } GraceUiTestMenu;
 
 /* Fills *out as far as out->size reaches (a caller built against an older header gets the fields it knows); answers 1,

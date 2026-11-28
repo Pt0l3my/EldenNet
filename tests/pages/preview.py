@@ -49,6 +49,10 @@ import browser  # noqa: E402
 # the lines' tile alone and each section's own words) and over the world (a conversation's lines, the 90th percentile
 # over its target, a line waiting, two with no page).
 # Tools › Workshop has no golden: it is in the browser alone (GraceUI D258), so its dump is refused in every state.
+# The memory pages (PAGES §4.6.4, §4.6.5; S12.2): Characters › Playthrough, History › Conversations and History ›
+# Memories over the title (greyed: "Load a character to see this.") and over the world, where the file holds two
+# journeys after NG+ (the spoiler goldens: the current, second journey in view, the first read only, and a person met
+# only on the first absent from the second's pages; the first row chosen: a conversation still open, its transcript).
 PAGES = (("home", "title"), ("system.status", "title"), ("system.logs", "title"), ("settings.developer", "title"),
          ("ai.providers", "title"), ("ai.models", "title"), ("ai.selftest", "title"), ("ai.selftest", "banner"),
          ("ai.providers", "starting"), ("home", "banner"), ("ai.providers", "world"), ("ai.models", "world"),
@@ -56,9 +60,11 @@ PAGES = (("home", "title"), ("system.status", "title"), ("system.logs", "title")
          ("content", "title"), ("content", "world"), ("content", "starting"), ("docs", "title"),
          ("tools.report", "title"), ("tools.report", "world"), ("ai.requests", "title"), ("ai.requests", "world"),
          ("home", "world"), ("system.performance", "title"), ("system.performance", "world"),
-         ("system.traces", "title"), ("system.traces", "world"))
+         ("system.traces", "title"), ("system.traces", "world"), ("characters.playthrough", "title"),
+         ("characters.playthrough", "world"), ("history.conversations", "title"), ("history.conversations", "world"),
+         ("history.memories", "title"), ("history.memories", "world"))
 SIZE = "1920x1080"
-INCREMENT = "0.2"  # en-overlay's kIncrement: the AI pages'
+INCREMENT = "0.3"  # en-overlay's kIncrement: the memory pages'
 
 
 def free_port():

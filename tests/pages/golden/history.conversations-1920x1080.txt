@@ -1,0 +1,70 @@
+# eldennet history.conversations: 1920x1080, ui.scale 1.25, scale 1.250, theme grace, the fake face, settings at their defaults
+fill    scrim           0,   0 1920x1080
+fill    ground.1        0,   0 1920x1080
+fill    ground.0        0,   0  300x1080
+text    gold           30,  30  114x35   glyphs 8 "EldenNet"
+text    ink.mute       30,  95   42x30   glyphs 4 "Home"
+line    rule           30, 135  240x1   
+text    ink.mute       30, 145   21x30   glyphs 2 "AI"
+line    rule           30, 185  240x1   
+text    ink.mute       30, 195  106x30   glyphs 10 "Characters"
+line    rule           30, 235  240x1   
+text    ink.hi         30, 245   74x30   glyphs 7 "History"
+fill    tint.select     0, 285  300x40  
+fill    gold            0, 285    3x40  
+text    gold.hi        50, 293  110x25   glyphs 13 "Conversations"
+text    ink.mute       50, 333   68x25   glyphs 8 "Memories"
+line    rule           30, 365  240x1   
+text    ink.mute       30, 375   64x30   glyphs 6 "System"
+line    rule           30, 415  240x1   
+text    ink.mute       30, 425   53x30   glyphs 5 "Tools"
+line    rule           30, 900  240x1   
+text    ink.mute       30, 910   85x30   glyphs 8 "Settings"
+line    rule           30, 950  240x1   
+text    ink.mute       30, 960   42x30   glyphs 4 "Docs"
+line    rule           30,1000  240x1   
+text    ink.mute       30,1010  138x30   glyphs 12 "Content packs"
+fill    ground.well   340,  10  350x35   r3
+text    ink.faint     353,  15   51x25   glyphs 6 "Search"
+text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
+fill    ground.well  1626,  10  148x35   r3
+text    ink.body     1641,  15  118x25   glyphs 13 "Quick switches"
+fill    ground.well  1471,  10  140x35   r3
+text    ink.body     1486,  15  110x25   glyphs 12 "Updates: Live"
+line    rule          300,  55 1620x1   
+text    ink.hi        340,  86  258x45   clip1 glyphs 13 "Conversations"
+text    ink.mute      340, 136  650x25   clip1 glyphs 63 "Every conversation you had with a named NPC on this journey, as it was shown."
+line    rule.strong   340, 176 1540x1    clip1
+diamond gold.deep     340, 171   11x11   w1 clip1
+fill    ground.3      340, 201 1540x55   r3 clip1
+fill    ember         340, 201    4x55   clip1
+text    ink.hi        360, 215  272x28   clip1 glyphs 24 "Load a character to see this."
+fill    ground.2      340, 276  524x105  r5 clip1
+stroke  rule          340, 276  524x105  r5 w1 clip1
+text    gold          365, 296  125x20   clip1 glyphs 13 "Conversations"
+text    ink.mute      365, 331  135x25   clip1 glyphs 14 "Nothing to show."
+fill    ground.2      894, 276  986x90   r5 clip1
+stroke  rule          894, 276  986x90   r5 w1 clip1
+text    ink.mute      919, 307  309x28   clip1 glyphs 28 "Choose a conversation to read it."
+fill    ground.2      894, 386  986x175  r5 clip1
+stroke  rule          894, 386  986x175  r5 w1 clip1
+text    gold          919, 406   67x20   clip1 glyphs 7 "Related"
+line    rule          919, 436  936x1    clip1
+text    ink.hi        934, 450   75x28   clip1 glyphs 8 "Memories"
+text    ink.mute     1231, 451  565x25   clip1 glyphs 55 "What each NPC with a profile remembers of this journey, and the means to make them forget."
+text    gold         1820, 450    9x28   clip1 glyphs 1 "→"
+line    rule          919, 491  936x1    clip1
+text    ink.hi        934, 505   94x28   clip1 glyphs 9 "Named NPCs"
+text    ink.mute     1231, 506  565x25   clip1 glyphs 56 "Every named character EldenNet voices: who they appear to be, and your own notes on them."
+text    gold         1820, 505    9x28   clip1 glyphs 1 "→"
+line    rule          300,1035 1620x1   
+fill    ground.well   340,1044   60x28   r3
+stroke  edge          340,1044   60x28   r3 w1
+text    ink.body      348,1046   44x25   glyphs 5 "Enter"
+text    ink.faint     407,1045   34x25   glyphs 4 "Open"
+fill    ground.well   466,1044   42x28   r3
+stroke  edge          466,1044   42x28   r3 w1
+text    ink.body      474,1046   26x25   glyphs 3 "Esc"
+text    ink.faint     515,1045   34x25   glyphs 4 "Back"
+stroke  gold.hi       916, 433  942x61   r5 w3 clip1
+# 68 items, 2416 vertices, 5394 indices, 4 commands; check_draw_list: passes

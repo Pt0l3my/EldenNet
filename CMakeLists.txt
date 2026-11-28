@@ -83,8 +83,8 @@ endif()
 
 # GraceUI's graceui-sys (its C helper, C++ wrapper and headless Dear ImGui helper), the ABI header it includes, and
 # graceui_test.h, the test build's exports, which the fake game reads in the tests alone: all five vendored unmodified
-# from GraceUI at fc2205a (GraceUI 0.2.62, protocol 1.20, ABI 1.9; graceui-sys's three unchanged since beca859,
-# graceui.h last changed at dc3f68d and graceui_test.h at 825351c) with GraceUI's licence (third_party/graceui-sys,
+# from GraceUI at 7c26477 (GraceUI 0.2.68, protocol 1.21, ABI 1.9; graceui-sys's three unchanged since beca859,
+# graceui.h last changed at dc3f68d and graceui_test.h at 11c3c97) with GraceUI's licence (third_party/graceui-sys,
 # THIRD_PARTY.md).
 # Each file is checked against its SHA-256 here, so that an edit is caught when the build is configured.
 foreach(pin IN ITEMS
@@ -93,13 +93,13 @@ foreach(pin IN ITEMS
     "graceui_sys.h|ceb0caa996291b1d60b0e3b5e7f3d61dda0b1b50db6126d4333a9353dfdd1e0e"
     "graceui_sys.hpp|2b42e2db6d4c8fd35852a22049bd009a05a75f50bb88e7c7870adb57697b548f"
     "graceui_imgui.hpp|4206f176a70cda7a7fe78af0d75b8a1d015f4dd0fb3a1451164320a4e4ac7786"
-    "graceui_test.h|e59067059410c3753acf852b626ce38a71c9e69d5977aa2c8ac31caa265c5a40")
+    "graceui_test.h|896946bc1f319e5b1d0e9fe192ca040f1be0a2d0e37b322a9295f8f6d742f698")
   string(REPLACE "|" ";" pin "${pin}")
   list(GET pin 0 _en_path)
   list(GET pin 1 _en_sha256)
   file(SHA256 ${CMAKE_CURRENT_SOURCE_DIR}/third_party/graceui-sys/${_en_path} _en_have)
   if(NOT _en_have STREQUAL _en_sha256)
-    message(FATAL_ERROR "third_party/graceui-sys/${_en_path} is not GraceUI fc2205a's (SHA-256 ${_en_have})")
+    message(FATAL_ERROR "third_party/graceui-sys/${_en_path} is not GraceUI 7c26477's (SHA-256 ${_en_have})")
   endif()
 endforeach()
 add_library(en_graceui_sys INTERFACE)

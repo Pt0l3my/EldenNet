@@ -826,6 +826,94 @@
       ]
     }
   },
+  "conversation/12": {
+    "columns": [
+      {
+        "id": "who",
+        "label": "Who"
+      },
+      {
+        "id": "line",
+        "label": "Line"
+      },
+      {
+        "id": "when",
+        "label": "When"
+      }
+    ],
+    "rows": [
+      {
+        "id": "1",
+        "line": "Is the lamp yours?",
+        "when": "0:11",
+        "who": "You"
+      },
+      {
+        "id": "2",
+        "line": "It keeps me as I keep it.",
+        "when": "0:11",
+        "who": "Oswin the Lamplighter"
+      }
+    ]
+  },
+  "conversations/1": {
+    "columns": [
+      {
+        "id": "with",
+        "label": "With"
+      },
+      {
+        "id": "when",
+        "label": "When"
+      },
+      {
+        "id": "lines",
+        "label": "Lines"
+      },
+      {
+        "id": "ended",
+        "label": "How it ended"
+      }
+    ],
+    "rows": [
+      {
+        "ended": "You travelled",
+        "id": "7",
+        "lines": "6",
+        "when": "2:26",
+        "with": "Oswin the Lamplighter"
+      }
+    ]
+  },
+  "conversations/2": {
+    "columns": [
+      {
+        "id": "with",
+        "label": "With"
+      },
+      {
+        "id": "when",
+        "label": "When"
+      },
+      {
+        "id": "lines",
+        "label": "Lines"
+      },
+      {
+        "id": "ended",
+        "label": "How it ended"
+      }
+    ],
+    "rows": [
+      {
+        "ended": "Still open",
+        "id": "12",
+        "lines": "2",
+        "when": "0:11",
+        "with": "Oswin the Lamplighter"
+      }
+    ]
+  },
   "docs.list": {
     "columns": [
       {
@@ -849,12 +937,12 @@
         "title": "Installing and starting EldenNet, and updating GraceUI"
       },
       {
-        "headings": "Where your provider can be · When EldenNet calls a model · What a conversation sends · What a profile draft sends · What the self-test and the model lists send · Your keys · What your provider sees · What never leaves this PC · About AI in EldenNet · See also",
+        "headings": "Where your provider can be · When EldenNet calls a model · What a conversation sends · What a memory sends · What a profile draft sends · What the self-test and the model lists send · Your keys · What your provider sees · What never leaves this PC · About AI in EldenNet · See also",
         "id": "provider",
         "title": "What is sent to your provider"
       },
       {
-        "headings": "What EldenNet keeps on this PC · The logs · Crash records · Recordings · What you type, and what characters say · Your character's name · Your keys · The menu in your browser · Model names a provider lists · See also",
+        "headings": "What EldenNet keeps on this PC · The logs · Crash records · Recordings · What you type, and what characters say · Your characters' memories · Your character's name · Your keys · The menu in your browser · Model names a provider lists · See also",
         "id": "privacy",
         "title": "Privacy"
       },
@@ -869,7 +957,7 @@
         "title": "Keys and pad"
       },
       {
-        "headings": "Where to look first · The banner in game · Game build not supported yet · Files for this game build incomplete · Cannot read this game build yet · The game did not finish starting · Easy Anti-Cheat is running · Offline solo session not confirmed · Stopped reading after an error · Test run · Paused for multiplayer · Home's state · Home's problems · The AI pages' Now line · Messages in a conversation · When a character does not answer · When nothing shows in game · Your settings file · The launcher's messages · E01: the game was not found · E02: Steam is not running · E03: the game is already running · E04: Easy Anti-Cheat is running · E05: this game build is not supported yet · E06: the appid file could not be written · E07: your save could not be backed up · E08: eldennet.dll was not found · E09: the game could not be started · E10: EldenNet could not be loaded · E11: Proton · E12: GraceUI is missing or damaged · Command-line tools · eldennet-launcher · eldennet-engine · Save backups · Crash records · See also",
+        "headings": "Where to look first · The banner in game · Game build not supported yet · Files for this game build incomplete · Cannot read this game build yet · The game did not finish starting · Easy Anti-Cheat is running · Offline solo session not confirmed · Stopped reading after an error · Test run · Paused for multiplayer · Home's state · Home's problems · The AI pages' Now line · Messages about memory · Messages in a conversation · When a character does not answer · When nothing shows in game · Your settings file · The launcher's messages · E01: the game was not found · E02: Steam is not running · E03: the game is already running · E04: Easy Anti-Cheat is running · E05: this game build is not supported yet · E06: the appid file could not be written · E07: your save could not be backed up · E08: eldennet.dll was not found · E09: the game could not be started · E10: EldenNet could not be loaded · E11: Proton · E12: GraceUI is missing or damaged · Command-line tools · eldennet-launcher · eldennet-engine · Save backups · Crash records · See also",
         "id": "troubleshooting",
         "title": "Troubleshooting"
       },
@@ -1377,6 +1465,261 @@
       }
     ]
   },
+  "journal/1.ferry_warden": {
+    "card": {
+      "items": [
+        {
+          "label": "Their journal",
+          "value": "Nothing written yet."
+        },
+        {
+          "label": "Last met",
+          "value": "At 0:50 of play"
+        },
+        {
+          "label": "First met",
+          "value": "At 0:50 of play"
+        },
+        {
+          "label": "Times met",
+          "value": "1"
+        }
+      ]
+    },
+    "forget": {
+      "columns": [
+        {
+          "id": "what",
+          "label": "What goes"
+        }
+      ],
+      "rows": [
+        {
+          "id": "1.ferry_warden",
+          "what": "Everything Merrit of the Ferry remembers of this journey: their facts, journal, keepsakes and conversations."
+        }
+      ]
+    },
+    "keepsakes": {
+      "columns": [
+        {
+          "id": "when",
+          "label": "When"
+        },
+        {
+          "id": "keepsake",
+          "label": "Keepsake"
+        },
+        {
+          "id": "weight",
+          "label": "Weight"
+        },
+        {
+          "id": "basis",
+          "label": "Basis"
+        },
+        {
+          "id": "about",
+          "label": "About"
+        },
+        {
+          "id": "kept",
+          "label": "Protected"
+        }
+      ],
+      "rows": []
+    },
+    "work": {
+      "items": [
+        {
+          "label": "Memory work",
+          "value": "None waiting"
+        }
+      ]
+    }
+  },
+  "journal/1.lantern_keeper": {
+    "card": {
+      "items": [
+        {
+          "label": "Their journal",
+          "value": "A traveller who asks after the lamp, and listens to the answer."
+        },
+        {
+          "label": "Disposition",
+          "value": "Warm"
+        },
+        {
+          "label": "Written",
+          "value": "At 2:31 of play"
+        },
+        {
+          "label": "Last met",
+          "value": "At 2:30 of play"
+        },
+        {
+          "label": "First met",
+          "value": "At 0:10 of play"
+        },
+        {
+          "label": "Times met",
+          "value": "4"
+        },
+        {
+          "label": "Seen you pass by",
+          "value": "2 times"
+        }
+      ]
+    },
+    "forget": {
+      "columns": [
+        {
+          "id": "what",
+          "label": "What goes"
+        }
+      ],
+      "rows": [
+        {
+          "id": "1.lantern_keeper",
+          "what": "Everything Oswin the Lamplighter remembers of this journey: their facts, journal, keepsakes and conversations."
+        }
+      ]
+    },
+    "keepsakes": {
+      "columns": [
+        {
+          "id": "when",
+          "label": "When"
+        },
+        {
+          "id": "keepsake",
+          "label": "Keepsake"
+        },
+        {
+          "id": "weight",
+          "label": "Weight"
+        },
+        {
+          "id": "basis",
+          "label": "Basis"
+        },
+        {
+          "id": "about",
+          "label": "About"
+        },
+        {
+          "id": "kept",
+          "label": "Protected"
+        }
+      ],
+      "rows": [
+        {
+          "about": "You",
+          "basis": "Seen",
+          "id": "1",
+          "keepsake": "They asked whose lamp it was.",
+          "kept": "Kept",
+          "weight": "0.8",
+          "when": "0:15"
+        }
+      ]
+    },
+    "work": {
+      "items": [
+        {
+          "label": "Memory work",
+          "value": "None waiting"
+        }
+      ]
+    }
+  },
+  "journal/2.lantern_keeper": {
+    "card": {
+      "items": [
+        {
+          "label": "Their journal",
+          "value": "Nothing written yet."
+        },
+        {
+          "label": "Last met",
+          "value": "At 0:12 of play"
+        },
+        {
+          "label": "First met",
+          "value": "At 0:12 of play"
+        },
+        {
+          "label": "Times met",
+          "value": "1"
+        }
+      ]
+    },
+    "forget": {
+      "columns": [
+        {
+          "id": "what",
+          "label": "What goes"
+        }
+      ],
+      "rows": [
+        {
+          "id": "2.lantern_keeper",
+          "what": "Everything Oswin the Lamplighter remembers of this journey: their facts, journal, keepsakes and conversations."
+        }
+      ]
+    },
+    "keepsakes": {
+      "columns": [
+        {
+          "id": "when",
+          "label": "When"
+        },
+        {
+          "id": "keepsake",
+          "label": "Keepsake"
+        },
+        {
+          "id": "weight",
+          "label": "Weight"
+        },
+        {
+          "id": "basis",
+          "label": "Basis"
+        },
+        {
+          "id": "about",
+          "label": "About"
+        },
+        {
+          "id": "kept",
+          "label": "Protected"
+        }
+      ],
+      "rows": []
+    },
+    "work": {
+      "items": [
+        {
+          "label": "Memory work",
+          "value": "One waiting"
+        }
+      ]
+    }
+  },
+  "journeys": {
+    "choices": [
+      {
+        "id": "1",
+        "label": "Journey 1",
+        "read_only": true
+      },
+      {
+        "id": "2",
+        "label": "Journey 2"
+      }
+    ],
+    "current": "2"
+  },
   "logs": [
     {
       "level": "info",
@@ -1427,6 +1770,153 @@
       "time": "0:20:00"
     }
   ],
+  "memories/1": {
+    "columns": [
+      {
+        "id": "name",
+        "label": "NPC"
+      },
+      {
+        "id": "keepsakes",
+        "label": "Keepsakes"
+      },
+      {
+        "id": "written",
+        "label": "Journal written"
+      }
+    ],
+    "rows": [
+      {
+        "id": "1.ferry_warden",
+        "keepsakes": "0",
+        "name": "Merrit of the Ferry",
+        "written": "Not yet"
+      },
+      {
+        "id": "1.lantern_keeper",
+        "keepsakes": "1",
+        "name": "Oswin the Lamplighter",
+        "written": "2:31"
+      }
+    ]
+  },
+  "memories/2": {
+    "columns": [
+      {
+        "id": "name",
+        "label": "NPC"
+      },
+      {
+        "id": "keepsakes",
+        "label": "Keepsakes"
+      },
+      {
+        "id": "written",
+        "label": "Journal written"
+      }
+    ],
+    "rows": [
+      {
+        "id": "2.lantern_keeper",
+        "keepsakes": "0",
+        "name": "Oswin the Lamplighter",
+        "written": "Not yet"
+      }
+    ]
+  },
+  "memory.state": {
+    "can_forget": true,
+    "items": [
+      {
+        "label": "Backups",
+        "value": "3"
+      },
+      {
+        "label": "Newest",
+        "value": "2025-11-27 00:00 UTC"
+      },
+      {
+        "label": "Then",
+        "value": "2025-11-26 00:00 UTC"
+      },
+      {
+        "label": "Then",
+        "value": "2025-11-25 00:00 UTC"
+      },
+      {
+        "label": "What a backup holds",
+        "value": "Each holds what was remembered when it was taken, the forgotten memories included, until three newer backups replace it."
+      }
+    ]
+  },
+  "met/1.ferry_warden": {
+    "items": [
+      {
+        "label": "Status",
+        "value": "Alive when last met"
+      },
+      {
+        "label": "Last met",
+        "value": "At 0:50 of play"
+      },
+      {
+        "label": "First met",
+        "value": "At 0:50 of play"
+      },
+      {
+        "label": "Times met",
+        "value": "1"
+      }
+    ]
+  },
+  "met/1.lantern_keeper": {
+    "items": [
+      {
+        "label": "Status",
+        "value": "Alive when last met"
+      },
+      {
+        "label": "Last met",
+        "value": "At 2:30 of play"
+      },
+      {
+        "label": "First met",
+        "value": "At 0:10 of play"
+      },
+      {
+        "label": "Times met",
+        "value": "4"
+      },
+      {
+        "label": "Disposition",
+        "value": "Warm"
+      },
+      {
+        "label": "Seen you pass by",
+        "value": "2 times"
+      }
+    ]
+  },
+  "met/2.lantern_keeper": {
+    "items": [
+      {
+        "label": "Status",
+        "value": "Here now"
+      },
+      {
+        "label": "Last met",
+        "value": "At 0:12 of play"
+      },
+      {
+        "label": "First met",
+        "value": "At 0:12 of play"
+      },
+      {
+        "label": "Times met",
+        "value": "1"
+      }
+    ]
+  },
   "named.list": {
     "columns": [
       {
@@ -1492,6 +1982,94 @@
       {
         "label": "How they speak",
         "value": "Formal and measured"
+      }
+    ]
+  },
+  "nearby": {
+    "columns": [
+      {
+        "id": "name",
+        "label": "Name"
+      },
+      {
+        "id": "state",
+        "label": "Now"
+      },
+      {
+        "id": "disposition",
+        "label": "Disposition"
+      }
+    ],
+    "rows": [
+      {
+        "id": "2.lantern_keeper",
+        "name": "Oswin the Lamplighter",
+        "state": "Here"
+      }
+    ]
+  },
+  "playthrough/1": {
+    "columns": [
+      {
+        "id": "name",
+        "label": "Name"
+      },
+      {
+        "id": "status",
+        "label": "Status"
+      },
+      {
+        "id": "last_met",
+        "label": "Last met"
+      },
+      {
+        "id": "met",
+        "label": "Times met"
+      }
+    ],
+    "rows": [
+      {
+        "id": "1.ferry_warden",
+        "last_met": "0:50",
+        "met": "1",
+        "name": "Merrit of the Ferry",
+        "status": "Alive when last met"
+      },
+      {
+        "id": "1.lantern_keeper",
+        "last_met": "2:30",
+        "met": "4",
+        "name": "Oswin the Lamplighter",
+        "status": "Alive when last met"
+      }
+    ]
+  },
+  "playthrough/2": {
+    "columns": [
+      {
+        "id": "name",
+        "label": "Name"
+      },
+      {
+        "id": "status",
+        "label": "Status"
+      },
+      {
+        "id": "last_met",
+        "label": "Last met"
+      },
+      {
+        "id": "met",
+        "label": "Times met"
+      }
+    ],
+    "rows": [
+      {
+        "id": "2.lantern_keeper",
+        "last_met": "0:12",
+        "met": "1",
+        "name": "Oswin the Lamplighter",
+        "status": "Here now"
       }
     ]
   },

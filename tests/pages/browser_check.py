@@ -13,7 +13,8 @@ failing on a console error, a CSP violation, an off-origin request or a text und
 output, which since GraceUI 0.2.62 goes whole through a pipe (D269 (1); at 0.2.58 it was cut at 64 KiB, and this read
 the --golden file instead), and is kept in <work>/<name>.dump. Of the dump, the part this check holds to
 tests/pages/browser/<name>.txt (EN_UPDATE_GOLDENS=1 writes them anew): each view's rail, every page named present or
-absent in it, and the text whole of Home, the AI pages, Tools › Workshop (its gate first) and Settings › Developer.
+absent in it, and the text whole of Home, the AI pages, Tools › Workshop (its gate first), Settings › Developer and,
+since v0.3, the memory pages (Characters › Playthrough, History › Conversations and History › Memories).
 Since 0.2.62 a page is read once its every topic has come (D269 (2)), so Home's and AI's pages, of many topics, hold
 still from run to run; the other pages' text is left to the in-game goldens. The folders:
 
@@ -34,7 +35,10 @@ import sys
 
 SKIP = 77
 FOLDERS = (("world", "world", False), ("developer", "world", True))
-WHOLE = ("home", "tools.workshop", "settings.developer")  # the pages whose text the golden holds whole, with AI's
+# The pages whose text the golden holds whole, with AI's: since v0.3 the memory pages too (S12.2), over the world's two
+# journeys, the second in view.
+WHOLE = ("home", "tools.workshop", "settings.developer", "characters.playthrough", "history.conversations",
+         "history.memories")
 
 
 def whole(page):
@@ -80,7 +84,14 @@ def main(argv):
     for name, state, panel in FOLDERS:
         folder = args.work / name
         folder.mkdir(parents=True)
-        shutil.copyfile(args.pages / "pages.json", folder / "pages.json")
+        # GraceUI 0.2.68's check:space welcomes every space at increment 0.2 (its FixtureSpace's default; no flag sets
+        # another), so a page of 0.3 would be absent (D173): the copy marks EldenNet's 0.3 pages 0.2, the one change
+        # made to the page data under test (a point for GraceUI: v0.3's notes).
+        pages = json.loads((args.pages / "pages.json").read_text(encoding="utf-8"))
+        for page in pages["pages"]:
+            if page.get("increment", "0.1") > "0.2":
+                page["increment"] = "0.2"
+        (folder / "pages.json").write_text(json.dumps(pages, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         settings = json.loads((args.pages / "settings.json").read_text(encoding="utf-8"))
         if panel:
             for s in settings["settings"]:

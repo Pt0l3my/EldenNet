@@ -49,6 +49,12 @@ the same request goes to the job's fallback as well, which may be at another pro
 A request never holds your character's name, your Steam name or number, your Windows user name, a path or a file of
 this PC, a save, any of the game's files, a picture or a sound, another provider's key, or EldenNet's logs.
 
+## What a memory sends
+
+After a conversation with at least two of your lines, EldenNet asks the memory job's model to write what that person
+remembers: it sends what they saw and heard since their last memory, and that memory, and nothing else of your files.
+What comes back is kept in your character's file in saves.
+
 ## What a profile draft sends
 
 Only when you press Draft with AI: your rough notes (400 characters at most), a few words of EldenNet's naming the

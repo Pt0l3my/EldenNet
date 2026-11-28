@@ -1,0 +1,143 @@
+# eldennet history.memories: 1920x1080, ui.scale 1.25, scale 1.250, theme grace, the fake face, settings at their defaults
+fill    scrim           0,   0 1920x1080
+fill    ground.1        0,   0 1920x1080
+fill    ground.0        0,   0  300x1080
+text    gold           30,  30  114x35   glyphs 8 "EldenNet"
+text    ink.mute       30,  95   42x30   glyphs 4 "Home"
+line    rule           30, 135  240x1   
+text    ink.mute       30, 145   21x30   glyphs 2 "AI"
+line    rule           30, 185  240x1   
+text    ink.mute       30, 195  106x30   glyphs 10 "Characters"
+line    rule           30, 235  240x1   
+text    ink.hi         30, 245   74x30   glyphs 7 "History"
+text    ink.mute       50, 293  110x25   glyphs 13 "Conversations"
+fill    tint.select     0, 325  300x40  
+fill    gold            0, 325    3x40  
+text    gold.hi        50, 333   68x25   glyphs 8 "Memories"
+line    rule           30, 365  240x1   
+text    ink.mute       30, 375   64x30   glyphs 6 "System"
+line    rule           30, 415  240x1   
+text    ink.mute       30, 425   53x30   glyphs 5 "Tools"
+line    rule           30, 900  240x1   
+text    ink.mute       30, 910   85x30   glyphs 8 "Settings"
+line    rule           30, 950  240x1   
+text    ink.mute       30, 960   42x30   glyphs 4 "Docs"
+line    rule           30,1000  240x1   
+text    ink.mute       30,1010  138x30   glyphs 12 "Content packs"
+fill    ground.well   340,  10  350x35   r3
+text    ink.faint     353,  15   51x25   glyphs 6 "Search"
+text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
+fill    ground.well  1626,  10  148x35   r3
+text    ink.body     1641,  15  118x25   glyphs 13 "Quick switches"
+fill    ground.well  1429,  10  182x35   r3
+text    ink.body     1444,  15  152x25   glyphs 16 "Journey: Journey 2"
+fill    ground.well  1274,  10  140x35   r3
+text    ink.body     1289,  15  110x25   glyphs 12 "Updates: Live"
+line    rule          300,  55 1620x1   
+text    ink.hi        340,  86  159x45   clip1 glyphs 8 "Memories"
+fill    rot.fill     1662,  89  218x40   r3 clip1
+text    ink.hi       1682,  95  178x28   clip1 glyphs 17 "Forget this journey"
+text    ink.mute      340, 136  759x25   clip1 glyphs 74 "What each NPC with a profile remembers of this journey, and the means to make them forget."
+line    rule.strong   340, 176 1540x1    clip1
+diamond gold.deep     340, 171   11x11   w1 clip1
+fill    ground.2      340, 201  524x135  r5 clip1
+stroke  rule          340, 201  524x135  r5 w1 clip1
+text    gold          365, 221   38x20   clip1 glyphs 4 "NPCs"
+fill    tint.select   350, 251  504x70   clip1
+fill    gold          350, 251    3x70   clip1
+text    gold.hi       365, 260  197x28   clip1 glyphs 19 "Oswin the Lamplighter"
+text    ink.mute      365, 288    8x25   clip1 glyphs 1 "0"
+fill    ground.2      894, 201  986x310  r5 clip1
+stroke  rule          894, 201  986x310  r5 w1 clip1
+text    gold          919, 221  125x20   clip1 glyphs 12 "Their journal"
+text    ink.faint    1842, 221    8x25   clip1 glyphs 1 "-"
+line    rule          919, 256  936x1    clip1
+text    ink.hi        919, 272  122x28   clip1 glyphs 12 "Their journal"
+text    ink.body     1231, 274  169x25   clip1 glyphs 18 "Nothing written yet."
+line    rule          919, 316  936x1    clip1
+text    ink.hi        919, 332   75x28   clip1 glyphs 7 "Last met"
+text    ink.body     1231, 334  127x25   clip1 glyphs 12 "At 0:12 of play"
+line    rule          919, 376  936x1    clip1
+text    ink.hi        919, 392   84x28   clip1 glyphs 8 "First met"
+text    ink.body     1231, 394  127x25   clip1 glyphs 12 "At 0:12 of play"
+line    rule          919, 436  936x1    clip1
+text    ink.hi        919, 452   84x28   clip1 glyphs 8 "Times met"
+text    ink.body     1231, 454    8x25   clip1 glyphs 1 "1"
+fill    ground.2      894, 531  986x155  r5 clip1
+stroke  rule          894, 531  986x155  r5 w1 clip1
+text    gold          919, 551   86x20   clip1 glyphs 9 "Keepsakes"
+text    ink.faint    1842, 551    8x25   clip1 glyphs 1 "-"
+text    ink.mute      919, 576  717x25   clip1 glyphs 70 "What they keep of this journey, at most eight; the protected one is never pushed out."
+line    rule          919, 611  936x1    clip1
+text    ink.mute      919, 626  135x25   clip1 glyphs 14 "No keepsake yet."
+fill    ground.2      894, 706  986x130  r5 clip1
+stroke  rule          894, 706  986x130  r5 w1 clip1
+text    gold          919, 726  106x20   clip1 glyphs 10 "Memory work"
+text    ink.faint    1842, 726    8x25   clip1 glyphs 1 "-"
+line    rule          919, 761  936x1    clip1
+text    ink.hi        919, 777  103x28   clip1 glyphs 10 "Memory work"
+text    ink.body     1231, 779   93x25   clip1 glyphs 10 "One waiting"
+fill    ground.2      894, 856  986x155  r5 clip1
+stroke  rule          894, 856  986x155  r5 w1 clip1
+text    gold          919, 876   58x20   clip1 glyphs 6 "Forget"
+text    ink.faint    1842, 876    8x25   clip1 glyphs 1 "-"
+text    ink.mute      919, 901  793x25   clip1 glyphs 78 "A backup is taken first, and it keeps what was forgotten until three newer backups replace it."
+line    rule          919, 936  936x1    clip1
+text    ink.hi        919, 952  291x28   clip1 glyphs 28 "Everything Oswin the Lamplighter remembers of this journey: their facts, journal, keepsakes and conversations."
+fill    rot.fill     1698, 949  157x35   r3 clip1
+text    ink.hi       1713, 954  127x25   clip1 glyphs 13 "Forget this NPC"
+fill    ground.2      894,1031  986x420  r5 clip1
+stroke  rule          894,1031  986x420  r5 w1 clip1
+text    gold          919,1051   67x20   clip1 glyphs 7 "Backups"
+text    ink.faint    1842,1051    8x25   clip1 glyphs 1 "-"
+text    ink.mute      919,1076  194x25   clip1 glyphs 21 "Diaries: later version."
+line    rule          919,1111  936x1    clip1
+text    ink.hi        919,1127   66x28   clip1 glyphs 7 "Backups"
+text    ink.body     1231,1129    8x25   clip1 glyphs 1 "3"
+line    rule          919,1171  936x1    clip1
+text    ink.hi        919,1187   56x28   clip1 glyphs 6 "Newest"
+text    ink.body     1231,1189  169x25   clip1 glyphs 18 "2025-11-27 00:00 UTC"
+line    rule          919,1231  936x1    clip1
+text    ink.hi        919,1247   38x28   clip1 glyphs 4 "Then"
+text    ink.body     1231,1249  169x25   clip1 glyphs 18 "2025-11-26 00:00 UTC"
+line    rule          919,1291  936x1    clip1
+text    ink.hi        919,1307   38x28   clip1 glyphs 4 "Then"
+text    ink.body     1231,1309  169x25   clip1 glyphs 18 "2025-11-25 00:00 UTC"
+line    rule          919,1351  936x1    clip1
+text    ink.hi        919,1367  178x28   clip1 glyphs 16 "What a backup holds"
+text    ink.body     1231,1369  616x25   clip1 glyphs 61 "Each holds what was remembered when it was taken, the forgotten memories "
+text    ink.body     1231,1394  397x25   clip1 glyphs 41 "included, until three newer backups replace it."
+fill    ground.2      894,1471  986x230  r5 clip1
+stroke  rule          894,1471  986x230  r5 w1 clip1
+text    gold          919,1491   67x20   clip1 glyphs 7 "Related"
+line    rule          919,1521  936x1    clip1
+text    ink.hi        934,1535  122x28   clip1 glyphs 13 "Conversations"
+text    ink.mute     1231,1536  565x25   clip1 glyphs 55 "Every conversation you had with a named NPC on this journey, as it was shown."
+text    gold         1820,1535    9x28   clip1 glyphs 1 "→"
+line    rule          919,1576  936x1    clip1
+text    ink.hi        934,1590   94x28   clip1 glyphs 9 "Named NPCs"
+text    ink.mute     1231,1591  565x25   clip1 glyphs 56 "Every named character EldenNet voices: who they appear to be, and your own notes on them."
+text    gold         1820,1590    9x28   clip1 glyphs 1 "→"
+line    rule          919,1631  936x1    clip1
+text    ink.hi        934,1645  103x28   clip1 glyphs 11 "Playthrough"
+text    ink.mute     1231,1646  565x25   clip1 glyphs 53 "The people you have met on this journey, and how they are as far as you have seen."
+text    gold         1820,1645    9x28   clip1 glyphs 1 "→"
+line    rule          300,1035 1620x1   
+fill    ground.well   340,1044   53x28   r3
+stroke  edge          340,1044   53x28   r3 w1
+fill    ink.body      354,1057    2x9   
+tri     ink.body      348,1051   14x7    ^
+fill    ink.body      377,1051    2x9   
+tri     ink.body      371,1059   14x7    v
+text    ink.faint     400,1045   51x25   glyphs 6 "Choose"
+fill    ground.well   475,1044   31x28   r3
+stroke  edge          475,1044   31x28   r3 w1
+fill    ink.body      483,1057    9x2   
+tri     ink.body      491,1051    7x14   >
+text    ink.faint     513,1045   34x25   glyphs 4 "Open"
+fill    ground.well   572,1044   42x28   r3
+stroke  edge          572,1044   42x28   r3 w1
+text    ink.body      580,1046   26x25   glyphs 3 "Esc"
+text    ink.faint     621,1045   34x25   glyphs 4 "Back"
+stroke  gold.hi       347, 248  510x76   r5 w3 clip1
+# 107 items, 3638 vertices, 8451 indices, 4 commands; check_draw_list: passes

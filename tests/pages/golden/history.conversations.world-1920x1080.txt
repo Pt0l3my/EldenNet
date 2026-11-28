@@ -1,0 +1,92 @@
+# eldennet history.conversations: 1920x1080, ui.scale 1.25, scale 1.250, theme grace, the fake face, settings at their defaults
+fill    scrim           0,   0 1920x1080
+fill    ground.1        0,   0 1920x1080
+fill    ground.0        0,   0  300x1080
+text    gold           30,  30  114x35   glyphs 8 "EldenNet"
+text    ink.mute       30,  95   42x30   glyphs 4 "Home"
+line    rule           30, 135  240x1   
+text    ink.mute       30, 145   21x30   glyphs 2 "AI"
+line    rule           30, 185  240x1   
+text    ink.mute       30, 195  106x30   glyphs 10 "Characters"
+line    rule           30, 235  240x1   
+text    ink.hi         30, 245   74x30   glyphs 7 "History"
+fill    tint.select     0, 285  300x40  
+fill    gold            0, 285    3x40  
+text    gold.hi        50, 293  110x25   glyphs 13 "Conversations"
+text    ink.mute       50, 333   68x25   glyphs 8 "Memories"
+line    rule           30, 365  240x1   
+text    ink.mute       30, 375   64x30   glyphs 6 "System"
+line    rule           30, 415  240x1   
+text    ink.mute       30, 425   53x30   glyphs 5 "Tools"
+line    rule           30, 900  240x1   
+text    ink.mute       30, 910   85x30   glyphs 8 "Settings"
+line    rule           30, 950  240x1   
+text    ink.mute       30, 960   42x30   glyphs 4 "Docs"
+line    rule           30,1000  240x1   
+text    ink.mute       30,1010  138x30   glyphs 12 "Content packs"
+fill    ground.well   340,  10  350x35   r3
+text    ink.faint     353,  15   51x25   glyphs 6 "Search"
+text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
+fill    ground.well  1626,  10  148x35   r3
+text    ink.body     1641,  15  118x25   glyphs 13 "Quick switches"
+fill    ground.well  1429,  10  182x35   r3
+text    ink.body     1444,  15  152x25   glyphs 16 "Journey: Journey 2"
+fill    ground.well  1274,  10  140x35   r3
+text    ink.body     1289,  15  110x25   glyphs 12 "Updates: Live"
+line    rule          300,  55 1620x1   
+text    ink.hi        340,  86  258x45   clip1 glyphs 13 "Conversations"
+text    ink.mute      340, 136  650x25   clip1 glyphs 63 "Every conversation you had with a named NPC on this journey, as it was shown."
+line    rule.strong   340, 176 1540x1    clip1
+diamond gold.deep     340, 171   11x11   w1 clip1
+fill    ground.2      340, 201  524x135  r5 clip1
+stroke  rule          340, 201  524x135  r5 w1 clip1
+text    gold          365, 221  125x20   clip1 glyphs 13 "Conversations"
+fill    tint.select   350, 251  504x70   clip1
+fill    gold          350, 251    3x70   clip1
+text    gold.hi       365, 260  197x28   clip1 glyphs 19 "Oswin the Lamplighter"
+text    ink.mute      365, 288   34x25   clip1 glyphs 4 "0:11"
+fill    ground.2      894, 201  986x228  r5 clip1
+stroke  rule          894, 201  986x228  r5 w1 clip1
+text    gold          919, 221  125x20   clip1 glyphs 11 "What was said"
+text    ink.faint    1842, 221    8x25   clip1 glyphs 1 "-"
+text    ink.mute      919, 264   25x25   clip1 glyphs 3 "Who"
+text    ink.mute     1231, 264   34x25   clip1 glyphs 4 "Line"
+text    ink.mute     1631, 264   34x25   clip1 glyphs 4 "When"
+line    rule          919, 294  936x1    clip1
+text    ink.hi        919, 310   28x28   clip1 glyphs 3 "You"
+text    ink.body     1231, 312  152x25   clip1 glyphs 15 "Is the lamp yours?"
+text    ink.body     1631, 312   34x25   clip1 glyphs 4 "0:11"
+line    rule          919, 354  936x1    clip1
+text    ink.hi        919, 370  197x28   clip1 glyphs 19 "Oswin the Lamplighter"
+text    ink.body     1231, 372  211x25   clip1 glyphs 19 "It keeps me as I keep it."
+text    ink.body     1631, 372   34x25   clip1 glyphs 4 "0:11"
+fill    ground.2      894, 449  986x175  r5 clip1
+stroke  rule          894, 449  986x175  r5 w1 clip1
+text    gold          919, 469   67x20   clip1 glyphs 7 "Related"
+line    rule          919, 499  936x1    clip1
+text    ink.hi        934, 513   75x28   clip1 glyphs 8 "Memories"
+text    ink.mute     1231, 514  565x25   clip1 glyphs 55 "What each NPC with a profile remembers of this journey, and the means to make them forget."
+text    gold         1820, 513    9x28   clip1 glyphs 1 "→"
+line    rule          919, 554  936x1    clip1
+text    ink.hi        934, 568   94x28   clip1 glyphs 9 "Named NPCs"
+text    ink.mute     1231, 569  565x25   clip1 glyphs 56 "Every named character EldenNet voices: who they appear to be, and your own notes on them."
+text    gold         1820, 568    9x28   clip1 glyphs 1 "→"
+line    rule          300,1035 1620x1   
+fill    ground.well   340,1044   53x28   r3
+stroke  edge          340,1044   53x28   r3 w1
+fill    ink.body      354,1057    2x9   
+tri     ink.body      348,1051   14x7    ^
+fill    ink.body      377,1051    2x9   
+tri     ink.body      371,1059   14x7    v
+text    ink.faint     400,1045   51x25   glyphs 6 "Choose"
+fill    ground.well   475,1044   31x28   r3
+stroke  edge          475,1044   31x28   r3 w1
+fill    ink.body      483,1057    9x2   
+tri     ink.body      491,1051    7x14   >
+text    ink.faint     513,1045   34x25   glyphs 4 "Open"
+fill    ground.well   572,1044   42x28   r3
+stroke  edge          572,1044   42x28   r3 w1
+text    ink.body      580,1046   26x25   glyphs 3 "Esc"
+text    ink.faint     621,1045   34x25   glyphs 4 "Back"
+stroke  gold.hi       347, 248  510x76   r5 w3 clip1
+# 90 items, 2774 vertices, 6177 indices, 4 commands; check_draw_list: passes

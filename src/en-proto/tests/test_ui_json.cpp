@@ -71,6 +71,14 @@ UiModel sample_model() {
   m.chat = sample_box();
   m.hint = TalkHint{HintVerb::Answer, "Oswin the Lamplighter", ChrHandle{kBigHandle}};
   m.toasts = {Toast{7, ToastLevel::Warning, "No answer: provider timed out"}, Toast{8, ToastLevel::Error, "x"}};
+  ChoicePanel c;
+  c.id = 9;
+  c.title = "This save is older than EldenNet's memory of it";
+  c.lead = "What should EldenNet remember?";
+  c.bullets = {ChoiceBullet{ChoiceTone::Save, "This save: 0:42 of play"},
+               ChoiceBullet{ChoiceTone::Stage, "Oswin the Lamplighter's story would go back a step"}};
+  c.answers = {"Forget what came after", "Keep everything", "This is a new character"};
+  m.choice = c;
   return m;
 }
 
@@ -79,6 +87,8 @@ UiEvent event_of(UiEvent::Submit e) { return UiEvent{std::move(e)}; }
 UiEvent event_of(UiEvent::PageShown e) { return UiEvent{e}; }
 UiEvent event_of(UiEvent::Close e) { return UiEvent{std::move(e)}; }
 UiEvent event_of(UiEvent::Skip e) { return UiEvent{e}; }
+UiEvent event_of(UiEvent::Choose e) { return UiEvent{e}; }
+UiEvent event_of(UiEvent::ChoiceClosed e) { return UiEvent{std::move(e)}; }
 
 }  // namespace
 
@@ -122,6 +132,8 @@ TEST_CASE("a whole model round-trips with its version; an empty one is the defau
   const json empty = UiModel{};
   CHECK(empty["page"].is_null());
   CHECK(empty["hint"].is_null());
+  CHECK(empty["choice"].is_null());
+  CHECK(m["choice"]["bullets"][1]["tone"] == "stage");
   CHECK(empty["chat"]["view"] == "closed");
   CHECK(empty["chat"]["max_chars"] == kLineMaxChars);
   CHECK(empty["chat"]["max_bytes"] == kLineMaxBytes);
@@ -135,6 +147,9 @@ TEST_CASE("every event kind round-trips with its version, and holds exactly one 
   round_trip(event_of(UiEvent::Close{CloseReason::Refused, "", "an invented mod"}));
   round_trip(event_of(UiEvent::Close{CloseReason::Shut, "half a line", ""}));
   round_trip(event_of(UiEvent::Skip{PageId{3, 2, 0}}));
+  round_trip(event_of(UiEvent::Choose{4, ChoiceAnswer::NewCharacter}));
+  round_trip(event_of(UiEvent::ChoiceClosed{4, CloseReason::NotNow, "danger"}));
+  CHECK(json(event_of(UiEvent::Choose{4, ChoiceAnswer::Keep}))["choose"]["answer"] == "keep");
   round_trip(UiEvent{});
   for (const CloseReason r : {CloseReason::Escape, CloseReason::FocusLost, CloseReason::InputLost, CloseReason::Refused,
                               CloseReason::NotNow, CloseReason::Fault, CloseReason::Shut}) {
@@ -172,9 +187,11 @@ TEST_CASE("malformed forms are refused, naming the path and the problem") {
 
   // Exactly one kind.
   CHECK(refusal<UiEvent>(json{{"version", 1}}) ==
-        "UiEvent: needs exactly one of \"open_chat\", \"submit\", \"page_shown\", \"close\" and \"skip\"");
+        "UiEvent: needs exactly one of \"open_chat\", \"submit\", \"page_shown\", \"close\", \"skip\", \"choose\" "
+        "and \"choice_closed\"");
   CHECK(refusal<UiEvent>(json{{"version", 1}, {"skip", json::object()}, {"submit", json::object()}}) ==
-        "UiEvent: needs exactly one of \"open_chat\", \"submit\", \"page_shown\", \"close\" and \"skip\"");
+        "UiEvent: needs exactly one of \"open_chat\", \"submit\", \"page_shown\", \"close\", \"skip\", \"choose\" "
+        "and \"choice_closed\"");
   CHECK(refusal<UiEvent>(json{{"version", 1}, {"typing", json::object()}}) == "UiEvent: has an unknown field \"typing\"");
 
   // Each field of its own type, by its path.

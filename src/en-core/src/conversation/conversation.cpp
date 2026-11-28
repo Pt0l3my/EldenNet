@@ -242,6 +242,8 @@ struct Conversation::Impl {
   std::vector<Grace> grace;
   std::optional<std::uint64_t> cast_hash;  // the content the candidates and the conversation were read from
 
+  bool calm = false;  // the last step's moment (Conversation::calm)
+
   // The step's.
   const ConversationInput* in = nullptr;
   ConversationOutput* out = nullptr;
@@ -1329,7 +1331,7 @@ struct Conversation::Impl {
   // §5.8: native talk within 20 m (not the partner's) or the overlay hidden hold what is not yet shown.
   void hold() {
     const bool native = around.native;
-    const bool hidden = around.hidden;
+    const bool hidden = around.hidden || (in != nullptr && in->world.pages_held);
     if (conv->hold == Hold::None) {
       if (!pacing() || (!native && !hidden)) return;
       conv->hold = native ? Hold::Native : Hold::Hidden;
@@ -1594,6 +1596,11 @@ struct Conversation::Impl {
     if (input.llm != nullptr) on_llm(*input.llm);
     advance();
     toasts.step(now, around.boss);
+    {
+      Surroundings w = around;
+      w.active = true;  // the ladder's clause aside: the choice needs no model
+      calm = input.world.in_world && !input.world.loading && input.world.snapshot != nullptr && !safe_context(w);
+    }
     o.ui = model();
     in = nullptr;
     out = nullptr;
@@ -1622,6 +1629,7 @@ std::optional<std::string> Conversation::queued() const {
 }
 std::optional<Mono> Conversation::barks_quiet_until() const noexcept { return impl_->quiet_until; }
 std::uint64_t Conversation::epoch() const noexcept { return impl_->epoch; }
+bool Conversation::calm() const noexcept { return impl_->calm; }
 std::optional<proto::RequestId> Conversation::live_request() const noexcept {
   if (!impl_->conv || !impl_->conv->reply || !impl_->conv->reply->live) return std::nullopt;
   return impl_->conv->reply->request;

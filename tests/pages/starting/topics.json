@@ -282,12 +282,12 @@
         "title": "Installing and starting EldenNet, and updating GraceUI"
       },
       {
-        "headings": "Where your provider can be · When EldenNet calls a model · What a conversation sends · What a profile draft sends · What the self-test and the model lists send · Your keys · What your provider sees · What never leaves this PC · About AI in EldenNet · See also",
+        "headings": "Where your provider can be · When EldenNet calls a model · What a conversation sends · What a memory sends · What a profile draft sends · What the self-test and the model lists send · Your keys · What your provider sees · What never leaves this PC · About AI in EldenNet · See also",
         "id": "provider",
         "title": "What is sent to your provider"
       },
       {
-        "headings": "What EldenNet keeps on this PC · The logs · Crash records · Recordings · What you type, and what characters say · Your character's name · Your keys · The menu in your browser · Model names a provider lists · See also",
+        "headings": "What EldenNet keeps on this PC · The logs · Crash records · Recordings · What you type, and what characters say · Your characters' memories · Your character's name · Your keys · The menu in your browser · Model names a provider lists · See also",
         "id": "privacy",
         "title": "Privacy"
       },
@@ -302,7 +302,7 @@
         "title": "Keys and pad"
       },
       {
-        "headings": "Where to look first · The banner in game · Game build not supported yet · Files for this game build incomplete · Cannot read this game build yet · The game did not finish starting · Easy Anti-Cheat is running · Offline solo session not confirmed · Stopped reading after an error · Test run · Paused for multiplayer · Home's state · Home's problems · The AI pages' Now line · Messages in a conversation · When a character does not answer · When nothing shows in game · Your settings file · The launcher's messages · E01: the game was not found · E02: Steam is not running · E03: the game is already running · E04: Easy Anti-Cheat is running · E05: this game build is not supported yet · E06: the appid file could not be written · E07: your save could not be backed up · E08: eldennet.dll was not found · E09: the game could not be started · E10: EldenNet could not be loaded · E11: Proton · E12: GraceUI is missing or damaged · Command-line tools · eldennet-launcher · eldennet-engine · Save backups · Crash records · See also",
+        "headings": "Where to look first · The banner in game · Game build not supported yet · Files for this game build incomplete · Cannot read this game build yet · The game did not finish starting · Easy Anti-Cheat is running · Offline solo session not confirmed · Stopped reading after an error · Test run · Paused for multiplayer · Home's state · Home's problems · The AI pages' Now line · Messages about memory · Messages in a conversation · When a character does not answer · When nothing shows in game · Your settings file · The launcher's messages · E01: the game was not found · E02: Steam is not running · E03: the game is already running · E04: Easy Anti-Cheat is running · E05: this game build is not supported yet · E06: the appid file could not be written · E07: your save could not be backed up · E08: eldennet.dll was not found · E09: the game could not be started · E10: EldenNet could not be loaded · E11: Proton · E12: GraceUI is missing or damaged · Command-line tools · eldennet-launcher · eldennet-engine · Save backups · Crash records · See also",
         "id": "troubleshooting",
         "title": "Troubleshooting"
       },
@@ -791,6 +791,9 @@
     ],
     "rows": []
   },
+  "journeys": {
+    "choices": []
+  },
   "logs": [
     {
       "level": "info",
@@ -817,6 +820,10 @@
       "time": "0:00:01"
     }
   ],
+  "memory.state": {
+    "can_forget": false,
+    "items": []
+  },
   "named.list": {
     "columns": [
       {
@@ -826,6 +833,23 @@
       {
         "id": "role",
         "label": "What they do"
+      }
+    ],
+    "rows": []
+  },
+  "nearby": {
+    "columns": [
+      {
+        "id": "name",
+        "label": "Name"
+      },
+      {
+        "id": "state",
+        "label": "Now"
+      },
+      {
+        "id": "disposition",
+        "label": "Disposition"
       }
     ],
     "rows": []
@@ -981,7 +1005,11 @@
   },
   "selftest": {},
   "space.state": {
-    "greyed": {}
+    "greyed": {
+      "characters.playthrough": "Load a character to see this.",
+      "history.conversations": "Load a character to see this.",
+      "history.memories": "Load a character to see this."
+    }
   },
   "status": {
     "ai_paused": false,
