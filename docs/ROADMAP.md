@@ -2032,6 +2032,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     closes it whenever the holder ends. EldenNet's chat box opens it this way and makes no Steam call of its own, so
     DESIGN R2's one third-party call goes, at the pin that takes 0.2.69 and the build of the chat box's keyboard.
     In-game check with Deck testers, as 0.2.68's.
+- cd A line icon per rail category, from GraceUI's own set (GraceUI 0.2.70, protocol 1.22) [done]
+  - refs: GraceUI:D277
+  - gives: GraceUI's D277, built on 2026-11-28 (GraceUI main 5702fae; GraceUI's docs/eldennet-changes.md §103): a
+    category may name an icon from GraceUI's tokens/icons.toml, drawn before its name in both views and alone in the
+    browser's collapsed rail; all of a space's categories or none, page data minor 22. Optional for EldenNet; Grace
+    suggests an icon for each of the ten. It changes what players see, so it is put to the owner with v0.3's words
+    and taken at the pin after the answer.
 
 ### S11.3 EldenNet v0.2
 
