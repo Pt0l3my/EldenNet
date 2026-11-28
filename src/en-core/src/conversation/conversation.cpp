@@ -422,6 +422,10 @@ struct Conversation::Impl {
 
   void on_open_chat() {
     if (snap() == nullptr || cast() == nullptr || !in->world.chat) return;  // features.chat off: the key does nothing
+    if (!in->world.chat_held.empty()) {
+      toast(ToastClass::Status, proto::ToastLevel::Info, in->world.chat_held);
+      return;
+    }
     const std::optional<proto::ChrHandle> target = stable && candidate_of(*stable) ? stable : best;
     if (conv) {
       if (conv->box_open || conv->ending) return;
@@ -1403,6 +1407,10 @@ Conversation::Conversation(SpeechParts parts) : parts_(parts), impl_(std::make_u
 Conversation::~Conversation() = default;
 
 ConversationOutput Conversation::step(const ConversationInput& in) { return impl_->step(in); }
+
+void Conversation::notice(ToastClass cls, proto::ToastLevel level, std::string text, Mono now) {
+  impl_->toasts.post(cls, level, std::move(text), now);
+}
 
 proto::ConvState Conversation::state() const noexcept { return impl_->state(); }
 bool Conversation::box_open() const noexcept { return impl_->conv && impl_->conv->box_open; }

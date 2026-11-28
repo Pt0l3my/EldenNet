@@ -45,6 +45,8 @@ if(EN_BUILD_TESTS)
   en_embed_files(${_en_test_files} INCLUDE en/core/core.hpp NAMESPACE en::core::test TYPE en::core::BuiltinFile
     FUNCTION test_files BASE ${PROJECT_SOURCE_DIR} FILES ${EN_CORE_TEST_FILES})
   add_executable(en_core_tests ${EN_CORE_TESTS} ${_en_test_files})
-  target_link_libraries(en_core_tests PRIVATE en_core en_doctest)
+  # The store's tests drive the core against en-store's StoreCore on a temporary folder (tests/memory/): the core
+  # itself never links en-store (ARCH §2.3), only its tests do.
+  target_link_libraries(en_core_tests PRIVATE en_core en_store en_doctest)
   add_test(NAME en_core_tests COMMAND en_core_tests)
 endif()

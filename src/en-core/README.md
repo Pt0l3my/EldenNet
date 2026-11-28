@@ -394,6 +394,45 @@ the conversation part B's (above); the core holds both.
   (`ai_allowed`) stays the gate's: a call already sent ends as it ends. Off, the ladder climbs back to what the rest
   of the state gives (L4, L3 with an optional group tripped, L2 without a healthy model); L1 stays for the session.
 
+## Memory: the store in the core (v0.3 slice 2; MEM §1.5, §2.2, §8.3, §8.6, §9.1; ARCH §9)
+
+- **The facts** (`facts.hpp`, `src/memory/facts.cpp`; MEM §2.2). `fold_fact(facts, event, how)` is the one fold: a
+  meeting (a ConversationEnded with a line of the persona's committed, or a NativeTalkEnded with it; merged within
+  10 min of play), `seen_count`, `times_attacked`, `fought_beside` and its last boss, `seen_player_die` (witnessed),
+  `stage_seen`, `world_seen` (the union of the meetings' `known`, the higher certainty kept: fact, rumour, belief) with
+  `world_seen_pt`, and `world_cued` from an NpcSaid's `cue`. `fold_all(events)` is the recomputation over a journey's
+  events in id order; each perceiver comes from en-augur's `perceivers`, so the core never reads an audience itself.
+- **The key** (`store_path.hpp`, MEM §8.3): `playthrough_key(account, slot, name, archetype, gift)`, BLAKE3's keyed
+  mode under `derive_key("eldennet playthrough fp v1")` over the account (u64 LE), the slot, the name's UTF-16LE code
+  units with their count, the archetype and the gift; `name_hash` is BLAKE3 over the same code units. The name goes no
+  further.
+- **The store path** (`StorePath`, `src/memory/store_path.cpp`). `CoreInput::Account` attaches the account the shell
+  found (never recorded); `features.memory` off, or no account, means no store, and the world follows at once.
+  Otherwise:
+  - a playthrough's start sends Open, and the lifecycle waits in Playthrough for its answer. A Busy open is retried
+    3 times, 1 s apart (the store's own 2 s busy timeout inside each); then, as after any other failure, memory is off
+    for the session with one toast, and the world goes on;
+  - on Opened (or Resolved) the core refolds the journey's facts from EventsForFold, writes them back with PutFacts
+    when the file says they are stale, and only then lifts the writes it held;
+  - a Choice: the world goes on, named chat is refused with a status toast (`kChoicePending`), and writes wait in a
+    buffer of 4,096 (the oldest non-speech dropped first; a later page joins its held reply) until
+    `CoreInput::MemoryChoice` answers; there is no answer of the core's own, and the summary
+    (`store().choice()`, O144's) is for the panel (slice 3);
+  - each P event of the step (Augur's own, and the knowledge subscriber's StageChanged with its stages' ids `{from,
+    to}`) is an Append with its frozen audience (en-augur's `freeze_into`) and the facts its fold moved. The
+    conversation's commits give each conversation's row (ConvOpen, ConvClose with the core's own end word), its lines
+    (PlayerSaid; NpcSaid with its pages' ends and pts) and each later page (AppendPage). Ids come from the file's
+    counters; a conversation of the session maps to its file row;
+  - speech goes out in the step it happens, with whatever was queued before it; other writes go out at most every
+    250 ms. A JourneyChanged into a later journey starts that journey's facts;
+  - a Tripped answer, at any time, leaves memory off for the session, with a toast naming the cause.
+- **Its words** (drafts for the owner): `kChoicePending` "(Not yet: EldenNet is waiting for your answer about this
+  save.)"; `kBackupRestored` "EldenNet's memory file was damaged, so its newest backup was restored."; `kLowDisk` "Less
+  than 200 MB of disk is free: EldenNet may stop saving memories."; and `memory_off_text(cause)`, "Memory is off for
+  this session: " with "its file is in use by another program.", "the disk is full.", "its file is damaged. The newest
+  backup will be used next time.", "its file was made by a newer EldenNet." or "its file could not be read or
+  written.".
+
 ## Tests
 
 `en_core_tests` (doctest), on Linux with GCC and Clang and under Wine: the predicate's every clause alone, values not
@@ -450,3 +489,11 @@ queue its first request's, a withdrawn line's trace gone, the session's percenti
 pushed out by other calls); through the core, a reply's row with the speaker as shown, the banned word's
 regeneration and deflection, and Pause AI: L2 with the box closed and nothing sent, the ladder's return to L4 or L3 or
 L2, a regeneration refused while paused, and a pause before T1 is ready and at L1.
+Memory (`tests/memory/`): each fact's rule, meetings merged within 10 min,
+`world_seen`'s certainties and `world_cued`, and the live fold equal to the recomputation over 20 seeded runs of
+random events (`test_facts.cpp`); and the core against en-store's StoreCore on a temporary folder
+(`test_store_path.cpp`, the one place en-core's tests link en-store): the key, the world waiting for Opened, a whole
+conversation in the file with the core's own end word and the meeting folded, the 250 ms coalescing and speech taking
+the queue with it, a lock at open retried three times then memory off with its toast, the choice holding named chat and
+the writes until Forget trims and lifts them, memory off and no account opening nothing, a tripped store, and
+StageChanged's and JourneyChanged's stored forms.

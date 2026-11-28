@@ -331,6 +331,8 @@ std::optional<std::string> Core::set_behaviour(const Behaviour& b) {
 void Core::forget_flags() {
   flags_ = knowledge_.unread();
   known_ = knowledge_.view(flags_);
+  flags_read_ = false;
+  stage_moves_.clear();
 }
 
 // MEM §6.6: the flag state from the newest processed frame of the current watch list; the view only when it changes.
@@ -340,7 +342,19 @@ void Core::on_flags(const proto::WorldSnapshot& s) {
   FlagState next = knowledge_.from_frame(watch_, *s.flags, realm_, journey);
   if (next == flags_) return;
   flags_ = std::move(next);
-  known_ = knowledge_.view(flags_);
+  KnowledgeView view = knowledge_.view(flags_);
+  // The knowledge subscriber (MEM §1.1): a persona whose active stage moved in play gives a StageChanged. The first
+  // frame of a playthrough only says where things stand.
+  if (flags_read_) {
+    for (std::size_t i = 0; i < view.personas.size() && i < known_.personas.size(); ++i) {
+      if (view.personas[i].stage != known_.personas[i].stage) {
+        stage_moves_.push_back({static_cast<std::uint32_t>(i), static_cast<std::uint32_t>(known_.personas[i].stage),
+                                static_cast<std::uint32_t>(view.personas[i].stage)});
+      }
+    }
+  }
+  flags_read_ = true;
+  known_ = std::move(view);
 }
 
 std::vector<augur::RuleError> Core::load_rules(std::span<const augur::RuleFile> files) {
@@ -410,6 +424,27 @@ void Core::run_augur(const proto::WorldSnapshot* s, const proto::Lifecycle* l, M
   }
   augur::EventBatch batch;
   augur_.step(augur::AugurInput{s, facts}, now, view_, batch);
+  for (const auto& [persona, from, to] : stage_moves_) {
+    augur::Event ev;
+    ev.id = augur_.next_id();
+    ev.kind = augur::StageChanged{augur::PersonaId{persona}, static_cast<augur::StageId>(from),
+                                  static_cast<augur::StageId>(to)};
+    ev.event_class = augur::Class::P;
+    ev.t_mono_ms = now;
+    if (last_ && last_->player) {
+      ev.t_play_ms = last_->player->play_time_ms;
+      ev.journey = last_->player->ng_lvl;
+    } else if (s != nullptr && s->player) {
+      ev.t_play_ms = s->player->play_time_ms;
+      ev.journey = s->player->ng_lvl;
+    }
+    ev.source = augur::SourceId::Subscriber;
+    ev.subject = augur::ActorRef{augur::ActorRef::Kind::Persona, {}, persona, 0};
+    ev.radius = augur::Radius::Subject;
+    augur_.resolve_audience(ev, view_);
+    batch.push_back(std::move(ev));
+  }
+  stage_moves_.clear();
   bus_.run(std::move(batch), now, augur_, view_, out.events);
 }
 
@@ -440,8 +475,13 @@ Outputs Core::step(CoreInput input, Mono now) {
                  [&](proto::LlmEvent& e) { llm = &e; },
                  [&](proto::NetHealth& h) { net_ = h; },
                  [&](CoreInput::Pause& p) { state_.ai_paused = p.on; },
+                 [&](proto::DbResult& r) { on_store(r, now, out); },
+                 [&](CoreInput::Account& a) { store_.attach(a.steamid64); },
+                 [&](CoreInput::MemoryChoice& c) { store_.resolve(c.choice); },
              },
              input.payload);
+  store_.set_enabled(behaviour_.features.memory);
+  store_.tick(now);
   if (watch_pending_) {  // the watch list of the last load (MEM §6.2): sent once, shared, never copied
     out.game.push_back(proto::GameCommand{proto::GameCommand::SetWatchFlags{
         watch_.version, std::make_shared<const std::vector<std::uint32_t>>(watch_.ids)}});
@@ -509,9 +549,12 @@ void Core::run_conversation(Mono at, bool fresh, const proto::UiEvent* ui, const
   w.knowledge = content_loaded_ ? &known_ : nullptr;
   w.chat = behaviour_.features.chat;
   w.self_awareness = behaviour_.features.self_awareness;
+  if (store_.mode() == StorePath::Mode::Choice) w.chat_held = kChoicePending;
   ConversationOutput co = conversation_.step(in);
-  for (const Commit& c : co.commits) log_.apply(c);  // in the same step (NPC §8.7 item 5; the store, v0.3)
+  for (const Commit& c : co.commits) log_.apply(c);  // in the same step (NPC §8.7 item 5), and to the store below
+  store_.write(out.events, directory_, content_loaded_ ? &known_ : nullptr, at);
   speech_events(co.commits, at, out);
+  store_.pump(at, out.db);
   out.ui = std::move(co.ui);
   out.requests = std::move(co.requests);
   out.calls = std::move(co.calls);
@@ -552,8 +595,13 @@ void Core::speech_events(const std::vector<Commit>& commits, Mono at, Outputs& o
   if (commits.empty()) return;
   augur::EventBatch batch;
   const proto::Player* pl = last_ && last_->player ? &*last_->player : nullptr;
+  const KnowledgeView* known = content_loaded_ ? &known_ : nullptr;
+  const proto::Pt pt_now = pl != nullptr ? static_cast<proto::Pt>(pl->play_time_ms) : 0;
   for (const Commit& c : commits) {
-    if (c.kind == Commit::Kind::NpcPage || c.kind == Commit::Kind::CutOff) continue;
+    if (c.kind == Commit::Kind::NpcPage || c.kind == Commit::Kind::CutOff) {
+      store_.commit(c, nullptr, directory_, known, pt_now);
+      continue;
+    }
     const auto idx = directory_.find(c.persona);
     if (!idx) continue;
     // The partner as Augur tracks it, when present (its position is the speech's origin); else by id alone.
@@ -617,9 +665,17 @@ void Core::speech_events(const std::vector<Commit>& commits, Mono at, Outputs& o
         continue;
     }
     augur_.resolve_audience(ev, view_);
+    store_.commit(c, c.kind == Commit::Kind::Started ? nullptr : &ev, directory_, known, pt_now);
     batch.push_back(std::move(ev));
   }
   if (!batch.empty()) bus_.run(std::move(batch), at, augur_, view_, out.events);
+}
+
+// C8's answers (store_path.hpp): the world goes on once the open answered, whichever way, and the store's toasts.
+void Core::on_store(const proto::DbResult& r, Mono now, Outputs& out) {
+  StorePath::Effect e = store_.on_result(r);
+  if (e.ready && state_.phase == Phase::Playthrough) enter(Phase::InWorld, now, out);
+  for (StoreNotice& n : e.notices) conversation_.notice(n.cls, n.level, std::move(n.text), now);
 }
 
 void Core::enter(Phase to, Mono at, Outputs& out) {
@@ -699,7 +755,16 @@ void Core::start_playthrough(const proto::WorldSnapshot& s, Outputs& out) {
   ++state_.playthroughs;
   forget_flags();  // MEM §6.6: every alias Unknown until this playthrough's first frame
   enter(Phase::Playthrough, s.mono_ms, out);
-  // Without the store there is no database to open (§9's DbOpened): the world follows at once.
+  // ARCH §9: the key, then Open; the world waits for the answer. Without a store (none attached, or memory off) there
+  // is no file to open, and the world follows at once.
+  if (store_.available() && current_) {
+    const std::uint8_t gift = current_->keepsake;
+    store_.open(playthrough_key(store_.account(), current_->slot, current_->name.view(), current_->archetype, gift),
+                static_cast<proto::Pt>(s.player->play_time_ms), static_cast<std::uint16_t>(s.player->ng_lvl + 1),
+                s.mono_ms);
+    return;
+  }
+  store_.close();
   enter(Phase::InWorld, s.mono_ms, out);
 }
 
@@ -775,12 +840,13 @@ void Core::on_snapshot(const proto::WorldSnapshot& s, Outputs& out) {
       if (s.life.main_player && ready_for_playthrough(s)) start_playthrough(s, out);
       return;
     case Phase::Playthrough:
-      enter(Phase::InWorld, at, out);  // never left here without the store; kept for when it waits
+      if (!store_.waiting_open()) enter(Phase::InWorld, at, out);  // the store's open answered, or there is none
       return;
     case Phase::InWorld:
       if (at_title) {
         enter(Phase::Title, at, out);
         current_.reset();
+        store_.close();  // ARCH §9: flush and close the playthrough's file
       } else if (!s.life.main_player || counter_changed || s.life.screen != proto::Screen::InGame) {
         enter(Phase::Loading, at, out);
       }
@@ -789,6 +855,7 @@ void Core::on_snapshot(const proto::WorldSnapshot& s, Outputs& out) {
       if (at_title) {
         enter(Phase::Title, at, out);
         current_.reset();
+        store_.close();
         return;
       }
       if (!in_world_now || stable_ < 2) return;

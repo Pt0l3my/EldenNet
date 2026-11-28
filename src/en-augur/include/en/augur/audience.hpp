@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "en/augur/events.hpp"
@@ -49,6 +50,15 @@ class Visible {
 // index; a row it cannot name is left out), with its `how`, nearest first as Augur froze them.
 using PersonaNamer = std::function<std::optional<std::string>(PersonaId)>;
 [[nodiscard]] std::vector<proto::AudienceRow> stored_audience(const Event& ev, const PersonaNamer& id_of);
+
+// The same, written into the stored event (`out`'s audience), so that the core writes an audience without naming the
+// field (MEM §1.3's grep).
+void freeze_into(proto::StoredEvent& out, const Event& ev, const PersonaNamer& id_of);
+
+// Each row of a stored event as `visible_to` would answer it for its persona, in the event's order. For the facts' fold
+// alone (MEM §2.2): live, as an event is written, and in recomputation, over the journey's events (EventsForFold). The
+// fold moves each perceiver's own facts by its own `how` and keeps nothing of who else perceived the event.
+[[nodiscard]] std::vector<std::pair<std::string, How>> perceivers(const proto::StoredEvent& ev, const VisCtx& ctx);
 
 // The audience's size, for the F11 view's counts: how many perceived it, never who.
 [[nodiscard]] std::size_t audience_size(const Event& ev) noexcept;
