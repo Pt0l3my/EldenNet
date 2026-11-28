@@ -10332,6 +10332,8 @@ GraceUI D254, D274, engine 889f763
 - Consequence for EldenNet: T, masked whenever it is bound (WHY§438's rule holds for the talk key too), would take
   keyboard sorting away from the inventory (the right button still sorts). The default stays until the game's tables
   are read; then the talk and skip keys are chosen from keys free in the field and the menus alike.
+- *Later (2026-11-28):* the owner never noticed the change: their save predates patch 1.12 and kept the old
+  layout. So players have either layout, and the talk and skip keys must be free in both.
 
 ### 707. The focus and the stamina beside the health
 
