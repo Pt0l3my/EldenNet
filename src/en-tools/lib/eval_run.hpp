@@ -51,7 +51,8 @@
 //   do = "ng_plus"                           # the journey's next cycle (ng_lvl + 1)
 //   do = "reload"                            # back to the title, then the same save again: a new session's core
 //   do = "kill"                              # the process dies: the core and the store's thread are dropped unflushed
-//   do = "load"                              # an older save of the same character, at `pt` ms of play
+//   do = "load"                              # an older save of the same character, at `pt` ms of play, its world
+//                                            # in the flag state `flags` when given (else as it was)
 //   do = "choose"                            # the answer to the rollback choice: forget | keep | new
 //   do = "wait_jobs"                         # until no memory job is queued or in flight (two minutes at most)
 //   do = "move"                              # `who` = 0 the partner (default), n the n-th extra

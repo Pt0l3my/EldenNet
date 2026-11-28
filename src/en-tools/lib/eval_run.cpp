@@ -358,6 +358,12 @@ class Runner {
         if (st.kind == EvalStep::Kind::Load) {
           pt_base_ = st.pt;  // the same character, an older save: the core opens the same file
           t_base_ = t_;
+          if (!st.flags.empty()) {  // and its world as that save holds it
+            auto f = flag_state(st.flags);
+            if (!f) return proto::Unexpected{f.error()};
+            flags_ = std::move(*f);
+            flags_name_ = st.flags;
+          }
         } else {
           new_store();
           if (auto loaded = fresh_core(); !loaded.empty()) return proto::Unexpected{std::move(loaded)};

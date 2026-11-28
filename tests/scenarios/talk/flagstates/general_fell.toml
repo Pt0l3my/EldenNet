@@ -1,0 +1,13 @@
+# A fixture flag state of star_falls.toml's own (MEM §12.11, step B): the castle's lord and the red general fallen, the
+# star not yet come down. Between the shared states after_godrick and after_radahn, which feed the goldens and stay as
+# they are. Invented test data, our own: catalogue aliases and their values, every one verified; every other alias
+# reads false.
+schema = 1
+state = "general_fell"
+journey = 1
+
+[flags]
+"boss.godrick" = true
+"boss.radahn" = true
+"runes.ge1" = true
+"runes.ge2" = true

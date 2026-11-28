@@ -43,6 +43,7 @@ ng = "unknown"
 verified = true
 evidence = ["ci:pilot"]
 spoiler = 1
+match = ["radahn", "general"]             # star_falls.toml's claim (MEM §12.11, step E)
 
 [[flag]]
 alias = "boss.rykard"

@@ -374,23 +374,28 @@ and the persona's deflection) and `lantern-long-reply` (the reply's second sente
 stream is cancelled while it streams).
 
 **Memory** (v0.3; MEM §2.8, §3.8, §9; Q6: the design's names, the runner's TOML). `store = true` runs the core against
-en-store's StoreCore on a temporary folder of the run's own (removed after it), the account attached, each step's
-store requests answered in order, each answer the core's next input, as T9 would. `character` names the Tarnished
-(invented), and `[[world.extra]]` places more invented characters after the partner. The steps: `native_talk` (the
-game's own talk with the partner), `strike` (the Tarnished's blow), `ng_plus`, `reload` (the title, then a new
-session's core and store thread on the same file), `kill` (the process dies: nothing closed or flushed), `load` (an
-older save at `pt`), `choose` (the rollback's answer), `wait_jobs` (nothing to wait for until the memory job) and
-`move` with `who`; and `expect`'s `mode`, `fact` (the journey's, as the core folds it) and `audience` (the events of a
-kind a persona perceived so, read through en-store's own query). `wren_and_kale` runs MEM §2.8's steps A to F and H on
-scripted replies (`slot = "memory"` replies answer the memory job, each slot in its own order): A's chat and its
-audiences and journal v1 with the told name, C's claim filed with `slew:godrick`, B's native talk as a second meeting,
-D's fall proving the claim at render, E's strike, and F after a reload, whose prompt holds block 8, the tail, the
-since-line and the Tarnished's-part cue; F's job filing the blow and F2's lived version, which the next prompt
+en-store's StoreCore on a temporary folder of the run's own (removed after it), the account attached, each step's store
+requests answered in order, each answer the core's next input, as T9 would. `character` names the Tarnished (invented),
+and `[[world.extra]]` places more invented characters after the partner. The steps: `native_talk` (the game's own talk
+with the partner), `strike` (the Tarnished's blow), `ng_plus`, `reload` (the title, then a new session's core and store
+thread on the same file), `kill` (the process dies: nothing closed or flushed), `load` (an older save at `pt`, its world
+in the flag state `flags` when given), `choose` (the rollback's answer), `wait_jobs` (nothing to wait for until the
+memory job) and `move` with `who`; and `expect`'s `mode`, `fact` (the journey's, as the core folds it) and `audience`
+(the events of a kind a persona perceived so, read through en-store's own query). `wren_and_kale` runs MEM §2.8's steps
+A to F and H on scripted replies (`slot = "memory"` replies answer the memory job, each slot in its own order): A's chat
+and its audiences and journal v1 with the told name, C's claim filed with `slew:godrick`, B's native talk as a second
+meeting, D's fall proving the claim at render, E's strike, and F after a reload, whose prompt holds block 8, the tail,
+the since-line and the Tarnished's-part cue; F's job filing the blow and F2's lived version, which the next prompt
 carries; then H's NG+. And `older_save` a hard kill mid-conversation (the next session ends it as crashed, a meeting)
-and an older save an hour back, whose choice refuses named chat with its toast until Forget takes back what came
-after. `kale_news` runs the reaction cue in conversation: a second meeting an hour after the castle's fall opens with
-the since-line and the cue, a line 30 s later finds the item in its news cooldown, and one 90 s later carries it
-again.
+and an older save an hour back, whose choice refuses named chat with its toast until Forget takes back what came after.
+`kale_news` runs the reaction cue in conversation: a second meeting an hour after the castle's fall opens with the
+since-line and the cue, a line 30 s later finds the item in its news cooldown, and one 90 s later carries it again.
+`star_falls` runs MEM §12.11's acceptance scenario, Kalé's steps (Blaidd's wait for v0.5): A's first meeting with the
+castle's fall a rumour in his block 5b; the red general's fall (B, the scenario's own flag state `general_fell`) and the
+star (C); D's claim of the general, whose prompt has the since-line naming both and no cue; E's job filing it as
+`slew:radahn`, proved at the commit (the pilot catalogue's `match` words), and dropping a star keepsake that cites only
+the world's line; E2's cue for the Tarnished's part; F's older save from before the general, whose Forget takes
+`world_seen` back to A's and empties `world_cued`; and G's NG+, with no since-line.
 
 **The speech tap** (`lib/speech_tap.hpp`; WHY§410). The core runs the eval's own speech parts (`Core(SpeechParts)`):
 part A's sanitizer, lint and pager over the content's lexicon, each wrapped, so that every reply attempt the
@@ -503,15 +508,18 @@ line and key, the recorded model with the live ids, and every conversation scena
 regeneration, the deflection and the pager's cap in their scenarios' turns; and the pilot at two states, the same
 scenario failing by index with the world left fresh, and an unknown state named as the scenario's error.
 
-Its `test_oracle.cpp` is MEM §9.6's oracle at the core's level, on `wren_and_kale` through the eval with its store
-kept (`EvalOptions::store_dir`, the save loaded at `start_pt`): T1 (conv C between its second reply's pages), T2 (after
-the castle's lord fell, before the strike) and T3 (the last of journey 1, before NG+), each by every path the store
-has (the silent trim, Forget after the choice, and a save of journey 1 against the file in journey 2), the trimmed
-file equal to a replay of the scenario up to the cut in every table, wall times left out, with MEM's checks for each
-cut and its property checks (nothing past the cut, no orphaned audience, the watermark the current version's, a lived
-version no newer than its journal); Keep (every row of the first timeline kept in a new epoch, and a later crash trim
-cutting that epoch alone); and New character (the old file archived whole, an empty one in its place, and the
-character's newest archive back after another character in the slot).
+Its `test_oracle.cpp` is MEM §9.6's oracle at the core's level, on `wren_and_kale` through the eval with its store kept
+(`EvalOptions::store_dir`, the save loaded at `start_pt`): T1 (conv C between its second reply's pages), T2 (after the
+castle's lord fell, before the strike) and T3 (the last of journey 1, before NG+), each by every path the store has (the
+silent trim, Forget after the choice, and a save of journey 1 against the file in journey 2), the trimmed file equal to
+a replay of the scenario up to the cut in every table, wall times left out, with MEM's checks for each cut and its
+property checks (nothing past the cut, no orphaned audience, the watermark the current version's, a lived version no
+newer than its journal); Keep (every row of the first timeline kept in a new epoch, and a later crash trim cutting that
+epoch alone); New character (the old file archived whole, an empty one in its place, and the character's newest archive
+back after another character in the slot); `star_falls` as its file holds it (E's claim and proof, no star keepsake,
+E2's cue on its NpcSaid, F's rollback, G's journey); and MEM §12.11's T7 world trims (before the general's fall, between
+it and the star, after both, and before E2, whose item a trim makes cue-able again) and T3's fold property at six seeded
+cuts, through the same oracle.
 
 Its `test_dialogue_prompt.cpp` runs the first conversation's part A on the shipped content: the pack loads, the frame and
 the registers keep their caps, blocks 1 to 5 never move with the turn and 5b only with the stage and its lines (T5),

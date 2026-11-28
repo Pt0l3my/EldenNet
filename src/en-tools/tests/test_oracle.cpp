@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <optional>
 #include <random>
 #include <string>
@@ -267,7 +268,7 @@ std::int64_t open_lag_of(const fs::path& full_file) {
 }
 
 struct Cut {
-  const char* name;
+  std::string name;
   std::int64_t pt = 0;
   std::size_t steps = 0;    // the replay: these steps, then a wait to the cut
   core::Mono tail_ms = 0;   //   of this many ms
@@ -275,8 +276,8 @@ struct Cut {
 };
 
 // The cut at `pt`: the steps that end by it and the wait from the last one's end.
-Cut cut_at(const char* name, const EvalRun& full, std::int64_t pt, bool drain) {
-  Cut c{name, pt, 0, 0, drain};
+Cut cut_at(std::string name, const EvalRun& full, std::int64_t pt, bool drain) {
+  Cut c{std::move(name), pt, 0, 0, drain};
   for (std::size_t i = 0; i + 1 < full.step_pt.size(); ++i) {
     if (full.step_pt[i + 1] <= pt) c.steps = i + 1;
   }
@@ -284,36 +285,18 @@ Cut cut_at(const char* name, const EvalRun& full, std::int64_t pt, bool drain) {
   return c;
 }
 
-}  // namespace
-
-TEST_CASE("oracle (MEM 9.6): T1 to T3 on wren_and_kale, by every path, equal a replay up to the cut") {
-  const EvalScenario s = scenario("wren_and_kale.toml");
-  Folder folder;
-  // The full run, and a longer one that stays in journey 1, six minutes past its end with one more conversation (so
-  // that every cut is more than 5 min before the file's newest event: the choice, then Forget).
-  const EvalRun full = run_kept(s, folder.at("full"));
+// Each cut of `s` by every path the store has, against a replay of `s` up to it (the doc at the top), with MEM's own
+// checks for the cut (`checks`, on each trimmed file). `full` is `s` run with its store kept in folder `full`.
+using CutChecks = std::function<void(const Cut&, const fs::path& file)>;
+void oracle(const EvalScenario& s, const Folder& folder, const EvalRun& full, const std::vector<Cut>& cuts,
+            const CutChecks& checks) {
   const std::size_t ng = index_of(s, Kind::NgPlus);
   const EvalScenario late = late_of(s);
-  const fs::path full_file = live_file(folder.at("full"));
-  const std::int64_t open_lag = open_lag_of(full_file);
-  // T1: conv C (the second conversation), between the first and second page of Kalé's second reply; T2: after the
-  // castle's lord fell, before the strike; T3: the last of journey 1, before NG+.
-  const std::string two_pages =
-      one(full_file, "SELECT json_extract(payload, '$.pages[0].pt') || ':' || json_extract(payload, '$.pages[1].pt') "
-                     "FROM events WHERE kind = 'NpcSaid' AND conv_id = 2 AND "
-                     "json_array_length(payload, '$.pages') = 2");
-  const std::int64_t p1 = std::stoll(two_pages.substr(0, two_pages.find(':')));
-  const std::int64_t p2 = std::stoll(two_pages.substr(two_pages.find(':') + 1));
-  const std::vector<Cut> cuts = {
-      cut_at("T1", full, (p1 + p2) / 2, false),
-      cut_at("T2", full, full.step_pt[index_of(s, Kind::Strike)], true),
-      cut_at("T3", full, full.step_pt[ng], true),
-  };
+  const std::int64_t open_lag = open_lag_of(live_file(folder.at("full")));
   for (const Cut& cut : cuts) {
-    const std::string cut_name = cut.name;
-    CAPTURE(cut_name);
+    CAPTURE(cut.name);
     // The replay: the scenario up to the cut, its queued jobs drained.
-    const std::string rname = std::string("replay-") + cut.name;
+    const std::string rname = "replay-" + cut.name;
     EvalScenario r = truncated(s, cut.steps);
     if (cut.tail_ms > 0) r.steps.push_back(wait(cut.tail_ms));
     if (cut.drain) r.steps.push_back(step(Kind::WaitJobs));
@@ -344,7 +327,7 @@ TEST_CASE("oracle (MEM 9.6): T1 to T3 on wren_and_kale, by every path, equal a r
     for (const Path& path : paths) {
       const std::string path_name = path.name;
       CAPTURE(path_name);
-      const std::string name = std::string(cut.name) + "-" + path.name;
+      const std::string name = cut.name + "-" + path.name;
       (void)run_kept(path.source, folder.at(name));
       const fs::path file = live_file(folder.at(name));
       const std::int64_t next_event = number(file, "SELECT v FROM meta WHERE k = 'next_event_id'");
@@ -369,42 +352,69 @@ TEST_CASE("oracle (MEM 9.6): T1 to T3 on wren_and_kale, by every path, equal a r
       properties(file, cut.pt, next_event, next_conv);
       // A journal version written before the cut is the file's own, every byte (T3: Kalé's journey-1 journal).
       CHECK(rows(file, "SELECT * FROM npc_journal WHERE journey = 1 ORDER BY persona, version") == journal_before);
-      const std::string kale = "SELECT value FROM npc_facts WHERE journey = 1 AND persona = 'kale' AND key = ";
-      if (std::string(cut.name) == "T1") {
-        // MEM §9.6's T1 on this scenario: the reply across the cut keeps its first page; conv C ends `trimmed`, its
-        // job taken back to its last kept line and queued again (it still has 2 of the Tarnished's lines and 4
-        // committed, MEM §3.1); journal v1 is current. met_count is 1: conv C merged into A's meeting (within
-        // 10 min), the design's §2.8 counting B before C.
-        CHECK(one(file, "SELECT text FROM events WHERE kind = 'NpcSaid' AND conv_id = 2 ORDER BY id DESC LIMIT 1") ==
-              one(full_file, "SELECT substr(text, 1, json_extract(payload, '$.pages[0].end')) FROM events WHERE kind = "
-                             "'NpcSaid' AND conv_id = 2 AND json_array_length(payload, '$.pages') = 2"));
-        CHECK(one(file, "SELECT end_reason || ':' || committed_lines FROM conversations WHERE id = 2") == "trimmed:4");
-        CHECK(one(file, "SELECT state || ':' || upto_event_id FROM memory_jobs WHERE conv_id = 2") ==
-              "queued:" + one(file, "SELECT max(id) FROM events WHERE conv_id = 2"));
-        CHECK(one(file, "SELECT max(version) FROM npc_journal WHERE persona = 'kale'") == "1");
-        CHECK(one(file, kale + "'met_count'") == "1");
-      } else if (std::string(cut.name) == "T2") {
-        // T2: no blow yet; v3 gone, so disposition 0 and no k3; the watermark v2's upto; Kalé's lived v1 (step F2)
-        // gone with v3. slew:godrick's proof was written with v3, after the cut, and goes with it: at the cut the
-        // claim proves at render, from the flags (§2.8's step D), as the replay's does.
-        CHECK(rows(file, kale + "'times_attacked'").empty());
-        CHECK(one(file, "SELECT version || ':' || disposition FROM npc_journal WHERE persona = 'kale' ORDER BY "
-                        "version DESC LIMIT 1") == "2:0");
-        CHECK(one(file, "SELECT json_array_length(keepsakes) FROM npc_journal WHERE persona = 'kale' ORDER BY version "
-                        "DESC LIMIT 1") == "2");
-        CHECK(rows(file, kale + "'verified:slew:godrick'").empty());
-        CHECK(one(file, "SELECT watermark FROM memory_progress WHERE persona = 'kale'") ==
-              one(file, "SELECT upto_event_id FROM npc_journal WHERE persona = 'kale' AND version = 2"));
-        CHECK(number(file, "SELECT count(*) FROM npc_lived") == 0);
-      } else {
-        // T3: journey 2's epoch and rows gone; journey 1 current; slew:godrick's proof (v3's, before the cut) kept.
-        CHECK(one(file, kale + "'verified:slew:godrick'") == "1");
-        CHECK(number(file, "SELECT count(*) FROM epochs WHERE journey = 2") == 0);
-        CHECK(number(file, "SELECT count(*) FROM events WHERE journey = 2") == 0);
-        CHECK(one(file, "SELECT v FROM meta WHERE k = 'current_journey'") == "1");
-      }
+      checks(cut, file);
     }
   }
+}
+
+}  // namespace
+
+TEST_CASE("oracle (MEM 9.6): T1 to T3 on wren_and_kale, by every path, equal a replay up to the cut") {
+  const EvalScenario s = scenario("wren_and_kale.toml");
+  Folder folder;
+  // The full run, and a longer one that stays in journey 1, six minutes past its end with one more conversation (so
+  // that every cut is more than 5 min before the file's newest event: the choice, then Forget).
+  const EvalRun full = run_kept(s, folder.at("full"));
+  const fs::path full_file = live_file(folder.at("full"));
+  // T1: conv C (the second conversation), between the first and second page of Kalé's second reply; T2: after the
+  // castle's lord fell, before the strike; T3: the last of journey 1, before NG+.
+  const std::string two_pages =
+      one(full_file, "SELECT json_extract(payload, '$.pages[0].pt') || ':' || json_extract(payload, '$.pages[1].pt') "
+                     "FROM events WHERE kind = 'NpcSaid' AND conv_id = 2 AND "
+                     "json_array_length(payload, '$.pages') = 2");
+  const std::int64_t p1 = std::stoll(two_pages.substr(0, two_pages.find(':')));
+  const std::int64_t p2 = std::stoll(two_pages.substr(two_pages.find(':') + 1));
+  const std::vector<Cut> cuts = {
+      cut_at("T1", full, (p1 + p2) / 2, false),
+      cut_at("T2", full, full.step_pt[index_of(s, Kind::Strike)], true),
+      cut_at("T3", full, full.step_pt[index_of(s, Kind::NgPlus)], true),
+  };
+  oracle(s, folder, full, cuts, [&](const Cut& cut, const fs::path& file) {
+    const std::string kale = "SELECT value FROM npc_facts WHERE journey = 1 AND persona = 'kale' AND key = ";
+    if (cut.name == "T1") {
+      // MEM §9.6's T1 on this scenario: the reply across the cut keeps its first page; conv C ends `trimmed`, its
+      // job taken back to its last kept line and queued again (it still has 2 of the Tarnished's lines and 4
+      // committed, MEM §3.1); journal v1 is current. met_count is 1: conv C merged into A's meeting (within
+      // 10 min), the design's §2.8 counting B before C.
+      CHECK(one(file, "SELECT text FROM events WHERE kind = 'NpcSaid' AND conv_id = 2 ORDER BY id DESC LIMIT 1") ==
+            one(full_file, "SELECT substr(text, 1, json_extract(payload, '$.pages[0].end')) FROM events WHERE kind = "
+                           "'NpcSaid' AND conv_id = 2 AND json_array_length(payload, '$.pages') = 2"));
+      CHECK(one(file, "SELECT end_reason || ':' || committed_lines FROM conversations WHERE id = 2") == "trimmed:4");
+      CHECK(one(file, "SELECT state || ':' || upto_event_id FROM memory_jobs WHERE conv_id = 2") ==
+            "queued:" + one(file, "SELECT max(id) FROM events WHERE conv_id = 2"));
+      CHECK(one(file, "SELECT max(version) FROM npc_journal WHERE persona = 'kale'") == "1");
+      CHECK(one(file, kale + "'met_count'") == "1");
+    } else if (cut.name == "T2") {
+      // T2: no blow yet; v3 gone, so disposition 0 and no k3; the watermark v2's upto; Kalé's lived v1 (step F2)
+      // gone with v3. slew:godrick's proof was written with v3, after the cut, and goes with it: at the cut the
+      // claim proves at render, from the flags (§2.8's step D), as the replay's does.
+      CHECK(rows(file, kale + "'times_attacked'").empty());
+      CHECK(one(file, "SELECT version || ':' || disposition FROM npc_journal WHERE persona = 'kale' ORDER BY "
+                      "version DESC LIMIT 1") == "2:0");
+      CHECK(one(file, "SELECT json_array_length(keepsakes) FROM npc_journal WHERE persona = 'kale' ORDER BY version "
+                      "DESC LIMIT 1") == "2");
+      CHECK(rows(file, kale + "'verified:slew:godrick'").empty());
+      CHECK(one(file, "SELECT watermark FROM memory_progress WHERE persona = 'kale'") ==
+            one(file, "SELECT upto_event_id FROM npc_journal WHERE persona = 'kale' AND version = 2"));
+      CHECK(number(file, "SELECT count(*) FROM npc_lived") == 0);
+    } else {
+      // T3: journey 2's epoch and rows gone; journey 1 current; slew:godrick's proof (v3's, before the cut) kept.
+      CHECK(one(file, kale + "'verified:slew:godrick'") == "1");
+      CHECK(number(file, "SELECT count(*) FROM epochs WHERE journey = 2") == 0);
+      CHECK(number(file, "SELECT count(*) FROM events WHERE journey = 2") == 0);
+      CHECK(one(file, "SELECT v FROM meta WHERE k = 'current_journey'") == "1");
+    }
+  });
 }
 
 TEST_CASE("oracle (MEM 9.6): Keep keeps every row in a new epoch, and a later crash trim touches only that epoch") {
@@ -506,4 +516,87 @@ TEST_CASE("oracle (MEM 9.6, 8.3): New character archives the old file whole and 
   const std::vector<fs::path> after = archived_files(folder.at("new"));
   CHECK(std::find(after.begin(), after.end(), archived.front()) != after.end());
   CHECK(rows(archived.front(), tables[0]) == before[0]);
+}
+
+TEST_CASE("oracle (MEM 12.11): star_falls, Kalé's steps, as the file holds them") {
+  const EvalScenario sf = scenario("star_falls.toml");
+  Folder folder;
+  // Up to the older save (F): E's journal and the cue E2 showed.
+  const std::size_t load = index_of(sf, Kind::Load);
+  (void)run_kept(truncated(sf, load), folder.at("before-f"));
+  const fs::path before = live_file(folder.at("before-f"));
+  const std::string kale = "SELECT value FROM npc_facts WHERE journey = 1 AND persona = 'kale' AND key = ";
+  // E: one keepsake, the claim, checked as slew:radahn and proved at the commit; the star's keepsake, which cites only
+  // the world's line, was the world model's and is not in the journal.
+  CHECK(one(before, "SELECT json_array_length(keepsakes) FROM npc_journal WHERE persona = 'kale'") == "1");
+  CHECK(one(before, "SELECT json_extract(keepsakes, '$[0].check_key') FROM npc_journal WHERE persona = 'kale'") ==
+        "slew:radahn");
+  CHECK(one(before, kale + "'verified:slew:radahn'") == "1");
+  CHECK(number(before, "SELECT count(*) FROM npc_journal, json_each(keepsakes) k WHERE json_extract(k.value, "
+                       "'$.text') LIKE '%star%'") == 0);
+  // E2: the reply that showed the cue carries it; D's carried none.
+  CHECK(rows(before, "SELECT json_extract(payload, '$.cue') FROM events WHERE kind = 'NpcSaid' AND json_extract("
+                     "payload, '$.cue') IS NOT NULL") == std::vector<std::string>{"w:general_fallen|"});
+  CHECK(one(before, kale + "'world_cued'").find("w:general_fallen") != std::string::npos);
+  // F and G, the whole scenario: the older save takes back D, E and E2, and NG+ starts journey 2.
+  (void)run_kept(sf, folder.at("all"));
+  const fs::path all = live_file(folder.at("all"));
+  const std::string f = std::to_string(sf.steps[load].pt);
+  CHECK(number(all, "SELECT count(*) FROM events WHERE journey = 1 AND kind IN ('PlayerSaid', 'NpcSaid') AND "
+                    "t_play_ms > " + f) == 0);
+  CHECK(number(all, "SELECT count(*) FROM npc_journal") == 0);
+  CHECK(rows(all, kale + "'verified:slew:radahn'").empty());
+  CHECK(rows(all, kale + "'world_cued'").empty());
+  CHECK(one(all, kale + "'world_seen'") == "[[\"w:castle_fallen\",\"rumour\"]]");
+  CHECK(one(all, "SELECT v FROM meta WHERE k = 'current_journey'") == "2");
+}
+
+TEST_CASE("oracle (MEM 12.11's T7, T3): world trims around the general and the star, and seeded cuts' folds") {
+  // star_falls up to its older save, then NG+: the oracle's scenario. T7's cuts: before the general's fall, between it
+  // and the star, after both (before D); and one before E2, whose cue's item a trim makes cue-able again. Then T3's
+  // property: at seeded cuts, world_seen, world_seen_pt, world_cued and spoke_pt as the core folds them live (the
+  // replay's) equal their refold after the trim, as every other table does.
+  const EvalScenario sf = scenario("star_falls.toml");
+  EvalScenario s = truncated(sf, index_of(sf, Kind::Load));
+  s.steps.push_back(step(Kind::NgPlus));
+  Folder folder;
+  const EvalRun full = run_kept(s, folder.at("full"));
+  const fs::path full_file = live_file(folder.at("full"));
+  const std::size_t b = index_of(s, Kind::Flags);
+  const std::size_t c = index_of(s, Kind::Flags, b + 1);
+  const std::size_t d = index_of(s, Kind::Open, c);
+  const std::size_t jobs = index_of(s, Kind::WaitJobs, d);
+  const std::size_t e2 = index_of(s, Kind::Open, jobs);
+  std::vector<Cut> cuts = {
+      cut_at("before-general", full, full.step_pt[b] - 5000, true),
+      cut_at("general-not-star", full, full.step_pt[b] + 1000, true),
+      cut_at("after-both", full, full.step_pt[d] - 1000, true),
+      cut_at("before-e2", full, full.step_pt[e2] - 1000, true),
+  };
+  // Six seeded cuts, a third of the way into a wait, outside the memory job's run (a replay to a cut there drains the
+  // job at a time of its own, which the full run's proof does not share); one in a conversation is not drained.
+  std::mt19937 rng(23);
+  std::uniform_int_distribution<std::size_t> pick(1, s.steps.size() - 2);
+  for (int i = 0; cuts.size() < 10 && i < 1000; ++i) {
+    const std::size_t k = pick(rng);
+    if (s.steps[k].kind != Kind::Wait || (k > d && k <= jobs + 1)) continue;
+    bool talking = false;
+    for (std::size_t j = 0; j < k; ++j) {
+      if (s.steps[j].kind == Kind::Open) talking = true;
+      if (s.steps[j].kind == Kind::Esc) talking = false;
+    }
+    const std::int64_t at = full.step_pt[k] + (full.step_pt[k + 1] - full.step_pt[k]) / 3;
+    if (std::any_of(cuts.begin(), cuts.end(), [&](const Cut& x) { return x.pt == at; })) continue;
+    cuts.push_back(cut_at("seeded-" + std::to_string(cuts.size()), full, at, !talking));
+  }
+  REQUIRE(cuts.size() == 10);
+  const std::string kale = "SELECT value FROM npc_facts WHERE journey = 1 AND persona = 'kale' AND key = ";
+  oracle(s, folder, full, cuts, [&](const Cut& cut, const fs::path& file) {
+    if (cut.name == "before-e2") {
+      CHECK(rows(file, kale + "'world_cued'").empty());  // cue-able again
+      CHECK(one(full_file, kale + "'world_cued'").find("w:general_fallen") != std::string::npos);
+    } else if (cut.name.rfind("seeded-", 0) != 0) {
+      CHECK(one(file, kale + "'world_seen'") == "[[\"w:castle_fallen\",\"rumour\"]]");  // A's, before D
+    }
+  });
 }
