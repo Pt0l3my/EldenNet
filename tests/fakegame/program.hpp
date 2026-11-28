@@ -55,6 +55,17 @@ struct Options {
   // that bit is the world's characters' alone), the save ledger counts the death and the sheet's runes are lost, and three seconds on the world loads again,
   // with a new player in it. Never, where 0.
   std::uint32_t block_at_s = 0, die_at_s = 0;
+  // The tour's world (the twenty-second read-only round), by the world's seconds, each never where 0: the menu
+  // desk's screen state reads 8 (a menu of the game's open) from menu_from_s to menu_to_s; the player's focus and
+  // stamina go down and come back from exert_from_s to exert_to_s; it is mounted from mount_from_s to mount_to_s
+  // and locked on to the first character near from lock_from_s to lock_to_s; at travel_at_s it is at another
+  // place (the field plot's place id is another, the veil keeper's count of loading screens one more), and at
+  // travel_back_at_s at the first again (the count one more again).
+  // big_tree: so many more records in the flags' tree (groups 4322 on, each naming the holder's second block), so
+  // that the walk of the tree takes as long as the game's does and outlasts a round's tasks.
+  std::uint32_t big_tree = 0;
+  std::uint32_t menu_from_s = 0, menu_to_s = 0, exert_from_s = 0, exert_to_s = 0, mount_from_s = 0, mount_to_s = 0,
+                lock_from_s = 0, lock_to_s = 0, travel_at_s = 0, travel_back_at_s = 0;
   bool wide_sheet = false;             // the save ledger and the hero sheet each lie at the start of 68 KiB of memory
                                        // full of small numbers, as an object of the game's lies among others: the
                                        // sheet scan then tells as many numbers as it does in the game

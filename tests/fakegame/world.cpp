@@ -224,8 +224,22 @@ FG::MarkLedgerImp* make_flag_store() {
   *n7 = FG::FlagNode{n0, head, n4321, 7, 1, 3};  // mode 1: the block's index in the holder (the fourth block)
   *n0 = FG::FlagNode{head, n7, head, 0, 1, 0};
   *n4321 = FG::FlagNode{head, n7, head, 4321, 2, own_at};
+  // --big-tree N: N more records, groups 4322 on, a chain down the right of the last record: each one's right is
+  // the next larger (the last one's the head), its left the head, its parent the next smaller; the head's right,
+  // the largest, is the chain's end.
+  const std::uint32_t more = std::min<std::uint32_t>(options().big_tree, 32'000);
+  if (more != 0) {
+    auto* extra = static_cast<FG::FlagNode*>(alloc_block(sizeof(FG::FlagNode) * more));
+    for (std::uint32_t i = 0; i < more; ++i) {
+      FG::FlagNode* smaller = i == 0 ? n4321 : &extra[i - 1];
+      FG::FlagNode* larger = i + 1 == more ? head : &extra[i + 1];
+      extra[i] = FG::FlagNode{head, smaller, larger, 4322 + i, 1, 1};
+    }
+    n4321->right = &extra[0];
+    head->right = &extra[more - 1];
+  }
   marks->map_head = head;
-  marks->map_count = 3;
+  marks->map_count = 3 + more;
   marks->holder = holder;
   w.flag_blocks[0] = holder;
   w.flag_blocks[1] = holder + 125 * 3;
@@ -709,6 +723,37 @@ void FG::ClockTask::run(const FrameInfo* frame) {
     }
     // --block-at-s: the player crosses into another block.
     if (w.player != nullptr && crossed(fakegame::options().block_at_s)) w.player->a.block_id = 0x0A1C0000u;
+    // The tour's world (--menu-from-s and the rest; program.hpp).
+    {
+      const fakegame::Options& t = fakegame::options();
+      const auto within = [&](std::uint32_t from, std::uint32_t to) {
+        return to != 0 && w.world_s >= static_cast<float>(from) && w.world_s < static_cast<float>(to);
+      };
+      if (t.menu_to_s != 0) fakegame::set_screen(within(t.menu_from_s, t.menu_to_s) ? 8 : 4);
+      if (w.player != nullptr && t.mount_to_s != 0) {
+        w.player->p.mount_state = within(t.mount_from_s, t.mount_to_s) ? 3 : 0;
+      }
+      if (w.player != nullptr && t.lock_to_s != 0) {
+        w.player->p.locked_on = within(t.lock_from_s, t.lock_to_s) && !w.npcs.empty() ? w.npcs.front()->a.handle : 0;
+      }
+      if (w.player != nullptr && t.exert_to_s != 0 && w.player->a.parts->vitals->hp > 0) {
+        // Spent a little more each quarter of a second, and whole again when the tester stops.
+        FG::VitalsPart* v = w.player->a.parts->vitals;
+        const auto spent = within(t.exert_from_s, t.exert_to_s) ? static_cast<std::int32_t>(w.world_s * 4.0f) % 8 : 0;
+        v->fp = v->max_fp - spent * 3;
+        v->stamina = v->max_stamina - spent * 7;
+      }
+      auto* plot = static_cast<FG::FieldPlotImp*>(fg_static_field_plot);
+      auto* veil = static_cast<FG::VeilKeeperImp*>(fg_get_veil());
+      if (crossed(t.travel_at_s)) {
+        if (plot != nullptr) plot->f.place_id = 6100200;
+        if (veil != nullptr) ++veil->load_counter;
+      }
+      if (crossed(t.travel_back_at_s)) {
+        if (plot != nullptr) plot->f.place_id = 6100100;
+        if (veil != nullptr) ++veil->load_counter;
+      }
+    }
     // --die-at-s: the player dies. Its health goes to nothing and its dead bit stays clear: the bit is the
     // world's characters' alone, as the twentieth round found in the game (WHY§656). The ledger counts the death
     // and the sheet's runes are lost at once; the world loads again three seconds on (step_phase).

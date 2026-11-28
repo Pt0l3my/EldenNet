@@ -5674,6 +5674,159 @@ case("launcher-eldennet-read-stay", LBASE + ["--no-steam-check", "--game", "{gam
           "written")
 
 
+def check_read_tour(result):
+    """The tour's plan (--read-plan 4; the twenty-second read-only round): twenty-one tasks and twelve marks. The fake
+    game's menu is open and closed, the player's focus and stamina go down and come back, it is mounted and on foot,
+    at another place and back (a loading screen each way), locked on and released, dies once, and stays. The scan by
+    phases tells where each state lies and never a value; EldenNet's own reader reads the focus, the stamina and the
+    count of deaths through the layout; the survey counts the others' focus and stamina by their shape; the round
+    says what it cost itself and how the game's window stands; and no verdict on a state is given before the next
+    mark, or taken back."""
+    failures = any_line(result, "LAUNCHER", "tasks", count=21, plan=4)
+    failures += any_line(result, "ELDENNET", "read", stage="plan", plan=4, known=1)
+    failures += any_line(result, "ELDENNET", "read", stage="phase_scan", made=1, player=1, mark=1)
+    failures += any_line(result, "ELDENNET", "read", stage="sheet", made=1, lacks=0, by_layout=1, part_beside=1, mark=1)
+    failures += any_line(result, "ELDENNET", "read", stage="stay_written", clock=1, play=1)
+    failures += any_line(result, "ELDENNET", "read", stage="gathered", word=0x555555, mark=12)
+    failures += any_line(result, "LAUNCHER", "gathered", word=0x555555)
+    failures += any_line(result, "LAUNCHER", "gathered", line=1, usable=1, report_failed=0)
+    # A mark's verdict, once given, stays (but the stay's, which may still mend): the twenty-first round's panel said
+    # "Not gathered" and then "Got it".
+    said = {}
+    for e in result.events("ELDENNET", "read"):
+        if e.get("stage") != "gathered":
+            continue
+        word = int(e.get("word", "0"))
+        for mark in range(1, 12):
+            verdict = (word >> (2 * (mark - 1))) & 3
+            if verdict != 0:
+                need(said.setdefault(mark, verdict) == verdict,
+                     "the verdict on mark %d changed from %d to %d" % (mark, said.get(mark), verdict), failures)
+    need(not [e for e in result.events("ELDENNET", "read") if e.get("stage") == "stay_slowed"],
+         "the tour's plan slowed the survey", failures)
+    # The flags' tree is long here (--big-tree), as the game's is: its walk takes twenty seconds or more, and the
+    # watch goes on making its passes through it. In the twenty-first round the walk took every step the scans left
+    # for five minutes, the watch made none, and the stay's verdict came late.
+    reads = result.events("ELDENNET", "read")
+    began = [int(e.get("t", "0")) for e in reads if e.get("stage") == "tree"]
+    ended = [int(e.get("t", "0")) for e in reads if e.get("stage") == "tree_done" and e.get("records") == "30004"]
+    during = [int(e.get("watch_passes", "0")) for e in reads
+              if e.get("stage") == "held" and began and ended and began[0] <= int(e.get("t", "0")) <= ended[0]]
+    need(began and ended and ended[0] - began[0] >= 20000 and len(during) >= 2 and during[-1] - during[0] >= 8,
+         "the watch through the tree's walk: began %s ended %s watch passes %s" % (began, ended, during), failures)
+    folder = os.path.join(result.paths["appdata"], "EldenNet", "probe")
+    report = os.path.join(folder, "lodestar-found.json")
+    if not os.path.exists(report):
+        return failures + ["no lodestar-found.json in the probe folder"]
+    code, out, _ = run_engine(result.args, result.env, ["lint", "--report", result.as_win(report)])
+    need(code == 0, "lint --report lodestar-found.json: exit %s %s" % (code, out[-400:]), failures)
+    with open(report) as f:
+        d = json.load(f)
+    need(d["report"] == "lodestar" and d["schema"] == 23,
+         "the report's kind: %s %s" % (d.get("report"), d.get("schema")), failures)
+    # The scan by phases: each state where the fake game keeps it. The menu desk's screen state (0xC of the
+    # catalogue's 1010); the player's mount state (0x68 of its object) and its lock (the handle's two halves from
+    # 0x60); the veil keeper's count of loading screens (0x8 of 1011); the field plot's place id (0x1C, in a static's
+    # object copied once in four phases).
+    scan = d.get("phase_scan") or {"patterns": [], "phase_targets": [], "phase_copies": [], "phase_once": []}
+    targets = scan["phase_targets"]
+    patterns = {p["phase_pattern"]: p for p in scan["patterns"]}
+
+    def fits(word, **want):
+        out = []
+        for h in (patterns.get(word) or {}).get("fits", []):
+            t = targets[h["target_at"]] if h["target_at"] < len(targets) else {}
+            row = dict(h, target_is=t.get("target_is"), id=t.get("id"))
+            if all(row.get(k) == v for k, v in want.items()):
+                out.append(row)
+        return out
+    copies, once = scan.get("phase_copies") or [0] * 16, scan.get("phase_once") or [0] * 16
+    need(all(copies[p] >= 10 for p in (0, 1, 2, 4, 6, 7, 8)) and all(once[p] >= 1 for p in (0, 2, 6, 7)) and
+         once[1] + once[4] + once[8] == 0,
+         "the scan's copies by phase: %s once %s" % (copies, once), failures)
+    need(fits("menu_open", id=1010, offset=0xC, whole_field=True),
+         "the menu's state: %s" % (patterns.get("menu_open") or {}).get("fits", [])[:8], failures)
+    need(fits("mounted", target_is="player", offset=0x68, whole_field=True, off_zero=True, on_small=True),
+         "the mount's state: %s" % (patterns.get("mounted") or {}).get("fits", [])[:8], failures)
+    need(fits("locked_on", target_is="player", offset=0x60, whole_field=True, off_zero=True) and
+         fits("locked_on", target_is="player", offset=0x64, whole_field=True, off_zero=True),
+         "the lock: %s" % (patterns.get("locked_on") or {}).get("fits", [])[:8], failures)
+    need(fits("loadings", id=1011, offset=0x8, whole_field=True),
+         "the count of loading screens: %s" % (patterns.get("loadings") or {}).get("fits", [])[:8], failures)
+    need(fits("place", target_is="static", offset=0x1C, whole_field=True, off_zero=False) and
+         (patterns.get("place") or {}).get("bit_fits") == 0,
+         "the place: %s" % (patterns.get("place") or {}).get("fits", [])[:8], failures)
+    text = open(report).read()
+    need("6100100" not in text and "6100200" not in text, "a place's id is written in the report", failures)
+    # EldenNet's own reader: the focus and the stamina through the layout, changed in the sprints' span (3) and
+    # never above their most; the count of deaths one more once, at the one fall of the health to nothing.
+    world = d.get("world") or {}
+    fp_by, st_by = world.get("fp_changes_by") or [0] * 13, world.get("stamina_changes_by") or [0] * 13
+    need(world.get("lacks") == 0 and world.get("fp_frames", 0) >= 60 and world.get("fp_over") == 0 and
+         world.get("stamina_frames") == world.get("fp_frames") and world.get("stamina_over") == 0 and
+         len(fp_by) == 13 and fp_by[3] >= 2 and st_by[3] >= 2 and fp_by[1] == 0 and st_by[1] == 0,
+         "the reader on the focus and the stamina: %s %s %s" %
+         ({k: world.get(k) for k in ("lacks", "fp_frames", "fp_over", "stamina_frames", "stamina_over")}, fp_by, st_by),
+         failures)
+    need(world.get("deaths_frames", 0) >= 60 and world.get("deaths_rose") == 1 and world.get("deaths_other") == 0 and
+         world.get("hp_falls") == 1,
+         "the reader on the count of deaths: %s" %
+         {k: world.get(k) for k in ("deaths_frames", "deaths_rose", "deaths_other", "hp_falls")}, failures)
+    # The survey, at its full pace to the end: the others' focus and stamina read as pairs at every sighting.
+    survey = d.get("survey") or {}
+    need(survey.get("passes", 0) >= 40 and survey.get("vitals_seen", 0) >= 100 and
+         survey.get("fp_ok") == survey.get("vitals_seen") and survey.get("stamina_ok") == survey.get("vitals_seen") and
+         len(survey.get("checks") or []) == 24,
+         "the survey in the tour's plan: %s" % {k: v for k, v in survey.items() if not isinstance(v, list)}, failures)
+    # The sheet scan: the count that rose by one, with its times; its numbers kept short (they are not this round's).
+    sheet = d.get("sheet") or {"sheets": []}
+    objects = {o["sheet_of"]: o for o in sheet["sheets"]}
+    rose = {r["offset"]: r for r in (objects.get("save_data") or {}).get("rose_only", [])}
+    need(0x18 in rose and rose[0x18]["rose_times"] == 1 and sheet.get("part_passes", 0) >= 20 and
+         all(len(o["numbers"]) <= 512 and o["numbers_cut"] is True for o in objects.values()),
+         "the sheet scan in the tour's plan: %s rose %s" %
+         ({k: v for k, v in sheet.items() if not isinstance(v, list)}, sorted(rose.items())[:4]), failures)
+    # What the round cost itself, and the game's window: EldenNet's own megabytes, its reader's time, two flags.
+    cost, window = d.get("cost") or {}, d.get("game_window") or {}
+    need(1 <= cost.get("own_mb_start", 0) <= cost.get("own_mb_most", 0) < 512 and
+         cost.get("own_mb_end", 0) <= cost.get("own_mb_most", 0) and cost.get("reader_cpu_ms", 0) >= 100 and
+         cost.get("session_s", 0) >= 120,
+         "the round's own cost: %s" % cost, failures)
+    need(window.get("window_seen") is True and window.get("window_mode") in (0, 1, 2) and
+         window.get("dpi_scaled") in (True, False) and set(window) == {"window_seen", "window_mode", "dpi_scaled"},
+         "the game's window: %s" % window, failures)
+    size = os.path.getsize(report)
+    need(size < 1024 * 1024, "the report: %d bytes" % size, failures)
+    failures += any_line(result, "LAUNCHER", "read", report="lodestar-found.json", lint="clean")
+    need(not [e for e in result.events("ELDENNET", "read") if e.get("report") in ("refused", "lost")],
+         "the round could not write its report at some time", failures)
+    failures += any_line(result, "ELDENNET", "connect", skipped=1, why="read_round")
+    failures += check_lines(("ELDENNET", "init", {"state": "ready"}), ("LAUNCHER", "end", {"kind": "clean"}))(result)
+    return failures + ready_no_call(result) + en_log_is_clean(result)
+
+
+case("launcher-eldennet-read-tour", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
+                                             "--read", "--read-plan", "4", "--read-pace-s", "8"] +
+     game("--field-mirror", "--title-frames", "720", "--wide-sheet", "--big-tree", "30000", "--menu-from-s", "27", "--menu-to-s", "43",
+          "--exert-from-s", "46", "--exert-to-s", "53", "--mount-from-s", "59", "--mount-to-s", "75",
+          "--travel-at-s", "83", "--travel-back-at-s", "99", "--lock-from-s", "115", "--lock-to-s", "131",
+          "--die-at-s", "136", "--retitle-at-s", "165", "--retitle-for-s", "100", frames=11400),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=420,
+     # The fake game's seconds of the world against the launcher's tasks at eight seconds each. The round is ready
+     # some 10.5 s in and the world begins 12.9 s in, so a mark's second of the world is its second of the launcher
+     # less 12.9. The marks, in the world's seconds: the load 5.6; the menu open 29.6 (open from 27 to 43) and
+     # closed 45.6; the sprints' end 53.6 (spent from 46 to 53); mounted 61.6 (from 59 to 75) and on foot 77.6; the
+     # other place 85.6 (there from 83) and back 101.6 (from 99); locked on 117.6 (from 115 to 131) and released
+     # 133.6; the death 141.6 (it dies at 136 and is back at 139); the stay's end 149.6. Each state begins two
+     # seconds or more before its mark and holds for the nine seconds after it in which the scan copies.
+     prepare=install_eldennet(None, probe=True, gal_change=read_state_gal, then=with_saves),
+     check=check_read_tour,
+     what="the twenty-second round: the tour's plan. The scan by phases tells where the menu's state, the mount, the "
+          "lock, the count of loading screens and the place lie, and never a value; the reader reads the focus, the "
+          "stamina and the count of deaths through the layout; the survey counts the others' focus and stamina; the "
+          "round says its own cost and the window's flags; and a state's verdict is given once and stays")
+
+
 def report_in_the_way(paths):
     # Where the round writes its report there is a folder of that name: the file can never be written.
     with_saves(paths)

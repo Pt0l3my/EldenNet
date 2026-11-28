@@ -300,6 +300,17 @@ bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
     else if (n == L"--kill-at-s") ok = p.number(o.kill_at_s);
     else if (n == L"--block-at-s") ok = p.number(o.block_at_s);
     else if (n == L"--die-at-s") ok = p.number(o.die_at_s);
+    else if (n == L"--big-tree") ok = p.number(o.big_tree);
+    else if (n == L"--menu-from-s") ok = p.number(o.menu_from_s);
+    else if (n == L"--menu-to-s") ok = p.number(o.menu_to_s);
+    else if (n == L"--exert-from-s") ok = p.number(o.exert_from_s);
+    else if (n == L"--exert-to-s") ok = p.number(o.exert_to_s);
+    else if (n == L"--mount-from-s") ok = p.number(o.mount_from_s);
+    else if (n == L"--mount-to-s") ok = p.number(o.mount_to_s);
+    else if (n == L"--lock-from-s") ok = p.number(o.lock_from_s);
+    else if (n == L"--lock-to-s") ok = p.number(o.lock_to_s);
+    else if (n == L"--travel-at-s") ok = p.number(o.travel_at_s);
+    else if (n == L"--travel-back-at-s") ok = p.number(o.travel_back_at_s);
     else if (n == L"--wide-sheet") o.wide_sheet = true;
     else if (n == L"--retitle-at-s") ok = p.number(o.retitle_at_s);
     else if (n == L"--retitle-for-s") ok = p.number(o.retitle_for_s);
@@ -539,7 +550,7 @@ namespace {
 void print_usage() {
   static const char* const kUsage[] = {
       "usage: fakegame [options]   (README.md describes each)",
-      "  --frames N  --forever  --fps N  --no-window  --boot-delay-ms N  --statics-delay-ms N  --field-mirror  --pass-time  --flag-set  --clock-rate N  --day-book  --slot-by-state  --slot-copy  --screen-from-s N  --screen-to-s N  --kill-at-s N  --block-at-s N  --die-at-s N  --wide-sheet  --first-slot N  --play-time-s N  --retitle-at-s N  --retitle-for-s N",
+      "  --frames N  --forever  --fps N  --no-window  --boot-delay-ms N  --statics-delay-ms N  --field-mirror  --pass-time  --flag-set  --clock-rate N  --day-book  --slot-by-state  --slot-copy  --screen-from-s N  --screen-to-s N  --kill-at-s N  --block-at-s N  --die-at-s N  --wide-sheet  --big-tree N  --menu-from-s N  --menu-to-s N  --exert-from-s N  --exert-to-s N  --mount-from-s N  --mount-to-s N  --lock-from-s N  --lock-to-s N  --travel-at-s N  --travel-back-at-s N  --first-slot N  --play-time-s N  --retitle-at-s N  --retitle-for-s N",
       "  --walk-from-s N  --walk-to-s N  --hit-at-s N  --heal-at-s N",
       "  --title-frames N  --load-frames N  --stay-title  --reload-every N  --actors N  --online  --online-at F",
       "  --hitch-every N  --hitch-ms M  --stall-at F  --stall-ms M  --move-every N  --move-mode poison|free|keep",

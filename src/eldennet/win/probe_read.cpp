@@ -1380,8 +1380,23 @@ class Round {
         o.targets.push_back({Scan::kPart, 0, 0, i, kTourPlayer, 0x400, kTourStates, false});
       }
     }
+    // Every static's object for the place: the build's own statics first (the catalogue's items that the layout
+    // or a recipe places, the field area's among them where it is found), then the accessor's.
+    std::vector<std::uint32_t> placed;
+    for (std::size_t i = 0; i < roles::kItemCount; ++i) {
+      const auto item = static_cast<roles::Item>(i);
+      const roles::ItemInfo& info = roles::info(item);
+      const auto at = info.kind == roles::ItemKind::Function ? std::nullopt : discovery_->address(item);
+      if (!at || *at < base) continue;
+      const auto rva = static_cast<std::uint32_t>(*at - base);
+      if (std::find(placed.begin(), placed.end(), rva) != placed.end()) continue;
+      placed.push_back(rva);
+      o.targets.push_back({Scan::kStatic, info.id, rva, 0, kTourStatics, 0x2000, kTourPlaces, true});
+      ++statics;
+    }
     for (const lodestar::StaticFound& st : lodestar::all_statics(found_.accessor)) {
       if (o.targets.size() >= Scan::kMaxTargets) break;
+      if (std::find(placed.begin(), placed.end(), st.rva) != placed.end()) continue;
       o.targets.push_back({Scan::kStatic, 0, st.rva, 0, kTourStatics, 0x2000, kTourPlaces, true});
       ++statics;
     }
