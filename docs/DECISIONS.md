@@ -3031,3 +3031,23 @@ before its name in both views (GraceUI D277); all of a space's categories or non
 **Owner's words.** "Grace's ten (Recommended)" (question dialog, 2026-11-28).
 
 **Follows from.** GraceUI D277; roadmap S11.2.cd.
+
+## O150
+
+**A modifier beside each key** · *2026-11-28 · Decided by the owner*
+
+**Question.** Raised by the owner after the keyboard research (WHY§706): should a player be able to put a modifier on
+EldenNet's keys?
+
+**Decision.** Yes. Next to each key there is a drop-down to choose its modifier: Shift, Ctrl, Alt or None. Keys are
+rebound on GraceUI's Hotkeys page for every mod (GraceUI's G37, D208), and GraceUI's hotkeys already carry modifiers
+(Ctrl, Shift and Alt), a key bound with one hiding only that combination from the game, so the key alone still reaches
+it (T still sorts in the menus with Ctrl+T as the talk key). The drop-down is GraceUI's to build on that page, asked of
+it the same day; EldenNet's defaults stay as they are until the game's own key tables are read (WHY§706). Each
+modifier also reaches the game as it is pressed (Alt walks, and Shift is part of the strong attack and, in the layout
+since patch 1.12, the dodge), which the page's help is to say.
+
+**Owner's words.** "well either way, we should add modifier key to EldenNet's keymap. so users should have a drop down
+menu next to each key to select a modifier: Shift, Ctrl, Alt, None." (2026-11-28).
+
+**Follows from.** O94; WHY§706; GraceUI G37, D208.
