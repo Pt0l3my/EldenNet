@@ -138,6 +138,20 @@ TEST_CASE("store: a new file is made and opens clean; reopened, its start backup
   CHECK(std::get<db::Failed>(refused.result).fault == Fault::NotOpen);
 }
 
+TEST_CASE("store: the account's pick is kept in meta, by its reason's word alone (MEM 8.2)") {
+  Rig rig;
+  const auto pick = [&] { return rig.value("SELECT v FROM meta WHERE k = 'account_pick'"); };
+  rig.ok(rig.send(db::Open{the_key(), kHour, 1, "newest"}));
+  CHECK(pick() == "newest");
+  rig.ok(rig.send(db::Close{}));
+  rig.ok(rig.send(db::Open{the_key(), kHour, 1, "changed"}));  // each open records the session's
+  CHECK(pick() == "changed");
+  rig.ok(rig.send(db::Close{}));
+  rig.ok(rig.send(db::Open{the_key(), kHour, 1}));  // none given: the last stays
+  CHECK(pick() == "changed");
+  CHECK(rig.value("SELECT count(*) FROM meta WHERE k LIKE 'account%'") == "1");
+}
+
 TEST_CASE("store: a gap of at most 5 min is trimmed silently at the save's play time; ids are never reused") {
   Rig rig;
   rig.open_at(kHour);

@@ -117,11 +117,12 @@ barks (v0.4), and `diag.sqlite` when a page needs history beyond a session (WHY�
     epoch left takes its facts with it;
   - `facts_stale` is set for the core's refold, and the event counter stays, so no id is reused.
 - **`0001_init.sql`**: MEM §8.7's schema as written, with the reserved recall tables (`memories`, `memory_actors`,
-  `memories_fts` on FTS5, `embeddings`) and the seams (`npc_intents`, `decisions`). Ours on top of it: `meta` also
-  holds `next_conv_id` (conversations' ids, the core's, never reused) and `facts_stale` (set by a trim until the core's
-  refold is written, WHY§689); every table whose rows a reader may hold an id of is AUTOINCREMENT, so a trim never
-  hands a removed id to a new row (ARCH §2.2's store rules); `events.payload` and `conversations.shown_context` must be
-  valid JSON.
+  `memories_fts` on FTS5, `embeddings`) and the seams (`npc_intents`, `decisions`). Ours on top of it: `meta` also holds
+  `next_conv_id` (conversations' ids, the core's, never reused), `facts_stale` (set by a trim until the core's refold is
+  written, WHY§689) and `account_pick` (MEM §8.2's reason for the account's folder, `one`, `newest` or `changed`, as
+  each open gives it: the reason's word alone); every table whose rows a reader may hold an id of is AUTOINCREMENT, so a
+  trim never hands a removed id to a new row (ARCH §2.2's store rules); `events.payload` and
+  `conversations.shown_context` must be valid JSON.
 
 - **The pages' reads** (`page()` in `playthrough.cpp`, `lines_of` in `events.cpp`; S12.2): `PageQuery` answers
   `PageRows` of one kind: the journeys the file holds (each one's first play time, newest event and conversations), a

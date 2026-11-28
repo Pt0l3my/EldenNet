@@ -407,7 +407,8 @@ the conversation part B's (above); the core holds both.
   units with their count, the archetype and the gift; `name_hash` is BLAKE3 over the same code units. The name goes no
   further.
 - **The store path** (`StorePath`, `src/memory/store_path.cpp`). `CoreInput::Account` attaches the account the shell
-  found (never recorded); `features.memory` off, or no account, means no store, and the world follows at once.
+  found (never logged) and the reason for its pick (MEM §8.2: `one`, `newest`, `changed`), which each Open carries
+  for the file's `meta`; `features.memory` off, or no account, means no store, and the world follows at once.
   Otherwise:
   - a playthrough's start sends Open, and the lifecycle waits in Playthrough for its answer. A Busy open is retried
     3 times, 1 s apart (the store's own 2 s busy timeout inside each); then, as after any other failure, memory is off

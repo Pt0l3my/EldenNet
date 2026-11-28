@@ -234,7 +234,7 @@ void StorePath::open(const proto::PlaythroughKey& key, proto::Pt pt_now, std::ui
   mode_ = Mode::Opening;
   waiting_open_ = true;
   open_seq_ = ++seq_;
-  queued_.push_back(proto::DbRequest{open_seq_, db::Open{key, pt_now, journey}});
+  queued_.push_back(proto::DbRequest{open_seq_, db::Open{key, pt_now, journey, account_why_}});
   urgent_ = true;
 }
 
@@ -501,7 +501,7 @@ void StorePath::tick(Mono now) {
   if (!retry_at_ || now < *retry_at_ || !key_ || mode_ != Mode::Opening) return;
   retry_at_.reset();
   open_seq_ = ++seq_;
-  queued_.push_back(proto::DbRequest{open_seq_, db::Open{*key_, open_pt_, open_journey_}});
+  queued_.push_back(proto::DbRequest{open_seq_, db::Open{*key_, open_pt_, open_journey_, account_why_}});
   urgent_ = true;
 }
 

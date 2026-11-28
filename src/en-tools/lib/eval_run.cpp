@@ -429,7 +429,7 @@ class Runner {
     const Mono from = t_;
     feed(core::CoreInput{proto::Lifecycle{proto::Lifecycle::DataReady{proto::BuildKey{0}, all_caps()}}});
     feed(core::CoreInput{proto::NetHealth{true}});
-    if (store_) feed(core::CoreInput{core::CoreInput::Account{kEvalAccount}});
+    if (store_) feed(core::CoreInput{core::CoreInput::Account{kEvalAccount, "one"}});
     proto::Lifecycle::PlaythroughReady p;
     p.slot = 2;
     (void)p.name.try_assign(s_.character);  // invented; it stays in the core

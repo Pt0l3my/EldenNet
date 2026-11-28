@@ -81,12 +81,14 @@ class StoreCore {
     proto::Pt pt_now = 0;
     std::uint16_t journey = 1;
     proto::db::Rollback rollback;
+    std::string account_pick;  // the open's, for a new character's file
   };
 
   proto::db::Opened do_open(const proto::db::Open& o, std::optional<proto::db::Fault>& fault);
   proto::db::Opened do_resolve(const proto::db::Resolve& r, std::optional<proto::db::Fault>& fault);
   Result<proto::db::Opened> finish_open(proto::db::Opened opened);
-  Result<void> init_file(const proto::PlaythroughKey& key, proto::Pt pt_now, std::uint16_t journey);
+  Result<void> init_file(const proto::PlaythroughKey& key, proto::Pt pt_now, std::uint16_t journey,
+                         const std::string& account_pick);
   Result<std::uint64_t> forget(const proto::db::Forget& f);
   proto::DbResult run(const proto::DbRequest& request);
   void trip(Fault cause);

@@ -129,6 +129,7 @@ struct CoreInput {
   // memory is off for the session, with a toast at the first playthrough.
   struct Account {
     std::uint64_t steamid64 = 0;
+    std::string why = {};  // MEM §8.2's reason, as the shell names it (one, newest, changed): recorded in meta
   };
   // History › Memories' Forget (MEM §9.5; PAGES §4.6.5), through the space's one command path: one persona of the
   // journey, or the whole journey when `persona` is empty. Refused while a conversation is open (Core::can_forget).

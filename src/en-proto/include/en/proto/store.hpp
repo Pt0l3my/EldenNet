@@ -178,6 +178,9 @@ struct Open {
   PlaythroughKey key;
   Pt pt_now = 0;
   std::uint16_t journey = 1;  // ng_lvl + 1
+  // MEM §8.2: why the shell picked this account's folder (one, newest, changed), kept in meta as `account_pick`; the
+  // reason words alone, never the SteamID. Empty: not recorded.
+  std::string account_pick = {};
 };
 // The player's answer to the rollback choice (MEM §9.1).
 enum class Choice : std::uint8_t { Forget, Keep, NewCharacter };

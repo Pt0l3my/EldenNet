@@ -81,7 +81,7 @@ struct Session {
   explicit Session(const fs::path& saves, proto::Pt play = 600000, bool attach = true)
       : store(config(saves)), play0(play) {
     REQUIRE(core.load_content(content_with_overrides(), Realm::Eval).empty());
-    if (attach) (void)feed(CoreInput{CoreInput::Account{kAccount}});
+    if (attach) (void)feed(CoreInput{CoreInput::Account{kAccount, "newest"}});
   }
   stubs::StubSpeech speech;
   Core core{speech.parts()};
@@ -201,6 +201,7 @@ TEST_CASE("store path: the world waits for Opened; speech goes out in its step; 
   REQUIRE(!s.sent.empty());
   CHECK(std::holds_alternative<db::Open>(s.sent.front().op));
   CHECK(std::get<db::Open>(s.sent.front().op).key == the_key());
+  CHECK(std::get<db::Open>(s.sent.front().op).account_pick == "newest");  // MEM §8.2's reason, for the file's meta
   s.answering = true;
   s.answer();
   CHECK(s.core.state().phase == Phase::InWorld);

@@ -510,7 +510,7 @@ Outputs Core::step(CoreInput input, Mono now) {
                  [&](CoreInput::Pause& p) { state_.ai_paused = p.on; },
                  [&](proto::DbResult& r) { on_store(r, now, out); },
                  [&](CoreInput::Account& a) {
-                   store_.attach(a.steamid64);
+                   store_.attach(a.steamid64, a.why);
                    no_account_ = a.steamid64 == 0;
                  },
                  [&](CoreInput::MemoryChoice& c) { store_.resolve(c.choice); },

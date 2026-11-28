@@ -188,7 +188,8 @@ void store_account(Shell&, std::vector<en::core::CoreInput>& to_core) noexcept {
         pick.steamid64 == 0 ? LogLevel::Warn : LogLevel::Info);
     link->account = pick.steamid64;
     link->account_told = true;
-    to_core.push_back(en::core::CoreInput{en::core::CoreInput::Account{pick.steamid64}});
+    to_core.push_back(
+        en::core::CoreInput{en::core::CoreInput::Account{pick.steamid64, en::shell::to_string(pick.why)}});
   });
 }
 
