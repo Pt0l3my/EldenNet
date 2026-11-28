@@ -30,7 +30,9 @@ checked against its SHA-256 when the build is configured.
   (`92281c86e2957f9b9305890f9ac04204caa7b677cc868dc326d942689df28e30`) and our SHA-256 of the verified file
   (`0a9c8e34352dad46006aa82836d5383bff9dc6bc9ce5a60553c05aa30e6ad1f9`), into the build tree; only `sqlite3.c` and
   `sqlite3.h` are kept (`cmake/sqlite.cmake`). Compiled as the build's one C target, its warnings off, with FTS5 and
-  the options `cmake/sqlite.cmake` lists. en-store alone links it, through its C API (ARCH §2.3).
+  the options `cmake/sqlite.cmake` lists. en-store alone links it, through its C API (ARCH §2.3), and since v0.3 it
+  ships inside eldennet.dll with en-store (T9), its Windows VFS's imports reviewed in
+  `src/eldennet/tests/imports.allow`.
 - Licence: public domain. Its authors dedicated the code to the public domain (https://www.sqlite.org/copyright.html,
   and the blessing in the source's header in place of a legal notice), read on 2026-11-27, with no clause on AI use.
   It needs no notice; it is credited here.

@@ -129,6 +129,15 @@ cmake --build build-cl
 - The prefix's set-up also gives wined3d its Vulkan renderer (`HKCU\Software\Wine\Direct3D`, `renderer = vulkan`), as
   GraceUI's BUILD.md does: only the GraceUI cases' fake game (`--d3d12`) makes a DXGI factory, and wined3d's OpenGL
   renderer hung on Xvfb in GraceUI's harness.
+- Since v0.3 it also makes one invented account folder in the prefix's own `%APPDATA%\EldenRing` (a 17-digit name and a
+  sparse save file of 10 × 0x280000 bytes, nothing in it), so that every case with a playthrough opens its file as a
+  player's game would (MEM §8.2); each case's playthrough files go to its own `%APPDATA%\EldenNet\saves`. The store's
+  cases (`launcher-eldennet-graceui-store*`, a probe build) name a folder of their own instead
+  (`ELDENNET_TEST_SAVES`), with two invented accounts. A case may run later sessions in the same folder (`again`),
+  each reading its own lines of the DLL's log: `-store-sessions` (the file found again, the first conversation in the
+  second's prompt), `-store-crash` (a crash with the conversation open, closed as crashed at the next open) and
+  `-store-rollback` (an older save: EldenNet's panel driven with keys, closed by the player's exit, asked again and
+  answered Forget). The fake game's `--play-time-s N` sets the save's play time at load.
 - **GraceUI's cases** (`ctest -R fakegame.launcher-eldennet-graceui`, clang-cl) need a test build of GraceUI, built from
   GraceUI's own repository as its BUILD.md says, in a build tree of its own:
 
@@ -148,8 +157,10 @@ cmake --build build-cl
   (`mesa-vulkan-drivers`) for Wine's Direct3D 12, as GraceUI's harness does. Build GraceUI at the commit
   third_party/graceui-sys comes from (7c26477, GraceUI 0.2.68), so the space and the surfaces meet the checks they will
   meet. The page lint and the preview are pinned to the same commit (`tests/pages/lint.py`): the page data is protocol
-  1.20's since Workshop's page and topics are marked pc_only (GraceUI D264), which an older GraceUI does not read, so
-  the GraceUI floor is 0.2.57 and the page data's minor its floor's. `launcher-eldennet-graceui-pages` drives EldenNet's pages through that GraceUI, Content
+  1.21's since v0.3's memory pages: History › Memories' Forget waits 1 s before its second press counts and the
+  conversations' and journals' topics are private (GraceUI D274), which an older registration refuses, so the GraceUI
+  floor is 0.2.67 and the page data's minor its floor's (before them, 1.20's pc_only for Workshop, D264).
+  `launcher-eldennet-graceui-pages` drives EldenNet's pages through that GraceUI, Content
   packs, Docs, Bug report and Logs drawn in game among them, `-pause` Pause AI by its quick switch's command and by
   Home's header switch's, `-talk-calls` AI › Requests after a reply and `-talk-traces` System › Traces and Performance
   after one, `-workshop` Tools › Workshop (its page data, its topics while Developer views are on, Record this session
