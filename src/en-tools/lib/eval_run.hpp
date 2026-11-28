@@ -38,7 +38,8 @@
 //   name_prefixes = 0                        # also: the reply attempts so far whose "Name:" step 5 took
 //
 // Memory (v0.3; MEM §2.8, §9): `store = true` runs the core against en-store's StoreCore on a temporary folder of the
-// run's own (removed after), the account attached, each step's store requests answered in order as T9 would. Then:
+// run's own (removed after; the oracle's, EvalOptions::store_dir, is kept), the account attached, each step's store
+// requests answered in order as T9 would. Then:
 //
 //   character = "Wren"                       # the Tarnished's invented name (default "Vessel")
 //   [[world.extra]]                          # more invented characters near the Tarnished, after the partner
@@ -196,6 +197,7 @@ struct EvalRun {
   std::size_t requests = 0, cancels = 0;
   std::size_t background = 0;  // the memory job's requests (v0.3)
   std::vector<std::string> failed;  // each expectation that failed: "line 30: npc_lines is 0, expected 1"
+  std::vector<std::int64_t> step_pt;  // each step's play time as it began, ms (the oracle's cuts, MEM §9.6)
 };
 
 enum class EvalLlm : std::uint8_t { Mock, Recorded };
@@ -204,6 +206,10 @@ struct EvalOptions {
   // An arm (NPC §12.2): an overrides folder loaded after the scenario's, whose files replace any of the same path
   // (the positive-wording arm's former prompts, tests/x1/arms/).
   std::optional<std::filesystem::path> arm;
+  // The oracle's (MEM §9.6): the store's folder, kept after the run (a temporary one, removed, when none); and the
+  // save's play time when the world first loads (600,000 ms when none).
+  std::optional<std::filesystem::path> store_dir;
+  std::optional<std::int64_t> start_pt;
 };
 
 // Runs the scenario through a fresh core loaded with the built-in content, the scenario's overrides and the arm's, in

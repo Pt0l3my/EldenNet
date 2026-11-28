@@ -503,6 +503,16 @@ line and key, the recorded model with the live ids, and every conversation scena
 regeneration, the deflection and the pager's cap in their scenarios' turns; and the pilot at two states, the same
 scenario failing by index with the world left fresh, and an unknown state named as the scenario's error.
 
+Its `test_oracle.cpp` is MEM §9.6's oracle at the core's level, on `wren_and_kale` through the eval with its store
+kept (`EvalOptions::store_dir`, the save loaded at `start_pt`): T1 (conv C between its second reply's pages), T2 (after
+the castle's lord fell, before the strike) and T3 (the last of journey 1, before NG+), each by every path the store
+has (the silent trim, Forget after the choice, and a save of journey 1 against the file in journey 2), the trimmed
+file equal to a replay of the scenario up to the cut in every table, wall times left out, with MEM's checks for each
+cut and its property checks (nothing past the cut, no orphaned audience, the watermark the current version's, a lived
+version no newer than its journal); Keep (every row of the first timeline kept in a new epoch, and a later crash trim
+cutting that epoch alone); and New character (the old file archived whole, an empty one in its place, and the
+character's newest archive back after another character in the slot).
+
 Its `test_dialogue_prompt.cpp` runs the first conversation's part A on the shipped content: the pack loads, the frame and
 the registers keep their caps, blocks 1 to 5 never move with the turn and 5b only with the stage and its lines (T5),
 each fixture renders as its golden says, the Tarnished's words stay quoted text, the shipped lexicon lints invented
