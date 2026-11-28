@@ -538,3 +538,117 @@ TEST_CASE("store: the pages' reads: journeys, a journey's conversations, a trans
   rig.ok(rig.send(db::Close{}));
   CHECK(std::holds_alternative<db::Failed>(rig.send(db::PageQuery{db::PageQuery::What::Journeys}).result));
 }
+
+// MEM §9.6's oracle, at the store: a file trimmed at a cut holds exactly what a replay of the same requests up to the
+// cut holds, row for row, in `events` (every column) and `event_audience`, by both paths: the silent trim (a gap of at
+// most 5 min) and Forget after the choice (an older save); and in `conversations`, every one started before the cut,
+// the one across it ended `trimmed`. Seeded, with conversations, lines and witnessed events among the invented rows.
+namespace {
+
+struct Request {
+  enum class What { Event, Conversation, Line } what = What::Event;
+  proto::Pt t = 0;
+  std::string kind;
+  std::vector<proto::AudienceRow> audience;
+};
+
+std::vector<Request> invented_stream(std::uint64_t seed) {
+  std::uint64_t z = seed * 0x9E3779B97F4A7C15ull + 7;
+  const auto next_rand = [&] {
+    z ^= z >> 33;
+    z *= 0xff51afd7ed558ccdull;
+    z ^= z >> 33;
+    return z;
+  };
+  std::vector<Request> out;
+  proto::Pt t = kHour;
+  bool talking = false;
+  for (int i = 0; i < 60; ++i) {
+    t += static_cast<proto::Pt>(1000 + next_rand() % (90 * 1000));
+    const std::uint64_t r = next_rand() % 10;
+    if (!talking && r < 2) {
+      out.push_back(Request{Request::What::Conversation, t, {}, {}});
+      talking = true;
+    } else if (talking && r < 6) {
+      out.push_back(Request{Request::What::Line, t, next_rand() % 2 == 0 ? "PlayerSaid" : "NpcSaid", {}});
+    } else {
+      if (talking && r == 9) talking = false;  // the next lines go to a new conversation
+      std::vector<proto::AudienceRow> aud;
+      if (next_rand() % 2 == 0) aud.push_back({"kale", How::Witnessed});
+      if (next_rand() % 3 == 0) aud.push_back({"boc", How::Direct});
+      out.push_back(Request{Request::What::Event, t, next_rand() % 2 == 0 ? "PersonaSeen" : "PlaceEntered", aud});
+    }
+  }
+  return out;
+}
+
+void play(Rig& rig, const std::vector<Request>& stream, std::optional<proto::Pt> upto) {
+  std::optional<proto::RowId> conv;
+  for (const Request& r : stream) {
+    if (upto && r.t >= *upto) break;
+    switch (r.what) {
+      case Request::What::Conversation: conv = rig.conversation("kale", r.t); break;
+      case Request::What::Line: rig.line(*conv, r.kind, r.t, "An invented line.", "kale"); break;
+      case Request::What::Event: rig.put(r.kind, r.t, r.audience); break;
+    }
+  }
+}
+
+std::vector<std::string> rows(const Rig& rig, const std::string& sql) {
+  auto s = Stmt::prepare(rig.store.playthrough()->db, sql);
+  REQUIRE(s.has_value());
+  std::vector<std::string> out;
+  for (;;) {
+    auto r = s->step();
+    REQUIRE(r.has_value());
+    if (!*r) break;
+    std::string line;
+    for (int i = 0; i < s->columns(); ++i) line += (s->null(i) ? std::string("∅") : s->text(i)) + "|";
+    out.push_back(line);
+  }
+  return out;
+}
+
+}  // namespace
+
+TEST_CASE("store: the trim oracle (MEM 9.6): a trimmed file equals a replay up to the cut, by both paths") {
+  for (std::uint64_t seed = 1; seed <= 8; ++seed) {
+    CAPTURE(seed);
+    const std::vector<Request> stream = invented_stream(seed);
+    const proto::Pt end = stream.back().t;
+    for (const bool silent : {true, false}) {
+      CAPTURE(silent);
+      // The cut: within 5 min of the newest event for the silent path, else well before it (the choice, then Forget).
+      const proto::Pt cut = silent ? end - 2 * kMin : kHour + (end - kHour) / 2;
+      Rig full;
+      full.open_at(kHour);
+      play(full, stream, std::nullopt);
+      full.ok(full.send(db::Close{}));
+      db::Opened o = full.open_at(cut);
+      if (!silent) {
+        REQUIRE(o.rollback.kind == db::Rollback::Kind::Choice);
+        o = opened_of(full.send(db::Resolve{db::Choice::Forget}));
+      } else {
+        CHECK(o.rollback.kind == db::Rollback::Kind::Trimmed);
+      }
+      Rig replay;
+      replay.open_at(kHour);
+      play(replay, stream, cut);
+      const std::string events = "SELECT id, journey, t_play_ms, t_play_end_ms, kind, subject, object, conv_id, "
+                                 "text, payload FROM events ORDER BY id";
+      CHECK(rows(full, events) == rows(replay, events));
+      const std::string audience = "SELECT event_id, persona, journey, how FROM event_audience ORDER BY event_id, "
+                                   "persona";
+      CHECK(rows(full, audience) == rows(replay, audience));
+      const std::string started = "SELECT id, persona, started_pt FROM conversations ORDER BY id";
+      CHECK(rows(full, started) == rows(replay, started));
+      // The conversation open at the cut in the replay is the one the trim ended.
+      const auto open = rows(replay, "SELECT id FROM conversations WHERE ended_pt IS NULL");
+      for (const std::string& id : open) {
+        CHECK(rows(full, "SELECT end_reason FROM conversations WHERE id = " + id.substr(0, id.size() - 1)) ==
+              std::vector<std::string>{"trimmed|"});
+      }
+      CHECK(o.next_event_id == full.next);  // the counter is never taken back
+    }
+  }
+}
