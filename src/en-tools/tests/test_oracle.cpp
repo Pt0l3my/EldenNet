@@ -1,7 +1,8 @@
-// MEM §9.6's oracle at the core's level (S12.3.a): `wren_and_kale` through the eval with its store kept, trimmed at
-// T1 to T3 by each path the store has (the silent trim, Forget after the choice, a save of an earlier journey), and
-// each trimmed file compared with a replay of the same scenario up to the cut; and Keep and New character through the
-// core. All data is invented.
+// MEM §9.6's tests at the core's level (S12.3.a), through the eval with its store kept: the oracle on `wren_and_kale`,
+// trimmed at T1 to T3 by each path the store has (the silent trim, Forget after the choice, a save of an earlier
+// journey), each trimmed file compared with a replay of the same scenario up to the cut; Keep and New character; a
+// hard kill mid-reply; `star_falls` (MEM §12.11) as its file holds it, and its world trims through the same oracle;
+// and the scan of the database files for text that must not be there. All data is invented.
 #include <doctest.h>
 
 #include <algorithm>
