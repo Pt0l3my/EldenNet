@@ -116,6 +116,11 @@
 #   The sheet through the reader: a level in the layout's range in 364 of 364 frames, never changed, and a name
 #   of one to sixteen letters in 364 of 364, its length never changed. The main player's death: its health read
 #   nothing in 27 frames with its object there, and the world's characters' dead bit was clear in every one.
+#   By Engine's ruling on that round (WHY§708): save_data's word to the sheet is confirmed too (the sheet reached
+#   through it matched the main player's own part, found through the characters' manager, and changed with it);
+#   the hour waits for a run in which the watch reads it beside the reader across an hour's end; the level for a
+#   run in which the tester reads it off the status screen and gains one level; the name's length for the rule
+#   for a text's length.
 # - when a field is confirmed (WHY§614, Engine's ruling of 2026-11-24 applying the design's O4): for this build,
 #   once three things hold in one run: EldenNet's own reader read it through this file in the game; a second,
 #   independent reading agrees; and the behaviour that gives the field its meaning was seen at least once. Such a
@@ -370,7 +375,7 @@ minute = { off = 0x8, ty = "bits", word = 8, shift = 39, width = 6, group = "pla
 copy_size = 0xA8
 status = "lead"
 [class.save_data.fields]
-player_data = { off = 0x8, ty = "ptr", group = "player" }
+player_data = { off = 0x8, ty = "ptr", group = "player", status = "confirmed" }
 death_count = { off = 0x94, ty = "u32", group = "player" }
 play_time = { off = 0xA0, ty = "u32", group = "player", status = "confirmed" }
 
