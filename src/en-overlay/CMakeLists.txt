@@ -92,8 +92,8 @@ if(EN_BUILD_TESTS)
     add_test(NAME en_docs_build COMMAND ${Python3_EXECUTABLE} -I ${PROJECT_SOURCE_DIR}/tools/docs/build.py --check)
     add_test(NAME en_docs_tests COMMAND ${Python3_EXECUTABLE} -I ${PROJECT_SOURCE_DIR}/tools/docs/test_build.py)
     set(EN_GRACEUI_SOURCE "" CACHE PATH
-      "A GraceUI checkout at the pinned commit (fc2205a), for its page lint and space check")
-    set(EN_GRACE_DEV "" CACHE FILEPATH "grace-dev from a Linux build of GraceUI at the pinned commit (fc2205a)")
+      "A GraceUI checkout at the pinned commit (7c26477), for its page lint and space check")
+    set(EN_GRACE_DEV "" CACHE FILEPATH "grace-dev from a Linux build of GraceUI at the pinned commit (7c26477)")
     if(EN_GRACEUI_SOURCE)
       add_test(NAME en_pages_lint COMMAND ${Python3_EXECUTABLE} -I ${PROJECT_SOURCE_DIR}/tests/pages/lint.py
         --graceui ${EN_GRACEUI_SOURCE} ${CMAKE_CURRENT_SOURCE_DIR}/pages/space.toml)
