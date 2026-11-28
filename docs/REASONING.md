@@ -734,6 +734,13 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 709 | 2026-11-28 | A long exclusive scan starved the shared searches | METHOD | #lodestar #tests |
 | 710 | 2026-11-28 | "Rose by one, once" needs the thing done once | METHOD | #lodestar |
 | 711 | 2026-11-28 | The basics checked against the wiki: what was stale, disputed or missing | METHOD | #research #launcher #memory #input |
+| 712 | 2026-11-28 | GraceUI pinned at 0.2.70, the rail's ten icons and the floor | FACT | #engine #graceui |
+| 713 | 2026-11-28 | The owner's words and the talk key, as built | DECIDED | #engine #overlay #memory #input |
+| 714 | 2026-11-28 | MinGW is built as Release, with no warning | METHOD | #engine #build |
+| 715 | 2026-11-28 | The trim oracle at the core's level, and the four faults it found | FACT | #engine #memory #store |
+| 716 | 2026-11-28 | star_falls, the world trims, the crash mid-reply and the files' scan | FACT | #engine #memory #knowledge |
+| 717 | 2026-11-28 | The tail header's "moved on" missed the since-line half of its rule | FACT | #engine #memory #prompt |
+| 718 | 2026-11-28 | The account's pick in meta, and no SteamID in the file | DECIDED | #engine #memory #store #privacy |
 
 ## Entries
 
@@ -10422,3 +10429,125 @@ GraceUI D254, D274, engine 889f763
   as the pack's.
 - *Correction (Engine, 2026-11-28):* the Engine told the owner the same day that our documents never mention the
   Tarnished Pack; ER01 and others do. The search that said so had cut its own output short.
+
+### 712. GraceUI pinned at 0.2.70, the rail's ten icons and the floor (v0.3 slice 4)
+
+`2026-11-28` · FACT · `#engine` `#graceui` · refs: D276, D277, O149, WHY§702
+
+- The engine is pinned at GraceUI 0.2.70 (protocol 1.22, ABI 1.10), taking 0.2.69 and 0.2.70 together. Of the vendored
+  files only `graceui.h` changed (D276's `pad_keyboard`, the function table now 216 bytes); of the page lint's pinned
+  files, `protocol.toml` and both spaces' `space.toml`. The pin moved four in-game goldens by vertex counts alone
+  (D277's ring outline on the rail).
+- `pad_keyboard` is not used in v0.3: the chat box's pad keyboard waits for S4 and its build (NPC §5.6's dated note).
+  A 1.9 table is still accepted wherever the floor allows it.
+- O149's icons have a commit of their own: `icon = "…"` on each of the ten categories (Docs and Content packs have
+  none), page data minor 22, and **the floor GraceUI 0.2.70, minor 22**. Every in-game golden now draws the icons and
+  the rail's names sit 38 px further in. The browser goldens did not change, because check:space's dump is text alone;
+  the check that both views draw the icons rests on the in-game goldens for now (told to Grace).
+
+### 713. The owner's words and the talk key, as built (v0.3 slice 4)
+
+`2026-11-28` · DECIDED · `#engine` `#overlay` `#memory` `#input` · refs: O148, O152, WHY§696, WHY§706
+
+- O148's four changes are in the core's and en-overlay's sources, the goldens, the fixtures and the player docs'
+  drafts: the panel's title "An older save"; Playthrough's "Fallen"; the bullet "A memory {who} wrote, at {h:mm} of
+  play."; and backups' times in the PC's own time zone, "27 November 2026, 14:05".
+- The DLL converts the time with `FileTimeToSystemTime` and then `SystemTimeToTzSpecificLocalTime` for the current
+  zone, both reviewed into the DLL's import list, so WHY§696's rule holds (no `zoned_time` in DLL modules). en-overlay
+  takes one `LocalTime` per backup, the seam the Linux tests feed, and words it.
+- O152: the talk key's default is V (virtual key 0x56, scan code 0x2F in the fake game's key table); the skip key stays
+  Tab. Two Windows-only chat tests still typed T; only the MinGW run under Wine reaches them, and it found them.
+
+### 714. MinGW is built as Release, with no warning (v0.3 slice 4)
+
+`2026-11-28` · METHOD · `#engine` `#build` · refs: O60, WHY§702
+
+- GCC 13's warnings at -O2 show only with the optimiser on, which is why slices 1 and 2 never saw MinGW's twelve.
+  BUILD.md now builds MinGW as Release.
+- No pragma and no weakened check: the fake game's deliberate null reads take their address through a volatile
+  object, and chat.cpp's UI events are built in place in their vector, which removes the variant move GCC misread (a
+  maybe-uninitialised false positive).
+- A member with a default member initialiser draws no missing-field-initialisers warning on GCC, MinGW or clang-cl, so
+  a field added to an aggregate that the code brace-initialises should get one.
+- MinGW's ctest runs its test programs directly, so on Linux they fail at once, the shell reading a Windows program.
+  Its ten programs are run by hand under Wine, each from its own build folder, with TMPDIR unset: Wine 9.0 aborts at
+  start ("free(): invalid pointer") when TMPDIR is set (WHY§210). The Engine met both again at this slice's review.
+
+### 715. The trim oracle at the core's level, and the four faults it found (v0.3 slice 4)
+
+`2026-11-28` · FACT · `#engine` `#memory` `#store` · refs: MEM§9.6, MEM§3.1, MEM§3.7, MEM§8.3, MEM§9.3, MEM§2.8
+
+- `src/en-tools/tests/test_oracle.cpp` runs wren_and_kale through the eval with its store kept and trims it at T1
+  (conversation C between its second reply's pages), T2 (before the strike) and T3 (the last of journey 1), each by
+  three paths: the silent trim, Forget, and a save of the earlier journey. Every trimmed file equals a replay up to the
+  cut in every table but the wall times. Keep and New character have their own cases.
+- The core opens the file at its first snapshot in the world (500 ms after the save's play time in the eval), so a
+  load meant to trim at a cut is made that much before it.
+- What it found, each fixed with a unit test that fails without the fix:
+  1. A reply's first page was stored with an end of 0, so a trim between its first and second page kept an empty
+     line. Every page end now counts code points, as SQLite's `length()` and `substr()` do.
+  2. A done job kept its state when the trim took its version back, so the lines before the cut were never journaled
+     again; the watermark kept the removed version's time; and a claim's proof made before the cut was lost. Now a job
+     the trim took work from keeps the persona's evidence after the watermark (for a conversation's job, only
+     conversations that still have 2 of the Tarnished's lines and 4 committed, MEM §3.1), is queued again or goes, and
+     two left over the same evidence become one. The watermark takes the current version's time, and goes with none.
+  3. After Keep, a later crash trim deleted the old timeline's journal and lived versions, which are timed after the
+     cut. A version now goes only when its evidence lies in the epoch cut into, or a later one.
+  4. Of a character archived twice in one second, the older file came back ("-2" sorts before ".sqlite").
+  A fifth was the second fix's own: its query sat outside en-store's events file, where MEM §1.3's grep keeps every
+  SQL naming `event_audience`; the final ctest caught it.
+- Where the scenario differs from MEM's table, MEM is not wrong: T1's `met_count` is 1, not 2, because our scenario
+  folds conversation C into A's meeting while §2.8 has B before C; at T2 the `slew:godrick` proof was written with
+  version 3, after the cut, so it goes, and the claim proves from the flags at render (§2.8's step D), as in the
+  replay.
+- New character: MEM §9.6's "a later load of the old character restores it" cannot happen as written. The new
+  character has the old one's fingerprint (same name, origin and gift), so §8.3's lookup finds the live file first and
+  no load can tell the two apart. What §8.3 gives, and what the test checks: the old file stays in `archive/`, never
+  deleted. MEM §9.6 has a dated note.
+- At review (LIKELY, untested): the trim's delete of facts no event gives (`src_event` NULL) is by `updated_pt` alone,
+  so a crash trim in the epoch after a Keep would also take a proof the old timeline wrote, while its journal version
+  stays (fault 3's rule). The claim would then prove from the flags at render or not at all: a loss, not a leak. Its
+  test goes in the next memory slice.
+
+### 716. star_falls, the world trims, the crash mid-reply and the files' scan (v0.3 slice 4)
+
+`2026-11-28` · FACT · `#engine` `#memory` `#knowledge` · refs: MEM§12.11, MEM§12.12, MEM§4.3, MEM§9.6, C11
+
+- `tests/scenarios/talk/star_falls.toml` plays Kalé's steps A to G (Blaidd's wait for v0.5), with a flag state of its
+  own (`general_fell`: the general down without the star) and `boss.radahn`'s match words in the pilot catalogue
+  (`radahn`, `general`; a match word is one word). The eval's `load` step takes the save's flag state.
+- MEM §12.11's T7 world trims and T3's fold property run through the same oracle, on star_falls up to its older save,
+  then NG+.
+- C11 in the eval: a kill at each page's boundary and at seeded moments; the file holds exactly the acknowledged
+  pages. A page is timed by the snapshot before the frame that shows it, so "acknowledged at the kill" is bounded by a
+  frame (250 ms in the eval).
+- The eval's database files are scanned for what must not be in them (MEM §9.6): a canary name in UTF-8 and UTF-16,
+  paths, the prompts' system lines, the memory job's JSON keys, and a reply past the pager's cap.
+- Step D's header: see WHY§717. The slice wrote D to expect the plain header, and the fix put MEM's expectation back.
+
+### 717. The tail header's "moved on" missed the since-line half of its rule (v0.3 slice 4, at review)
+
+`2026-11-28` · FACT · `#engine` `#memory` `#prompt` · refs: MEM§4.3, MEM§12.6, MEM§12.11, WHY§716
+
+- MEM §4.3 gives block 6 (a)'s header its "(things have moved on since)" form when the persona's stage at that
+  conversation differs from now, or when the since-line names something (§12.6, and §12's own note on block 6 (a)).
+  The core set it on the stage alone, so a persona whose stage stays (Kalé at star_falls's D) and who has learned of
+  the star and the general's fall still read the plain header.
+- The slice took the code for the rule and wrote star_falls's D to expect the plain header. At review the Engine
+  read §4.3 again: the code was short, not MEM. The core now sets the header after block 7's since-line is made, from
+  either half, and D expects MEM's header again.
+- Lesson: when a scenario's expectation and the design disagree, read the design's rule whole before trusting the code
+  that implements half of it.
+
+### 718. The account's pick in meta, and no SteamID in the file (v0.3 slice 4)
+
+`2026-11-28` · DECIDED · `#engine` `#memory` `#store` `#privacy` · refs: MEM§8.2, MEM§8.7, WHY§703
+
+- `meta.account_pick` holds `one`, `newest` or `changed`: the reason the shell picked the account's folder (MEM
+  §8.2), carried through the core to the store and written at each open that gives one. Never the SteamID. No
+  migration was needed, since meta is keys and values.
+- MEM §8.7's meta keys include `steamid64`, and the store wrote it from slice 1, while the shell's own rule says the
+  SteamID "is never logged or recorded" (it names the player's account). The stricter rule wins: the store no longer
+  writes it, and a later open deletes it from a file an earlier build wrote. The account's folder is named by the
+  SteamID already, as the game's own is, so nothing is lost; a playthrough file copied out for a report no longer
+  carries the account. MEM §8.7 has a dated note.

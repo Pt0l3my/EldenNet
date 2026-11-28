@@ -1196,6 +1196,10 @@ WAL with `NORMAL` keeps every committed transaction through a hard kill of the g
 
 ### 8.7 Schema: playthrough file, migration `0001_init.sql` (original)
 
+*2026-11-28 (WHY§718):* `meta` holds no `steamid64`. The SteamID is never recorded, and the account's folder is named
+by it already; an open deletes the key from a file an earlier build wrote. `meta` also holds `account_pick` (§8.2's
+reason word alone).
+
 ```sql
 CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT NOT NULL) WITHOUT ROWID;
 -- keys: app='eldennet.playthrough', schema_min_reader, created_by, last_opened_by, steamid64, slot,
@@ -1447,6 +1451,9 @@ The RAM caches (bundle, facts, K-store audiences) drop P at once. Forgetting P a
 Each cut runs through the silent path (Δ ≤ 5 min) and the **Forget** path (Δ > 5 min) with identical results. Further tests:
 - **Keep path:** no rows deleted; a new epoch; a later crash trim touches only that epoch;
 - **New character:** the old file is in `archive/`, and a later load of the old character restores it (§8.3);
+  *2026-11-28 (WHY§715):* not reachable as written: the new character has the old one's fingerprint, so §8.3's lookup
+  finds the live file first and no load tells the two apart. The test checks that the old file stays in `archive/`,
+  never deleted;
 - **crash mid-reply** with a hard kill at random page boundaries: every acknowledged page survives, nothing unacknowledged appears (C11);
 - **property tests:** for random cuts, no current-epoch row has `pt > cut`; no audience row is orphaned; the watermark equals the current version's `upto`; facts equal `fold(events)`;
 - **forget:** after "Forget this NPC", no query for P returns rows in `j`, and another persona's overheard rows are intact.

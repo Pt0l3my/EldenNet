@@ -38,7 +38,7 @@ slug 024a612a-24db-41f3-b91d-c0b13685df61).
 
 # EldenNet's roadmap
 
-- updated: 2026-11-27
+- updated: 2026-11-28
 - refs: DESIGN§0, DESIGN§16, DESIGN§19, GraceUI:DESIGN§0, GraceUI:DESIGN§10, CLAUDE
 
 EldenNet is an LLM-driven NPC framework for Elden Ring, based on SkyrimNet with its author's
@@ -2045,6 +2045,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     closes it whenever the holder ends. EldenNet's chat box opens it this way and makes no Steam call of its own, so
     DESIGN R2's one third-party call goes, at the pin that takes 0.2.69 and the build of the chat box's keyboard.
     In-game check with Deck testers, as 0.2.68's.
+    Pinned on 2026-11-28 with 0.2.70 (engine eceed40, merged at 2411339; WHY§712); unused until the chat box's
+    keyboard is built for S4.
 - cd A line icon per rail category, from GraceUI's own set (GraceUI 0.2.70, protocol 1.22) [done]
   - refs: GraceUI:D277, O149
   - gives: GraceUI's D277, built on 2026-11-28 (GraceUI main 5702fae; GraceUI's docs/eldennet-changes.md §103): a
@@ -2052,6 +2054,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     browser's collapsed rail; all of a space's categories or none, page data minor 22. Optional for EldenNet; Grace
     suggests an icon for each of the ten. It changes what players see, so it is put to the owner with v0.3's words
     and taken at the pin after the answer. The owner chose Grace's ten (O149), for the pin of 0.2.70.
+    Taken on 2026-11-28 in v0.3's fourth slice (engine 176cdc1, merged at 2411339; WHY§712), with the floor at 0.2.70
+    and page data minor 22.
 - ce First light as a flow page, and check:space at an increment (GraceUI 0.2.71, protocol 1.23) [done]
   - refs: GraceUI:D278, PAGES§4.6.10, WHY§705
   - gives: GraceUI's D278, built on 2026-11-28 (GraceUI main 6406c36; GraceUI's docs/eldennet-changes.md §104): a page
@@ -2442,6 +2446,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     (T9, the account folder, the spill ring, the toasts) and the rollback panel (O144). The floor became GraceUI 0.2.67
     and page data minor 21. The fake game's suite under Wine: 152 of 154, the two menu walks then fixed and passing.
     The core-level oracle and the crash tests go to S12.3.a, and the words to the owner.
+    Slice 4 built on 2026-11-28 (merged at 2411339; WHY§712 to §718): GraceUI pinned at 0.2.70 with the rail's icons
+    (O149) and the floor at 0.2.70 and minor 22; the owner's words (O148) and the talk key V (O152); MinGW Release with
+    no warning; the trim oracle at the core's level, whose four faults were fixed. At review the tail header's rule
+    was completed (WHY§717) and the SteamID left out of the file's meta (WHY§718). The fake game's suite under Wine:
+    154 of 154 at the slice's head; the two review fixes checked by GCC, the eval and MinGW's ten test programs under
+    Wine, and the fake game's store case at the next clang-cl run.
 - b What each persona has seen of the world, the since-line, and reaction cues [done]
   - refs: MEM§12.13, O28
   - gives: built in v0.3's second slice on 2026-11-28 (engine a004576; WHY§698): `world_seen`, the since-line, the
@@ -2465,28 +2475,32 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 ### S12.2 GraceUI 0.3
 
-- S12.2.a Named NPCs (the pilot) and Playthrough; Conversations and Memories, with Forget [active]
-  - refs: PAGES§4.6, WHY§705, O148
+- S12.2.a Named NPCs (the pilot) and Playthrough; Conversations and Memories, with Forget [done]
+  - refs: PAGES§4.6, WHY§705, O148, WHY§713
   - gives: built in v0.3's third slice on 2026-11-28 (engine 889f763, merged at 264572a; WHY§705): Characters ›
     Playthrough, History › Conversations and History › Memories with Forget (`confirm_after_ms = 1000`, private
     topics), beside v0.2's Named NPCs. Memories' tiles and its `features.memory` switch wait for the behaviour pages.
     Done once the owner has approved the words. Approved with four changes on 2026-11-28 (O148), applied in v0.3's
-    fourth slice.
-- b Home's Nearby; Speaking up for named NPCs; the top bar's Journey [active]
+    fourth slice (engine 30f63ea, merged at 2411339; WHY§713). Checked in game at S12.3.
+- b Home's Nearby; Speaking up for named NPCs; the top bar's Journey [done]
   - gives: noted on 2026-11-27: Speaking up moves to S13.3.a, with the own lines (O145, O147).
     Home's Nearby and the top bar's Journey built on 2026-11-28 (engine 889f763; WHY§705); done once the owner has
-    approved the words.
+    approved the words. Approved on 2026-11-28 (O148) and applied in the fourth slice (WHY§713).
 
 ### S12.3 v0.3's exit checks
 
 - needs: S12.1, S12.2
-- S12.3.a Memory; the trim, world trim, NG+ and cue tests; the since-line, claim and cue probes
-  - refs: DESIGN§16.3, MEM§12
+- S12.3.a Memory; the trim, world trim, NG+ and cue tests; the since-line, claim and cue probes [active]
+  - refs: DESIGN§16.3, MEM§12, WHY§715, WHY§716
   - gives: begun on 2026-11-28 (engine 4f31229): the trim oracle at the store's level, by the silent path and by
     Forget, with en-store's crash child and the DLL's store-crash case. Next: the oracle at the core's level (T1 to T3
     on `wren_and_kale`, Keep, New character, the world, the lived layer, `star_falls`), the eval's crash mid-reply at
     random page boundaries and the scan of the fixtures' files for text. The probes need an export of their own (a
     reload with a journal, as Jobrunner jobpacks; C11), larger than slice 3 could take.
+    Built offline on 2026-11-28 in v0.3's fourth slice (merged at 2411339; WHY§715, §716): the oracle at the core's
+    level (T1 to T3 by three paths, Keep, New character), `star_falls` with the world trims and NG+, the crash
+    mid-reply at page boundaries and seeded moments, and the scan of the eval's files. Left: the probes' export (a
+    slice of its own), a test of a Keep epoch's proofs under a later crash trim (WHY§715), and the checks in game.
 - b Forget's confirmation and backup; the spoiler goldens for memories and journeys
   - refs: PAGES§5
   - gives: built offline on 2026-11-28 (engine 889f763): Forget's 1 s confirmation and its backup first, and the
