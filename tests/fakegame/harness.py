@@ -2006,7 +2006,8 @@ case("launcher-eldennet-graceui-pages", LGAME + ["--dll", "{eldennetdll}", "--co
 # topics are pc_only (D264), and the unknown characters' TOML has Copy alone (D263); the editor case's paired device
 # checks that the device sees none of it. The gate drawn before the page and the ribbon at
 # its top are GraceUI's web view's, checked by GraceUI's own DOM case for D258: here, the page data that drives them.
-WORKSHOP_KEYS = "600:f5," + ",".join("%d:next" % (720 + 45 * i) for i in range(10)) + ",1200:next,1320:f5"
+# Thirteen Page Downs from Home to Tools › Bug report: AI's four, Characters' two, History's two and System's four.
+WORKSHOP_KEYS = "600:f5," + ",".join("%d:next" % (700 + 35 * i) for i in range(13)) + ",1200:next,1320:f5"
 WORKSHOP_REPORTS = "360,660,1160,1260,1380"
 WORKSHOP_FRAMES = 1800
 # What the menu draws, looked for at each report (MenuShows, at most four texts): Workshop's name (in Tools' rail and
@@ -3031,7 +3032,8 @@ def check_graceui_pause(r):
                                  "state": {"topic": "status", "field": "ai_paused"}, "home": "home"}],
          "the quick switches: %s" % pages.get("quick"), failures)
     need([pg.get("id") for pg in pages.get("pages", []) if pg.get("live")] ==
-         ["home", "system.performance", "system.traces", "ai.requests", "tools.workshop"],
+         ["home", "system.performance", "system.traces", "ai.requests", "characters.playthrough",
+          "history.conversations", "history.memories", "tools.workshop"],
          "the live pages: %s" % [pg.get("id") for pg in pages.get("pages", []) if pg.get("live")], failures)
     need("ai.pause" not in pages.get("sensitive_commands", []), "ai.pause is sensitive", failures)
     items = lambda b: {i.get("label"): i.get("value") for i in (b or {}).get("items", [])}
@@ -3854,17 +3856,20 @@ case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--conso
 # commands and settings ("Only on the PC the game runs on.") but may read the pages and check a profile; Tools › Workshop
 # is not in its page data and its watch of a Workshop topic is refused (pc_only, GraceUI 0.2.57's D264), while this PC's
 # page data holds the page. No player's text, notes or draft in the log.
-# The menu's presses, by the stops GraceUI 0.2.68 gives: F5 on Home; Page Down past AI's four pages to Named NPCs, its
+# The menu's presses, by the stops GraceUI 0.2.68 gives: F5 on Home; Page Down past AI's four pages and Playthrough to
+# Named NPCs, its
 # list's row (the pilot's) chosen; → into the detail, on the Profile tab; nine ↓ past the General profile and Your notes
 # sections and the editor's Save, Check, Restore, Reset, notes and Draft to the notes' field; Enter edits it, the typing
-# goes in at its end, Enter ends it; six ↑ back to Save, Enter saves. Then Page Down to System › Status, ← into the rail,
+# goes in at its end, Enter ends it; six ↑ back to Save, Enter saves. Then Page Down past History's two pages to
+# System › Status, ← into the rail,
 # eight ↓ (Performance, Traces, Logs, Tools, Settings, Docs, Content packs) to GraceUI's own pages at its foot (WHY§600:
 # a ↓ a row of the rail), Enter, two Page Down to Browser view, → into the page, on its first control (Browser view's
 # switch, since GraceUI 0.2.55's D262, never its header action), three ↓ to Pair a device, Enter: the sheet shows the
 # code.
-EDITOR_KEYS = ("600:f5,720:next,765:next,810:next,855:next,900:next,1020:right,1080:down,1110:down,1140:down,"
+EDITOR_KEYS = ("600:f5,700:next,740:next,780:next,820:next,860:next,900:next,1020:right,1080:down,1110:down,1140:down,"
                "1170:down,1200:down,1230:down,1260:down,1290:down,1320:down,1440:return,1800:return,1920:up,1950:up,"
-               "1980:up,2010:up,2040:up,2070:up,2160:return,2340:next,2460:left,2520:down,2550:down,2580:down,"
+               "1980:up,2010:up,2040:up,2070:up,2160:return,2340:next,2370:next,2400:next,"
+               "2460:left,2520:down,2550:down,2580:down,"
                "2610:down,2640:down,2670:down,2700:down,2730:down,2760:return,"
                "2880:next,2940:next,3060:right,3120:down,3150:down,3180:down,3300:return")
 EDITOR_REPORTS = "660,960,1050,1380,1500,1860,2130,2280,2400,2490,2640,2820,3000,3290,3360,3660,3960,4260,4560"
