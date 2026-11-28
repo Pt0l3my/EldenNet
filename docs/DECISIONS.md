@@ -3054,6 +3054,12 @@ menu next to each key to select a modifier: Shift, Ctrl, Alt, None." (2026-11-28
 
 **Follows from.** O94; WHY§706; GraceUI G37, D208.
 
+*Note, 2026-11-28 (the owner, later the same day).* Postponed: after hearing that a modifier still reaches the game
+when pressed (Alt walks, Shift attacks or dodges) and that holding modifiers back until release would break the
+game's held actions, the owner said: "just leave out modifiers for now then." No modifier drop-down for now; EldenNet's
+keys stay single keys (O152). GraceUI was asked to hold its 0.2.72 drop-down; suspending a mod's own hotkey while a
+game menu is open (ABI 1.11) goes on, as it does not depend on modifiers.
+
 ## O151
 
 **The twenty-second read round: its tasks, readings and extras** · *2026-11-28 · Decided by the owner*

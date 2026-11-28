@@ -1414,7 +1414,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Tab, and patch 1.12 changed the starting layout; the game's own key tables (`KeyAssignParam`), read by a DataPiler
     job once DataPiler lists them, settle both keys for the field and the menus.
     The same day the owner chose `V` as the talk key's default (O152) and a modifier beside each key (O150, asked of
-    GraceUI), and round 22 (O151) has the owner press T, Tab, V and B on foot and in the menu, nothing masking them.
+    GraceUI, then postponed by the owner), and round 22 (O151) has the owner press T, Tab, V and B on foot and in the menu, nothing masking them.
 - b Spike S3, the talk observer, and the pilot persona's S6, in game [planned]
   - needs: S10.1.m, S10.1.c
   - gives: Status on 2026-11-27: planned, not waiting. There is no package for the owner to run: the build's layout
