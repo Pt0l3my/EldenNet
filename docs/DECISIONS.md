@@ -1734,6 +1734,8 @@ default Elden Ring key map is left free) for PC (keyboard and mouse)."
 EldenNet's Settings › Hotkeys: `hotkeys.talk` stops being an EldenNet setting and becomes the default EldenNet
 registers, `T` as before. The call-out names the key as the player bound it (GraceUI's ABI 1.4).
 
+*Note, 2026-11-28 (O152).* The default talk key becomes `V`: `T` sorts items in the game's menus (WHY§706).
+
 ## O95
 
 **EldenNet's first pages: the lamp, the version labels, the greyed words and the wording** · *2026-11-21 · Decided by
@@ -3083,3 +3085,23 @@ round 22 (Recommended)" (T and Tab); all three of Lodestar's extras (question di
 round: "yeah I also died another time during the Stay in the world" task." (two deaths in all; WHY§710).
 
 **Follows from.** O111; O143; WHY§614; WHY§706; WHY§708 to §710.
+
+## O152
+
+**The talk key's default: V** · *2026-11-28 · Decided by the owner*
+
+**Question.** The keyboard research (WHY§706) found that `T`, O94's default talk key, sorts items in the game's menus
+on PC, and that Z and X step through equipment slots there. The owner asked about Z, then about V or B. **Options:**
+- (a) `V`: in no binding known to us, in the field or the menus; under the left hand beside C and X, reachable without
+  leaving W, A, S and D. **Recommended.**
+- (b) `B`: in no binding known to us either; further from the movement keys, a stretch while moving.
+- (c) Keep `T`, relying on the keys handed back to the game while its menus are open.
+**Decision.** (a), the same day, amending O94: the talk key's default is `V`, with no modifier (O150 lets a player add
+one). Provisional until the twenty-second read round (the owner presses T, Tab, V and B on foot and in the menu, with
+nothing of EldenNet's masking them) and the game's own key tables (the layout since patch 1.12, which the owner's save
+does not use) confirm that `V` is free; if either shows it is not, the question comes back. The skip key stays `Tab`
+until the same checks.
+
+**Owner's words.** "how about v or b?" (2026-11-28); then "V (Recommended)" (question dialog, the same day).
+
+**Follows from.** O94; O150; O151; WHY§277; WHY§706.

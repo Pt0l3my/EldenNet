@@ -1534,6 +1534,10 @@ Since O45 every NPC with a profile converses. In this section *persona* reads *p
 
 ### 5.1 Hotkey, hint and marker
 
+*2026-11-28, O152:* the default talk key is `V` (WHY§706: `T` sorts items in the game's menus), provisional until the
+twenty-second read round and the game's key tables confirm it; the hint and the header name the key as bound, so
+"[T] Speak" below reads "[V] Speak" by default.
+
 - **Talk key:** rebindable. The default is chosen in S4 from keys the default ER layout leaves free (candidate `T`). *2026-11-21, O94:* one key with no modifier, `T` by default (no published default layout binds it, WHY§277); S4 checks it in game, and if the game uses `T`, the default becomes another single key S4 finds free. Our hotkeys (talk, F10, F11, Tab while a page shows) are **always masked** from the game's DirectInput reads: since GraceUI's G15 they are actions EldenNet registers with GraceUI, which masks them and keeps the player's bindings (GraceUI D77).
 - The box **opens on key-down** within ≤ 50 ms (DESIGN §1.4). The first `WM_CHAR` matching the hotkey within 100 ms of opening is swallowed, so the box never starts with a stray "t" (GraceUI pairs the characters and hands them over; the swallow rule stays EldenNet's).
 - **Talk hint:** "[T] Speak — Kalé" (or "[T] Call out — Godrick Soldier") under a small diamond marker above the target's head, shown whenever the key would open chat or a call-out. The core computes the target per snapshot. It changes target only after the new best has led for 500 ms, so the hint does not flicker between two NPCs. After a persona's line addressed to the Tarnished, the hint reads "[T] Answer — Kalé" for 10 s (§5.9).
