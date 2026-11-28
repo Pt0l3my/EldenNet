@@ -100,6 +100,22 @@
 #   player in 90 of 91 frames, changed once in the ride; the survey: a block or all ones in every sighting, 898 and 86
 #   of 984). The dead bit is the world's characters' only: the main player's health read nothing for eleven seconds
 #   with the bit clear in every frame that read it.
+# - the twenty-first read-only round (2026-11-28; one run, a stand, the tester's deaths and four minutes in the
+#   world). Confirmed by the rule below: world_clock's minute (the reader read it in 360 frames, one on in 137, the
+#   same in 218, two jumps; the watch, by the static, found the same run of bits stepping in 25 readings with no
+#   jump) and save_data's play time (the reader: risen in 347 of 364 frames, never fallen; the watch: the same
+#   32-bit number rising in 61 of 61 changes, at some 915 a second). The hour stays a lead: the reader read it with
+#   the minute, but the watch saw no minute go round in its readings and named no hour in that word. New leads:
+#   in the part of health, the focus 0x148 and its most 0x14C, the stamina 0x154 and its most 0x158 (the main
+#   player's part held against its sheet's numbers in 104 passes: each read the same as the sheet's in 99 or more,
+#   the focus changed with it 4 times and the stamina 21; the health's own two, known already, came out the same
+#   way at 0x138 and 0x13C, and after each pair lies a third number that reads as the most); and save_data's
+#   count of deaths 0x94 (the scan drops it as text beside its neighbour, which is why two rounds did not list
+#   it; the watch saw that half of its word change once, a rise, in 67 readings; the tester died more than once,
+#   so "rose by one, once" could not name it: a lead by its place and that one rise, to be proved by the reader).
+#   The sheet through the reader: a level in the layout's range in 364 of 364 frames, never changed, and a name
+#   of one to sixteen letters in 364 of 364, its length never changed. The main player's death: its health read
+#   nothing in 27 frames with its object there, and the world's characters' dead bit was clear in every one.
 # - when a field is confirmed (WHY§614, Engine's ruling of 2026-11-24 applying the design's O4): for this build,
 #   once three things hold in one run: EldenNet's own reader read it through this file in the game; a second,
 #   independent reading agrees; and the behaviour that gives the field its meaning was seen at least once. Such a
@@ -312,11 +328,15 @@ vitals = { off = 0x0, ty = "ptr", group = "world", status = "confirmed" }
 motion = { off = 0x68, ty = "ptr", group = "world", status = "confirmed" }
 
 [class.vitals]
-copy_size = 0x140
+copy_size = 0x160
 status = "lead"
 [class.vitals.fields]
 hp = { off = 0x138, ty = "i32", group = "world", status = "confirmed" }
 max_hp = { off = 0x13C, ty = "i32", group = "world", status = "confirmed" }
+fp = { off = 0x148, ty = "i32", group = "world" }
+max_fp = { off = 0x14C, ty = "i32", group = "world" }
+stamina = { off = 0x154, ty = "i32", group = "world" }
+max_stamina = { off = 0x158, ty = "i32", group = "world" }
 
 [class.motion]
 copy_size = 0x80
@@ -344,14 +364,15 @@ copy_size = 0x20
 status = "lead"
 [class.world_clock.fields]
 hour = { off = 0x8, ty = "bits", word = 8, shift = 34, width = 5, group = "place" }
-minute = { off = 0x8, ty = "bits", word = 8, shift = 39, width = 6, group = "place" }
+minute = { off = 0x8, ty = "bits", word = 8, shift = 39, width = 6, group = "place", status = "confirmed" }
 
 [class.save_data]
 copy_size = 0xA8
 status = "lead"
 [class.save_data.fields]
 player_data = { off = 0x8, ty = "ptr", group = "player" }
-play_time = { off = 0xA0, ty = "u32", group = "player" }
+death_count = { off = 0x94, ty = "u32", group = "player" }
+play_time = { off = 0xA0, ty = "u32", group = "player", status = "confirmed" }
 
 [class.player_data]
 copy_size = 0xC0
